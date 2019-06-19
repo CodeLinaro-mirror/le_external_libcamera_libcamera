@@ -14,6 +14,8 @@
 
 #include <libcamera/formats.h>
 
+#include <errno.h>
+
 /**
  * \file libcamera/internal/formats.h
  * \brief Types and helper functions to handle libcamera image formats
