@@ -192,6 +192,14 @@ endif
 c_arguments += common_arguments
 cpp_arguments += common_arguments
 
+# Use libc++ by default if available instead of libstdc++ when compiling with
+# clang.
+if cc.get_id() == 'clang' and cc.find_library('libc++').found()
+    cpp_arguments += [
+        '-stdlib=libc++',
+    ]
+endif
+
 add_project_arguments(c_arguments, language : 'c')
 add_project_arguments(cpp_arguments, language : 'cpp')
 add_project_link_arguments(cpp_arguments, language : 'cpp')
