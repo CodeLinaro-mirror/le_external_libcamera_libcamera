@@ -750,6 +750,35 @@ class ShellChecker(StyleChecker):
         return issues
 
 
+class Pep8Checker(StyleChecker):
+    patterns = ('*.py',)
+
+    def __init__(self, content):
+        super().__init__()
+        self.__content = content
+        self.__data = "".join(content).encode('utf-8')
+
+    def check(self, line_numbers):
+        issues = []
+        line_no_regex = re.compile('stdin:([0-9]+):([0-9]+)(.*)')
+
+        ret = subprocess.run(['pep8', '--ignore=E501', '-'],
+                             input=self.__data, stdout=subprocess.PIPE)
+
+        results = ret.stdout.decode('utf-8').splitlines()
+        for item in results:
+            search = re.search(line_no_regex, item)
+            line_number = int(search.group(1))
+            position = int(search.group(2))
+            msg = search.group(3)
+
+            if line_number in line_numbers:
+                line = self.__content[line_number - 1]
+                issues.append(StyleIssue(line_number, line, msg))
+
+        return issues
+
+
 # ------------------------------------------------------------------------------
 # Formatters
 #
