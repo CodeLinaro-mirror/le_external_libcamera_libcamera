@@ -1822,7 +1822,25 @@ std::vector<SizeRange> V4L2Subdevice::enumPadSizes(const Stream &stream,
 				   Size{ sizeEnum.max_width, sizeEnum.max_height });
 	}
 
-	if (ret < 0 && ret != -EINVAL && ret != -ENOTTY) {
+	if (ret == -ENOTTY) {
+		struct v4l2_subdev_format format = {};
+
+		LOG(V4L2, Debug)
+			<< "VIDIOC_SUBDEV_ENUM_FRAME_SIZE not implemented "
+			<< "- trying VIDIOC_SUBDEV_G_FMT";
+		format.pad = pad;
+		format.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+		ret = ioctl(VIDIOC_SUBDEV_G_FMT, &format);
+		if (ret == 0) {
+			sizes.emplace_back(format.format.width,
+					   format.format.height,
+					   format.format.width,
+					   format.format.height);
+		}
+	}
+
+	if (ret < 0 && ret != -EINVAL) {
 		LOG(V4L2, Error)
 			<< "Unable to enumerate sizes on pad " << stream
 			<< ": " << strerror(-ret);
