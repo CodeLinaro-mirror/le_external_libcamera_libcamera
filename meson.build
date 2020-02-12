@@ -189,6 +189,12 @@ if cc.has_argument('-Wno-c99-designator')
     ]
 endif
 
+if cc.has_argument('-Wno-c99-designator')
+    common_arguments += [
+        '-Wno-c99-designator',
+    ]
+endif
+
 c_arguments += common_arguments
 cpp_arguments += common_arguments
 
