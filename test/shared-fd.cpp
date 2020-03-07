@@ -15,6 +15,7 @@
 #include <libcamera/base/utils.h>
 
 #include "test.h"
+#include "utils.h"
 
 using namespace libcamera;
 using namespace std;
