@@ -476,8 +476,10 @@ private:
 		int size = 0;
 		for (unsigned int i = 0; i < num; i++) {
 			int clone = dup(fd);
-			if (clone < 0)
+			if (clone < 0) {
+				close(fd);
 				return clone;
+			}
 
 			size += calculateLength(clone);
 			message->fds.push_back(clone);
