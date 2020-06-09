@@ -4,3 +4,4 @@ include_build_dir = meson.current_build_dir()
 
 subdir('android')
 subdir('libcamera')
+subdir('linux')
