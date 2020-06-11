@@ -271,6 +271,15 @@ if not meson.is_cross_build()
     endif
 endif
 
+if not meson.is_cross_build()
+  kernel_version_req = '>= 6.0.0'
+  kernel_version = run_command('uname', '-r').stdout()
+  if not kernel_version.version_compare(kernel_version_req)
+    warning('Consider upgrading your kernel, as only @0@ is supported by libcamera at runtime'
+            .format(kernel_version_req))
+  endif
+endif
+
 # Create a symlink from the build root to the source root. This is used when
 # running libcamera from the build directory to locate resources in the source
 # directory (such as IPA configuration files).
