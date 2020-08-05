@@ -55,4 +55,6 @@ fi
 # of the git SHA1 and remove the initial 'v'.
 version=$(echo "$version" | sed -e 's/-/+/' | sed -e 's/-g/-/' | cut -c 2-)
 
-echo "$version"
+buildtime=$(date --iso-8601=seconds --utc)
+
+echo "$version $buildtime"
