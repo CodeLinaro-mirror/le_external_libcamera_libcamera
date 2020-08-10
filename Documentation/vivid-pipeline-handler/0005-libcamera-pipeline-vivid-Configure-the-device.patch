@@ -1,0 +1,71 @@
+From 08df6b40552e67c3607aa1d6802f47beec76e151 Mon Sep 17 00:00:00 2001
+From: Kieran Bingham <kieran.bingham@ideasonboard.com>
+Date: Mon, 13 Jul 2020 09:51:51 +0100
+Subject: [PATCH 5/9] libcamera: pipeline: vivid: Configure the device
+
+When the configurations have been generated and validated, they can be
+applied to a device.
+
+Vivid supports only a single stream, so it directly obtains the first
+StreamConfiguration from the CameraConfiguration.
+
+The VIVID catpure device is a V4L2Video device, so we generate a
+V4L2DeviceFormat to apply directly to the capture device node.
+
+Note that we explicitly convert the libcamera Format stored in
+cfg.pixelFormat to a V4L2PixelFormat using the helpers provided by the
+V4L2VideoDevice to ensure that any multiplanar formats are handled
+correctly and accordingly.
+
+Following the call to set the format using the Kernel API, if the format
+has been adjusted in any way by the kernel driver, then we have failed
+to correctly handle the validation stages, and thus the configure
+operation is idendified has having failed.
+
+Finally stream specific data can be directly stored and set as
+reflecting the state of the stream.
+
+[NOTE: the cfg.setStream() call here associates the stream to the
+StreamConfiguration however that should quite likely be done as part of
+the validation process. TBD]
+
+Signed-off-by: Kieran Bingham <kieran.bingham@ideasonboard.com>
+---
+ src/libcamera/pipeline/vivid/vivid.cpp | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/libcamera/pipeline/vivid/vivid.cpp b/src/libcamera/pipeline/vivid/vivid.cpp
+index 9e95bae8bc30..dbc19424e75a 100644
+--- a/src/libcamera/pipeline/vivid/vivid.cpp
++++ b/src/libcamera/pipeline/vivid/vivid.cpp
+@@ -150,7 +150,26 @@ CameraConfiguration *PipelineHandlerVivid::generateConfiguration(Camera *camera,
+ 
+ int PipelineHandlerVivid::configure(Camera *camera, CameraConfiguration *config)
+ {
+-	return -1;
++	VividCameraData *data = cameraData(camera);
++	StreamConfiguration &cfg = config->at(0);
++	int ret;
++
++	V4L2DeviceFormat format = {};
++	format.fourcc = data->video_->toV4L2PixelFormat(cfg.pixelFormat);
++	format.size = cfg.size;
++
++	ret = data->video_->setFormat(&format);
++	if (ret)
++		return ret;
++
++	if (format.size != cfg.size ||
++	    format.fourcc != data->video_->toV4L2PixelFormat(cfg.pixelFormat))
++		return -EINVAL;
++
++	cfg.setStream(&data->stream_);
++	cfg.stride = format.planes[0].bpl;
++
++	return 0;
+ }
+ 
+ int PipelineHandlerVivid::exportFrameBuffers(Camera *camera, Stream *stream,
+-- 
+2.25.1
+

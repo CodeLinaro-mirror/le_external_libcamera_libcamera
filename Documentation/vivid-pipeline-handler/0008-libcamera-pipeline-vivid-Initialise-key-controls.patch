@@ -1,0 +1,70 @@
+From 703b1d24259934781c9f9ff80774e5845876c47f Mon Sep 17 00:00:00 2001
+From: Kieran Bingham <kieran.bingham@ideasonboard.com>
+Date: Mon, 13 Jul 2020 12:48:37 +0100
+Subject: [PATCH 8/9] libcamera: pipeline: vivid: Initialise key controls
+
+The VIVID pipeline handler retains state globally of it's controls.
+Ensure that when we configure this specific pipeline we set initial
+parameters on the device that suit our (specific) needs.
+
+This introduces how controls can be set directly on a device, however
+under normal circumstances controls should usually be set from libcamera
+controls as part of a request. These are VIVID specific only.
+
+Signed-off-by: Kieran Bingham <kieran.bingham@ideasonboard.com>
+---
+ src/libcamera/pipeline/vivid/vivid.cpp | 31 ++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+diff --git a/src/libcamera/pipeline/vivid/vivid.cpp b/src/libcamera/pipeline/vivid/vivid.cpp
+index 4362e73f49a5..1744d78f2f28 100644
+--- a/src/libcamera/pipeline/vivid/vivid.cpp
++++ b/src/libcamera/pipeline/vivid/vivid.cpp
+@@ -14,6 +14,18 @@
+ #include "libcamera/internal/pipeline_handler.h"
+ #include "libcamera/internal/v4l2_videodevice.h"
+ 
++#define VIVID_CID_VIVID_BASE            (0x00f00000 | 0xf000)
++#define VIVID_CID_VIVID_CLASS           (0x00f00000 | 1)
++#define VIVID_CID_TEST_PATTERN          (VIVID_CID_VIVID_BASE + 0)
++#define VIVID_CID_OSD_TEXT_MODE         (VIVID_CID_VIVID_BASE + 1)
++#define VIVID_CID_HOR_MOVEMENT          (VIVID_CID_VIVID_BASE + 2)
++#define VIVID_CID_VERT_MOVEMENT         (VIVID_CID_VIVID_BASE + 3)
++#define VIVID_CID_SHOW_BORDER           (VIVID_CID_VIVID_BASE + 4)
++#define VIVID_CID_SHOW_SQUARE           (VIVID_CID_VIVID_BASE + 5)
++#define VIVID_CID_INSERT_SAV            (VIVID_CID_VIVID_BASE + 6)
++#define VIVID_CID_INSERT_EAV            (VIVID_CID_VIVID_BASE + 7)
++#define VIVID_CID_VBI_CAP_INTERLACED    (VIVID_CID_VIVID_BASE + 8)
++
+ namespace libcamera {
+ 
+ LOG_DEFINE_CATEGORY(VIVID)
+@@ -167,6 +179,25 @@ int PipelineHandlerVivid::configure(Camera *camera, CameraConfiguration *config)
+ 	    format.fourcc != data->video_->toV4L2PixelFormat(cfg.pixelFormat))
+ 		return -EINVAL;
+ 
++	/* Set initial controls specific to VIVID */
++	ControlList controls(data->video_->controls());
++	controls.set(VIVID_CID_TEST_PATTERN, 0); /* Vertical Colour Bars */
++	controls.set(VIVID_CID_OSD_TEXT_MODE, 0); /* Display all OSD */
++
++	/* Ensure clear colours configured. */
++	controls.set(V4L2_CID_BRIGHTNESS, 128);
++	controls.set(V4L2_CID_CONTRAST, 128);
++	controls.set(V4L2_CID_SATURATION, 128);
++
++	/* Enable movement to visualise buffer updates. */
++	controls.set(VIVID_CID_HOR_MOVEMENT, 5);
++
++	ret = data->video_->setControls(&controls);
++	if (ret) {
++		LOG(VIVID, Error) << "Failed to set controls: " << ret;
++		return ret < 0 ? ret : -EINVAL;
++	}
++
+ 	cfg.setStream(&data->stream_);
+ 	cfg.stride = format.planes[0].bpl;
+ 
+-- 
+2.25.1
+

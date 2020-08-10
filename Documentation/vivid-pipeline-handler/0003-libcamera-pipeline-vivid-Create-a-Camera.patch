@@ -1,0 +1,110 @@
+From f80f723a010501c6d159ae9601c2787d5d02906f Mon Sep 17 00:00:00 2001
+From: Kieran Bingham <kieran.bingham@ideasonboard.com>
+Date: Fri, 10 Jul 2020 16:28:36 +0100
+Subject: [PATCH 3/9] libcamera: pipeline: vivid: Create a Camera
+
+Create a VividCameraData inheriting from the CameraData to handle camera
+specific data, and use it to create and register the camera with the
+CameraManager.
+
+This can now be tested to see that the camera becomes available to
+applications:
+
+"""
+LIBCAMERA_LOG_LEVELS=Pipeline,VIVID:0 ./src/cam/cam -l
+[231:44:49.325333712] [2880028]  INFO IPAManager ipa_manager.cpp:136 libcamera is not installed. Adding '/home/libcamera/build-vivid/src/ipa' to the IPA search path
+[231:44:49.325428449] [2880028]  WARN IPAManager ipa_manager.cpp:147 No IPA found in '/usr/local/lib/x86_64-linux-gnu/libcamera'
+[231:44:49.325446253] [2880028]  INFO Camera camera_manager.cpp:283 libcamera v0.0.11+713-d175334d-dirty
+Available cameras:
+1: vivid
+"""
+
+Signed-off-by: Kieran Bingham <kieran.bingham@ideasonboard.com>
+---
+ src/libcamera/pipeline/vivid/vivid.cpp | 54 +++++++++++++++++++++++++-
+ 1 file changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/libcamera/pipeline/vivid/vivid.cpp b/src/libcamera/pipeline/vivid/vivid.cpp
+index 9811f6ef5095..a8922ce70ed4 100644
+--- a/src/libcamera/pipeline/vivid/vivid.cpp
++++ b/src/libcamera/pipeline/vivid/vivid.cpp
+@@ -5,14 +5,46 @@
+  * vivid.cpp - Pipeline handler for the vivid capture device
+  */
+ 
++#include <libcamera/camera.h>
++
+ #include "libcamera/internal/device_enumerator.h"
+ #include "libcamera/internal/log.h"
++#include "libcamera/internal/media_device.h"
+ #include "libcamera/internal/pipeline_handler.h"
++#include "libcamera/internal/v4l2_videodevice.h"
+ 
+ namespace libcamera {
+ 
+ LOG_DEFINE_CATEGORY(VIVID)
+ 
++class VividCameraData : public CameraData
++{
++public:
++	VividCameraData(PipelineHandler *pipe, MediaDevice *media)
++		: CameraData(pipe), media_(media), video_(nullptr)
++	{
++	}
++
++	~VividCameraData()
++	{
++		delete video_;
++	}
++
++	int init();
++
++	MediaDevice *media_;
++	V4L2VideoDevice *video_;
++	Stream stream_;
++};
++
++class VividCameraConfiguration : public CameraConfiguration
++{
++public:
++	VividCameraConfiguration();
++
++	Status validate() override;
++};
++
+ class PipelineHandlerVivid : public PipelineHandler
+ {
+ public:
+@@ -78,9 +110,27 @@ bool PipelineHandlerVivid::match(DeviceEnumerator *enumerator)
+ 	if (!media)
+ 		return false;
+ 
+-	LOG(VIVID, Debug) << "Obtained Vivid Device";
++	std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this, media);
++
++	/* Locate and open the capture video node. */
++	if (data->init())
++		return false;
++
++	/* Create and register the camera. */
++	std::set<Stream *> streams{ &data->stream_ };
++	std::shared_ptr<Camera> camera = Camera::create(this, data->video_->deviceName(), streams);
++	registerCamera(std::move(camera), std::move(data));
++
++	return true;
++}
++
++int VividCameraData::init()
++{
++	video_ = new V4L2VideoDevice(media_->getEntityByName("vivid-000-vid-cap"));
++	if (video_->open())
++		return -ENODEV;
+ 
+-	return false; // Prevent infinite loops for now
++	return 0;
+ }
+ 
+ REGISTER_PIPELINE_HANDLER(PipelineHandlerVivid);
+-- 
+2.25.1
+

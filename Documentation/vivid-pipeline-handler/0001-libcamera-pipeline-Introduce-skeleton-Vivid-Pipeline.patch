@@ -1,0 +1,139 @@
+From 2480348e61bfcbc8a113a03e6090308f9b904acb Mon Sep 17 00:00:00 2001
+From: Kieran Bingham <kieran.bingham@ideasonboard.com>
+Date: Fri, 10 Jul 2020 15:13:05 +0100
+Subject: [PATCH 1/9] libcamera: pipeline: Introduce skeleton Vivid Pipeline
+
+Provide all of the skeleton stubs to succesfully compile
+and register a new Pipeline Handler for the Vivid test device.
+
+Meson must be reconfigured to ensure that this pipeline handler is
+included in the selected pipelines configuration, and after building, we
+can test that the PipelineHandler is successfully registered by listing
+the cameras on the system with LIBCAMERA_LOG_LEVELS enabled:
+
+"""
+LIBCAMERA_LOG_LEVELS=Pipeline:0 ./build-vivid/src/cam/cam -l
+[230:30:03.624102821] [2867886] DEBUG Pipeline pipeline_handler.cpp:680 Registered pipeline handler "PipelineHandlerVivid"
+Available cameras:
+"""
+
+Signed-off-by: Kieran Bingham <kieran.bingham@ideasonboard.com>
+---
+ meson_options.txt                        |  2 +-
+ src/libcamera/pipeline/vivid/meson.build |  5 ++
+ src/libcamera/pipeline/vivid/vivid.cpp   | 78 ++++++++++++++++++++++++
+ 3 files changed, 84 insertions(+), 1 deletion(-)
+ create mode 100644 src/libcamera/pipeline/vivid/meson.build
+ create mode 100644 src/libcamera/pipeline/vivid/vivid.cpp
+
+diff --git a/meson_options.txt b/meson_options.txt
+index e9e815fde366..ea38f1553240 100644
+--- a/meson_options.txt
++++ b/meson_options.txt
+@@ -16,7 +16,7 @@ option('gstreamer',
+ 
+ option('pipelines',
+         type : 'array',
+-        choices : ['ipu3', 'raspberrypi', 'rkisp1', 'simple', 'uvcvideo', 'vimc'],
++        choices : ['ipu3', 'raspberrypi', 'rkisp1', 'simple', 'uvcvideo', 'vimc', 'vivid'],
+         description : 'Select which pipeline handlers to include')
+ 
+ option('qcam',
+diff --git a/src/libcamera/pipeline/vivid/meson.build b/src/libcamera/pipeline/vivid/meson.build
+new file mode 100644
+index 000000000000..086bb825387c
+--- /dev/null
++++ b/src/libcamera/pipeline/vivid/meson.build
+@@ -0,0 +1,5 @@
++# SPDX-License-Identifier: CC0-1.0
++
++libcamera_sources += files([
++    'vivid.cpp',
++])
+diff --git a/src/libcamera/pipeline/vivid/vivid.cpp b/src/libcamera/pipeline/vivid/vivid.cpp
+new file mode 100644
+index 000000000000..4418f616fe84
+--- /dev/null
++++ b/src/libcamera/pipeline/vivid/vivid.cpp
+@@ -0,0 +1,78 @@
++/* SPDX-License-Identifier: LGPL-2.1-or-later */
++/*
++ * Copyright (C) 2020, Google Inc.
++ *
++ * vivid.cpp - Pipeline handler for the vivid capture device
++ */
++
++#include "libcamera/internal/log.h"
++#include "libcamera/internal/pipeline_handler.h"
++
++namespace libcamera {
++
++LOG_DEFINE_CATEGORY(VIVID)
++
++class PipelineHandlerVivid : public PipelineHandler
++{
++public:
++	PipelineHandlerVivid(CameraManager *manager);
++
++	CameraConfiguration *generateConfiguration(Camera *camera,
++						   const StreamRoles &roles) override;
++	int configure(Camera *camera, CameraConfiguration *config) override;
++
++	int exportFrameBuffers(Camera *camera, Stream *stream,
++			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
++
++	int start(Camera *camera) override;
++	void stop(Camera *camera) override;
++
++	int queueRequestDevice(Camera *camera, Request *request) override;
++
++	bool match(DeviceEnumerator *enumerator) override;
++};
++
++PipelineHandlerVivid::PipelineHandlerVivid(CameraManager *manager)
++	: PipelineHandler(manager)
++{
++}
++
++CameraConfiguration *PipelineHandlerVivid::generateConfiguration(Camera *camera,
++								 const StreamRoles &roles)
++{
++	return nullptr;
++}
++
++int PipelineHandlerVivid::configure(Camera *camera, CameraConfiguration *config)
++{
++	return -1;
++}
++
++int PipelineHandlerVivid::exportFrameBuffers(Camera *camera, Stream *stream,
++					     std::vector<std::unique_ptr<FrameBuffer>> *buffers)
++{
++	return -1;
++}
++
++int PipelineHandlerVivid::start(Camera *camera)
++{
++	return -1;
++}
++
++void PipelineHandlerVivid::stop(Camera *camera)
++{
++}
++
++int PipelineHandlerVivid::queueRequestDevice(Camera *camera, Request *request)
++{
++	return -1;
++}
++
++bool PipelineHandlerVivid::match(DeviceEnumerator *enumerator)
++{
++	return false;
++}
++
++REGISTER_PIPELINE_HANDLER(PipelineHandlerVivid);
++
++} /* namespace libcamera */
+-- 
+2.25.1
+

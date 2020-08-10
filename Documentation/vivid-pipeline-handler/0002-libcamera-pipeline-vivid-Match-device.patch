@@ -1,0 +1,54 @@
+From d676cff10779a5a8f286cf0553f52c5f747436f0 Mon Sep 17 00:00:00 2001
+From: Kieran Bingham <kieran.bingham@ideasonboard.com>
+Date: Fri, 10 Jul 2020 15:37:55 +0100
+Subject: [PATCH 2/9] libcamera: pipeline: vivid: Match device
+
+Verify that we can match on our expected device(s).
+
+Use a temporary debug print to check that the pipeline finds
+our device:
+
+"""
+LIBCAMERA_LOG_LEVELS=Pipeline,VIVID:0 ./src/cam/cam -l
+<snipped>
+[230:51:10.670503423] [2872877] DEBUG VIVID vivid.cpp:81 Obtained Vivid Device
+"""
+
+Signed-off-by: Kieran Bingham <kieran.bingham@ideasonboard.com>
+---
+ src/libcamera/pipeline/vivid/vivid.cpp | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/libcamera/pipeline/vivid/vivid.cpp b/src/libcamera/pipeline/vivid/vivid.cpp
+index 4418f616fe84..9811f6ef5095 100644
+--- a/src/libcamera/pipeline/vivid/vivid.cpp
++++ b/src/libcamera/pipeline/vivid/vivid.cpp
+@@ -5,6 +5,7 @@
+  * vivid.cpp - Pipeline handler for the vivid capture device
+  */
+ 
++#include "libcamera/internal/device_enumerator.h"
+ #include "libcamera/internal/log.h"
+ #include "libcamera/internal/pipeline_handler.h"
+ 
+@@ -70,7 +71,16 @@ int PipelineHandlerVivid::queueRequestDevice(Camera *camera, Request *request)
+ 
+ bool PipelineHandlerVivid::match(DeviceEnumerator *enumerator)
+ {
+-	return false;
++	DeviceMatch dm("vivid");
++	dm.add("vivid-000-vid-cap");
++
++	MediaDevice *media = acquireMediaDevice(enumerator, dm);
++	if (!media)
++		return false;
++
++	LOG(VIVID, Debug) << "Obtained Vivid Device";
++
++	return false; // Prevent infinite loops for now
+ }
+ 
+ REGISTER_PIPELINE_HANDLER(PipelineHandlerVivid);
+-- 
+2.25.1
+

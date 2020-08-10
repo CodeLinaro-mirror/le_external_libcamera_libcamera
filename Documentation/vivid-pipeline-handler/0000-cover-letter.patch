@@ -1,0 +1,56 @@
+From 03bbac3265554b73e6ddcdebaf95090062e3669f Mon Sep 17 00:00:00 2001
+From: Kieran Bingham <kieran.bingham@ideasonboard.com>
+Date: Mon, 10 Aug 2020 13:28:23 +0100
+Subject: [PATCH 0/9] libcamera: pipeline: Add a VIVID Pipeline Handler
+
+Introduce a new pipeline handler to support the virtual video test
+driver provided by V4L2.
+
+These patches are intended to serve as a code-guide for writing a new
+pipeline handler, and can be referenced along side the Pipeline Handler
+Writers Guide documentation.
+
+To test these patches, apply locally to your libcamera sources by
+executing the following:
+
+  git am Documentation/vivid-pipeline-handler/*
+
+Then test by ensuring you have the vivid module loaded:
+
+  sudo modprobe vivid
+
+To enable the new pipeline handler the build must be re-configured. A
+limitation in the meson build system means that this requires a full
+reconfiguration. The easiest solution of which is to remove any existing
+build and commence with a fresh build tree.
+
+Configure, build and test:
+
+  rm -r build
+  meson build
+  cd build
+  ninja
+ 
+ 
+
+Kieran Bingham (9):
+  libcamera: pipeline: Introduce skeleton Vivid Pipeline
+  libcamera: pipeline: vivid: Match device
+  libcamera: pipeline: vivid: Create a Camera
+  libcamera: pipeline: vivid: Generate and validate StreamConfigurations
+  libcamera: pipeline: vivid: Configure the device
+  libcamera: pipeline: vivid: Buffer handling and stream control
+  libcamera: pipeline: vivid: Queue requests
+  libcamera: pipeline: vivid: Initialise key controls
+  libcamera: pipeline: vivid: Handle controls
+
+ meson_options.txt                        |   2 +-
+ src/libcamera/pipeline/vivid/meson.build |   5 +
+ src/libcamera/pipeline/vivid/vivid.cpp   | 382 +++++++++++++++++++++++
+ 3 files changed, 388 insertions(+), 1 deletion(-)
+ create mode 100644 src/libcamera/pipeline/vivid/meson.build
+ create mode 100644 src/libcamera/pipeline/vivid/vivid.cpp
+
+-- 
+2.25.1
+
