@@ -180,6 +180,23 @@ if cc.get_id() == 'gcc'
     endif
 endif
 
+if cc.get_id() == 'gcc'
+    if cc.version().version_compare('<7')
+        error('gcc version is too old, libcamera requires 7.0 or newer')
+    endif
+
+    # gcc 7.1 introduced processor-specific ABI breakages related to parameter
+    # passing on ARM platforms. This generates a large number of messages
+    # during compilation with gcc >=7.1 until gcc 9. Silence them.
+    if (host_machine.cpu_family() == 'arm' and
+        cc.version().version_compare('>=7.1') and
+        cc.version().version_compare('<9'))
+        cpp_arguments += [
+            '-Wno-psabi',
+        ]
+    endif
+endif
+
 # We use C99 designated initializers for arrays as C++ has no equivalent
 # feature. Both gcc and clang support this extension, but recent
 # versions of clang generate a warning that needs to be disabled.
