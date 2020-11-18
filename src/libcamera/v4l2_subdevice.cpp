@@ -878,11 +878,11 @@ const MediaBusFormatInfo &MediaBusFormatInfo::info(uint32_t code)
  * The format of images when transported on physical interconnections is known
  * as the "media bus format", and it is identified by a resolution and a pixel
  * format identification code, known as the "media bus code", not to be confused
- * with the fourcc code that identify the format of images when stored in memory
+ * with the fourcc code that identifies the format of images when stored in memory
  * (see V4L2VideoDevice::V4L2DeviceFormat).
  *
  * Media Bus formats supported by the V4L2 APIs are described in Section
- * 4.15.3.4.1 of the "Part I - Video for Linux API" chapter of the "Linux Media
+ * 4.13.3.4.1 of the "Part I - Video for Linux API" chapter of the "Linux Media
  * Infrastructure userspace API", part of the Linux kernel documentation.
  *
  * Image media bus formats are properties of the subdev pads.  When images are
@@ -891,7 +891,7 @@ const MediaBusFormatInfo &MediaBusFormatInfo::info(uint32_t code)
  * underlying driver format matching criteria) in order to prepare for a
  * successful streaming operation. For a more detailed description of the image
  * format negotiation process when performed between V4L2 subdevices, refer to
- * Section 4.15.3.1 of the above mentioned Linux kernel documentation section.
+ * Section 4.13.3.1 of the above mentioned Linux kernel documentation section.
  */
 
 /**
