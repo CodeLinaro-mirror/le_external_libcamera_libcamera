@@ -966,6 +966,36 @@ ControlList::ControlList(const ControlInfoMap &infoMap,
 }
 
 /**
+ * \fn ControlList::ControlList(const ControlList &other)
+ * \brief Copy constructor, construct a ControlList by copying \a other
+ * \param[in] other The ControlList to copy content from
+ */
+
+/**
+ * \fn ControlList::ControlList(ControlList &&other)
+ * \brief Move constructor, construct a ControlList by moving \a other
+ * \param[in] other The ControlList to move content from
+ *
+ * Upon return the \a other ControlList is empty.
+ */
+
+/**
+ * \fn ControlList::operator=(const ControlList &other)
+ * \brief Copy assignment operator, replace the content of the ControlList with
+ * a copy of \a other
+ * \param[in] other The ControlList to copy content from
+ */
+
+/**
+ * \fn ControlList::operator=(ControlList &&other)
+ * \brief Move assignment operator, replace the content of the ControlList with
+ * the content of \a other
+ * \param[in] other The ControlList to move content from
+ *
+ * Upon return the \a other ControlList is empty.
+ */
+
+/**
  * \typedef ControlList::iterator
  * \brief Iterator for the controls contained within the list
  */

@@ -422,6 +422,14 @@ public:
 	ControlList(const ControlIdMap &idmap, const ControlValidator *validator = nullptr);
 	ControlList(const ControlInfoMap &infoMap, const ControlValidator *validator = nullptr);
 
+	ControlList(const ControlList &other) = default;
+	ControlList(ControlList &&other) = default;
+	ControlList(const ControlList &&other) = delete;
+
+	ControlList &operator=(const ControlList &other) = default;
+	ControlList &operator=(ControlList &&other) = default;
+	ControlList &operator=(const ControlList &&other) = delete;
+
 	using iterator = ControlListMap::iterator;
 	using const_iterator = ControlListMap::const_iterator;
 
