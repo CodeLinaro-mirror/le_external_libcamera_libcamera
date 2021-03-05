@@ -18,6 +18,9 @@ tracepoint(libcamera, ipa_call_begin, #pipe, #func)
 #define LIBCAMERA_TRACEPOINT_IPA_END(pipe, func) \
 tracepoint(libcamera, ipa_call_end, #pipe, #func)
 
+#define LIBCAMERA_TRACEPOINT_IPA_RECV(pipe, func) \
+tracepoint(libcamera, ipa_recv, #pipe, #func)
+
 #else
 
 namespace {
@@ -33,6 +36,7 @@ inline void unused([[maybe_unused]] Args&& ...args)
 
 #define LIBCAMERA_TRACEPOINT_IPA_BEGIN(pipe, func)
 #define LIBCAMERA_TRACEPOINT_IPA_END(pipe, func)
+#define LIBCAMERA_TRACEPOINT_IPA_RECV(pipe, func)
 
 #endif /* HAVE_TRACING */
 
