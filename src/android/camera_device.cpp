@@ -639,6 +639,9 @@ int CameraDevice::configureStreams(camera3_stream_configuration_t *stream_list)
 		streamConfig.config.size = size;
 		streamConfig.config.pixelFormat = format;
 		streamConfigs.push_back(std::move(streamConfig));
+
+		/* This stream will be produced by hardware. */
+		stream->usage |= GRALLOC_USAGE_HW_CAMERA_WRITE;
 	}
 
 	/* Now handle the MJPEG streams, adding a new stream if required. */
