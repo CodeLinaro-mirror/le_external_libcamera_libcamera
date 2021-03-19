@@ -947,6 +947,10 @@ ControlList::ControlList()
  * For ControlList containing libcamera controls, a global map of all libcamera
  * controls is provided by controls::controls and can be used as the \a idmap
  * argument.
+ *
+ * To identify a Control from the ControlList, one needs to find the ControlId
+ * from the numerical control id saved in this list. A global ControlIdMap
+ * of all libcamera controls is provided by controls::controls.
  */
 ControlList::ControlList(const ControlIdMap &idmap,
 			 const ControlValidator *validator)
