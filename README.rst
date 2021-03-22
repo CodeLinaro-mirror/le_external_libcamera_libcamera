@@ -34,6 +34,22 @@ To fetch the sources, build and install:
   meson setup build
   ninja -C build install
 
+Several users have reported issues with meson installation, crux of the issue is a potential version
+mismatch between the version that root uses, and the version that the normal user
+uses. On calling `ninja -C build`, it can't find the build.ninja module. This the snippet of error message,
+
+:: 
+
+  ninja: Entering directory `build'     
+  ninja: error: loading 'build.ninja': No such file or directory
+
+This can be solved in two ways: 
+
+1) Don't install meson again if it is already installed system-wide.
+2) If meson which is different from system-wide is already installed, 
+uninstall that meson using pip3, and install again without the --user 
+argument.
+
 Dependencies
 ~~~~~~~~~~~~
 
