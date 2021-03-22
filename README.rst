@@ -34,6 +34,13 @@ To fetch the sources, build and install:
   meson setup build
   ninja -C build install
 
+Several users have reported issues with meson installation, crux of the issue is a potential version
+mismatch between the version that is installed in root, and version that the normal user
+uses. On calling meson, it can't find the build.ninja module. This can be solved by two ways: 
+
+1) Don't install meson again if it is already installed system-wide
+2) If you still went ahead and installed, uninstall meson using pip, and install again without --user argument
+
 Dependencies
 ~~~~~~~~~~~~
 
