@@ -286,6 +286,8 @@ void Exif::setModel(const std::string &model)
 
 void Exif::setSize(const Size &size)
 {
+	setLong(EXIF_IFD_0, EXIF_TAG_IMAGE_LENGTH, size.height);
+	setLong(EXIF_IFD_0, EXIF_TAG_IMAGE_WIDTH, size.width);
 	setLong(EXIF_IFD_EXIF, EXIF_TAG_PIXEL_Y_DIMENSION, size.height);
 	setLong(EXIF_IFD_EXIF, EXIF_TAG_PIXEL_X_DIMENSION, size.width);
 }
