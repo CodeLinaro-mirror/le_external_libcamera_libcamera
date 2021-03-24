@@ -54,6 +54,14 @@ are publicly visible, and you can register for an account to create new issues.
 
 .. _issue tracker: https://bugs.libcamera.org/
 
+Issue Tracker
+-------------
+
+Our `issue tracker`_ tracks all bugs, issues and feature requests. All issues
+are publicly visible, and you can register for an account to create new issues.
+
+.. _issue tracker: https://bugs.libcamera.org/
+
 Documentation
 -------------
 
