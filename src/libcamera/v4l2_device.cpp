@@ -179,7 +179,7 @@ ControlList V4L2Device::getControls(const std::vector<uint32_t> &ids)
 	if (ids.empty())
 		return {};
 
-	ControlList ctrls{ controls_ };
+	ControlList ctrls;
 
 	for (uint32_t id : ids) {
 		const auto iter = controls_.find(id);
