@@ -19,6 +19,7 @@
 #include <string_view>
 #include <syslog.h>
 #include <time.h>
+#include <unistd.h>
 #include <unordered_set>
 
 #include <libcamera/logging.h>
@@ -98,6 +99,26 @@ static const char *log_severity_name(LogSeverity severity)
 		return names[severity];
 	else
 		return "UNKWN";
+}
+
+static const char *log_severity_color_name(LogSeverity severity)
+{
+	static const char *const names[] = {
+		"\033[1m\033[37mDEBUG\033[0m",
+		"\033[1m\033[32m INFO\033[0m",
+		"\033[1m\033[33m WARN\033[0m",
+		"\033[1m\033[31mERROR\033[0m",
+		"\033[1m\033[35mFATAL\033[0m",
+	};
+
+	/* Only print colored output if output really belongs to a terminal */
+	if (!isatty(fileno(stderr)))
+		return log_severity_name(severity);
+
+	if (static_cast<unsigned int>(severity) < std::size(names))
+		return names[severity];
+	else
+		return "\033[1m\033[32mUNKWN\033[0m";
 }
 
 /**
@@ -243,6 +264,13 @@ void LogOutput::write(const LogMessage &msg)
 		writeSyslog(severity, str);
 		break;
 	case LoggingTargetStream:
+		str = "[" + utils::time_point_to_string(msg.timestamp()) + "] ["
+		    + std::to_string(Thread::currentId()) + "] "
+		    + log_severity_color_name(msg.severity()) + " "
+		    + msg.category().name() + " " + msg.fileInfo() + " "
+		    + msg.msg();
+		writeStream(str);
+		break;
 	case LoggingTargetFile:
 		str = "[" + utils::time_point_to_string(msg.timestamp()) + "] ["
 		    + std::to_string(Thread::currentId()) + "] "
