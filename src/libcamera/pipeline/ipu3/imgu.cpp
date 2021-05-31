@@ -111,7 +111,7 @@ void calculateBDSHeight(ImgUDevice::Pipe *pipe, const Size &iif, const Size &gdc
 	unsigned int minIFHeight = iif.height - ImgUDevice::kIFMaxCropHeight;
 	unsigned int minBDSHeight = gdc.height + ImgUDevice::kFilterHeight * 2;
 	unsigned int ifHeight;
-	float bdsHeight;
+	float bdsHeight = 0.0f;
 
 	if (!isSameRatio(pipe->input, gdc)) {
 		unsigned int foundIfHeight = 0;
