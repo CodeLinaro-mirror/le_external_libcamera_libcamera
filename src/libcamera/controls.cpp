@@ -748,6 +748,14 @@ std::string ControlInfo::toString() const
  */
 
 /**
+ * \brief Construct an empty ControlInfoMap
+ */
+ControlInfoMap::ControlInfoMap()
+	: idmap_(nullptr)
+{
+}
+
+/**
  * \fn ControlInfoMap::ControlInfoMap(const ControlInfoMap &other)
  * \brief Copy constructor, construct a ControlInfoMap from a copy of \a other
  * \param[in] other The other ControlInfoMap

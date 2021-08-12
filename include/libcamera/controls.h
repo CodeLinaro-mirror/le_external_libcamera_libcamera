@@ -368,7 +368,7 @@ class ControlInfoMap : private std::unordered_map<const ControlId *, ControlInfo
 public:
 	using Map = std::unordered_map<const ControlId *, ControlInfo>;
 
-	ControlInfoMap() = default;
+	ControlInfoMap();
 	ControlInfoMap(const ControlInfoMap &other) = default;
 	ControlInfoMap(std::initializer_list<Map::value_type> init,
 		       const ControlIdMap &idmap);
