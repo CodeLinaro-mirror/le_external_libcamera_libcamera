@@ -225,6 +225,8 @@ std::vector<U> setMetadata(CameraMetadata *metadata, uint32_t tag,
 
 bool CameraCapabilities::validateManualSensorCapability()
 {
+	camera_metadata_ro_entry_t entry;
+
 	const char *noMode = "Manual sensor capability unavailable: ";
 
 	if (!staticMetadata_->entryContains<uint8_t>(ANDROID_CONTROL_AE_AVAILABLE_MODES,
@@ -236,6 +238,26 @@ bool CameraCapabilities::validateManualSensorCapability()
 	if (!staticMetadata_->entryContains<uint8_t>(ANDROID_CONTROL_AE_LOCK_AVAILABLE,
 						     ANDROID_CONTROL_AE_LOCK_AVAILABLE_TRUE)) {
 		LOG(HAL, Info) << noMode << "missing AE lock";
+		return false;
+	}
+
+	if (!staticMetadata_->hasEntry(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE)) {
+		LOG(HAL, Info) << noMode << "missing exposure time range";
+		return false;
+	}
+
+	staticMetadata_->getEntry(ANDROID_SENSOR_INFO_EXPOSURE_TIME_RANGE, &entry);
+	if (100000 < entry.data.i32[0]) {
+		LOG(HAL, Info)
+			<< noMode
+			<< "exposure time range minimum must be no larger than 100us";
+		return false;
+	}
+
+	if (entry.data.i32[1] < 100000000) {
+		LOG(HAL, Info)
+			<< noMode
+			<< "exposure time range maximum must be no smaller than 100ms";
 		return false;
 	}
 
