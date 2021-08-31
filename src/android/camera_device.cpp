@@ -412,6 +412,8 @@ void CameraDevice::close()
 {
 	stop();
 
+	streams_.clear();
+
 	camera_->release();
 }
 
