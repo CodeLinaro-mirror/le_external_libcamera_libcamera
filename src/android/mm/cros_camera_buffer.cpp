@@ -153,6 +153,7 @@ size_t CameraBuffer::Private::jpegBufferSize([[maybe_unused]] size_t maxJpegBuff
 void CameraBuffer::Private::map()
 {
 	int ret;
+	LOG(HAL, Error) << "GEtting mapped : " << numPlanes_;
 	switch (numPlanes_) {
 	case 1: {
 		ret = bufferManager_->Lock(handle_, 0, 0, 0, 0, 0, &mem.addr);
