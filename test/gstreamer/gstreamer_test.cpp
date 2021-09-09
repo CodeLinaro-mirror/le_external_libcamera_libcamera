@@ -66,6 +66,9 @@ GstreamerTest::GstreamerTest(unsigned int numStreams)
 		return;
 	}
 
+	pipeline_ = nullptr;
+	libcameraSrc_ = nullptr;
+
 	status_ = TestPass;
 }
 
