@@ -1536,6 +1536,10 @@ CameraDevice::getResultMetadata(const Camera3RequestDescriptor &descriptor) cons
 	float focal_length = 1.0;
 	resultMetadata->addEntry(ANDROID_LENS_FOCAL_LENGTH, focal_length);
 
+	/* \todo Add a libcamera control for this, and plumb it. */
+	float focalDistance = 0.0;
+	resultMetadata->addEntry(ANDROID_LENS_FOCUS_DISTANCE, focalDistance);
+
 	value = ANDROID_LENS_STATE_STATIONARY;
 	resultMetadata->addEntry(ANDROID_LENS_STATE, value);
 

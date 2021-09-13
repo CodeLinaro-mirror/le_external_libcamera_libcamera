@@ -813,6 +813,7 @@ int CameraCapabilities::initializeStaticMetadata()
 		ANDROID_LENS_INFO_AVAILABLE_APERTURES,
 		ANDROID_LENS_INFO_AVAILABLE_FOCAL_LENGTHS,
 		ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
+		ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
 		ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE,
 		ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
 		ANDROID_NOISE_REDUCTION_AVAILABLE_NOISE_REDUCTION_MODES,
@@ -902,6 +903,7 @@ int CameraCapabilities::initializeStaticMetadata()
 		ANDROID_JPEG_THUMBNAIL_SIZE,
 		ANDROID_LENS_APERTURE,
 		ANDROID_LENS_FOCAL_LENGTH,
+		ANDROID_LENS_FOCUS_DISTANCE,
 		ANDROID_LENS_OPTICAL_STABILIZATION_MODE,
 		ANDROID_LENS_STATE,
 		ANDROID_NOISE_REDUCTION_MODE,
@@ -1279,10 +1281,21 @@ int CameraCapabilities::initializeStaticMetadata()
 	staticMetadata_->addEntry(ANDROID_LENS_INFO_AVAILABLE_OPTICAL_STABILIZATION,
 				  opticalStabilizations);
 
+	/*
+	 * Must be populated for FULL, optional for LIMITED. The value doesn't
+	 * matter, so just hardcode to uncalibrated. Uncalibrated means that
+	 * the max focus distance is zero (= infinite focus) and the min focus
+	 * distance is specified in LENS_INFO_MINIMUM_FOCUS_DISTANCE.
+	 */
+	int distanceCalibration = ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION_UNCALIBRATED;
+	staticMetadata_->addEntry(ANDROID_LENS_INFO_FOCUS_DISTANCE_CALIBRATION,
+				  distanceCalibration);
+
 	float hypeFocalDistance = 0;
 	staticMetadata_->addEntry(ANDROID_LENS_INFO_HYPERFOCAL_DISTANCE,
 				  hypeFocalDistance);
 
+	/* \todo Get this from the HAL config. */
 	float minFocusDistance = 0;
 	staticMetadata_->addEntry(ANDROID_LENS_INFO_MINIMUM_FOCUS_DISTANCE,
 				  minFocusDistance);
