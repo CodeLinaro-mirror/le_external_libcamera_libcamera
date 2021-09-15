@@ -33,7 +33,7 @@ then
 	# Handle an un-tagged repository
 	sha=$(git describe --abbrev=8 --always 2>/dev/null)
 	commits=$(git log --oneline | wc -l 2>/dev/null)
-	version="v0.0.0-$commits-g$sha"
+	version="v0.0.0-$commits-$sha"
 fi
 
 # Append a '-dirty' suffix if the working tree is dirty. Prevent false
@@ -51,8 +51,8 @@ then
 	version="v$project_version-$version"
 fi
 
-# Replace first '-' with a '+' to denote build metadata, strip the 'g' in from
-# of the git SHA1 and remove the initial 'v'.
-version=$(echo "$version" | sed -e 's/-/+/' | sed -e 's/-g/-/' | cut -c 2-)
+# Replace first '-' with a '+' to denote build metadata, and remove the initial
+# 'v'.
+version=$(echo "$version" | sed -e 's/-/+/' | cut -c 2-)
 
 echo "$version"
