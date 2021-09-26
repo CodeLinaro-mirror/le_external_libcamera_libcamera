@@ -117,6 +117,12 @@ by name from the Camera Manager, after making sure that at least one camera is
 available.
 
 .. code:: cpp
+   if (cm->cameras().empty()) {
+       std::cout << "No cameras were identified on the system."
+                 << std::endl;
+       cm->stop();
+       return EXIT_FAILURE;
+   }
 
    auto cameras = cm->cameras();
    if (cameras.empty()) {
