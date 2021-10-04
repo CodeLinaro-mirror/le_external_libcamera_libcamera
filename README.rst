@@ -115,6 +115,9 @@ setting the ``LIBCAMERA_LOG_LEVELS`` environment variable:
 
     :~$ LIBCAMERA_LOG_LEVELS=*:DEBUG cam -l
 
+for lc-compliance: [optional]
+        libgtest-dev libevent-dev
+
 Using GStreamer plugin
 ~~~~~~~~~~~~~~~~~~~~~~
 
