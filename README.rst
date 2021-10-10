@@ -189,6 +189,11 @@ remote stream from another device.
        cs.src_0 ! queue ! video/x-raw,width=800,height=600 ! videoconvert ! \
        jpegenc ! multipartmux ! tcpserversink host=0.0.0.0 port=5000
 
+The libcamerasrc element has two log categories, named libcamera-provider (for
+the video device provider) and libcamerasrc (for the operation of the camera).
+All corresponding debug messages can be enabled by setting the ``GST_DEBUG``
+environment variable to ``libcamera*:7``.
+
 .. section-end-getting-started
 
 Troubleshooting
