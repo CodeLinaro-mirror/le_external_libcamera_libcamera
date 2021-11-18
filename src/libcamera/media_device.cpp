@@ -41,15 +41,15 @@ LOG_DEFINE_CATEGORY(MediaDevice)
  * instance.
  *
  * The instance is created with an empty media graph. Before performing any
- * other operation, it must be populate by calling populate(). Instances of
+ * other operation, it must be populated by calling populate(). Instances of
  * MediaEntity, MediaPad and MediaLink are created to model the media graph,
  * and stored in a map indexed by object id.
  *
- * The graph is valid once successfully populated, as reported by the isValid()
- * function. It can be queried to list all entities(), or entities can be
- * looked up by name with getEntityByName(). The graph can be traversed from
- * entity to entity through pads and links as exposed by the corresponding
- * classes.
+ * The graph is valid once it has been successfully populated, and is reported
+ * as valid by the isValid() function. It can be queried to list all entities
+ * with entities(), or entities can be looked up by name with getEntityByName()
+ * function. The graph can be traversed from entity to entity through pads and
+ * links as exposed by the corresponding classes.
  *
  * Media devices can be claimed for exclusive use with acquire(), released with
  * release() and tested with busy(). This mechanism is aimed at pipeline
