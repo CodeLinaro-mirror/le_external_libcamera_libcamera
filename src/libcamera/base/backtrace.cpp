@@ -17,6 +17,8 @@
 #include <unistd.h>
 #endif
 
+#include <cxxabi.h>
+
 #if HAVE_UNWIND
 /*
  * Disable support for remote unwinding to enable a more optimized
