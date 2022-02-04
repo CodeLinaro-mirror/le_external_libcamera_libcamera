@@ -298,7 +298,7 @@ int KMSSink::configurePipeline(const libcamera::PixelFormat &format)
 		<< " (" << connector_->id() << "), mode " << mode_->hdisplay
 		<< "x" << mode_->vdisplay << "@" << mode_->vrefresh << std::endl;
 
-	return 0;
+	return ret;
 }
 
 int KMSSink::start()
