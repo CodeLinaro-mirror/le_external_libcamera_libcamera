@@ -38,6 +38,8 @@
 
 namespace libcamera {
 
+using namespace std::literals::chrono_literals;
+
 LOG_DECLARE_CATEGORY(V4L2)
 
 /**
