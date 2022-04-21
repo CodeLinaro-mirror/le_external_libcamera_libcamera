@@ -28,6 +28,7 @@ enum OptionType {
 	OptionInteger,
 	OptionString,
 	OptionKeyValue,
+	OptionFloat,
 };
 
 template<typename T>
@@ -124,6 +125,7 @@ public:
 		ValueString,
 		ValueKeyValue,
 		ValueArray,
+		ValueFloat,
 	};
 
 	OptionValue();
@@ -131,6 +133,7 @@ public:
 	OptionValue(const char *value);
 	OptionValue(const std::string &value);
 	OptionValue(const KeyValueParser::Options &value);
+	OptionValue(const float value);
 
 	void addValue(const OptionValue &value);
 
@@ -139,11 +142,13 @@ public:
 
 	operator int() const;
 	operator std::string() const;
+	operator float() const;
 
 	int toInteger() const;
 	std::string toString() const;
 	const KeyValueParser::Options &toKeyValues() const;
 	const std::vector<OptionValue> &toArray() const;
+	float toFloat() const;
 
 	const OptionsParser::Options &children() const;
 
@@ -153,5 +158,6 @@ private:
 	std::string string_;
 	KeyValueParser::Options keyValues_;
 	std::vector<OptionValue> array_;
+	float float_;
 	OptionsParser::Options children_;
 };

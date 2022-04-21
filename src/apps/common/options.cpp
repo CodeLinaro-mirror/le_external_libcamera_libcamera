@@ -6,9 +6,11 @@
  */
 
 #include <assert.h>
+#include <cmath>
 #include <getopt.h>
 #include <iomanip>
 #include <iostream>
+#include <limits>
 #include <string.h>
 #include <vector>
 
@@ -44,6 +46,9 @@
  *
  * \var OptionType::OptionKeyValue
  * \brief key=value list argument
+ *
+ * \var OptionType::OptionFloat
+ * \brief Float argument
  */
 
 /* -----------------------------------------------------------------------------
@@ -130,6 +135,9 @@ const char *Option::typeName() const
 
 	case OptionKeyValue:
 		return "key=value";
+
+	case OptionFloat:
+		return "float";
 	}
 
 	return "unknown";
@@ -257,20 +265,35 @@ bool OptionsBase<T>::parseValue(const T &opt, const Option &option,
 			integer = 0;
 		}
 
-		value = OptionValue(integer);
+		value = OptionValue(static_cast<int>(integer));
 		break;
 
 	case OptionString:
 		value = OptionValue(arg ? arg : "");
 		break;
 
-	case OptionKeyValue:
+	case OptionKeyValue: {
 		KeyValueParser *kvParser = option.keyValueParser;
 		KeyValueParser::Options keyValues = kvParser->parse(arg);
 		if (!keyValues.valid())
 			return false;
 
 		value = OptionValue(keyValues);
+		break;
+	}
+
+	case OptionFloat:
+		float float_val;
+
+		if (arg) {
+			char *endptr;
+			float_val = strtof(arg, &endptr);
+			if (*endptr != '\0' || !std::isfinite(float_val))
+				return false;
+		} else {
+			float_val = 0;
+		}
+		value = OptionValue(float_val);
 		break;
 	}
 
@@ -284,6 +307,7 @@ bool OptionsBase<T>::parseValue(const T &opt, const Option &option,
 
 template class OptionsBase<int>;
 template class OptionsBase<std::string>;
+template class OptionsBase<float>;
 
 /* -----------------------------------------------------------------------------
  * KeyValueParser
@@ -506,6 +530,9 @@ void KeyValueParser::usage(int indent)
  *
  * \var OptionValue::ValueType::ValueArray
  * \brief Array value
+ *
+ * \var OptionValue::ValueType::ValueFloat
+ * \brief Float value (float)
  */
 
 /**
@@ -563,6 +590,17 @@ OptionValue::OptionValue(const KeyValueParser::Options &value)
 }
 
 /**
+ * \brief Construct an float OptionValue instance
+ * \param[in] value The float value
+ *
+ * The value type is set to ValueType::ValueFloat.
+ */
+OptionValue::OptionValue(const float value)
+	: type_(ValueFloat), integer_(0), float_(value)
+{
+}
+
+/**
  * \brief Add an entry to an array value
  * \param[in] value The entry value
  *
@@ -599,6 +637,16 @@ void OptionValue::addValue(const OptionValue &value)
 OptionValue::operator int() const
 {
 	return toInteger();
+}
+
+/**
+ * \brief Cast the value to an int
+ * \return The option value as an int, or 0 if the value type isn't
+ * ValueType::ValueInteger
+ */
+OptionValue::operator float() const
+{
+	return toFloat();
 }
 
 /**
@@ -661,6 +709,19 @@ const std::vector<OptionValue> &OptionValue::toArray() const
 {
 	assert(type_ == ValueArray);
 	return array_;
+}
+
+/**
+ * \brief Retrieve the value as an float
+ * \return The option value as an int, or signaling not-a-number if the value type isn't
+ * ValueType::ValueFloat
+ */
+float OptionValue::toFloat() const
+{
+	if (type_ != ValueFloat)
+		return std::numeric_limits<float>::signaling_NaN();
+
+	return float_;
 }
 
 /**
