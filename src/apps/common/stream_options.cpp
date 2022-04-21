@@ -86,8 +86,8 @@ int StreamKeyValueParser::updateConfiguration(CameraConfiguration *config,
 		StreamConfiguration &cfg = config->at(i++);
 
 		if (opts.isSet("width") && opts.isSet("height")) {
-			cfg.size.width = opts["width"];
-			cfg.size.height = opts["height"];
+			cfg.size.width = static_cast<int>(opts["width"]);
+			cfg.size.height = static_cast<int>(opts["height"]);
 		}
 
 		if (opts.isSet("pixelformat"))
