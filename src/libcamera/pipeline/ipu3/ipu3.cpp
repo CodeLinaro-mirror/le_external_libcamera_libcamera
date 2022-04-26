@@ -617,8 +617,10 @@ int PipelineHandlerIPU3::configure(Camera *camera, CameraConfiguration *c)
 	configInfo.sensorControls = data->cio2_.sensor()->controls();
 
 	CameraLens *lens = data->cio2_.sensor()->focusLens();
-	if (lens)
+	if (lens) {
 		configInfo.lensControls = lens->controls();
+		sensorInfo.maxVcmSteps = lens->getMaxFocusStep();
+	}
 
 	configInfo.sensorInfo = sensorInfo;
 	configInfo.bdsOutputSize = config->imguConfig().bds;
