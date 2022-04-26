@@ -28,6 +28,7 @@ public:
 
 	int init();
 	int setFocusPosition(int32_t position);
+	int getMaxFocusStep();
 
 	const std::string &model() const { return model_; }
 
