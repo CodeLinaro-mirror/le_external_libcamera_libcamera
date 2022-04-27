@@ -43,7 +43,7 @@ class LIBCAMERA_TSA_SCOPED_CAPABILITY MutexLocker final
 {
 public:
 	explicit MutexLocker(Mutex &mutex) LIBCAMERA_TSA_ACQUIRE(mutex)
-		: lock_(mutex.mutex_)
+		: lock_(mutex.mutex_, std::try_to_lock)
 	{
 	}
 
