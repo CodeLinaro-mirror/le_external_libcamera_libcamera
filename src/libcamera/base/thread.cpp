@@ -368,7 +368,10 @@ void Thread::finishThread()
  */
 void Thread::exit(int code)
 {
+	data_->mutex_.lock();
 	data_->exitCode_ = code;
+	data_->mutex_.unlock();
+
 	data_->exit_.store(true, std::memory_order_release);
 
 	EventDispatcher *dispatcher = data_->dispatcher_.load(std::memory_order_relaxed);
