@@ -111,6 +111,8 @@ global environment:
    :~$ export LIBCAMERA_LOG_LEVELS='Camera:DEBUG,V4L2:DEBUG'
    :~$ cam --list
 
+.. _log levels:
+
 Log levels
 ~~~~~~~~~~
 
