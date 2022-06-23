@@ -63,7 +63,7 @@ option('pipelines',
 
 option('pycamera',
         type : 'feature',
-        value : 'auto',
+        value : 'disabled',
         description : 'Enable libcamera Python bindings (experimental)')
 
 option('qcam',
