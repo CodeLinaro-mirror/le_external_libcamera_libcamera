@@ -552,6 +552,7 @@ void Thread::postMessage(std::unique_ptr<Message> msg, Object *receiver)
 	msg->receiver_ = receiver;
 
 	ASSERT(data_ == receiver->thread()->data_);
+	ASSERT(data_ != mainThread.data_);
 
 	MutexLocker locker(data_->messages_.mutex_);
 	data_->messages_.list_.push_back(std::move(msg));
