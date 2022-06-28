@@ -15,6 +15,9 @@ Copyright (C) 2021, Linaro
 */
 
 //Vertex Shader
+#ifdef GL_ES
+precision mediump float;
+#endif
 
 attribute vec4 vertexIn;
 attribute vec2 textureIn;
