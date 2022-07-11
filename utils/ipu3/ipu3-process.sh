@@ -37,11 +37,13 @@ configure_pipeline() {
 	local enable_3a=1
 	local enable_out=1
 	local enable_vf=1
+	local enable_param=1
 	local mode=0
 
 	# Configure the links
 	$mediactl -r
 	$mediactl -l "\"$imgu_entity input\":0 -> \"$imgu_entity\":0[1]"
+	$mediactl -l "\"$imgu_entity parameters\":0 -> \"$imgu_entity\":1[$enable_param]"
 	$mediactl -l "\"$imgu_entity\":2 -> \"$imgu_entity output\":0[$enable_out]"
 	$mediactl -l "\"$imgu_entity\":3 -> \"$imgu_entity viewfinder\":0[$enable_vf]"
 	$mediactl -l "\"$imgu_entity\":4 -> \"$imgu_entity 3a stat\":0[$enable_3a]"
@@ -76,9 +78,26 @@ process_frames() {
 	$yavta $($mediactl -e "$imgu_entity 3a stat") &
 	sleep 0.5
 
-	# Feed the IMGU input.
-	$yavta -f $IMGU_IN_PIXELFORMAT -s $in_size "-F$in_file" \
-		$($mediactl -e "$imgu_entity input")
+	echo "Feeding IMGU $in_size"
+	# Start stream parameters node first
+	v4l2-ctl -d$($mediactl -e "$imgu_entity parameters") --stream-out-mmap &
+	local param_streaming=$!
+
+	# Start streaming on input node
+	local width=$(echo $in_size | awk -F 'x' '{print $1}')
+	local height=$(echo $in_size | awk -F 'x' '{print $2}')
+	v4l2-ctl -d $($mediactl -e "$imgu_entity input") \
+                --set-fmt-video-out=width=$width,height=$height,pixelformat=$IMGU_IN_PIXELFORMAT \
+                --stream-out-mmap --stream-from=$in_file --stream-loop &
+	local input_streaming=$!
+
+	# Sleep for 1 second and then kill the IMGU streaming. By then $frame_count output and vf
+	# buffers should have been captured.
+	sleep 1
+	kill $input_streaming
+	kill $param_streaming
+
+	echo "IMGU FED"
 }
 
 # Convert captured files to ppm
@@ -98,7 +117,7 @@ convert_files() {
 }
 
 run_test() {
-	IMGU_IN_PIXELFORMAT=IPU3_SGRBG10
+	IMGU_IN_PIXELFORMAT=ip3G
 	IMGU_OUT_PIXELFORMAT=NV12
 	IMGU_VF_PIXELFORMAT=NV12
 
@@ -193,6 +212,6 @@ mediactl="media-ctl -d $mdev"
 echo "Using device $mdev"
 
 output_dir="/tmp"
-frame_count=5
+frame_count=10
 nbufs=7
 run_test
