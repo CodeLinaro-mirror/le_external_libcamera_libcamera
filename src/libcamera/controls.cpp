@@ -1178,24 +1178,16 @@ void ControlList::set(unsigned int id, const ControlValue &value)
 const ControlValue *ControlList::find(unsigned int id) const
 {
 	const auto iter = controls_.find(id);
-	if (iter == controls_.end()) {
-		LOG(Controls, Error)
-			<< "Control " << utils::hex(id) << " not found";
-
+	if (iter == controls_.end())
 		return nullptr;
-	}
 
 	return &iter->second;
 }
 
 ControlValue *ControlList::find(unsigned int id)
 {
-	if (validator_ && !validator_->validate(id)) {
-		LOG(Controls, Error)
-			<< "Control " << utils::hex(id)
-			<< " is not valid for " << validator_->name();
+	if (validator_ && !validator_->validate(id))
 		return nullptr;
-	}
 
 	return &controls_[id];
 }
