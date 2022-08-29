@@ -1072,11 +1072,37 @@ gst_libcamera_src_release_pad(GstElement *element, GstPad *pad)
 	gst_element_remove_pad(element, pad);
 }
 
+static GstCaps *gst_libcamera_src_src_fixate([[maybe_unused]] GstBaseSrc *bsrc,
+					     GstCaps *caps)
+{
+	GstStructure *structure;
+	GstCaps *fixated_caps;
+
+	fixated_caps = gst_caps_make_writable(caps);
+
+	for (guint i = 0; i < gst_caps_get_size(fixated_caps); ++i) {
+		structure = gst_caps_get_structure(fixated_caps, i);
+		if (gst_structure_has_field(structure, "interlace-mode"))
+			gst_structure_fixate_field_string(structure, "interlace-mode",
+							  "progressive");
+		else
+			gst_structure_set(structure, "interlace-mode", G_TYPE_STRING,
+					  "progressive", NULL);
+	}
+
+	fixated_caps = gst_caps_fixate(fixated_caps);
+
+	return fixated_caps;
+}
+
 static void
 gst_libcamera_src_class_init(GstLibcameraSrcClass *klass)
 {
 	GstElementClass *element_class = GST_ELEMENT_CLASS(klass);
 	GObjectClass *object_class = G_OBJECT_CLASS(klass);
+	GstBaseSrcClass *gstbasesrc_class = (GstBaseSrcClass *)klass;
+
+	gstbasesrc_class->fixate = gst_libcamera_src_src_fixate;
 
 	object_class->set_property = gst_libcamera_src_set_property;
 	object_class->get_property = gst_libcamera_src_get_property;
