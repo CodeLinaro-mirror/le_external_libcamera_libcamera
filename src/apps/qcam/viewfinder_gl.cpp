@@ -369,6 +369,7 @@ void ViewFinderGL::selectColorSpace(const libcamera::ColorSpace &colorSpace)
 	double offset;
 
 	switch (colorSpace.range) {
+	default: /* Avoid gcc11 maybe-uninitialized warning */
 	case libcamera::ColorSpace::Range::Full:
 	default:
 		offset = 0.0;
