@@ -815,6 +815,20 @@ bool ControlInfoMap::validate()
 				      ? ControlTypeInteger32 : id->type();
 		const ControlInfo &info = ctrl.second;
 
+		if (info.min().type() != info.max().type()) {
+			LOG(Controls, Error)
+				<< "Control " << utils::hex(id->id())
+				<< " range types mismatch";
+			return false;
+		}
+
+		if (info.def().type() != ControlTypeNone && (info.min().type() != info.def().type())) {
+			LOG(Controls, Error)
+				<< "Control " << utils::hex(id->id())
+				<< " default value and info type mismatch";
+			return false;
+		}
+
 		if (info.min().type() != rangeType) {
 			LOG(Controls, Error)
 				<< "Control " << utils::hex(id->id())
