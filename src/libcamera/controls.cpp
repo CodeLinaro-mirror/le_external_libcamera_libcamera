@@ -815,6 +815,28 @@ bool ControlInfoMap::validate()
 				      ? ControlTypeInteger32 : id->type();
 		const ControlInfo &info = ctrl.second;
 
+		if (!(info.min().isArray() == info.max().isArray() &&
+		      info.min().numElements() == info.max().numElements())) {
+			LOG(Controls, Error)
+				<< "Control " << utils::hex(id->id())
+				<< " range must have the same dimension.";
+			return false;
+		}
+
+		if (info.min().type() != info.max().type()) {
+			LOG(Controls, Error)
+				<< "Control " << utils::hex(id->id())
+				<< " range types mismatch";
+			return false;
+		}
+
+		if (info.def().type() != ControlTypeNone && (info.min().type() != info.def().type())) {
+			LOG(Controls, Error)
+				<< "Control " << utils::hex(id->id())
+				<< " default value and info type mismatch";
+			return false;
+		}
+
 		if (info.min().type() != rangeType) {
 			LOG(Controls, Error)
 				<< "Control " << utils::hex(id->id())
