@@ -1019,20 +1019,6 @@ int V4L2Device::fromColorSpace(const std::optional<ColorSpace> &colorSpace, T &v
 	if (!colorSpace)
 		return 0;
 
-	auto itColor = std::find_if(colorSpaceToV4l2.begin(), colorSpaceToV4l2.end(),
-				    [&colorSpace](const auto &item) {
-					    return colorSpace == item.first;
-				    });
-	if (itColor != colorSpaceToV4l2.end()) {
-		v4l2Format.colorspace = itColor->second;
-		/* Leaving all the other fields as "default" should be fine. */
-		return 0;
-	}
-
-	/*
-	 * If the colorSpace doesn't precisely match a standard color space,
-	 * then we must choose a V4L2 colorspace with matching primaries.
-	 */
 	int ret = 0;
 
 	auto itPrimaries = primariesToV4l2.find(colorSpace->primaries);
