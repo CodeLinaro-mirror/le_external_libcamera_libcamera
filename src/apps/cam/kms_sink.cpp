@@ -519,6 +519,7 @@ void KMSSink::requestComplete([[maybe_unused]] DRM::AtomicRequest *request)
 {
 	std::lock_guard<std::mutex> lock(lock_);
 
+	(void) request;
 	assert(queued_ && queued_->drmRequest_.get() == request);
 
 	/* Complete the active request, if any. */
