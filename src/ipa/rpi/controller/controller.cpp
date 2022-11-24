@@ -102,7 +102,9 @@ int Controller::read(char const *filename)
 
 	if (version < 2.0) {
 		LOG(RPiController, Warning)
-			<< "This format of the tuning file will be deprecated soon!"
+			<< "This format of the tuning file " << filename
+			<< " will be deprecated soon! \n"
+			<< " Read version " <<  (*root)["version"].get<std::string>("")
 			<< " Please use the convert_tuning.py utility to update to version 2.0.";
 
 		for (auto const &[key, value] : root->asDict()) {
