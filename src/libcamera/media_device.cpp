@@ -21,6 +21,34 @@
 
 #include <libcamera/base/log.h>
 
+/*
+ * Android NDK workaround.
+ *
+ * Bionic does not implement the lockf function before API release 24.
+ * If we're building for a recent enough Android release include the
+ * correct header, if we're building for an older release, deflect
+ * flock() on the lockf() system call.
+ *
+ * A note on flock()/lockf() co-existency: it would be easier to change
+ * all usages of lockf() in libcamera to flock(). However lockf() is
+ * implemented as an interface on fcntl() while flock() is a system call
+ * since Linux v2.0. Locks set with lockf() won't be detected by flock()
+ * and vice-versa, hence mixing the two is highly undesirable. For this
+ * reason if lockf() is available prefer it, assuming all other
+ * applications in the system will do the same. Only deflect on flock()
+ * as last resort and only on Android systems.
+ */
+#if __ANDROID_API__ >= 24
+	#include <bits/lockf.h>
+#elif defined(__ANDROID_API__)
+	#undef F_TLOCK
+	#undef F_ULOCK
+	#include <sys/file.h>
+	#define F_TLOCK (LOCK_EX | LOCK_NB)
+	#define F_ULOCK LOCK_UN
+	#define lockf(f, c, o) flock(f, c)
+#endif
+
 /**
  * \file media_device.h
  * \brief Provide a representation of a Linux kernel Media Controller device
