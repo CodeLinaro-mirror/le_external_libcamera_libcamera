@@ -632,7 +632,7 @@ void Logger::parseLogLevels()
 		return;
 
 	for (const char *pair = debug; *debug != '\0'; pair = debug) {
-		const char *comma = strchrnul(debug, ',');
+		const char *comma = utils::strchrnul(debug, ',');
 		size_t len = comma - pair;
 
 		/* Skip over the comma. */

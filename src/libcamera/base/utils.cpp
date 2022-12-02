@@ -41,6 +41,25 @@ const char *basename(const char *path)
 }
 
 /**
+ * \brief Implement strchnul wrapper
+ * \param[in] s The string to seach on
+ * \param[in] c The character to search
+ *
+ * The strchrnul function is a GNU-specific extension to string.h and it's not
+ * available on all C libraries (in example, Android's Bionic). This
+ * implementation realizes strchrnul() on strchr() which is instead more
+ * generally available.
+ *
+ * \return A pointer to the first occurrence of \a c in \a s, or a pointer to
+ * the null byte at the end of \a s if \a c is not found
+ */
+const char *strchrnul(const char *s, int c)
+{
+	const char *p = strchr(s, c);
+	return p ? : s + strlen(s);
+}
+
+/**
  * \brief Get an environment variable
  * \param[in] name The name of the variable to return
  *

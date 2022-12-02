@@ -364,7 +364,10 @@ KeyValueParser::Options KeyValueParser::parse(const char *arguments)
 	Options options;
 
 	for (const char *pair = arguments; *arguments != '\0'; pair = arguments) {
-		const char *comma = strchrnul(arguments, ',');
+		const char *comma = strchr(arguments, ',');
+		if (!comma)
+			comma = &arguments[strlen(arguments)];
+
 		size_t len = comma - pair;
 
 		/* Skip over the comma. */

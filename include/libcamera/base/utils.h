@@ -37,6 +37,7 @@ namespace libcamera {
 namespace utils {
 
 const char *basename(const char *path);
+const char *strchrnul(const char *s, int c);
 
 char *secure_getenv(const char *name);
 std::string dirname(const std::string &path);
