@@ -73,9 +73,12 @@ public:
 class VividCameraConfiguration : public CameraConfiguration
 {
 public:
-	VividCameraConfiguration();
+	VividCameraConfiguration(VividCameraData *data);
 
 	Status validate() override;
+
+private:
+	VividCameraData *data_;
 };
 
 class PipelineHandlerVivid : public PipelineHandler
@@ -106,8 +109,8 @@ private:
 	}
 };
 
-VividCameraConfiguration::VividCameraConfiguration()
-	: CameraConfiguration()
+VividCameraConfiguration::VividCameraConfiguration(VividCameraData *data)
+	: CameraConfiguration(), data_(data)
 {
 }
 
@@ -136,6 +139,22 @@ CameraConfiguration::Status VividCameraConfiguration::validate()
 
 	cfg.bufferCount = 4;
 
+	V4L2DeviceFormat format;
+	format.fourcc = data_->video_->toV4L2PixelFormat(cfg.pixelFormat);
+	format.size = cfg.size;
+
+	int ret = data_->video_->tryFormat(&format);
+	if (ret)
+		return Invalid;
+
+	cfg.stride = format.planes[0].bpl;
+	cfg.frameSize = format.planes[0].size;
+
+	if (cfg.colorSpace != format.colorSpace) {
+		cfg.colorSpace = format.colorSpace;
+		status = Adjusted;
+	}
+
 	return status;
 }
 
@@ -147,9 +166,9 @@ PipelineHandlerVivid::PipelineHandlerVivid(CameraManager *manager)
 std::unique_ptr<CameraConfiguration>
 PipelineHandlerVivid::generateConfiguration(Camera *camera, Span<const StreamRole> roles)
 {
-	std::unique_ptr<CameraConfiguration> config =
-	       std::make_unique<VividCameraConfiguration>();
 	VividCameraData *data = cameraData(camera);
+	std::unique_ptr<CameraConfiguration> config =
+	       std::make_unique<VividCameraConfiguration>(data);
 
 	if (roles.empty())
 		return config;
