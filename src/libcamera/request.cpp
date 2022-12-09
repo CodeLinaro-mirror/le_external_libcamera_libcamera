@@ -470,6 +470,8 @@ void Request::reuse(ReuseFlag flags)
 int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
 		       std::unique_ptr<Fence> fence)
 {
+	LIBCAMERA_TRACEPOINT(request_add_buffer, _d(), buffer);
+
 	if (!stream) {
 		LOG(Request, Error) << "Invalid stream reference";
 		return -EINVAL;

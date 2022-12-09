@@ -113,6 +113,16 @@ TRACEPOINT_EVENT_INSTANCE(
 TRACEPOINT_EVENT_INSTANCE(
 	libcamera,
 	request_with_buffer,
+	request_add_buffer,
+	TP_ARGS(
+		libcamera::Request::Private *, req,
+		libcamera::FrameBuffer *, buf
+	)
+)
+
+TRACEPOINT_EVENT_INSTANCE(
+	libcamera,
+	request_with_buffer,
 	request_complete_buffer,
 	TP_ARGS(
 		libcamera::Request::Private *, req,
