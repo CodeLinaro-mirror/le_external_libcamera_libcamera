@@ -8,6 +8,7 @@
 #include <stdint.h>
 
 #include <libcamera/framebuffer.h>
+#include <libcamera/request.h>
 
 #include "libcamera/internal/request.h"
 
@@ -24,12 +25,18 @@ TRACEPOINT_EVENT_CLASS(
 	)
 )
 
-TRACEPOINT_EVENT_INSTANCE(
+TRACEPOINT_EVENT(
 	libcamera,
-	request,
 	request_construct,
 	TP_ARGS(
-		libcamera::Request *, req
+		libcamera::Request *, req,
+		libcamera::Request::Private *, priv
+	),
+	TP_FIELDS(
+		ctf_integer_hex(uintptr_t, request, reinterpret_cast<uintptr_t>(req))
+		ctf_integer_hex(uintptr_t, priv, reinterpret_cast<uintptr_t>(priv))
+		ctf_integer(uint64_t, cookie, req->cookie())
+		ctf_enum(libcamera, request_status, uint32_t, status, req->status())
 	)
 )
 
