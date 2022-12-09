@@ -68,15 +68,6 @@ TRACEPOINT_EVENT_INSTANCE(
 TRACEPOINT_EVENT_INSTANCE(
 	libcamera,
 	request,
-	request_reuse,
-	TP_ARGS(
-		libcamera::Request *, req
-	)
-)
-
-TRACEPOINT_EVENT_INSTANCE(
-	libcamera,
-	request,
 	request_queue,
 	TP_ARGS(
 		libcamera::Request *, req
@@ -127,5 +118,20 @@ TRACEPOINT_EVENT_INSTANCE(
 	TP_ARGS(
 		libcamera::Request::Private *, req,
 		libcamera::FrameBuffer *, buf
+	)
+)
+
+TRACEPOINT_EVENT(
+	libcamera,
+	request_reuse,
+	TP_ARGS(
+		libcamera::Request *, req,
+		enum libcamera::Request::ReuseFlag, flags
+	),
+	TP_FIELDS(
+		ctf_integer_hex(uintptr_t, request, reinterpret_cast<uintptr_t>(req))
+		ctf_integer(uint64_t, cookie, req->cookie())
+		ctf_enum(libcamera, request_status, uint32_t, status, req->status())
+		ctf_integer_hex(uint32_t, flags, static_cast<uint32_t>(flags))
 	)
 )

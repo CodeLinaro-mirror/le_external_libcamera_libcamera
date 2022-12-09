@@ -389,7 +389,7 @@ Request::~Request()
  */
 void Request::reuse(ReuseFlag flags)
 {
-	LIBCAMERA_TRACEPOINT(request_reuse, this);
+	LIBCAMERA_TRACEPOINT(request_reuse, this, flags);
 
 	_d()->reset();
 
