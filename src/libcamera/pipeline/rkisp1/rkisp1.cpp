@@ -686,6 +686,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 PipelineHandlerRkISP1::PipelineHandlerRkISP1(CameraManager *manager)
 	: PipelineHandler(manager), hasSelfPath_(true), useDewarper_(false)
 {
+	setMaxQueueRequests(ipa::rkisp1::kMaxFrameContexts);
 }
 
 std::unique_ptr<CameraConfiguration>

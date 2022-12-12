@@ -388,6 +388,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 PipelineHandlerIPU3::PipelineHandlerIPU3(CameraManager *manager)
 	: PipelineHandler(manager), cio2MediaDev_(nullptr), imguMediaDev_(nullptr)
 {
+	setMaxQueueRequests(ipa::ipu3::kMaxFrameContexts);
 }
 
 std::unique_ptr<CameraConfiguration>

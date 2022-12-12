@@ -68,7 +68,8 @@ LOG_DEFINE_CATEGORY(Pipeline)
  * through the PipelineHandlerFactoryBase::create() function.
  */
 PipelineHandler::PipelineHandler(CameraManager *manager)
-	: manager_(manager), useCount_(0)
+	: manager_(manager), useCount_(0), maxQueueRequests_(0),
+	  requestsQueueCounter_(0)
 {
 }
 
@@ -460,6 +461,9 @@ void PipelineHandler::doQueueRequest(Request *request)
 	Camera::Private *data = camera->_d();
 	data->queuedRequests_.push_back(request);
 
+	if (maxQueueRequests_)
+		requestsQueueCounter_++;
+
 	request->_d()->sequence_ = data->requestSequence_++;
 
 	if (request->_d()->cancelled_) {
@@ -483,6 +487,10 @@ void PipelineHandler::doQueueRequests()
 	while (!waitingRequests_.empty()) {
 		Request *request = waitingRequests_.front();
 		if (!request->_d()->prepared_)
+			break;
+
+		if (maxQueueRequests_ &&
+		    requestsQueueCounter_ >= maxQueueRequests_)
 			break;
 
 		doQueueRequest(request);
@@ -561,6 +569,9 @@ void PipelineHandler::completeRequest(Request *request)
 		ASSERT(!req->hasPendingBuffers());
 		data->queuedRequests_.pop_front();
 		camera->requestComplete(req);
+
+		if (maxQueueRequests_)
+			requestsQueueCounter_--;
 	}
 }
 
@@ -761,6 +772,44 @@ void PipelineHandler::disconnect()
  * convenience of pipeline handler implementations. It remains valid and
  * constant for the whole lifetime of the pipeline handler.
  */
+
+/**
+ * \var PipelineHandler::maxQueueRequests_
+ * \brief Maximum number of in-flight requests that can be queued
+ *
+ * A hardware can handle a certain number of maximum requests at a given
+ * point. If such a constraint exists, set maxQueueRequests_ via
+ * \a setMaxQueueRequests() in the derived pipeline handler.
+ *
+ * The derived pipeline handler can choose not to define such constraint as
+ * well. In that case, the derived pipeline handler can avoid setting
+ * \a setMaxQueueReqeuests(), hence \a maxQueueRequests_ and
+ * \a requestsQueueCounter_ will be 0.
+ */
+
+/**
+ * \var PipelineHandler::requestsQueueCounter_
+ * \brief Number of requests queued to the underlying hardware
+ *
+ * If \a setMaxQueueRequests() is set by the derived pipeline handler,
+ * requestsQueueCounter_ reflects the number of requests queued
+ * to the underlying hardware by the pipeline handler.
+ */
+
+/**
+ * \brief Sets the maximum number of requests that can be queued
+ * \param[in] maxRequests Maximum number of in-flight requests
+ *
+ * A hardware can handle a certain number of requests at a given point.
+ * This function sets the maximum number of in-flight requests that can
+ * be queued to the hardware by the pipeline handler. Each derived pipeline
+ * handler should set the maximum number of in-flight requests it can handle
+ * at a given point using this function, if at all such a constraint exists.
+ */
+void PipelineHandler::setMaxQueueRequests(uint32_t maxRequests)
+{
+	maxQueueRequests_ = maxRequests;
+}
 
 /**
  * \fn PipelineHandler::name()

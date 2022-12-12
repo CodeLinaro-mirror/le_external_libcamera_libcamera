@@ -73,6 +73,7 @@ public:
 protected:
 	void registerCamera(std::shared_ptr<Camera> camera);
 	void hotplugMediaDevice(MediaDevice *media);
+	void setMaxQueueRequests(uint32_t maxRequests);
 
 	virtual int queueRequestDevice(Camera *camera, Request *request) = 0;
 	virtual void stopDevice(Camera *camera) = 0;
@@ -98,6 +99,9 @@ private:
 
 	const char *name_;
 	unsigned int useCount_;
+
+	uint32_t maxQueueRequests_;
+	uint32_t requestsQueueCounter_;
 
 	friend class PipelineHandlerFactoryBase;
 };
