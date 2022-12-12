@@ -43,9 +43,6 @@ using namespace std::literals::chrono_literals;
 
 namespace ipa::rkisp1 {
 
-/* Maximum number of frame contexts to be held */
-static constexpr uint32_t kMaxFrameContexts = 16;
-
 class IPARkISP1 : public IPARkISP1Interface, public Module
 {
 public:

@@ -53,9 +53,6 @@ static constexpr uint32_t kMinCellSizeLog2 = 3;
 /* log2 of the maximum grid cell width and height, in pixels */
 static constexpr uint32_t kMaxCellSizeLog2 = 6;
 
-/* Maximum number of frame contexts to be held */
-static constexpr uint32_t kMaxFrameContexts = 16;
-
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(IPAIPU3)

@@ -8,6 +8,9 @@ module ipa.rkisp1;
 
 import "include/libcamera/ipa/core.mojom";
 
+/* Maximum number of frame contexts to be held */
+const uint32 kMaxFrameContexts = 16;
+
 struct IPAConfigInfo {
 	libcamera.IPACameraSensorInfo sensorInfo;
 	libcamera.ControlInfoMap sensorControls;
