@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2020, Google Inc.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * vivid.cpp - Pipeline handler for the vivid capture device
  */
@@ -59,14 +60,13 @@ public:
 
 	~VividCameraData()
 	{
-		delete video_;
 	}
 
-	int init();
+	int init(MediaDevice *media);
 	void bufferReady(FrameBuffer *buffer);
 
 	MediaDevice *media_;
-	V4L2VideoDevice *video_;
+	std::unique_ptr<V4L2VideoDevice> video_;
 	Stream stream_;
 };
 
@@ -327,7 +327,6 @@ int PipelineHandlerVivid::queueRequestDevice(Camera *camera, Request *request)
 bool PipelineHandlerVivid::match(DeviceEnumerator *enumerator)
 {
 	DeviceMatch dm("vivid");
-	dm.add("vivid-000-vid-cap");
 
 	MediaDevice *media = acquireMediaDevice(enumerator, dm);
 	if (!media)
@@ -336,21 +335,34 @@ bool PipelineHandlerVivid::match(DeviceEnumerator *enumerator)
 	std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this, media);
 
 	/* Locate and open the capture video node. */
-	if (data->init())
+	if (data->init(media))
 		return false;
 
 	/* Create and register the camera. */
 	std::set<Stream *> streams{ &data->stream_ };
-	const std::string id = data->video_->deviceName();
+	const std::string id = data->video_->busName();
 	std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
 	registerCamera(std::move(camera));
 
 	return true;
 }
 
-int VividCameraData::init()
+int VividCameraData::init(MediaDevice *media)
 {
-	video_ = new V4L2VideoDevice(media_->getEntityByName("vivid-000-vid-cap"));
+
+        /* Locate and initialise the camera data with the default video node. */
+        const std::vector<MediaEntity *> &entities = media->entities();
+        auto entity = std::find_if(entities.begin(), entities.end(),
+                                   [](MediaEntity *e) {
+                                           return 1;
+                                   });
+        if (entity == entities.end()) {
+                LOG(VIVID, Error) << "Could not find a default video device";
+                return -ENODEV;
+        }
+
+        video_ = std::make_unique<V4L2VideoDevice>(*entity);
+
 	if (video_->open())
 		return -ENODEV;
 
