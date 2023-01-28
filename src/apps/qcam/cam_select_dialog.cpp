@@ -27,6 +27,9 @@ CameraSelectorDialog::CameraSelectorDialog(libcamera::CameraManager *cameraManag
 	/* Use a QFormLayout for the dialog. */
 	QFormLayout *layout = new QFormLayout(this);
 
+	/* Decrease minimum width of dialog to fit on narrow screens */
+	setMinimumSize(250, 100);
+
 	/* Setup the camera id combo-box. */
 	cameraIdComboBox_ = new QComboBox;
 	for (const auto &cam : cm_->cameras())
