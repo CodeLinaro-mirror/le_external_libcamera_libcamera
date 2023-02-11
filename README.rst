@@ -76,7 +76,7 @@ for Python bindings: [optional]
         libpython3-dev pybind11-dev
 
 for cam: [optional]
-        libevent-dev is required to support cam, however the following
+        libevent-dev + pkg-config is required to support cam, however the following
         optional dependencies bring more functionality to the cam test
         tool:
 
