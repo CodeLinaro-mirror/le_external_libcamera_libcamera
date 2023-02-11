@@ -48,8 +48,14 @@ OptionsParser::Options parseOptions(int argc, char *argv[])
 			 "Print verbose log messages", "verbose");
 
 	OptionsParser::Options options = parser.parse(argc, argv);
-	if (options.isSet(OptHelp))
+	if (options.isSet(OptHelp)) {
 		parser.usage();
+#ifdef HAVE_TIFF
+		qInfo() << "TIFF/DNG support available.";
+#else
+		qInfo() << "TIFF/DNG support NOT available, taking still images not possible";
+#endif
+	}
 
 	return options;
 }
