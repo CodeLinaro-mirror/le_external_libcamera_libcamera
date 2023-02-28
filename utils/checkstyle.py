@@ -463,6 +463,9 @@ class TitleChecker(CommitChecker):
     def check(cls, commit, top_level):
         title = commit.title
 
+        if isinstance(commit, StagedChanges):
+            return []
+
         # Ignore release commits, they don't need a prefix.
         if TitleChecker.release_regex.fullmatch(title):
             return []
