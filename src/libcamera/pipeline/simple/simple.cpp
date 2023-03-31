@@ -640,6 +640,7 @@ int SimpleCameraData::init()
 	}
 
 	properties_ = sensor_->properties();
+	controlInfo_ = sensor_->controls();
 
 	/* Find the first subdev that can generate a frame start signal, if any. */
 	frameStartEmitter_ = nullptr;
