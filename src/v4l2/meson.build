@@ -30,6 +30,7 @@ v4l2_compat_cpp_args = [
 v4l2_compat = shared_library('v4l2-compat',
                              v4l2_compat_sources,
                              name_prefix : '',
+                             soversion : libcamera_soversion,
                              install : true,
                              install_dir : libcamera_libexecdir,
                              dependencies : [libcamera_private, libdl],
