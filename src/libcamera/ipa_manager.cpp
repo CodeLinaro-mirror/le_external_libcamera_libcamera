@@ -192,6 +192,10 @@ void IPAManager::parseDir(const char *libDir, unsigned int maxDepth,
 		if (strcmp(&ent->d_name[offset], ".so"))
 			continue;
 
+		/* Ignore any modules which are not IPAs. */
+		if (strncmp(ent->d_name, "ipa_", 4) != 0)
+			continue;
+
 		files.push_back(std::string(libDir) + "/" + ent->d_name);
 	}
 
