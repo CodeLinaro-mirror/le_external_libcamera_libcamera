@@ -34,6 +34,24 @@ To fetch the sources, build and install:
   meson setup build
   ninja -C build install
 
+
+First run
+~~~~~~~~~
+
+For a first install, or an install with a newer library version the linker
+configuration may need to be updated. If you experience any error such as :
+
+::
+
+   cam: error while loading shared libraries: libcamera.so.0.0.4: cannot open shared object file: No such file or directory
+
+please run:
+
+::
+
+  sudo ldconfig
+
+
 Dependencies
 ~~~~~~~~~~~~
 
