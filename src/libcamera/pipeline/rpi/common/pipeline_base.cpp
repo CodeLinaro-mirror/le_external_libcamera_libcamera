@@ -852,6 +852,10 @@ int PipelineHandlerBase::registerCamera(std::unique_ptr<RPi::CameraData> &camera
 	if (ret)
 		return ret;
 
+	ret = platformRegister(cameraData, frontend, backend);
+	if (ret)
+		return ret;
+
 	ret = data->loadPipelineConfiguration();
 	if (ret) {
 		LOG(RPI, Error) << "Unable to load pipeline configuration";
