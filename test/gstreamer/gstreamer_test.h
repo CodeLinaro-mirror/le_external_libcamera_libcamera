@@ -31,4 +31,5 @@ protected:
 
 private:
 	bool checkMinCameraStreamsAndSetCameraName(unsigned int numStreams);
+	bool checkCameraEnumeration();
 };

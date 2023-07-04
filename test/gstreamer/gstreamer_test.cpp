@@ -33,6 +33,18 @@ const char *__asan_default_options()
 }
 #endif
 
+static GstDeviceMonitor *
+libcamerasrc_get_device_provider()
+{
+	GstDeviceMonitor *monitor = gst_device_monitor_new();
+
+	gst_device_monitor_add_filter(monitor, "Video/Source", NULL);
+
+	gst_device_monitor_start(monitor);
+
+	return monitor;
+}
+
 GstreamerTest::GstreamerTest(unsigned int numStreams)
 	: pipeline_(nullptr), libcameraSrc_(nullptr)
 {
@@ -66,6 +78,12 @@ GstreamerTest::GstreamerTest(unsigned int numStreams)
 		return;
 	}
 
+	if (!checkCameraEnumeration()) {
+		g_printerr("Failed to enumerate cameras on GstDeviceProvider\n");
+		status_ = TestFail;
+		return;
+	}
+
 	status_ = TestPass;
 }
 
@@ -88,6 +106,40 @@ bool GstreamerTest::checkMinCameraStreamsAndSetCameraName(unsigned int numStream
 	cm.stop();
 
 	return cameraFound;
+}
+
+bool GstreamerTest::checkCameraEnumeration()
+{
+	GstDeviceMonitor *monitor;
+	GList *devices, *l;
+	std::vector<const char *> cameraNames;
+	std::unique_ptr<libcamera::CameraManager> cm
+		= std::make_unique<libcamera::CameraManager>();
+
+	cm->start();
+	for (auto &camera : cm->cameras())
+		cameraNames.push_back(strdup(camera->id().c_str()));
+	cm->stop();
+	cm.reset();
+
+	monitor = libcamerasrc_get_device_provider();
+	devices = gst_device_monitor_get_devices(monitor);
+
+	for (l = devices; l != NULL; l = g_list_next(l)) {
+		bool matched = false;
+		GstDevice *device = GST_DEVICE(l->data);
+		for (const gchar *name : cameraNames) {
+			if (strcmp(name, gst_device_get_display_name(device)) == 0) {
+				matched = true;
+				break;
+			}
+		}
+
+		if (!matched)
+			return false;
+	}
+
+	return true;
 }
 
 GstreamerTest::~GstreamerTest()
