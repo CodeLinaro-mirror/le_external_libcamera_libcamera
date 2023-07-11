@@ -63,6 +63,47 @@ uses `Doxygen`_.  Please make sure to document all code during development.
 .. _Sphinx: https://www.sphinx-doc.org
 .. _Doxygen: https://www.doxygen.nl
 
+Running the unit tests
+----------------------
+
+When submitting patches, it is recommended to run the unit tests. The unit
+tests rely on kernel drivers which produce virtual devices. These can be either
+built into the kernel, or provided as modules (=y or =m):
+
+.. code::
+
+    CONFIG_MEDIA_TEST_SUPPORT=y
+    CONFIG_V4L_TEST_DRIVERS=y
+
+    CONFIG_VIDEO_VIM2M=m
+    CONFIG_VIDEO_VIMC=m
+    CONFIG_VIDEO_VIVID=m
+
+If the kernel provides the test drivers as modules, they need to be loaded
+before running the tests:
+
+.. code::
+
+    sudo modprobe vimc
+    sudo modprobe vivid
+    sudo modprobe vim2m
+
+Make sure your build configuration has tests enabled by running the following
+in the build directory:
+
+.. code::
+
+    meson configure -Dtest=true
+
+Enabling 'test=true' will implicitly add the VIMC test pipeline handler to the
+build configuration.
+
+Then the tests can be run with:
+
+.. code::
+
+  ninja -C build test
+
 Submitting Patches
 ------------------
 
