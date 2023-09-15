@@ -133,14 +133,17 @@ void PostProcessorYuv::calculateLengths(const StreamConfiguration &inCfg,
 	sourceSize_ = inCfg.size;
 	destinationSize_ = outCfg.size;
 
-	const PixelFormatInfo &nv12Info = PixelFormatInfo::info(formats::NV12);
+	const PixelFormatInfo &sourceInfo = PixelFormatInfo::info(formats::NV12);
 	for (unsigned int i = 0; i < 2; i++) {
 		sourceStride_[i] = inCfg.stride;
-		destinationStride_[i] = nv12Info.stride(destinationSize_.width, i, 1);
+		sourceLength_[i] = sourceInfo.planeSize(sourceSize_.height, i,
+							sourceStride_[i]);
+	}
 
-		sourceLength_[i] = nv12Info.planeSize(sourceSize_.height, i,
-						      sourceStride_[i]);
-		destinationLength_[i] = nv12Info.planeSize(destinationSize_.height, i,
-							   destinationStride_[i]);
+	const PixelFormatInfo &destinationInfo = PixelFormatInfo::info(formats::NV12);
+	for (unsigned int i = 0; i < 2; i++) {
+		destinationStride_[i] = sourceInfo.stride(destinationSize_.width, i, 1);
+		destinationLength_[i] = sourceInfo.planeSize(destinationSize_.height, i,
+							     destinationStride_[i]);
 	}
 }
