@@ -87,11 +87,15 @@ public:
 
 	ControlInfoMap ipaControls_;
 
+	bool firstRequest_ = true;
+
 private:
 	void metadataReady(unsigned int id, const ControlList &metadata);
 	void paramsComputed(unsigned int id);
 	void setSensorControls(unsigned int id, const ControlList &sensorControls,
 			       const ControlList &lensControls);
+
+	std::map<FrameBuffer *, int> bufferReturnCounters_;
 };
 
 class IPU3CameraConfiguration : public CameraConfiguration
@@ -722,6 +726,8 @@ int PipelineHandlerIPU3::start(Camera *camera, [[maybe_unused]] const ControlLis
 	ImgUDevice *imgu = data->imgu_;
 	int ret;
 
+	data->firstRequest_ = true;
+
 	/* Disable test pattern mode on the sensor, if any. */
 	ret = cio2->sensor()->setTestPatternMode(
 		controls::draft::TestPatternModeEnum::TestPatternModeOff);
@@ -1220,22 +1226,37 @@ void IPU3CameraData::paramsComputed(unsigned int id)
 	if (!info)
 		return;
 
+	const int yuvCount = firstRequest_ ? 2 : 1;
+	firstRequest_ = false;
 	/* Queue all buffers from the request aimed for the ImgU. */
 	for (auto it : info->request->buffers()) {
 		const Stream *stream = it.first;
 		FrameBuffer *outbuffer = it.second;
 
-		if (stream == &outStream_)
-			imgu_->output_->queueBuffer(outbuffer);
-		else if (stream == &vfStream_)
-			imgu_->viewfinder_->queueBuffer(outbuffer);
+		if (stream == &outStream_) {
+			for (int i = 0; i < yuvCount; ++i) {
+				bufferReturnCounters_[outbuffer] += 1;
+				imgu_->output_->queueBuffer(outbuffer);
+			}
+		} else if (stream == &vfStream_) {
+			for (int i = 0; i < yuvCount; ++i) {
+				bufferReturnCounters_[outbuffer] += 1;
+				imgu_->viewfinder_->queueBuffer(outbuffer);
+			}
+		}
 	}
 
 	info->paramBuffer->_d()->metadata().planes()[0].bytesused =
 		sizeof(struct ipu3_uapi_params);
-	imgu_->param_->queueBuffer(info->paramBuffer);
-	imgu_->stat_->queueBuffer(info->statBuffer);
-	imgu_->input_->queueBuffer(info->rawBuffer);
+	for (int i = 0; i < yuvCount; ++i) {
+		bufferReturnCounters_[info->paramBuffer] += 1;
+		bufferReturnCounters_[info->statBuffer] += 1;
+		bufferReturnCounters_[info->rawBuffer] += 1;
+
+		imgu_->param_->queueBuffer(info->paramBuffer);
+		imgu_->stat_->queueBuffer(info->statBuffer);
+		imgu_->input_->queueBuffer(info->rawBuffer);
+	}
 }
 
 void IPU3CameraData::metadataReady(unsigned int id, const ControlList &metadata)
@@ -1264,6 +1285,11 @@ void IPU3CameraData::metadataReady(unsigned int id, const ControlList &metadata)
  */
 void IPU3CameraData::imguOutputBufferReady(FrameBuffer *buffer)
 {
+	if (--bufferReturnCounters_[buffer] > 0)
+		return;
+
+	bufferReturnCounters_.erase(buffer);
+
 	IPU3Frames::Info *info = frameInfos_.find(buffer);
 	if (!info)
 		return;
@@ -1330,6 +1356,11 @@ void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 
 void IPU3CameraData::paramBufferReady(FrameBuffer *buffer)
 {
+	if (--bufferReturnCounters_[buffer] > 0)
+		return;
+
+	bufferReturnCounters_.erase(buffer);
+
 	IPU3Frames::Info *info = frameInfos_.find(buffer);
 	if (!info)
 		return;
@@ -1350,6 +1381,11 @@ void IPU3CameraData::paramBufferReady(FrameBuffer *buffer)
 
 void IPU3CameraData::statBufferReady(FrameBuffer *buffer)
 {
+	if (--bufferReturnCounters_[buffer] > 0)
+		return;
+
+	bufferReturnCounters_.erase(buffer);
+
 	IPU3Frames::Info *info = frameInfos_.find(buffer);
 	if (!info)
 		return;
