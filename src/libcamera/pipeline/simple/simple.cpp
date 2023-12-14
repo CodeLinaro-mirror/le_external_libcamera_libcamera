@@ -1316,6 +1316,8 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	 */
 	for ([[maybe_unused]] StreamRole role : roles) {
 		StreamConfiguration cfg{ StreamFormats{ formats } };
+		if (!formats.begin()->first)
+			continue;
 		cfg.pixelFormat = formats.begin()->first;
 		cfg.size = formats.begin()->second[0].max;
 
