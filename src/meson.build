@@ -15,16 +15,30 @@ summary({
          }, section : 'Paths')
 
 # Module Signing
+# Use one of gnutls or libcrypto (provided by OpenSSL), trying gnutls first.
+libcrypto = dependency('gnutls', 'libcrypto', required : false)
 openssl = find_program('openssl', required : false)
-if openssl.found()
+if not libcrypto.found()
+    ipa_sign_module = false
+    warning('Neither gnutls nor libcrypto found, all IPA modules will be isolated')
+    summary({'IPA modules signed with': 'None (modules will run isolated)'},
+            section : 'Configuration')
+elif not openssl.found()
+    ipa_sign_module = false
+    warning('openssl not found, all IPA modules will be isolated')
+    ipa_sign_module = false
+else
+    ipa_sign_module = true
+    config_h.set('HAVE_IPA_PUBKEY', 1)
+    if libcrypto.name() == 'gnutls'
+        config_h.set('HAVE_GNUTLS', 1)
+    else
+        config_h.set('HAVE_CRYPTO', 1)
+    endif
+    summary({'IPA modules signed with' : libcrypto.name()}, section : 'Configuration')
     ipa_priv_key = custom_target('ipa-priv-key',
                                  output : ['ipa-priv-key.pem'],
                                  command : [gen_ipa_priv_key, '@OUTPUT@'])
-    config_h.set('HAVE_IPA_PUBKEY', 1)
-    ipa_sign_module = true
-else
-    warning('openssl not found, all IPA modules will be isolated')
-    ipa_sign_module = false
 endif
 
 # libyuv, used by the Android adaptation layer and the virtual pipeline handler.
