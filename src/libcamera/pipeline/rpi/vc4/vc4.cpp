@@ -923,7 +923,7 @@ void Vc4CameraData::setCameraTimeout(uint32_t maxFrameLengthMs)
 
 void Vc4CameraData::tryRunPipeline()
 {
-	FrameBuffer *embeddedBuffer;
+	FrameBuffer *embeddedBuffer = nullptr;
 	BayerFrame bayerFrame;
 
 	/* If any of our request or buffer queues are empty, we cannot proceed. */
