@@ -336,7 +336,7 @@ void Request::Private::timeout()
 
 /**
  * \brief Create a capture request for a camera
- * \param[in] camera The camera that creates the request
+ * \param[in] d The request private data
  * \param[in] cookie Opaque cookie for application use
  *
  * The \a cookie is stored in the request and is accessible through the
@@ -344,12 +344,17 @@ void Request::Private::timeout()
  * the request to an external resource in the request completion handler, and is
  * completely opaque to libcamera.
  */
-Request::Request(Camera *camera, uint64_t cookie)
-	: Extensible(std::make_unique<Private>(camera)),
-	  cookie_(cookie), status_(RequestPending)
+std::unique_ptr<Request> Request::create(std::unique_ptr<Private> d,
+					 uint64_t cookie)
+{
+	return std::make_unique<Request>(std::move(d), cookie);
+}
+
+Request::Request(std::unique_ptr<Request::Private> d, uint64_t cookie)
+	: Extensible(std::move(d)), cookie_(cookie), status_(RequestPending)
 {
 	controls_ = new ControlList(controls::controls,
-				    camera->_d()->validator());
+				    _d()->camera()->_d()->validator());
 
 	/**
 	 * \todo Add a validator for metadata controls.

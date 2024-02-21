@@ -371,20 +371,25 @@ bool PipelineHandler::hasPendingRequests(const Camera *camera) const
 }
 
 /**
- * \fn PipelineHandler::registerRequest()
- * \brief Register a request for use by the pipeline handler
- * \param[in] request The request to register
+ * \fn PipelineHandler::createRequest()
+ * \brief Create a request and register it for use by the pipeline handler
+ * \param[in] camera The camera the Request belongs to
+ * \param[in] cookie The Request unique identifier
  *
- * This function is called when the request is created, and allows the pipeline
- * handler to perform any one-time initialization it requries for the request.
+ * This function is called to create a Request by calling createRequestDevice()
+ * which can be optionally provided by the PipelineHandler derived classes.
  */
-void PipelineHandler::registerRequest(Request *request)
+std::unique_ptr<Request> PipelineHandler::createRequest(Camera *camera, uint64_t cookie)
 {
+	std::unique_ptr<Request> request = createRequestDevice(camera, cookie);
+
 	/*
 	 * Connect the request prepared signal to notify the pipeline handler
 	 * when a request is ready to be processed.
 	 */
 	request->_d()->prepared.connect(this, &PipelineHandler::doQueueRequests);
+
+	return request;
 }
 
 /**
@@ -460,6 +465,27 @@ void PipelineHandler::doQueueRequests()
 		doQueueRequest(request);
 		waitingRequests_.pop();
 	}
+}
+
+/**
+ * \brief Create a Request from the pipeline handler
+ * \param[in] camera The camera the Request belongs to
+ * \param[in] cookie The Request unique identifier
+ *
+ * A virtual function that PipelineHandler derived classes are free to override
+ * in order to initialize a Request with a custom Request::Private derived
+ * class.
+ *
+ * This is the base class implementation that use Request::Private to
+ * initialize the Request.
+ *
+ * \return A unique pointer to a newly created Request
+ */
+std::unique_ptr<Request>
+PipelineHandler::createRequestDevice(Camera *camera, uint64_t cookie)
+{
+	auto d = std::make_unique<Request::Private>(camera);
+	return Request::create(std::move(d), cookie);
 }
 
 /**
