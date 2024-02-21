@@ -1393,6 +1393,9 @@ void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 		availableParamBuffers_.push(request->paramBuffer);
 		availableStatBuffers_.push(request->statBuffer);
 
+		/* Return RAW buffer to the CIO2. */
+		cio2_.tryReturnBuffer(buffer);
+
 		pipe()->completeRequest(request->_o<Request>());
 		return;
 	}
