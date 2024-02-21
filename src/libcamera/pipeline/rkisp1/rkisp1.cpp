@@ -39,6 +39,7 @@
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
+#include "libcamera/internal/request.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -81,6 +82,15 @@ public:
 private:
 	PipelineHandlerRkISP1 *pipe_;
 	std::map<unsigned int, RkISP1FrameInfo *> frameInfo_;
+};
+
+class RkISP1Request : public Request::Private
+{
+public:
+	RkISP1Request(Camera *camera)
+		: Request::Private(camera)
+	{
+	}
 };
 
 class RkISP1CameraData : public Camera::Private
@@ -157,6 +167,8 @@ public:
 	int start(Camera *camera, const ControlList *controls) override;
 	void stopDevice(Camera *camera) override;
 
+	std::unique_ptr<Request> createRequestDevice(Camera *camera,
+						     uint64_t cookie) override;
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
 	bool match(DeviceEnumerator *enumerator) override;
@@ -1018,6 +1030,13 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 	freeBuffers(camera);
 
 	activeCamera_ = nullptr;
+}
+
+std::unique_ptr<Request> PipelineHandlerRkISP1::createRequestDevice(Camera *camera,
+								    uint64_t cookie)
+{
+	auto request = std::make_unique<RkISP1Request>(camera);
+	return Request::create(std::move(request), cookie);
 }
 
 int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
