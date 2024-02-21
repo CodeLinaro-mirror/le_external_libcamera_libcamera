@@ -34,9 +34,9 @@
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
+#include "libcamera/internal/request.h"
 
 #include "cio2.h"
-#include "frames.h"
 #include "imgu.h"
 
 namespace libcamera {
@@ -45,6 +45,24 @@ LOG_DEFINE_CATEGORY(IPU3)
 
 static const ControlInfoMap::Map IPU3Controls = {
 	{ &controls::draft::PipelineDepth, ControlInfo(2, 3) },
+};
+
+class IPU3Request : public Request::Private
+{
+public:
+	IPU3Request(Camera *camera)
+		: Request::Private(camera)
+	{
+	}
+
+	FrameBuffer *rawBuffer;
+	FrameBuffer *paramBuffer;
+	FrameBuffer *statBuffer;
+
+	ControlList effectiveSensorControls;
+
+	bool paramDequeued;
+	bool metadataProcessed;
 };
 
 class IPU3CameraData : public Camera::Private
@@ -57,6 +75,7 @@ public:
 
 	int loadIPA();
 
+	void tryCompleteRequest(IPU3Request *request);
 	void imguOutputBufferReady(FrameBuffer *buffer);
 	void cio2BufferReady(FrameBuffer *buffer);
 	void paramBufferReady(FrameBuffer *buffer);
@@ -75,7 +94,6 @@ public:
 	Rectangle cropRegion_;
 
 	std::unique_ptr<DelayedControls> delayedCtrls_;
-	IPU3Frames frameInfos_;
 
 	std::unique_ptr<ipa::ipu3::IPAProxyIPU3> ipa_;
 
@@ -86,7 +104,17 @@ public:
 
 	ControlInfoMap ipaControls_;
 
+	std::map<unsigned int, IPU3Request *> requestMap_;
+
+	std::queue<FrameBuffer *> availableParamBuffers_;
+	std::queue<FrameBuffer *> availableStatBuffers_;
+
 private:
+	IPU3Request *cameraRequest(Request *request)
+	{
+		return static_cast<IPU3Request *>(request->_d());
+	}
+
 	void metadataReady(unsigned int id, const ControlList &metadata);
 	void paramsBufferReady(unsigned int id);
 	void setSensorControls(unsigned int id, const ControlList &sensorControls,
@@ -144,6 +172,8 @@ public:
 	int start(Camera *camera, const ControlList *controls) override;
 	void stopDevice(Camera *camera) override;
 
+	std::unique_ptr<Request> createRequestDevice(Camera *camera,
+						     uint64_t cookie) override;
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
 	bool match(DeviceEnumerator *enumerator) override;
@@ -152,6 +182,11 @@ private:
 	IPU3CameraData *cameraData(Camera *camera)
 	{
 		return static_cast<IPU3CameraData *>(camera->_d());
+	}
+
+	IPU3Request *cameraRequest(Request *request)
+	{
+		return static_cast<IPU3Request *>(request->_d());
 	}
 
 	int initControls(IPU3CameraData *data);
@@ -680,18 +715,16 @@ int PipelineHandlerIPU3::allocateBuffers(Camera *camera)
 	for (const std::unique_ptr<FrameBuffer> &buffer : imgu->paramBuffers_) {
 		buffer->setCookie(ipaBufferId++);
 		ipaBuffers_.emplace_back(buffer->cookie(), buffer->planes());
+		data->availableParamBuffers_.push(buffer.get());
 	}
 
 	for (const std::unique_ptr<FrameBuffer> &buffer : imgu->statBuffers_) {
 		buffer->setCookie(ipaBufferId++);
 		ipaBuffers_.emplace_back(buffer->cookie(), buffer->planes());
+		data->availableStatBuffers_.push(buffer.get());
 	}
 
 	data->ipa_->mapBuffers(ipaBuffers_);
-
-	data->frameInfos_.init(imgu->paramBuffers_, imgu->statBuffers_);
-	data->frameInfos_.bufferAvailable.connect(
-		data, &IPU3CameraData::queuePendingRequests);
 
 	return 0;
 }
@@ -699,8 +732,6 @@ int PipelineHandlerIPU3::allocateBuffers(Camera *camera)
 int PipelineHandlerIPU3::freeBuffers(Camera *camera)
 {
 	IPU3CameraData *data = cameraData(camera);
-
-	data->frameInfos_.clear();
 
 	std::vector<unsigned int> ids;
 	for (IPABuffer &ipabuf : ipaBuffers_)
@@ -777,6 +808,7 @@ void PipelineHandlerIPU3::stopDevice(Camera *camera)
 		LOG(IPU3, Warning) << "Failed to stop camera " << camera->id();
 
 	freeBuffers(camera);
+	data->requestMap_.clear();
 }
 
 void IPU3CameraData::cancelPendingRequests()
@@ -801,35 +833,78 @@ void IPU3CameraData::queuePendingRequests()
 {
 	while (!pendingRequests_.empty()) {
 		Request *request = pendingRequests_.front();
+		IPU3Request *ipu3Request = cameraRequest(request);
 
-		IPU3Frames::Info *info = frameInfos_.create(request);
-		if (!info)
-			break;
+		/*
+		 * The IPU3 pipeline associates buffers with the request
+		 * sequence.
+		 */
+		requestMap_[request->sequence()] = ipu3Request;
 
 		/*
 		 * Queue a buffer on the CIO2, using the raw stream buffer
 		 * provided in the request, if any, or a CIO2 internal buffer
 		 * otherwise.
+		 *
+		 * No need to set a buffer->setRequest() as
+		 * a) If the buffer is provided by the application that's
+		 *    already been done
+		 * b) If the buffer comes from the CIO2 internal pool,
+		 *    CIO2Device::queueBuffer() does that for us
 		 */
 		FrameBuffer *reqRawBuffer = request->findBuffer(&rawStream_);
 		FrameBuffer *rawBuffer = cio2_.queueBuffer(request, reqRawBuffer);
+
 		/*
 		 * \todo If queueBuffer fails in queuing a buffer to the device,
 		 * report the request as error by cancelling the request and
 		 * calling PipelineHandler::completeRequest().
 		 */
-		if (!rawBuffer) {
-			frameInfos_.remove(info);
+		if (!rawBuffer)
+			break;
+
+		/*
+		 * Store the raw buffer queued to the CIO2 to queue it to the
+		 * Imgu input when the IPA has prepared the paramters buffer.
+		 */
+		ipu3Request->rawBuffer = rawBuffer;
+
+		/*
+		 * Prepare the stats and parameters buffer and associate it
+		 * with the currently queued request.
+		 */
+		if (availableParamBuffers_.empty()) {
+			LOG(IPU3, Debug) << "Parameters buffer underrun";
 			break;
 		}
 
-		info->rawBuffer = rawBuffer;
+		if (availableStatBuffers_.empty()) {
+			LOG(IPU3, Debug) << "Statistics buffer underrun";
+			break;
+		}
 
-		ipa_->queueRequest(info->id, request->controls());
+		ipu3Request->paramBuffer = availableParamBuffers_.front();
+		ipu3Request->paramDequeued = false;
+		ipu3Request->paramBuffer->_d()->setRequest(request);
+		availableParamBuffers_.pop();
+
+		ipu3Request->statBuffer = availableStatBuffers_.front();
+		ipu3Request->metadataProcessed = false;
+		ipu3Request->statBuffer->_d()->setRequest(request);
+		availableStatBuffers_.pop();
+
+		ipa_->queueRequest(request->sequence(), request->controls());
 
 		pendingRequests_.pop();
 		processingRequests_.push(request);
 	}
+}
+
+std::unique_ptr<Request> PipelineHandlerIPU3::createRequestDevice(Camera *camera,
+								  uint64_t cookie)
+{
+	auto request = std::make_unique<IPU3Request>(camera);
+	return Request::create(std::move(request), cookie);
 }
 
 int PipelineHandlerIPU3::queueRequestDevice(Camera *camera, Request *request)
@@ -1200,6 +1275,26 @@ int IPU3CameraData::loadIPA()
 	return 0;
 }
 
+void IPU3CameraData::tryCompleteRequest(IPU3Request *request)
+{
+	if (request->hasPendingBuffers())
+		return;
+
+	if (!request->metadataProcessed)
+		return;
+
+	if (!request->paramDequeued)
+		return;
+
+	availableParamBuffers_.push(request->paramBuffer);
+	availableStatBuffers_.push(request->statBuffer);
+
+	pipe()->completeRequest(request->_o<Request>());
+
+	/* Try queue another request now that this one has completed. */
+	queuePendingRequests();
+}
+
 void IPU3CameraData::setSensorControls([[maybe_unused]] unsigned int id,
 				       const ControlList &sensorControls,
 				       const ControlList &lensControls)
@@ -1220,12 +1315,10 @@ void IPU3CameraData::setSensorControls([[maybe_unused]] unsigned int id,
 
 void IPU3CameraData::paramsBufferReady(unsigned int id)
 {
-	IPU3Frames::Info *info = frameInfos_.find(id);
-	if (!info)
-		return;
+	IPU3Request *request = requestMap_[id];
 
 	/* Queue all buffers from the request aimed for the ImgU. */
-	for (auto it : info->request->buffers()) {
+	for (auto it : request->_o<Request>()->buffers()) {
 		const Stream *stream = it.first;
 		FrameBuffer *outbuffer = it.second;
 
@@ -1235,25 +1328,21 @@ void IPU3CameraData::paramsBufferReady(unsigned int id)
 			imgu_->viewfinder_->queueBuffer(outbuffer);
 	}
 
-	info->paramBuffer->_d()->metadata().planes()[0].bytesused =
+	request->paramBuffer->_d()->metadata().planes()[0].bytesused =
 		sizeof(struct ipu3_uapi_params);
-	imgu_->param_->queueBuffer(info->paramBuffer);
-	imgu_->stat_->queueBuffer(info->statBuffer);
-	imgu_->input_->queueBuffer(info->rawBuffer);
+	imgu_->param_->queueBuffer(request->paramBuffer);
+	imgu_->stat_->queueBuffer(request->statBuffer);
+	imgu_->input_->queueBuffer(request->rawBuffer);
 }
 
 void IPU3CameraData::metadataReady(unsigned int id, const ControlList &metadata)
 {
-	IPU3Frames::Info *info = frameInfos_.find(id);
-	if (!info)
-		return;
+	IPU3Request *request = requestMap_[id];
 
-	Request *request = info->request;
-	request->metadata().merge(metadata);
+	request->_o<Request>()->metadata().merge(metadata);
 
-	info->metadataProcessed = true;
-	if (frameInfos_.tryComplete(info))
-		pipe()->completeRequest(request);
+	request->metadataProcessed = true;
+	tryCompleteRequest(request);
 }
 
 /* -----------------------------------------------------------------------------
@@ -1268,11 +1357,7 @@ void IPU3CameraData::metadataReady(unsigned int id, const ControlList &metadata)
  */
 void IPU3CameraData::imguOutputBufferReady(FrameBuffer *buffer)
 {
-	IPU3Frames::Info *info = frameInfos_.find(buffer);
-	if (!info)
-		return;
-
-	Request *request = info->request;
+	Request *request = buffer->request();
 
 	pipe()->completeBuffer(request, buffer);
 
@@ -1283,8 +1368,7 @@ void IPU3CameraData::imguOutputBufferReady(FrameBuffer *buffer)
 		cropRegion_ = *scalerCrop;
 	request->metadata().set(controls::ScalerCrop, cropRegion_);
 
-	if (frameInfos_.tryComplete(info))
-		pipe()->completeRequest(request);
+	tryCompleteRequest(cameraRequest(request));
 }
 
 /**
@@ -1296,22 +1380,20 @@ void IPU3CameraData::imguOutputBufferReady(FrameBuffer *buffer)
  */
 void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 {
-	IPU3Frames::Info *info = frameInfos_.find(buffer);
-	if (!info)
-		return;
-
-	Request *request = info->request;
+	IPU3Request *request = cameraRequest(buffer->request());
 
 	/* If the buffer is cancelled force a complete of the whole request. */
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
-		for (auto it : request->buffers()) {
+		for (auto it : request->_o<Request>()->buffers()) {
 			FrameBuffer *b = it.second;
 			b->_d()->cancel();
-			pipe()->completeBuffer(request, b);
+			pipe()->completeBuffer(request->_o<Request>(), b);
 		}
 
-		frameInfos_.remove(info);
-		pipe()->completeRequest(request);
+		availableParamBuffers_.push(request->paramBuffer);
+		availableStatBuffers_.push(request->statBuffer);
+
+		pipe()->completeRequest(request->_o<Request>());
 		return;
 	}
 
@@ -1321,24 +1403,23 @@ void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 	 * \todo The sensor timestamp should be better estimated by connecting
 	 * to the V4L2Device::frameStart signal.
 	 */
-	request->metadata().set(controls::SensorTimestamp,
-				buffer->metadata().timestamp);
+	request->_o<Request>()->metadata().set(controls::SensorTimestamp,
+					       buffer->metadata().timestamp);
 
-	info->effectiveSensorControls = delayedCtrls_->get(buffer->metadata().sequence);
+	request->effectiveSensorControls =
+		delayedCtrls_->get(buffer->metadata().sequence);
 
-	if (request->findBuffer(&rawStream_))
-		pipe()->completeBuffer(request, buffer);
+	if (request->_o<Request>()->findBuffer(&rawStream_))
+		pipe()->completeBuffer(request->_o<Request>(), buffer);
 
-	ipa_->fillParamsBuffer(info->id, info->paramBuffer->cookie());
+	ipa_->fillParamsBuffer(request->_o<Request>()->sequence(),
+			       request->paramBuffer->cookie());
 }
 
 void IPU3CameraData::paramBufferReady(FrameBuffer *buffer)
 {
-	IPU3Frames::Info *info = frameInfos_.find(buffer);
-	if (!info)
-		return;
-
-	info->paramDequeued = true;
+	IPU3Request *request = cameraRequest(buffer->request());
+	request->paramDequeued = true;
 
 	/*
 	 * tryComplete() will delete info if it completes the IPU3Frame.
@@ -1346,35 +1427,25 @@ void IPU3CameraData::paramBufferReady(FrameBuffer *buffer)
 	 *
 	 * \todo Improve the FrameInfo API to avoid this type of issue
 	 */
-	Request *request = info->request;
 
-	if (frameInfos_.tryComplete(info))
-		pipe()->completeRequest(request);
+	tryCompleteRequest(request);
 }
 
 void IPU3CameraData::statBufferReady(FrameBuffer *buffer)
 {
-	IPU3Frames::Info *info = frameInfos_.find(buffer);
-	if (!info)
-		return;
-
-	Request *request = info->request;
+	IPU3Request *request = cameraRequest(buffer->request());
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
-		info->metadataProcessed = true;
+		request->metadataProcessed = true;
 
-		/*
-		 * tryComplete() will delete info if it completes the IPU3Frame.
-		 * In that event, we must have obtained the Request before hand.
-		 */
-		if (frameInfos_.tryComplete(info))
-			pipe()->completeRequest(request);
+		tryCompleteRequest(request);
 
 		return;
 	}
 
-	ipa_->processStatsBuffer(info->id, request->metadata().get(controls::SensorTimestamp).value_or(0),
-				 info->statBuffer->cookie(), info->effectiveSensorControls);
+	ipa_->processStatsBuffer(request->_o<Request>()->sequence(),
+				 request->_o<Request>()->metadata().get(controls::SensorTimestamp).value_or(0),
+				 request->statBuffer->cookie(), request->effectiveSensorControls);
 }
 
 /*
