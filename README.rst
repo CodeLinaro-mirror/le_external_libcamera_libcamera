@@ -94,6 +94,9 @@ for tracing with lttng: [optional]
 for android: [optional]
         libexif-dev libjpeg-dev
 
+for Python bindings: [optional]
+        pybind11-dev
+
 for lc-compliance: [optional]
         libevent-dev libgtest-dev
 
