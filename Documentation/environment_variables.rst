@@ -37,6 +37,11 @@ LIBCAMERA_IPA_MODULE_PATH
 
    Example value: ``${HOME}/.libcamera/lib:/opt/libcamera/vendor/lib``
 
+LIBCAMERA_PIPELINES_MATCH_LIST
+   Define an ordered list of pipeline names to be used to match the media devices in the system.
+
+   Example value: ``PipelineHandlerRkISP1,SimplePipelineHandler``
+
 LIBCAMERA_RPI_CONFIG_FILE
    Define a custom configuration file to use in the Raspberry Pi pipeline handler.
 
