@@ -21,6 +21,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/ipa_proxy.h"
+#include "libcamera/internal/request.h"
 
 namespace libcamera {
 
@@ -59,7 +60,7 @@ public:
 	void stop(Camera *camera);
 	bool hasPendingRequests(const Camera *camera) const;
 
-	void registerRequest(Request *request);
+	std::unique_ptr<Request> createRequest(Camera *camera, uint64_t cookie);
 	void queueRequest(Request *request);
 
 	bool completeBuffer(Request *request, FrameBuffer *buffer);
@@ -74,6 +75,8 @@ protected:
 	void registerCamera(std::shared_ptr<Camera> camera);
 	void hotplugMediaDevice(MediaDevice *media);
 
+	virtual std::unique_ptr<Request> createRequestDevice(Camera *camera,
+							     uint64_t cookie);
 	virtual int queueRequestDevice(Camera *camera, Request *request) = 0;
 	virtual void stopDevice(Camera *camera) = 0;
 

@@ -45,9 +45,10 @@ public:
 
 	using BufferMap = std::map<const Stream *, FrameBuffer *>;
 
-	Request(Camera *camera, uint64_t cookie = 0);
+	Request(std::unique_ptr<Private> d, uint64_t cookie = 0);
 	~Request();
 
+	static std::unique_ptr<Request> create(std::unique_ptr<Private> d, uint64_t);
 	void reuse(ReuseFlag flags = Default);
 
 	ControlList &controls() { return *controls_; }

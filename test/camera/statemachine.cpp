@@ -38,10 +38,6 @@ protected:
 		if (camera_->start() != -EACCES)
 			return TestFail;
 
-		Request request(camera_.get());
-		if (camera_->queueRequest(&request) != -EACCES)
-			return TestFail;
-
 		/* Test operations which should pass. */
 		if (camera_->release())
 			return TestFail;
@@ -68,10 +64,6 @@ protected:
 		if (camera_->start() != -EACCES)
 			return TestFail;
 
-		Request request(camera_.get());
-		if (camera_->queueRequest(&request) != -EACCES)
-			return TestFail;
-
 		/* Test operations which should pass. */
 		if (camera_->stop())
 			return TestFail;
@@ -93,10 +85,6 @@ protected:
 	{
 		/* Test operations which should fail. */
 		if (camera_->acquire() != -EBUSY)
-			return TestFail;
-
-		Request request1(camera_.get());
-		if (camera_->queueRequest(&request1) != -EACCES)
 			return TestFail;
 
 		/* Test operations which should pass. */

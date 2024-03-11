@@ -1236,12 +1236,8 @@ std::unique_ptr<Request> Camera::createRequest(uint64_t cookie)
 	if (ret < 0)
 		return nullptr;
 
-	std::unique_ptr<Request> request = std::make_unique<Request>(this, cookie);
-
-	/* Associate the request with the pipeline handler. */
-	d->pipe_->registerRequest(request.get());
-
-	return request;
+	/* Create a Request from the pipeline handler. */
+	return d->pipe_->createRequest(this, cookie);
 }
 
 /**
