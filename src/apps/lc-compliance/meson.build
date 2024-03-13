@@ -15,6 +15,7 @@ lc_compliance_sources = files([
     'capture_test.cpp',
     'environment.cpp',
     'main.cpp',
+    'per_frame_controls.cpp',
     'simple_capture.cpp',
     'time_sheet.cpp',
 ])

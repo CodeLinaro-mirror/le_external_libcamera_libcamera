@@ -11,6 +11,7 @@
 #include <gtest/gtest.h>
 
 #include "environment.h"
+#include "per_frame_controls.h"
 #include "simple_capture.h"
 
 using namespace libcamera;
@@ -133,3 +134,48 @@ INSTANTIATE_TEST_SUITE_P(CaptureTests,
 			 testing::Combine(testing::ValuesIn(ROLES),
 					  testing::ValuesIn(NUMREQUESTS)),
 			 SingleStream::nameParameters);
+
+/*
+ * Test Per frame controls
+ */
+TEST_F(SingleStream, testExposureGainChangeOnSameFrame)
+{
+	PerFrameControls capture(camera_);
+	capture.configure(StreamRole::VideoRecording);
+	capture.testExposureGainChangeOnSameFrame();
+}
+
+TEST_F(SingleStream, testFramePreciseExposureChange)
+{
+	PerFrameControls capture(camera_);
+	capture.configure(StreamRole::VideoRecording);
+	capture.testFramePreciseExposureChange();
+}
+
+TEST_F(SingleStream, testFramePreciseGainChange)
+{
+	PerFrameControls capture(camera_);
+	capture.configure(StreamRole::VideoRecording);
+	capture.testFramePreciseGainChange();
+}
+
+TEST_F(SingleStream, testExposureGainIsAppliedOnFirstFrame)
+{
+	PerFrameControls capture(camera_);
+	capture.configure(StreamRole::VideoRecording);
+	capture.testExposureGainIsAppliedOnFirstFrame();
+}
+
+TEST_F(SingleStream, testExposureGainFromFirstRequestGetsApplied)
+{
+	PerFrameControls capture(camera_);
+	capture.configure(StreamRole::VideoRecording);
+	capture.testExposureGainFromFirstRequestGetsApplied();
+}
+
+TEST_F(SingleStream, testExposureGainFromFirstAndSecondRequestGetsApplied)
+{
+	PerFrameControls capture(camera_);
+	capture.configure(StreamRole::VideoRecording);
+	capture.testExposureGainFromFirstAndSecondRequestGetsApplied();
+}
