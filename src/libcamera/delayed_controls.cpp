@@ -104,6 +104,8 @@ DelayedControls::DelayedControls(V4L2Device *device,
 		maxDelay_ = std::max(maxDelay_, controlParams_[id].delay);
 	}
 
+	LOG(DelayedControls, Debug) << "Maximum delay: " << maxDelay_;
+
 	reset();
 }
 
@@ -212,6 +214,14 @@ bool DelayedControls::push(const ControlList &controls)
 
 bool DelayedControls::pushForFrame(uint32_t sequence, const ControlList &controls)
 {
+	LOG(DelayedControls, Debug) << "push: " << sequence;
+	auto idMap = controls.idMap();
+	if (idMap) {
+		for (const auto &[id, value] : controls) {
+			LOG(DelayedControls, Debug) << "  " << idMap->at(id)->name() << " : " << value.toString();
+		}
+	}
+
 	if (sequence < queueIndex_) {
 		LOG(DelayedControls, Debug) << "Got updated data for frame:" << sequence;
 	}
@@ -320,6 +330,7 @@ bool DelayedControls::pushForFrame(uint32_t sequence, const ControlList &control
  */
 ControlList DelayedControls::get(uint32_t sequence)
 {
+	LOG(DelayedControls, Debug) << "get " << sequence << ":";
 	ControlList out(device_->controls());
 	for (const auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
@@ -328,9 +339,8 @@ ControlList DelayedControls::get(uint32_t sequence)
 		out.set(id->id(), info);
 
 		LOG(DelayedControls, Debug)
-			<< "Reading " << id->name()
-			<< " to " << info.toString()
-			<< " at index " << sequence;
+			<< "  " << id->name()
+			<< ": " << info.toString();
 	}
 
 	return out;
