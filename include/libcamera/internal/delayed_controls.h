@@ -30,25 +30,29 @@ public:
 	void reset();
 
 	bool push(const ControlList &controls);
+	bool pushForFrame(uint32_t sequence, const ControlList &controls);
 	ControlList get(uint32_t sequence);
 
 	void applyControls(uint32_t sequence);
 
 private:
+	bool controlsAreQueuedForFrame(unsigned int frame, const ControlList &controls);
+
 	class Info : public ControlValue
 	{
 	public:
 		Info()
-			: updated(false)
+			: sourceSequence_(0)
 		{
 		}
 
-		Info(const ControlValue &v, bool updated_ = true)
-			: ControlValue(v), updated(updated_)
+		Info(const ControlValue &v, std::optional<uint32_t> sourceSequence = std::nullopt)
+			: ControlValue(v), sourceSequence_(sourceSequence)
 		{
 		}
 
-		bool updated;
+		/* The sequence id, this info stems from*/
+		std::optional<uint32_t> sourceSequence_;
 	};
 
 	/* \todo Make the listSize configurable at instance creation time. */

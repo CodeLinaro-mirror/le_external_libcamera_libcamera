@@ -115,8 +115,9 @@ DelayedControls::DelayedControls(V4L2Device *device,
  */
 void DelayedControls::reset()
 {
-	queueIndex_ = 1;
-	writeIndex_ = 0;
+	queueIndex_ = 0;
+	/* Frames up to maxDelay_ will be based on sensor init values. */
+	writeIndex_ = maxDelay_;
 
 	/* Retrieve control as reported by the device. */
 	std::vector<uint32_t> ids;
@@ -133,26 +134,129 @@ void DelayedControls::reset()
 		 * Do not mark this control value as updated, it does not need
 		 * to be written to to device on startup.
 		 */
-		values_[id][0] = Info(ctrl.second, false);
+		values_[id][0] = Info(ctrl.second, 0);
 	}
+
+	/* Copy state from previous frames. */
+	for (auto &ctrl : values_) {
+		for (auto i = queueIndex_; i < writeIndex_; i++) {
+			Info &info = ctrl.second[i + 1];
+			info = ctrl.second[i];
+			info.sourceSequence_.reset();
+		}
+	}
+}
+
+/**
+ * \brief Helper function to check if controls are queued already
+ * \param[in] sequence Sequence number to check
+ * \param[in] controls List of controls to compare against
+ *
+ * This function checks if the controls queued for frame \a sequence
+ * are equal to \a controls. This is helpful in cases where a control algorithm
+ * unconditionally queues controls for every frame, but always too late.
+ * In that case this can be used to check if incoming controls are already queued
+ * or need to be queued for a later frame.
+ *
+ * \returns true if \a controls are queued for the given sequence
+ */
+bool DelayedControls::controlsAreQueuedForFrame(unsigned int sequence, const ControlList &controls)
+{
+	auto idMap = controls.idMap();
+	if (!idMap) {
+		LOG(DelayedControls, Warning) << " idmap is null";
+		return false;
+	} else {
+		for (const auto &[id, value] : controls) {
+			if (values_[idMap->at(id)][sequence] != value) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 /**
  * \brief Push a set of controls on the queue
  * \param[in] controls List of controls to add to the device queue
+ * \deprecated This function is deprecated in favour of pushForFrame
  *
  * Push a set of controls to the control queue. This increases the control queue
  * depth by one.
  *
- * \returns true if \a controls are accepted, or false otherwise
+ * \returns See return value of DelayedControls::pushForFrame
  */
 bool DelayedControls::push(const ControlList &controls)
 {
-	/* Copy state from previous frame. */
-	for (auto &ctrl : values_) {
-		Info &info = ctrl.second[queueIndex_];
-		info = values_[ctrl.first][queueIndex_ - 1];
-		info.updated = false;
+	LOG(DelayedControls, Debug) << "Using deprecated function push(controls): " << queueIndex_;
+	return pushForFrame(queueIndex_, controls);
+}
+
+/**
+ * \brief Push a set of controls for a given frame
+ * \param[in] sequence Sequence to push the controls for
+ * \param[in] controls List of controls to add to the device queue
+ *
+ * Pushes the controls given by \a controls, to be applied at frame \a sequence.
+ *
+ * If there are controls already queued for that frame, these get updated.
+ *
+ * If it's too late for frame \a sequence (controls are already sent to the sensor),
+ * the system checks if the controls that where written out for frame \a sequence
+ * are the same as the requested ones. In this case, nothing is done.
+ * If they differ, the controls get queued for the earliest frame possible
+ * if no other controls with a higher sequence number are queued for that frame already.
+ *
+ * \returns true if \a controls are accepted, or false otherwise
+ */
+
+bool DelayedControls::pushForFrame(uint32_t sequence, const ControlList &controls)
+{
+	if (sequence < queueIndex_) {
+		LOG(DelayedControls, Debug) << "Got updated data for frame:" << sequence;
+	}
+
+	if (sequence > queueIndex_) {
+		LOG(DelayedControls, Warning) << "Hole in queue sequence. This should not happen. Expected: "
+					      << queueIndex_ << " got " << sequence;
+	}
+
+	uint32_t updateIndex = sequence;
+	/* check if its too late for the request */
+	if (sequence < writeIndex_) {
+		/* Check if we can safely ignore the request */
+		if (controls.empty() || controlsAreQueuedForFrame(sequence, controls)) {
+			if (sequence >= queueIndex_) {
+				queueIndex_ = sequence + 1;
+				return true;
+			}
+		} else {
+			LOG(DelayedControls, Debug) << "Controls for frame " << sequence
+						    << " are already in flight. Will be queued for frame " << writeIndex_;
+			updateIndex = writeIndex_;
+		}
+	}
+
+	if (static_cast<signed>(updateIndex) - static_cast<signed>(writeIndex_) >= listSize - static_cast<signed>(maxDelay_)) {
+		/* The system is in an undefined state now. This will heal itself, as soon as all controls where rewritten */
+		LOG(DelayedControls, Error) << "Queue length exceeded. The system is out of sync. Index to update:"
+					    << updateIndex << " Next Index to apply: " << writeIndex_;
+	}
+
+	/**
+	 * Prepare the ringbuffer entries with previous data.
+	 * Data up to [writeIndex_] gets prepared in applyControls.
+	 */
+	if (updateIndex > writeIndex_ && updateIndex >= queueIndex_) {
+		LOG(DelayedControls, Debug) << "Copy from previous " << queueIndex_;
+		for (auto i = queueIndex_; i < updateIndex; i++) {
+			/* Copy state from previous queue. */
+			for (auto &ctrl : values_) {
+				auto &ringBuffer = ctrl.second;
+				ringBuffer[i] = ringBuffer[i - 1];
+				ringBuffer[i].sourceSequence_.reset();
+			}
+		}
 	}
 
 	/* Update with new controls. */
@@ -167,20 +271,34 @@ bool DelayedControls::push(const ControlList &controls)
 
 		const ControlId *id = it->second;
 
-		if (controlParams_.find(id) == controlParams_.end())
-			return false;
+		if (controlParams_.find(id) == controlParams_.end()) {
+			LOG(DelayedControls, Error) << "Could not find params for control " << id << " ignored";
+			continue;
+		}
 
-		Info &info = values_[id][queueIndex_];
+		Info &info = values_[id][updateIndex];
+		/*
+		 * Update the control only, if the already existing value stems from a request
+		 * with a sequence number smaller or equal to the current one
+		 */
+		if (info.sourceSequence_.value_or(0) <= sequence) {
+			info = Info(control.second, sequence);
 
-		info = Info(control.second);
-
-		LOG(DelayedControls, Debug)
-			<< "Queuing " << id->name()
-			<< " to " << info.toString()
-			<< " at index " << queueIndex_;
+			LOG(DelayedControls, Debug)
+				<< "Queuing " << id->name()
+				<< " to " << info.toString()
+				<< " at index " << updateIndex;
+		} else {
+			LOG(DelayedControls, Warning)
+				<< "Skipped update " << id->name()
+				<< " at index " << updateIndex;
+		}
 	}
 
-	queueIndex_++;
+	LOG(DelayedControls, Debug) << "Queued frame: " << queueIndex_ << " it will be active in " << updateIndex;
+
+	if (sequence >= queueIndex_)
+		queueIndex_ = sequence + 1;
 
 	return true;
 }
@@ -202,19 +320,17 @@ bool DelayedControls::push(const ControlList &controls)
  */
 ControlList DelayedControls::get(uint32_t sequence)
 {
-	unsigned int index = std::max<int>(0, sequence - maxDelay_);
-
 	ControlList out(device_->controls());
 	for (const auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
-		const Info &info = ctrl.second[index];
+		const Info &info = ctrl.second[sequence];
 
 		out.set(id->id(), info);
 
 		LOG(DelayedControls, Debug)
 			<< "Reading " << id->name()
 			<< " to " << info.toString()
-			<< " at index " << index;
+			<< " at index " << sequence;
 	}
 
 	return out;
@@ -222,16 +338,21 @@ ControlList DelayedControls::get(uint32_t sequence)
 
 /**
  * \brief Inform DelayedControls of the start of a new frame
- * \param[in] sequence Sequence number of the frame that started
+ * \param[in] sequence Sequence number of the frame that started (0-based)
  *
- * Inform the state machine that a new frame has started and of its sequence
- * number. Any user of these helpers is responsible to inform the helper about
- * the start of any frame. This can be connected with ease to the start of a
- * exposure (SOE) V4L2 event.
+ * Inform the state machine that a new frame has started to arrive at the receiver
+ * (e.g. the sensor started to clock out pixels) and of its sequence
+ * number. This is usually the earliest point in time to update registers in the
+ * sensor for upcoming frames. Any user of these helpers is responsible to inform
+ * the helper about the start of any frame. This can be connected with ease to
+ * the start of a exposure (SOE) V4L2 event.
  */
 void DelayedControls::applyControls(uint32_t sequence)
 {
-	LOG(DelayedControls, Debug) << "frame " << sequence << " started";
+	LOG(DelayedControls, Debug) << "Apply controls " << sequence;
+	if (sequence != writeIndex_ - maxDelay_) {
+		LOG(DelayedControls, Warning) << "Sequence and writeIndex are out of sync. Expected seq: " << writeIndex_ - maxDelay_ << " got " << sequence;
+	}
 
 	/*
 	 * Create control list peeking ahead in the value queue to ensure
@@ -241,10 +362,10 @@ void DelayedControls::applyControls(uint32_t sequence)
 	for (auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
 		unsigned int delayDiff = maxDelay_ - controlParams_[id].delay;
-		unsigned int index = std::max<int>(0, writeIndex_ - delayDiff);
+		unsigned int index = writeIndex_ - delayDiff;
 		Info &info = ctrl.second[index];
 
-		if (info.updated) {
+		if (info.sourceSequence_.has_value()) {
 			if (controlParams_[id].priorityWrite) {
 				/*
 				 * This control must be written now, it could
@@ -262,21 +383,25 @@ void DelayedControls::applyControls(uint32_t sequence)
 			}
 
 			LOG(DelayedControls, Debug)
-				<< "Setting " << id->name()
-				<< " to " << info.toString()
-				<< " at index " << index;
-
-			/* Done with this update, so mark as completed. */
-			info.updated = false;
+				<< "Writing " << id->name()
+				<< " (" << info.toString() << ") "
+				<< " for frame " << index;
 		}
 	}
 
-	writeIndex_ = sequence + 1;
+	auto oldWriteIndex = writeIndex_;
+	writeIndex_ = sequence + maxDelay_ + 1;
 
-	while (writeIndex_ > queueIndex_) {
+	if (writeIndex_ >= queueIndex_ && writeIndex_ > oldWriteIndex) {
 		LOG(DelayedControls, Debug)
-			<< "Queue is empty, auto queue no-op.";
-		push({});
+			<< "Index " << writeIndex_ << " is not yet queued. Prepare with old state";
+		/* Copy state from previous frames without resetting the sourceSequence */
+		for (auto &ctrl : values_) {
+			for (auto i = oldWriteIndex; i < writeIndex_; i++) {
+				Info &info = ctrl.second[i + 1];
+				info = values_[ctrl.first][i];
+			}
+		}
 	}
 
 	device_->setControls(&out);
