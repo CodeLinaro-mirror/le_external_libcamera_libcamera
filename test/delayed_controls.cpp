@@ -84,11 +84,8 @@ protected:
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
-
 		/* Test control without delay are set at once. */
-		for (unsigned int i = 1; i < 100; i++) {
+		for (unsigned int i = 0; i < 100; i++) {
 			int32_t value = 100 + i;
 
 			ctrls.set(V4L2_CID_BRIGHTNESS, value);
@@ -121,25 +118,30 @@ protected:
 		ControlList ctrls;
 
 		/* Reset control to value that will be first in test. */
-		int32_t expected = 4;
-		ctrls.set(V4L2_CID_BRIGHTNESS, expected);
+		int32_t initial = 4;
+		ctrls.set(V4L2_CID_BRIGHTNESS, initial);
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
+		/* Push a request for frame 0 */
+		ctrls.set(V4L2_CID_BRIGHTNESS, 10);
+		delayed->push(ctrls);
 
 		/* Test single control with delay. */
-		for (unsigned int i = 1; i < 100; i++) {
+		for (unsigned int i = 0; i < 100; i++) {
 			int32_t value = 10 + i;
+			int32_t expected = i < 1 ? initial : value;
 
-			ctrls.set(V4L2_CID_BRIGHTNESS, value);
+			/* push the request for frame i+1 */
+			ctrls.set(V4L2_CID_BRIGHTNESS, value + 1);
 			delayed->push(ctrls);
 
 			delayed->applyControls(i);
 
 			ControlList result = delayed->get(i);
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+			ControlList ctrlsV4L = dev_->getControls({ V4L2_CID_BRIGHTNESS });
+			int32_t brightnessV4L = ctrlsV4L.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			if (brightness != expected) {
 				cerr << "Failed single control with delay"
 				     << " frame " << i
@@ -149,7 +151,72 @@ protected:
 				return TestFail;
 			}
 
-			expected = value;
+			if (i > 0 && brightnessV4L != value + 1) {
+				cerr << "Failed single control with delay"
+				     << " frame " << i
+				     << " expected V4L " << value + 1
+				     << " got " << brightnessV4L
+				     << endl;
+				return TestFail;
+			}
+		}
+
+		return TestPass;
+	}
+
+	/* This fails on the old delayed controls implementation */
+	int singleControlWithDelayStartUp()
+	{
+		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
+			{ V4L2_CID_BRIGHTNESS, { 1, false } },
+		};
+		std::unique_ptr<DelayedControls> delayed =
+			std::make_unique<DelayedControls>(dev_.get(), delays);
+		ControlList ctrls;
+
+		/* Reset control to value that will be first in test. */
+		int32_t initial = 4;
+		ctrls.set(V4L2_CID_BRIGHTNESS, initial);
+		dev_->setControls(&ctrls);
+		delayed->reset();
+
+		/* push a request for frame 0 */
+		ctrls.set(V4L2_CID_BRIGHTNESS, 10);
+		delayed->push(ctrls);
+
+		/* Test single control with delay. */
+		for (unsigned int i = 0; i < 100; i++) {
+			int32_t value = 10 + i;
+			int32_t expected = i < 1 ? initial : value;
+
+			/* push the request for frame i+1 */
+			ctrls.set(V4L2_CID_BRIGHTNESS, value + 1);
+			delayed->push(ctrls);
+
+			delayed->applyControls(i);
+
+			ControlList result = delayed->get(i);
+			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+			ControlList ctrlsV4L = dev_->getControls({ V4L2_CID_BRIGHTNESS });
+			int32_t brightnessV4L = ctrlsV4L.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+
+			if (brightness != expected) {
+				cerr << "Failed single control with delay start up"
+				     << " frame " << i
+				     << " expected " << expected
+				     << " got " << brightness
+				     << endl;
+				return TestFail;
+			}
+
+			if (i > 0 && brightnessV4L != value + 1) {
+				cerr << "Failed single control with delay start up"
+				     << " frame " << i
+				     << " expected V4L " << value + 1
+				     << " got " << brightnessV4L
+				     << endl;
+				return TestFail;
+			}
 		}
 
 		return TestPass;
@@ -157,7 +224,7 @@ protected:
 
 	int dualControlsWithDelay()
 	{
-		static const unsigned int maxDelay = 2;
+		static const int maxDelay = 2;
 
 		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
 			{ V4L2_CID_BRIGHTNESS, { 1, false } },
@@ -174,15 +241,21 @@ protected:
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
+		/* push two requests into the queue */
+		ctrls.set(V4L2_CID_BRIGHTNESS, 10);
+		ctrls.set(V4L2_CID_CONTRAST, 10);
+		delayed->push(ctrls);
+		ctrls.set(V4L2_CID_BRIGHTNESS, 11);
+		ctrls.set(V4L2_CID_CONTRAST, 11);
+		delayed->push(ctrls);
 
 		/* Test dual control with delay. */
-		for (unsigned int i = 1; i < 100; i++) {
+		for (unsigned int i = 0; i < 100; i++) {
 			int32_t value = 10 + i;
 
-			ctrls.set(V4L2_CID_BRIGHTNESS, value);
-			ctrls.set(V4L2_CID_CONTRAST, value + 1);
+			/* we are pushing 2 frames ahead */
+			ctrls.set(V4L2_CID_BRIGHTNESS, value + 2);
+			ctrls.set(V4L2_CID_CONTRAST, value + 2);
 			delayed->push(ctrls);
 
 			delayed->applyControls(i);
@@ -190,17 +263,32 @@ protected:
 			ControlList result = delayed->get(i);
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			int32_t contrast = result.get(V4L2_CID_CONTRAST).get<int32_t>();
-			if (brightness != expected || contrast != expected + 1) {
-				cerr << "Failed dual controls"
-				     << " frame " << i
-				     << " brightness " << brightness
-				     << " contrast " << contrast
-				     << " expected " << expected
-				     << endl;
-				return TestFail;
-			}
 
-			expected = i < maxDelay ? expected : value - 1;
+			ControlList ctrlsV4L = dev_->getControls({ V4L2_CID_BRIGHTNESS, V4L2_CID_CONTRAST });
+			int32_t brightnessV4L = ctrlsV4L.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+			int32_t contrastV4L = ctrlsV4L.get(V4L2_CID_CONTRAST).get<int32_t>();
+
+			if (i > maxDelay) {
+				if (brightness != value || contrast != value) {
+					cerr << "Failed dual controls"
+					     << " frame " << i
+					     << " brightness " << brightness
+					     << " contrast " << contrast
+					     << " expected " << value
+					     << endl;
+					return TestFail;
+				}
+				if (brightnessV4L != value + 1 || contrastV4L != value + maxDelay) {
+					cerr << "Failed dual controls"
+					     << " frame " << i
+					     << " brightnessV4L " << brightnessV4L
+					     << " expected " << value + 1
+					     << " contrastV4L " << contrastV4L
+					     << " expected " << value + maxDelay
+					     << endl;
+					return TestFail;
+				}
+			}
 		}
 
 		return TestPass;
@@ -208,7 +296,7 @@ protected:
 
 	int dualControlsMultiQueue()
 	{
-		static const unsigned int maxDelay = 2;
+		static const int maxDelay = 2;
 
 		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
 			{ V4L2_CID_BRIGHTNESS, { 1, false } },
@@ -218,22 +306,19 @@ protected:
 			std::make_unique<DelayedControls>(dev_.get(), delays);
 		ControlList ctrls;
 
-		/* Reset control to value that will be first two frames in test. */
-		int32_t expected = 100;
-		ctrls.set(V4L2_CID_BRIGHTNESS, expected);
-		ctrls.set(V4L2_CID_CONTRAST, expected);
+		/* Reset control to a value that will be first two frames in test. */
+		int32_t initial = 100;
+		ctrls.set(V4L2_CID_BRIGHTNESS, initial);
+		ctrls.set(V4L2_CID_CONTRAST, initial);
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
-
 		/*
-		 * Queue all controls before any fake frame start. Note we
+		 * Queue all controls before applyControls(). Note we
 		 * can't queue up more then the delayed controls history size
-		 * which is 16. Where one spot is used by the reset control.
+		 * which is 16.
 		 */
-		for (unsigned int i = 0; i < 15; i++) {
+		for (unsigned int i = 0; i < 14; i++) {
 			int32_t value = 10 + i;
 
 			ctrls.set(V4L2_CID_BRIGHTNESS, value);
@@ -241,9 +326,9 @@ protected:
 			delayed->push(ctrls);
 		}
 
-		/* Process all queued controls. */
-		for (unsigned int i = 1; i < 16; i++) {
-			int32_t value = 10 + i - 1;
+		/* Process 2 frames less than queued, so that the V4L controls are correct */
+		for (unsigned int i = 0; i < 12; i++) {
+			int32_t expected = i < maxDelay ? initial : 10 + i;
 
 			delayed->applyControls(i);
 
@@ -251,6 +336,11 @@ protected:
 
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			int32_t contrast = result.get(V4L2_CID_CONTRAST).get<int32_t>();
+
+			ControlList ctrlsV4L = dev_->getControls({ V4L2_CID_BRIGHTNESS, V4L2_CID_CONTRAST });
+			int32_t brightnessV4L = ctrlsV4L.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+			int32_t contrastV4L = ctrlsV4L.get(V4L2_CID_CONTRAST).get<int32_t>();
+
 			if (brightness != expected || contrast != expected) {
 				cerr << "Failed multi queue"
 				     << " frame " << i
@@ -261,7 +351,17 @@ protected:
 				return TestFail;
 			}
 
-			expected = i < maxDelay ? expected : value - 1;
+			/* Check v4l values after they've settled */
+			if (i >= maxDelay && (brightnessV4L != expected + 1 || contrastV4L != expected + maxDelay)) {
+				cerr << "Failed multi queue"
+				     << " frame " << i
+				     << " brightnessV4L " << brightnessV4L
+				     << " expected " << expected + 1
+				     << " contrastV4L " << contrastV4L
+				     << " expected " << expected + maxDelay
+				     << endl;
+				return TestFail;
+			}
 		}
 
 		return TestPass;
@@ -269,27 +369,36 @@ protected:
 
 	int run() override
 	{
-		int ret;
+		int ret = 0;
+		bool failed = false;
 
 		/* Test single control without delay. */
 		ret = singleControlNoDelay();
 		if (ret)
-			return ret;
+			failed = true;
 
 		/* Test single control with delay. */
 		ret = singleControlWithDelay();
 		if (ret)
-			return ret;
+			failed = true;
+
+		/* Test single control with delay. */
+		ret = singleControlWithDelayStartUp();
+		if (ret)
+			failed = true;
 
 		/* Test dual controls with different delays. */
 		ret = dualControlsWithDelay();
 		if (ret)
-			return ret;
+			failed = true;
 
 		/* Test control values produced faster than consumed. */
 		ret = dualControlsMultiQueue();
 		if (ret)
-			return ret;
+			failed = true;
+
+		if (failed)
+			return TestFail;
 
 		return TestPass;
 	}
