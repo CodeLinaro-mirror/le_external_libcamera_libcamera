@@ -321,6 +321,12 @@ void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 			continue;
 		algo->queueRequest(context_, frame, frameContext, controls);
 	}
+
+	/* Fast path, if we are not regulating */
+	if (!frameContext.agc.autoEnabled) {
+		ControlList ctrls = getControls(frame);
+		setSensorControls.emit(frame, ctrls);
+	}
 }
 
 void IPARkISP1::fillParamsBuffer(const uint32_t frame, const uint32_t bufferId)
@@ -369,8 +375,14 @@ void IPARkISP1::processStatsBuffer(const uint32_t frame, const uint32_t bufferId
 		algo->process(context_, frame, frameContext, stats, metadata);
 	}
 
-	ControlList ctrls = getControls(frame);
-	setSensorControls.emit(frame, ctrls);
+	/*
+	 * Set controls only when we are actually regulation. Otherwise, the controls
+	 * where already set in queueRequest
+	 */
+	if (frameContext.agc.autoEnabled) {
+		ControlList ctrls = getControls(frame);
+		setSensorControls.emit(frame, ctrls);
+	}
 
 	metadataReady.emit(frame, metadata);
 }
