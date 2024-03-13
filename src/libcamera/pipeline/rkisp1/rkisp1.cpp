@@ -927,13 +927,18 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	if (ret)
 		return ret;
 
-	ret = data->ipa_->start();
-	if (ret) {
+	ControlList ctrls;
+	if (!!controls)
+		ctrls = *controls;
+	ipa::rkisp1::StartResult res;
+	data->ipa_->start(ctrls, &res);
+	if (res.code) {
 		freeBuffers(camera);
 		LOG(RkISP1, Error)
 			<< "Failed to start IPA " << camera->id();
 		return ret;
 	}
+	data->delayedCtrls_->reset(&res.controls);
 
 	data->frame_ = 0;
 
