@@ -16,6 +16,7 @@ lc_compliance_sources = files([
     'environment.cpp',
     'main.cpp',
     'simple_capture.cpp',
+    'time_sheet.cpp',
 ])
 
 lc_compliance  = executable('lc-compliance', lc_compliance_sources,
