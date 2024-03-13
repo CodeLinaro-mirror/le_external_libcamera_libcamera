@@ -42,7 +42,7 @@ void SimpleCapture::configure(StreamRole role)
 	}
 }
 
-void SimpleCapture::start()
+void SimpleCapture::start(const ControlList *controls)
 {
 	Stream *stream = config_->at(0).stream();
 	int count = allocator_->allocate(stream);
@@ -52,7 +52,7 @@ void SimpleCapture::start()
 
 	camera_->requestCompleted.connect(this, &SimpleCapture::requestComplete);
 
-	ASSERT_EQ(camera_->start(), 0) << "Failed to start camera";
+	ASSERT_EQ(camera_->start(controls), 0) << "Failed to start camera";
 }
 
 void SimpleCapture::stop()
