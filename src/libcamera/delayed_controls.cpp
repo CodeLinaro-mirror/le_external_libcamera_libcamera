@@ -115,7 +115,7 @@ DelayedControls::DelayedControls(V4L2Device *device,
  * Resets the state machine to a starting position based on control values
  * retrieved from the device.
  */
-void DelayedControls::reset()
+void DelayedControls::reset(ControlList *ctrls)
 {
 	queueIndex_ = 0;
 	/* Frames up to maxDelay_ will be based on sensor init values. */
@@ -125,6 +125,18 @@ void DelayedControls::reset()
 	std::vector<uint32_t> ids;
 	for (auto const &param : controlParams_)
 		ids.push_back(param.first->id());
+
+	if (ctrls) {
+		device_->setControls(ctrls);
+
+		LOG(DelayedControls, Debug) << "reset:";
+		auto idMap = ctrls->idMap();
+		if (idMap) {
+			for (const auto &[id, value] : *ctrls) {
+				LOG(DelayedControls, Debug) << "  " << idMap->at(id)->name() << " : " << value.toString();
+			}
+		}
+	}
 
 	ControlList controls = device_->getControls(ids);
 
