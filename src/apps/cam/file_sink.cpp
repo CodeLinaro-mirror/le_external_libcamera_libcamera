@@ -16,6 +16,7 @@
 #include <libcamera/camera.h>
 
 #include "../common/dng_writer.h"
+#include "../common/pnm_writer.h"
 #include "../common/image.h"
 
 #include "file_sink.h"
@@ -73,6 +74,7 @@ void FileSink::writeBuffer(const Stream *stream, FrameBuffer *buffer,
 	if (!pattern_.empty())
 		filename = pattern_;
 
+	bool pnm = filename.find(".pnm", filename.size() - 4) != std::string::npos;
 #ifdef HAVE_TIFF
 	bool dng = filename.find(".dng", filename.size() - 4) != std::string::npos;
 #endif /* HAVE_TIFF */
@@ -90,6 +92,15 @@ void FileSink::writeBuffer(const Stream *stream, FrameBuffer *buffer,
 
 	Image *image = mappedBuffers_[buffer].get();
 
+	if (pnm) {
+		ret = PNMWriter::write(filename.c_str(), stream->configuration(),
+				       image->data(0));
+		if (ret < 0)
+			std::cerr << "failed to write PNM file `" << filename
+				  << "'" << std::endl;
+
+		return;
+	}
 #ifdef HAVE_TIFF
 	if (dng) {
 		ret = DNGWriter::write(filename.c_str(), camera_,
