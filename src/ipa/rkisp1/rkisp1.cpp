@@ -53,7 +53,7 @@ public:
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls) override;
-	int start() override;
+	void start(const ControlList &controls, StartResult *result) override;
 	void stop() override;
 
 	int configure(const IPAConfigInfo &ipaConfig,
@@ -86,6 +86,7 @@ private:
 
 	/* Local parameter storage */
 	struct IPAContext context_;
+	bool initialControlsDone_;
 };
 
 namespace {
@@ -199,12 +200,19 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 	return 0;
 }
 
-int IPARkISP1::start()
+void IPARkISP1::start(const ControlList &controls, StartResult *result)
 {
-	ControlList ctrls = getControls(0);
-	setSensorControls.emit(0, ctrls);
+	initialControlsDone_ = false;
+	/*
+	 * Todo: This is really shady. In order to apply the initial controls we already
+	 * queue a request for frame 0 and return the results.
+	 * We need to discuss the official recommendation to handle start controls
+	 */
+	queueRequest(0, controls);
 
-	return 0;
+	result->controls = getControls(0);
+	result->code = 0;
+	initialControlsDone_ = true;
 }
 
 void IPARkISP1::stop()
@@ -322,6 +330,9 @@ void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 			continue;
 		algo->queueRequest(context_, frame, frameContext, controls);
 	}
+
+	if (!initialControlsDone_)
+		return;
 
 	/* Fast path, if we are not regulating */
 	if (!frameContext.agc.autoEnabled) {
