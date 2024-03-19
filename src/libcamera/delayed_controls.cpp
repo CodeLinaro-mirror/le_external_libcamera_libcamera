@@ -109,11 +109,13 @@ DelayedControls::DelayedControls(V4L2Device *device,
 
 /**
  * \brief Reset state machine
+ * \param[in,out] controls The controls to apply to the device
  *
  * Resets the state machine to a starting position based on control values
- * retrieved from the device.
+ * retrieved from the device. If \a controls is given, these controls are set
+ * on the device before retrieving the reset values.
  */
-void DelayedControls::reset()
+void DelayedControls::reset(ControlList *controls)
 {
 	queueIndex_ = 1;
 	writeIndex_ = 0;
@@ -123,11 +125,23 @@ void DelayedControls::reset()
 	for (auto const &param : controlParams_)
 		ids.push_back(param.first->id());
 
-	ControlList controls = device_->getControls(ids);
+	if (controls) {
+		device_->setControls(controls);
+
+		LOG(DelayedControls, Debug) << "reset:";
+		auto idMap = controls->idMap();
+		if (idMap) {
+			for (const auto &[id, value] : *controls)
+				LOG(DelayedControls, Debug) << "  " << idMap->at(id)->name()
+							    << " : " << value.toString();
+		}
+	}
+
+	ControlList ctrls = device_->getControls(ids);
 
 	/* Seed the control queue with the controls reported by the device. */
 	values_.clear();
-	for (const auto &ctrl : controls) {
+	for (const auto &ctrl : ctrls) {
 		const ControlId *id = device_->controls().idmap().at(ctrl.first);
 		/*
 		 * Do not mark this control value as updated, it does not need

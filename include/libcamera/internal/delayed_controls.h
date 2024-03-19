@@ -27,7 +27,7 @@ public:
 	DelayedControls(V4L2Device *device,
 			const std::unordered_map<uint32_t, ControlParams> &controlParams);
 
-	void reset();
+	void reset(ControlList *controls = nullptr);
 
 	bool push(const ControlList &controls);
 	ControlList get(uint32_t sequence);
