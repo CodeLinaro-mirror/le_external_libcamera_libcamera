@@ -151,6 +151,7 @@ void DelayedControls::reset(ControlList *controls)
 		 * to be written to to device on startup.
 		 */
 		values_[id][0] = Info(ctrl.second, 0, false);
+		values_[id].largestValidIndex = 0;
 	}
 
 	/* Propagate initial state */
@@ -304,18 +305,34 @@ bool DelayedControls::push(const ControlList &controls, std::optional<uint32_t> 
 			continue;
 		}
 
-		Info &info = values_[id][updateIndex];
+		ControlRingBuffer &ring = values_[id];
+		Info &info = ring[updateIndex];
 		/*
 		 * Update the control only if the already existing value stems from a
 		 * request with a sequence number smaller or equal to the current one
 		 */
 		if (info.sourceSequence <= sequence) {
 			info = Info(control.second, sequence);
+			if (updateIndex > ring.largestValidIndex)
+				ring.largestValidIndex = updateIndex;
 
 			LOG(DelayedControls, Debug)
 				<< "Queuing " << id->name()
 				<< " to " << info.toString()
 				<< " at index " << updateIndex;
+
+			/* fill up the next indices with the new information */
+			unsigned int i = updateIndex + 1;
+			while (i <= ring.largestValidIndex) {
+				LOG(DelayedControls, Error) << "update " << i;
+				Info &next = ring[i];
+				if (next.sourceSequence <= sequence)
+					next = info;
+				else
+					break;
+
+				i++;
+			}
 		} else {
 			LOG(DelayedControls, Warning)
 				<< "Skipped update " << id->name()

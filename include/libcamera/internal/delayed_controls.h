@@ -67,6 +67,8 @@ private:
 		{
 			return std::array<Info, listSize>::operator[](index % listSize);
 		}
+
+		unsigned int largestValidIndex;
 	};
 
 	bool controlsAreQueued(unsigned int frame, const ControlList &controls);
