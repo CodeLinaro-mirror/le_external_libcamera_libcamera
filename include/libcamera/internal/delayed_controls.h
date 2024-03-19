@@ -67,6 +67,8 @@ private:
 		}
 	};
 
+	bool controlsAreQueued(unsigned int frame, const ControlList &controls);
+
 	V4L2Device *device_;
 	/* \todo Evaluate if we should index on ControlId * or unsigned int */
 	std::unordered_map<const ControlId *, ControlParams> controlParams_;

@@ -138,6 +138,40 @@ void DelayedControls::reset()
 }
 
 /**
+ * \brief Helper function to check if controls are already queued
+ * \param[in] sequence Sequence number to check
+ * \param[in] controls List of controls to compare against
+ *
+ * This function checks if the controls queued for frame \a sequence
+ * are equal to \a controls. This is helpful in cases where a control algorithm
+ * unconditionally queues controls for every frame, but always too late.
+ * In that case this can be used to check if incoming controls are already
+ * queued or need to be queued for a later frame.
+ *
+ * \returns true if \a controls are queued for the given sequence
+ */
+bool DelayedControls::controlsAreQueued(unsigned int sequence,
+					const ControlList &controls)
+{
+	const ControlIdMap &idmap = device_->controls().idmap();
+	for (const auto &[id, value] : controls) {
+		const auto &it = idmap.find(id);
+		if (it == idmap.end()) {
+			LOG(DelayedControls, Warning)
+				<< "Unknown control " << id;
+			return false;
+		}
+
+		const ControlId *ctrlId = it->second;
+
+		if (values_[ctrlId][sequence] != value)
+			return false;
+	}
+
+	return true;
+}
+
+/**
  * \brief Push a set of controls on the queue
  * \param[in] controls List of controls to add to the device queue
  *
