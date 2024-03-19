@@ -22,7 +22,7 @@ protected:
 	SimpleCapture(std::shared_ptr<libcamera::Camera> camera);
 	virtual ~SimpleCapture();
 
-	void start();
+	void start(const libcamera::ControlList *controls = nullptr);
 	void stop();
 
 	virtual void requestComplete(libcamera::Request *request) = 0;
