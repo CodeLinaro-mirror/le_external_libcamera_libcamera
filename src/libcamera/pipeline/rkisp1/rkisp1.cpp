@@ -401,7 +401,7 @@ void RkISP1CameraData::paramFilled(unsigned int frame)
 void RkISP1CameraData::setSensorControls([[maybe_unused]] unsigned int frame,
 					 const ControlList &sensorControls)
 {
-	delayedCtrls_->push(sensorControls);
+	delayedCtrls_->push(sensorControls, frame);
 }
 
 void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &metadata)
