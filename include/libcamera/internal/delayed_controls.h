@@ -52,7 +52,7 @@ private:
 	};
 
 	/* \todo Make the listSize configurable at instance creation time. */
-	static constexpr int listSize = 16;
+	static constexpr unsigned int listSize = 16;
 	class ControlRingBuffer : public std::array<Info, listSize>
 	{
 	public:
