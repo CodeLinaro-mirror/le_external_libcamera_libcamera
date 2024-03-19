@@ -125,14 +125,14 @@ void Agc::queueRequest(IPAContext &context,
 				    / context.configuration.sensor.lineDuration;
 
 		LOG(RkISP1Agc, Debug)
-			<< "Set exposure to " << agc.manual.exposure;
+			<< "Set manual exposure to " << agc.manual.exposure;
 	}
 
 	const auto &gain = controls.get(controls::AnalogueGain);
 	if (gain && !agc.autoEnabled) {
 		agc.manual.gain = *gain;
 
-		LOG(RkISP1Agc, Debug) << "Set gain to " << agc.manual.gain;
+		LOG(RkISP1Agc, Debug) << "Set manual gain to " << agc.manual.gain;
 	}
 
 	frameContext.agc.autoEnabled = agc.autoEnabled;

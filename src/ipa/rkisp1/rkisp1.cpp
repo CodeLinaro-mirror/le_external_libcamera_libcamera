@@ -314,6 +314,7 @@ void IPARkISP1::unmapBuffers(const std::vector<unsigned int> &ids)
 void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame);
+	LOG(IPARkISP1, Debug) << "queueRequest: " << frame;
 
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
@@ -354,6 +355,7 @@ void IPARkISP1::processStatsBuffer(const uint32_t frame, const uint32_t bufferId
 		stats = reinterpret_cast<rkisp1_stat_buffer *>(
 			mappedBuffers_.at(bufferId).planes()[0].data());
 
+	LOG(IPARkISP1, Debug) << "processStatsBuffer for frame " << frame;
 	frameContext.sensor.exposure =
 		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
 	frameContext.sensor.gain =
