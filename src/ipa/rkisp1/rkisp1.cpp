@@ -74,7 +74,7 @@ private:
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
 			    const ControlInfoMap &sensorControls,
 			    ControlInfoMap *ipaControls);
-	void setControls(unsigned int frame);
+	ControlList getControls(unsigned int frame);
 
 	std::map<unsigned int, FrameBuffer> buffers_;
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
@@ -201,7 +201,8 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 
 int IPARkISP1::start()
 {
-	setControls(0);
+	ControlList ctrls = getControls(0);
+	setSensorControls.emit(0, ctrls);
 
 	return 0;
 }
@@ -367,7 +368,8 @@ void IPARkISP1::processStatsBuffer(const uint32_t frame, const uint32_t bufferId
 		algo->process(context_, frame, frameContext, stats, metadata);
 	}
 
-	setControls(frame);
+	ControlList ctrls = getControls(frame);
+	setSensorControls.emit(frame, ctrls);
 
 	metadataReady.emit(frame, metadata);
 }
@@ -430,13 +432,8 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
 }
 
-void IPARkISP1::setControls(unsigned int frame)
+ControlList IPARkISP1::getControls(unsigned int frame)
 {
-	/*
-	 * \todo The frame number is most likely wrong here, we need to take
-	 * internal sensor delays and other timing parameters into account.
-	 */
-
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	uint32_t exposure = frameContext.agc.exposure;
 	uint32_t gain = camHelper_->gainCode(frameContext.agc.gain);
@@ -444,8 +441,7 @@ void IPARkISP1::setControls(unsigned int frame)
 	ControlList ctrls(sensorControls_);
 	ctrls.set(V4L2_CID_EXPOSURE, static_cast<int32_t>(exposure));
 	ctrls.set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gain));
-
-	setSensorControls.emit(frame, ctrls);
+	return ctrls;
 }
 
 } /* namespace ipa::rkisp1 */
