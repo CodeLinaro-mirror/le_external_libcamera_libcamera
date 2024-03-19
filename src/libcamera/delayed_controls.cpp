@@ -186,6 +186,27 @@ bool DelayedControls::controlsAreQueued(unsigned int sequence,
 }
 
 /**
+ * @brief Helper function to fill the values with the data from previous entries
+ *
+ * @param fromIndex The index to start the copy from
+ * @param toIndex The last index that gets filled
+ *
+ * The updated member of the control values is reset to false.
+ */
+void DelayedControls::fillValues(unsigned int fromIndex, unsigned int toIndex)
+{
+	/* Copy state from previous queue. */
+	for (auto &ctrl : values_) {
+		auto &ringBuffer = ctrl.second;
+		for (auto i = fromIndex; i < toIndex; i++) {
+			Info &info = ringBuffer[i + 1];
+			info = ringBuffer[i];
+			info.updated = false;
+		}
+	}
+}
+
+/**
  * \brief Push a set of controls on the queue
  * \param[in] controls List of controls to add to the device queue
  *
@@ -196,12 +217,7 @@ bool DelayedControls::controlsAreQueued(unsigned int sequence,
  */
 bool DelayedControls::push(const ControlList &controls)
 {
-	/* Copy state from previous frame. */
-	for (auto &ctrl : values_) {
-		Info &info = ctrl.second[queueIndex_];
-		info = values_[ctrl.first][queueIndex_ - 1];
-		info.updated = false;
-	}
+	fillValues(queueIndex_ - 1, queueIndex_);
 
 	/* Update with new controls. */
 	const ControlIdMap &idmap = device_->controls().idmap();

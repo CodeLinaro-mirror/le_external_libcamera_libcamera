@@ -70,6 +70,7 @@ private:
 	};
 
 	bool controlsAreQueued(unsigned int frame, const ControlList &controls);
+	void fillValues(unsigned int fromIndex, unsigned int toIndex);
 
 	V4L2Device *device_;
 	/* \todo Evaluate if we should index on ControlId * or unsigned int */
