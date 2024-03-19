@@ -7,6 +7,7 @@ libipa_headers = files([
     'exposure_mode_helper.h',
     'fc_queue.h',
     'histogram.h',
+    'matrix.h',
     'module.h',
 ])
 
@@ -17,6 +18,7 @@ libipa_sources = files([
     'exposure_mode_helper.cpp',
     'fc_queue.cpp',
     'histogram.cpp',
+    'matrix.cpp',
     'module.cpp',
 ])
 
