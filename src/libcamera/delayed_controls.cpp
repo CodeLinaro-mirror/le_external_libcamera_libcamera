@@ -104,6 +104,8 @@ DelayedControls::DelayedControls(V4L2Device *device,
 		maxDelay_ = std::max(maxDelay_, controlParams_[id].delay);
 	}
 
+	LOG(DelayedControls, Debug) << "Maximum delay: " << maxDelay_;
+
 	reset();
 }
 
@@ -117,8 +119,9 @@ DelayedControls::DelayedControls(V4L2Device *device,
  */
 void DelayedControls::reset(ControlList *controls)
 {
-	queueIndex_ = 1;
-	writeIndex_ = 0;
+	queueIndex_ = 0;
+	/* Frames up to maxDelay_ will be based on sensor init values. */
+	writeIndex_ = maxDelay_;
 
 	/* Retrieve control as reported by the device. */
 	std::vector<uint32_t> ids;
@@ -149,6 +152,9 @@ void DelayedControls::reset(ControlList *controls)
 		 */
 		values_[id][0] = Info(ctrl.second, 0, false);
 	}
+
+	/* Propagate initial state */
+	fillValues(0, writeIndex_);
 }
 
 /**
@@ -207,17 +213,78 @@ void DelayedControls::fillValues(unsigned int fromIndex, unsigned int toIndex)
 }
 
 /**
- * \brief Push a set of controls on the queue
+ * \brief Push a set of controls for a given frame
  * \param[in] controls List of controls to add to the device queue
+ * \param[in] sequence_ Sequence to push the \a controls for
+
  *
- * Push a set of controls to the control queue. This increases the control queue
- * depth by one.
+ * Pushes the controls given by \a controls, to be applied at frame \a sequence.
+ *
+ * If there are controls already queued for that frame, they get updated.
+ *
+ * If it's too late for frame \a sequence (controls are already sent to the
+ * sensor), the system checks if the controls that where written out for frame
+ * \a sequence are the same as the requested ones. In this case, nothing is
+ * done. If they differ, the controls get queued for the earliest frame possible
+ * if no other controls with a higher sequence number are queued for that frame
+ * already.
  *
  * \returns true if \a controls are accepted, or false otherwise
  */
-bool DelayedControls::push(const ControlList &controls)
+bool DelayedControls::push(const ControlList &controls, std::optional<uint32_t> sequence_)
 {
-	fillValues(queueIndex_ - 1, queueIndex_);
+	uint32_t sequence = sequence_.value_or(queueIndex_);
+
+	LOG(DelayedControls, Debug) << "push: " << sequence;
+	auto idMap = controls.idMap();
+	if (idMap) {
+		for (const auto &[id, value] : controls)
+			LOG(DelayedControls, Debug) << "  " << idMap->at(id)->name()
+						    << " : " << value.toString();
+	}
+
+	if (sequence < queueIndex_)
+		LOG(DelayedControls, Debug) << "Got updated data for frame:" << sequence;
+
+	if (sequence > queueIndex_)
+		LOG(DelayedControls, Warning) << "Hole in queue sequence."
+					      << " This should not happen. Expected: "
+					      << queueIndex_ << " got " << sequence;
+
+	uint32_t updateIndex = sequence;
+	/* check if its too late for the request */
+	if (sequence < writeIndex_) {
+		/* Check if we can safely ignore the request */
+		if (controls.empty() || controlsAreQueued(sequence, controls)) {
+			if (sequence >= queueIndex_) {
+				queueIndex_ = sequence + 1;
+				return true;
+			}
+		} else {
+			LOG(DelayedControls, Debug) << "Controls for frame " << sequence
+						    << " are already in flight. Will be queued for frame "
+						    << writeIndex_;
+			updateIndex = writeIndex_;
+		}
+	}
+
+	if (updateIndex - writeIndex_ >= listSize - maxDelay_)
+		/*
+		 * The system is in an undefined state now. This will heal itself,
+		 * as soon as all controls where rewritten
+		 */
+		LOG(DelayedControls, Error) << "Queue length exceeded."
+					    << " The system is out of sync. Index to update:"
+					    << updateIndex << " Next Index to apply: " << writeIndex_;
+
+	/*
+	 * Prepare the ringbuffer entries with previous data.
+	 * Data up to [writeIndex_] gets prepared in applyControls.
+	 */
+	if (updateIndex > writeIndex_ && updateIndex >= queueIndex_) {
+		LOG(DelayedControls, Debug) << "Copy from previous " << queueIndex_;
+		fillValues(queueIndex_ - 1, updateIndex);
+	}
 
 	/* Update with new controls. */
 	const ControlIdMap &idmap = device_->controls().idmap();
@@ -231,20 +298,36 @@ bool DelayedControls::push(const ControlList &controls)
 
 		const ControlId *id = it->second;
 
-		if (controlParams_.find(id) == controlParams_.end())
-			return false;
+		if (controlParams_.find(id) == controlParams_.end()) {
+			LOG(DelayedControls, Error) << "Could not find params for control "
+						    << id << " ignored";
+			continue;
+		}
 
-		Info &info = values_[id][queueIndex_];
+		Info &info = values_[id][updateIndex];
+		/*
+		 * Update the control only if the already existing value stems from a
+		 * request with a sequence number smaller or equal to the current one
+		 */
+		if (info.sourceSequence <= sequence) {
+			info = Info(control.second, sequence);
 
-		info = Info(control.second, 0);
-
-		LOG(DelayedControls, Debug)
-			<< "Queuing " << id->name()
-			<< " to " << info.toString()
-			<< " at index " << queueIndex_;
+			LOG(DelayedControls, Debug)
+				<< "Queuing " << id->name()
+				<< " to " << info.toString()
+				<< " at index " << updateIndex;
+		} else {
+			LOG(DelayedControls, Warning)
+				<< "Skipped update " << id->name()
+				<< " at index " << updateIndex;
+		}
 	}
 
-	queueIndex_++;
+	LOG(DelayedControls, Debug) << "Queued frame: " << sequence
+				    << " it will be active in " << updateIndex;
+
+	if (sequence >= queueIndex_)
+		queueIndex_ = sequence + 1;
 
 	return true;
 }
@@ -266,19 +349,17 @@ bool DelayedControls::push(const ControlList &controls)
  */
 ControlList DelayedControls::get(uint32_t sequence)
 {
-	unsigned int index = std::max<int>(0, sequence - maxDelay_);
-
+	LOG(DelayedControls, Debug) << "get " << sequence << ":";
 	ControlList out(device_->controls());
 	for (const auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
-		const Info &info = ctrl.second[index];
+		const Info &info = ctrl.second[sequence];
 
 		out.set(id->id(), info);
 
 		LOG(DelayedControls, Debug)
-			<< "Reading " << id->name()
-			<< " to " << info.toString()
-			<< " at index " << index;
+			<< "  " << id->name()
+			<< ": " << info.toString();
 	}
 
 	return out;
@@ -286,16 +367,22 @@ ControlList DelayedControls::get(uint32_t sequence)
 
 /**
  * \brief Inform DelayedControls of the start of a new frame
- * \param[in] sequence Sequence number of the frame that started
+ * \param[in] sequence Sequence number of the frame that started (0-based)
  *
- * Inform the state machine that a new frame has started and of its sequence
- * number. Any user of these helpers is responsible to inform the helper about
- * the start of any frame. This can be connected with ease to the start of a
- * exposure (SOE) V4L2 event.
+ * Inform the state machine that a new frame has started to arrive at the receiver
+ * (e.g. the sensor started to clock out pixels) and of its sequence
+ * number. This is usually the earliest point in time to update registers in the
+ * sensor for upcoming frames. Any user of these helpers is responsible to inform
+ * the helper about the start of any frame. This can be connected with ease to
+ * the start of a exposure (SOE) V4L2 event.
  */
 void DelayedControls::applyControls(uint32_t sequence)
 {
-	LOG(DelayedControls, Debug) << "frame " << sequence << " started";
+	LOG(DelayedControls, Debug) << "Apply controls " << sequence;
+	if (sequence != writeIndex_ - maxDelay_)
+		LOG(DelayedControls, Warning) << "Sequence and writeIndex are out of sync."
+					      << " Expected seq: " << writeIndex_ - maxDelay_
+					      << " got " << sequence;
 
 	/*
 	 * Create control list peeking ahead in the value queue to ensure
@@ -305,7 +392,7 @@ void DelayedControls::applyControls(uint32_t sequence)
 	for (auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
 		unsigned int delayDiff = maxDelay_ - controlParams_[id].delay;
-		unsigned int index = std::max<int>(0, writeIndex_ - delayDiff);
+		unsigned int index = writeIndex_ - delayDiff;
 		Info &info = ctrl.second[index];
 
 		if (info.updated) {
@@ -326,21 +413,23 @@ void DelayedControls::applyControls(uint32_t sequence)
 			}
 
 			LOG(DelayedControls, Debug)
-				<< "Setting " << id->name()
-				<< " to " << info.toString()
-				<< " at index " << index;
+				<< "Writing " << id->name()
+				<< " (" << info.toString() << ") "
+				<< " for frame " << index;
 
 			/* Done with this update, so mark as completed. */
 			info.updated = false;
 		}
 	}
 
-	writeIndex_ = sequence + 1;
+	auto oldWriteIndex = writeIndex_;
+	writeIndex_ = sequence + maxDelay_ + 1;
 
-	while (writeIndex_ > queueIndex_) {
+	if (writeIndex_ >= queueIndex_ && writeIndex_ > oldWriteIndex) {
 		LOG(DelayedControls, Debug)
-			<< "Queue is empty, auto queue no-op.";
-		push({});
+			<< "Index " << writeIndex_
+			<< " is not yet queued. Prepare with old state";
+		fillValues(oldWriteIndex, writeIndex_);
 	}
 
 	device_->setControls(&out);

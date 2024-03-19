@@ -271,6 +271,69 @@ protected:
 		return TestPass;
 	}
 
+	int updateTooLateGetsDelayed()
+	{
+		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
+			{ V4L2_CID_BRIGHTNESS, { 2, false } },
+		};
+		std::unique_ptr<DelayedControls> delayed =
+			std::make_unique<DelayedControls>(dev_.get(), delays);
+		ControlList ctrls;
+
+		/* Reset control to value that will be first in test. */
+		int32_t initial = 4;
+		ctrls.set(V4L2_CID_BRIGHTNESS, initial);
+		dev_->setControls(&ctrls);
+		delayed->reset();
+
+		int32_t expected = 10;
+
+		delayed->push({}, 0);
+		delayed->push({}, 1);
+		/* push a request for frame 2 */
+		ctrls.set(V4L2_CID_BRIGHTNESS, 40);
+		delayed->push(ctrls, 2);
+
+		delayed->applyControls(0);
+		delayed->applyControls(1);
+		/*
+		 * update frame 2 to the correct value. But it is too late, delayed
+		 * controls will delay and the value shall be available on frame 4
+		 */
+		ctrls.set(V4L2_CID_BRIGHTNESS, expected);
+		delayed->push(ctrls, 2);
+		delayed->applyControls(2);
+		delayed->applyControls(3);
+		delayed->applyControls(4);
+
+		int frame = 4;
+
+		ControlList result = delayed->get(frame);
+		int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+		ControlList ctrlsV4L = dev_->getControls({ V4L2_CID_BRIGHTNESS });
+		int32_t brightnessV4L = ctrlsV4L.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
+
+		if (brightness != expected) {
+			cerr << "Failed " << __func__
+			     << " frame " << frame
+			     << " expected " << expected
+			     << " got " << brightness
+			     << endl;
+			return TestFail;
+		}
+
+		if (brightnessV4L != expected) {
+			cerr << "Failed " << __func__
+			     << " frame " << frame
+			     << " expected V4L " << expected
+			     << " got " << brightnessV4L
+			     << endl;
+			return TestFail;
+		}
+
+		return TestPass;
+	}
+
 	int dualControlsWithDelay()
 	{
 		static const int maxDelay = 2;
@@ -437,6 +500,10 @@ protected:
 			failed = true;
 
 		ret = doNotLoseFirstRequest();
+		if (ret)
+			failed = true;
+
+		ret = updateTooLateGetsDelayed();
 		if (ret)
 			failed = true;
 

@@ -29,7 +29,7 @@ public:
 
 	void reset(ControlList *controls = nullptr);
 
-	bool push(const ControlList &controls);
+	bool push(const ControlList &controls, std::optional<uint32_t> sequence = std::nullopt);
 	ControlList get(uint32_t sequence);
 
 	void applyControls(uint32_t sequence);
