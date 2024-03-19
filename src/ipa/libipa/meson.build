@@ -8,6 +8,7 @@ libipa_headers = files([
     'fc_queue.h',
     'histogram.h',
     'matrix.h',
+    'matrix_interpolator.h',
     'module.h',
 ])
 
@@ -19,6 +20,7 @@ libipa_sources = files([
     'fc_queue.cpp',
     'histogram.cpp',
     'matrix.cpp',
+    'matrix_interpolator.cpp',
     'module.cpp',
 ])
 
