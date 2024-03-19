@@ -115,8 +115,8 @@ DelayedControls::DelayedControls(V4L2Device *device,
  */
 void DelayedControls::reset()
 {
-	queueCount_ = 1;
-	writeCount_ = 0;
+	queueIndex_ = 1;
+	writeIndex_ = 0;
 
 	/* Retrieve control as reported by the device. */
 	std::vector<uint32_t> ids;
@@ -150,8 +150,8 @@ bool DelayedControls::push(const ControlList &controls)
 {
 	/* Copy state from previous frame. */
 	for (auto &ctrl : values_) {
-		Info &info = ctrl.second[queueCount_];
-		info = values_[ctrl.first][queueCount_ - 1];
+		Info &info = ctrl.second[queueIndex_];
+		info = values_[ctrl.first][queueIndex_ - 1];
 		info.updated = false;
 	}
 
@@ -170,17 +170,17 @@ bool DelayedControls::push(const ControlList &controls)
 		if (controlParams_.find(id) == controlParams_.end())
 			return false;
 
-		Info &info = values_[id][queueCount_];
+		Info &info = values_[id][queueIndex_];
 
 		info = Info(control.second);
 
 		LOG(DelayedControls, Debug)
 			<< "Queuing " << id->name()
 			<< " to " << info.toString()
-			<< " at index " << queueCount_;
+			<< " at index " << queueIndex_;
 	}
 
-	queueCount_++;
+	queueIndex_++;
 
 	return true;
 }
@@ -241,7 +241,7 @@ void DelayedControls::applyControls(uint32_t sequence)
 	for (auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
 		unsigned int delayDiff = maxDelay_ - controlParams_[id].delay;
-		unsigned int index = std::max<int>(0, writeCount_ - delayDiff);
+		unsigned int index = std::max<int>(0, writeIndex_ - delayDiff);
 		Info &info = ctrl.second[index];
 
 		if (info.updated) {
@@ -271,9 +271,9 @@ void DelayedControls::applyControls(uint32_t sequence)
 		}
 	}
 
-	writeCount_ = sequence + 1;
+	writeIndex_ = sequence + 1;
 
-	while (writeCount_ > queueCount_) {
+	while (writeIndex_ > queueIndex_) {
 		LOG(DelayedControls, Debug)
 			<< "Queue is empty, auto queue no-op.";
 		push({});
