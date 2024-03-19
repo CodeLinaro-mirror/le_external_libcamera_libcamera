@@ -39,16 +39,18 @@ private:
 	{
 	public:
 		Info()
-			: updated(false)
+			: updated(false), sourceSequence(0)
 		{
 		}
 
-		Info(const ControlValue &v, bool updated_ = true)
-			: ControlValue(v), updated(updated_)
+		Info(const ControlValue &v, uint32_t sourceSeq, bool updated_ = true)
+			: ControlValue(v), updated(updated_), sourceSequence(sourceSeq)
 		{
 		}
 
 		bool updated;
+		/* The sequence id for which this value was requested */
+		uint32_t sourceSequence;
 	};
 
 	/* \todo Make the listSize configurable at instance creation time. */

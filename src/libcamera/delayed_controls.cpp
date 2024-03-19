@@ -147,7 +147,7 @@ void DelayedControls::reset(ControlList *controls)
 		 * Do not mark this control value as updated, it does not need
 		 * to be written to to device on startup.
 		 */
-		values_[id][0] = Info(ctrl.second, false);
+		values_[id][0] = Info(ctrl.second, 0, false);
 	}
 }
 
@@ -220,7 +220,7 @@ bool DelayedControls::push(const ControlList &controls)
 
 		Info &info = values_[id][queueIndex_];
 
-		info = Info(control.second);
+		info = Info(control.second, 0);
 
 		LOG(DelayedControls, Debug)
 			<< "Queuing " << id->name()
