@@ -13,6 +13,7 @@
 
 #include <libcamera/geometry.h>
 
+#include "libipa/agc.h"
 #include "libipa/histogram.h"
 
 #include "algorithm.h"
@@ -23,12 +24,13 @@ struct IPACameraSensorInfo;
 
 namespace ipa::ipu3::algorithms {
 
-class Agc : public Algorithm
+class Agc : public Algorithm, public MeanLuminanceAgc
 {
 public:
 	Agc();
 	~Agc() = default;
 
+	int init(IPAContext &context, const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
@@ -45,6 +47,7 @@ private:
 				 const ipu3_uapi_grid_config &grid,
 				 const ipu3_uapi_stats_3a *stats,
 				 double gain);
+	double estimateLuminance(double gain) override;
 	void parseStatistics(const ipu3_uapi_stats_3a *stats,
 			     const ipu3_uapi_grid_config &grid);
 
@@ -59,6 +62,7 @@ private:
 	utils::Duration filteredExposure_;
 
 	uint32_t stride_;
+	IPAContext *context_;
 	std::vector<uint8_t> reds_;
 	std::vector<uint8_t> blues_;
 	std::vector<uint8_t> greens_;

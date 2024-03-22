@@ -189,7 +189,7 @@ private:
 };
 
 IPAIPU3::IPAIPU3()
-	: context_({ {}, {}, { kMaxFrameContexts } })
+	: context_({ {}, {}, { kMaxFrameContexts }, {} })
 {
 }
 
