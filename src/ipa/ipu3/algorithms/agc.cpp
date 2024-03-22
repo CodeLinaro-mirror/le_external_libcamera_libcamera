@@ -142,6 +142,39 @@ double Agc::measureBrightness(const ipu3_uapi_stats_3a *stats,
 	return Histogram(Span<uint32_t>(hist)).interQuantileMean(0.98, 1.0);
 }
 
+void Agc::parseStatistics(const ipu3_uapi_stats_3a *stats,
+			  const ipu3_uapi_grid_config &grid)
+{
+	uint32_t hist[knumHistogramBins] = { 0 };
+
+	reds_.clear();
+	greens_.clear();
+	blues_.clear();
+
+	for (unsigned int cellY = 0; cellY < grid.height; cellY++) {
+		for (unsigned int cellX = 0; cellX < grid.width; cellX++) {
+			uint32_t cellPosition = cellY * stride_ + cellX;
+
+			const ipu3_uapi_awb_set_item *cell =
+				reinterpret_cast<const ipu3_uapi_awb_set_item *>(
+					&stats->awb_raw_buffer.meta_data[cellPosition]);
+
+			reds_.push_back(cell->R_avg);
+			greens_.push_back((cell->Gr_avg + cell->Gb_avg) / 2);
+			blues_.push_back(cell->B_avg);
+
+			/*
+			 * Store the average green value to estimate the
+			 * brightness. Even the overexposed pixels are
+			 * taken into account.
+			 */
+			hist[(cell->Gr_avg + cell->Gb_avg) / 2]++;
+		}
+	}
+
+	hist_ = Histogram(Span<uint32_t>(hist));
+}
+
 /**
  * \brief Apply a filter on the exposure value to limit the speed of changes
  * \param[in] exposureValue The target exposure from the AGC algorithm

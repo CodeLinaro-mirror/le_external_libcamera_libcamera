@@ -13,6 +13,8 @@
 
 #include <libcamera/geometry.h>
 
+#include "libipa/histogram.h"
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -43,6 +45,8 @@ private:
 				 const ipu3_uapi_grid_config &grid,
 				 const ipu3_uapi_stats_3a *stats,
 				 double gain);
+	void parseStatistics(const ipu3_uapi_stats_3a *stats,
+			     const ipu3_uapi_grid_config &grid);
 
 	uint64_t frameCount_;
 
@@ -55,6 +59,10 @@ private:
 	utils::Duration filteredExposure_;
 
 	uint32_t stride_;
+	std::vector<uint8_t> reds_;
+	std::vector<uint8_t> blues_;
+	std::vector<uint8_t> greens_;
+	Histogram hist_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
