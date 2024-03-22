@@ -14,6 +14,7 @@
 
 #include <libcamera/geometry.h>
 
+#include "libipa/agc.h"
 #include "libipa/histogram.h"
 
 #include "algorithm.h"
@@ -22,12 +23,13 @@ namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
 
-class Agc : public Algorithm
+class Agc : public Algorithm, public MeanLuminanceAgc
 {
 public:
 	Agc();
 	~Agc() = default;
 
+	int init(IPAContext &context, const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPACameraSensorInfo &configInfo) override;
 	void queueRequest(IPAContext &context,
 			  const uint32_t frame,
@@ -51,6 +53,7 @@ private:
 			  ControlList &metadata);
 	void parseStatistics(const rkisp1_stat_buffer *stats,
 			     IPAContext &context);
+	double estimateLuminance(double gain) override;
 
 	uint64_t frameCount_;
 
