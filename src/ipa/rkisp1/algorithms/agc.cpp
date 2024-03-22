@@ -373,6 +373,16 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 	metadata.set(controls::FrameDuration, frameDuration.get<std::micro>());
 }
 
+void Agc::parseStatistics(const rkisp1_stat_buffer *stats,
+			  IPAContext &context)
+{
+	const rkisp1_cif_isp_stat *params = &stats->params;
+
+	expMeans_ = { params->ae.exp_mean, context.hw->numAeCells };
+	hist_ = Histogram(Span<const uint32_t>(params->hist.hist_bins,
+					       context.hw->numHistogramBins));
+}
+
 /**
  * \brief Process RkISP1 statistics, and run AGC operations
  * \param[in] context The shared IPA context

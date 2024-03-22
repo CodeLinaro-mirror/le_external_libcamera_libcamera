@@ -14,6 +14,8 @@
 
 #include <libcamera/geometry.h>
 
+#include "libipa/histogram.h"
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -47,10 +49,15 @@ private:
 	double measureBrightness(Span<const uint32_t> hist) const;
 	void fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 			  ControlList &metadata);
+	void parseStatistics(const rkisp1_stat_buffer *stats,
+			     IPAContext &context);
 
 	uint64_t frameCount_;
 
 	utils::Duration filteredExposure_;
+
+	Histogram hist_;
+	Span<const uint8_t> expMeans_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
