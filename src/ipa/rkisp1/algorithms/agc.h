@@ -44,20 +44,11 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	void computeExposure(IPAContext &Context, IPAFrameContext &frameContext,
-			     double yGain, double iqMeanGain);
-	utils::Duration filterExposure(utils::Duration exposureValue);
-	double estimateLuminance(Span<const uint8_t> expMeans, double gain);
-	double measureBrightness(Span<const uint32_t> hist) const;
 	void fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 			  ControlList &metadata);
 	void parseStatistics(const rkisp1_stat_buffer *stats,
 			     IPAContext &context);
 	double estimateLuminance(double gain) override;
-
-	uint64_t frameCount_;
-
-	utils::Duration filteredExposure_;
 
 	Histogram hist_;
 	Span<const uint8_t> expMeans_;
