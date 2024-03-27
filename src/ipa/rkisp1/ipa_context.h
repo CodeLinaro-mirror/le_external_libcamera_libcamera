@@ -16,6 +16,7 @@
 #include <libcamera/geometry.h>
 
 #include <libipa/fc_queue.h>
+#include <libipa/matrix.h>
 
 namespace libcamera {
 
@@ -155,6 +156,10 @@ struct IPAFrameContext : public FrameContext {
 		uint32_t exposure;
 		double gain;
 	} sensor;
+
+	struct {
+		Matrix<double, 3, 3> ccm;
+	} ccm;
 };
 
 struct IPAContext {
