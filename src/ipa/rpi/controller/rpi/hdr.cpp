@@ -40,7 +40,7 @@ void HdrConfig::read(const libcamera::YamlObject &params, const std::string &mod
 
 	/* Lens shading related parameters. */
 	if (params.contains("spatial_gain")) {
-		spatialGain.read(params["spatial_gain"]);
+		spatialGain.readYaml(params["spatial_gain"]);
 		diffusion = params["diffusion"].get<unsigned int>(3);
 		/* Clip to an arbitrary limit just to stop typos from killing the system! */
 		const unsigned int MAX_DIFFUSION = 15;
@@ -57,7 +57,7 @@ void HdrConfig::read(const libcamera::YamlObject &params, const std::string &mod
 	iirStrength = params["iir_strength"].get<double>(8.0);
 	strength = params["strength"].get<double>(1.5);
 	if (tonemapEnable)
-		tonemap.read(params["tonemap"]);
+		tonemap.readYaml(params["tonemap"]);
 
 	/* Read any stitch parameters. */
 	stitchEnable = params["stitch_enable"].get<int>(0);
@@ -183,7 +183,7 @@ bool Hdr::updateTonemap([[maybe_unused]] StatisticsPtr &stats, HdrConfig &config
 	/* When there's a change of HDR mode we start over with a new tonemap curve. */
 	if (delayedStatus_.mode != previousMode_) {
 		previousMode_ = delayedStatus_.mode;
-		tonemap_ = Pwl();
+		tonemap_ = ipa::Pwl();
 	}
 
 	/* No tonemapping. No need to output a tonemap.status. */
