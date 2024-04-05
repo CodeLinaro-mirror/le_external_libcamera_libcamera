@@ -5,13 +5,40 @@
  * pwl.cpp - piecewise linear functions
  */
 
-#include <cassert>
-#include <cmath>
-#include <stdexcept>
-
 #include "pwl.h"
 
-int Pwl::read(const libcamera::YamlObject &params)
+#include <cassert>
+#include <cmath>
+#include <sstream>
+#include <stdexcept>
+
+#include <libcamera/geometry.h>
+
+namespace libcamera {
+
+namespace ipa {
+
+/*
+ * \enum Pwl::PerpType
+ * \brief Type of perpendicular found when inverting a piecewise linear function
+ *
+ * \var None
+ * \brief no perpendicular found
+ *
+ * \var Start
+ * \brief start of Pwl is closest point
+ *
+ * \var End
+ * \brief end of Pwl is closest point
+ *
+ * \var Vertex
+ * \brief vertex of Pwl is closest point
+ *
+ * \var Perpendicular
+ * \brief true perpendicular found
+ */
+
+int Pwl::readYaml(const libcamera::YamlObject &params)
 {
 	if (!params.size() || params.size() % 2)
 		return -EINVAL;
@@ -29,7 +56,7 @@ int Pwl::read(const libcamera::YamlObject &params)
 		if (!y)
 			return -EINVAL;
 
-		points_.push_back(Point(*x, *y));
+		points_.push_back(FPoint(*x, *y));
 	}
 
 	return 0;
@@ -38,13 +65,13 @@ int Pwl::read(const libcamera::YamlObject &params)
 void Pwl::append(double x, double y, const double eps)
 {
 	if (points_.empty() || points_.back().x + eps < x)
-		points_.push_back(Point(x, y));
+		points_.push_back(FPoint(x, y));
 }
 
 void Pwl::prepend(double x, double y, const double eps)
 {
 	if (points_.empty() || points_.front().x - eps > x)
-		points_.insert(points_.begin(), Point(x, y));
+		points_.insert(points_.begin(), FPoint(x, y));
 }
 
 Pwl::Interval Pwl::domain() const
@@ -65,6 +92,19 @@ bool Pwl::empty() const
 	return points_.empty();
 }
 
+/*
+ * \brief Evaluate the piecewise linear function
+ * \param[in] x The x value to input into the function
+ * \param[inout] spanPtr Initial guess for span
+ * \param[in] updateSpan Set to true to update spanPtr
+ *
+ * Evaluate Pwl, optionally supplying an initial guess for the
+ * "span". The "span" may be optionally be updated.  If you want to know
+ * the "span" value but don't have an initial guess you can set it to
+ * -1.
+ *
+ *  \return The result of evaluating the piecewise linear function with input \a x
+ */
 double Pwl::eval(double x, int *spanPtr, bool updateSpan) const
 {
 	int span = findSpan(x, spanPtr && *spanPtr != -1 ? *spanPtr : points_.size() / 2 - 1);
@@ -94,16 +134,22 @@ int Pwl::findSpan(double x, int span) const
 	return span;
 }
 
-Pwl::PerpType Pwl::invert(Point const &xy, Point &perp, int &span,
+/*
+ * Find perpendicular closest to xy, starting from span+1 so you can
+ * call it repeatedly to check for multiple closest points (set span to
+ * -1 on the first call). Also returns "pseudo" perpendiculars; see
+ * PerpType enum.
+ */
+Pwl::PerpType Pwl::invert(FPoint const &xy, FPoint &perp, int &span,
 			  const double eps) const
 {
 	assert(span >= -1);
 	bool prevOffEnd = false;
 	for (span = span + 1; span < (int)points_.size() - 1; span++) {
-		Point spanVec = points_[span + 1] - points_[span];
+		FPoint spanVec = points_[span + 1] - points_[span];
 		double t = ((xy - points_[span]) % spanVec) / spanVec.len2();
-		if (t < -eps) /* off the start of this span */
-		{
+		if (t < -eps) {
+			/* off the start of this span */
 			if (span == 0) {
 				perp = points_[span];
 				return PerpType::Start;
@@ -111,15 +157,15 @@ Pwl::PerpType Pwl::invert(Point const &xy, Point &perp, int &span,
 				perp = points_[span];
 				return PerpType::Vertex;
 			}
-		} else if (t > 1 + eps) /* off the end of this span */
-		{
+		} else if (t > 1 + eps) {
+			/* off the end of this span */
 			if (span == (int)points_.size() - 2) {
 				perp = points_[span + 1];
 				return PerpType::End;
 			}
 			prevOffEnd = true;
-		} else /* a true perpendicular */
-		{
+		} else {
+			/* a true perpendicular */
 			perp = points_[span] + spanVec * t;
 			return PerpType::Perpendicular;
 		}
@@ -127,25 +173,34 @@ Pwl::PerpType Pwl::invert(Point const &xy, Point &perp, int &span,
 	return PerpType::None;
 }
 
+/*
+ * \brief Compute the inverse function
+ * \param[out] trueInverse True of the resulting inverse is a proper/true inverse
+ * \param[in] eps Epsilon (optional)
+ * Indicate if it is a proper (true) inverse, or only a best effort (e.g.
+ * input was non-monotonic).
+ * \return The inverse piecewise linear function
+ */
 Pwl Pwl::inverse(bool *trueInverse, const double eps) const
 {
 	bool appended = false, prepended = false, neither = false;
 	Pwl inverse;
 
-	for (Point const &p : points_) {
-		if (inverse.empty())
+	for (FPoint const &p : points_) {
+		if (inverse.empty()) {
 			inverse.append(p.y, p.x, eps);
-		else if (std::abs(inverse.points_.back().x - p.y) <= eps ||
-			 std::abs(inverse.points_.front().x - p.y) <= eps)
+		} else if (std::abs(inverse.points_.back().x - p.y) <= eps ||
+			   std::abs(inverse.points_.front().x - p.y) <= eps) {
 			/* do nothing */;
-		else if (p.y > inverse.points_.back().x) {
+		} else if (p.y > inverse.points_.back().x) {
 			inverse.append(p.y, p.x, eps);
 			appended = true;
 		} else if (p.y < inverse.points_.front().x) {
 			inverse.prepend(p.y, p.x, eps);
 			prepended = true;
-		} else
+		} else {
 			neither = true;
+		}
 	}
 
 	/*
@@ -159,18 +214,25 @@ Pwl Pwl::inverse(bool *trueInverse, const double eps) const
 	return inverse;
 }
 
+/*
+ * \brief Compose two piecewise linear functions together
+ * \param[in] other The "other" piecewise linear function
+ * \param[in] eps Epsilon (optiona)
+ * The "this" function is done first, and "other" after.
+ * \return The composed piecewise linear function
+ */
 Pwl Pwl::compose(Pwl const &other, const double eps) const
 {
 	double thisX = points_[0].x, thisY = points_[0].y;
 	int thisSpan = 0, otherSpan = other.findSpan(thisY, 0);
 	Pwl result({ { thisX, other.eval(thisY, &otherSpan, false) } });
+
 	while (thisSpan != (int)points_.size() - 1) {
 		double dx = points_[thisSpan + 1].x - points_[thisSpan].x,
 		       dy = points_[thisSpan + 1].y - points_[thisSpan].y;
 		if (std::abs(dy) > eps &&
 		    otherSpan + 1 < (int)other.points_.size() &&
-		    points_[thisSpan + 1].y >=
-			    other.points_[otherSpan + 1].x + eps) {
+		    points_[thisSpan + 1].y >= other.points_[otherSpan + 1].x + eps) {
 			/*
 			 * next control point in result will be where this
 			 * function's y reaches the next span in other
@@ -204,18 +266,24 @@ Pwl Pwl::compose(Pwl const &other, const double eps) const
 	return result;
 }
 
+/* \brief Apply function to (x,y) values at every control point. */
 void Pwl::map(std::function<void(double x, double y)> f) const
 {
 	for (auto &pt : points_)
 		f(pt.x, pt.y);
 }
 
+/*
+ * \brief Apply function to (x, y0, y1) values wherever either Pwl has a
+ * control point.
+ */
 void Pwl::map2(Pwl const &pwl0, Pwl const &pwl1,
 	       std::function<void(double x, double y0, double y1)> f)
 {
 	int span0 = 0, span1 = 0;
 	double x = std::min(pwl0.points_[0].x, pwl1.points_[0].x);
 	f(x, pwl0.eval(x, &span0, false), pwl1.eval(x, &span1, false));
+
 	while (span0 < (int)pwl0.points_.size() - 1 ||
 	       span1 < (int)pwl1.points_.size() - 1) {
 		if (span0 == (int)pwl0.points_.size() - 1)
@@ -230,6 +298,12 @@ void Pwl::map2(Pwl const &pwl0, Pwl const &pwl1,
 	}
 }
 
+/*
+ * \brief Combine two Pwls
+ *
+ * Create a new Pwl where the y values are given by running f wherever either
+ * has a knot.
+ */
 Pwl Pwl::combine(Pwl const &pwl0, Pwl const &pwl1,
 		 std::function<double(double x, double y0, double y1)> f,
 		 const double eps)
@@ -241,6 +315,11 @@ Pwl Pwl::combine(Pwl const &pwl0, Pwl const &pwl1,
 	return result;
 }
 
+/*
+ * \brief Make "this" match (at least) the given domain.
+ *
+ * Any extension my be clipped or linear.
+ */
 void Pwl::matchDomain(Interval const &domain, bool clip, const double eps)
 {
 	int span = 0;
@@ -258,10 +337,16 @@ Pwl &Pwl::operator*=(double d)
 	return *this;
 }
 
-void Pwl::debug(FILE *fp) const
+std::string Pwl::toString() const
 {
-	fprintf(fp, "Pwl {\n");
+	std::stringstream ss;
+	ss << "Pwl { ";
 	for (auto &p : points_)
-		fprintf(fp, "\t(%g, %g)\n", p.x, p.y);
-	fprintf(fp, "}\n");
+		ss << "(" << p.x << ", " << p.y << ") ";
+	ss << "}";
+	return ss.str();
 }
+
+} /* namespace ipa */
+
+} /* namespace libcamera */
