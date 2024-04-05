@@ -8,6 +8,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <ostream>
 #include <string>
 
@@ -48,6 +49,55 @@ static inline bool operator!=(const Point &lhs, const Point &rhs)
 }
 
 std::ostream &operator<<(std::ostream &out, const Point &p);
+
+struct FPoint {
+	constexpr FPoint()
+		: x(0), y(0)
+	{
+	}
+
+	constexpr FPoint(double _x, double _y)
+		: x(_x), y(_y)
+	{
+	}
+
+	constexpr FPoint operator-(FPoint const &p) const
+	{
+		return FPoint(x - p.x, y - p.y);
+	}
+
+	constexpr FPoint operator+(FPoint const &p) const
+	{
+		return FPoint(x + p.x, y + p.y);
+	}
+
+	constexpr double operator%(FPoint const &p) const
+	{
+		return x * p.x + y * p.y;
+	}
+
+	constexpr FPoint operator*(double f) const
+	{
+		return FPoint(x * f, y * f);
+	}
+
+	constexpr FPoint operator/(double f) const
+	{
+		return FPoint(x / f, y / f);
+	}
+
+	constexpr double len2() const
+	{
+		return x * x + y * y;
+	}
+
+	constexpr double len() const
+	{
+		return std::sqrt(len2());
+	}
+
+	double x, y;
+};
 
 class Size
 {
