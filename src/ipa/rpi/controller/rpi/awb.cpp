@@ -49,10 +49,10 @@ int AwbPrior::read(const libcamera::YamlObject &params)
 		return -EINVAL;
 	lux = *value;
 
-	return prior.read(params["prior"]);
+	return prior.readYaml(params["prior"]);
 }
 
-static int readCtCurve(Pwl &ctR, Pwl &ctB, const libcamera::YamlObject &params)
+static int readCtCurve(ipa::Pwl &ctR, ipa::Pwl &ctB, const libcamera::YamlObject &params)
 {
 	if (params.size() % 3) {
 		LOG(RPiAwb, Error) << "AwbConfig: incomplete CT curve entry";
@@ -207,7 +207,7 @@ void Awb::initialise()
 	 * them.
 	 */
 	if (!config_.ctR.empty() && !config_.ctB.empty()) {
-		syncResults_.temperatureK = config_.ctR.domain().clip(4000);
+		syncResults_.temperatureK = config_.ctR.domain().clamp(4000);
 		syncResults_.gainR = 1.0 / config_.ctR.eval(syncResults_.temperatureK);
 		syncResults_.gainG = 1.0;
 		syncResults_.gainB = 1.0 / config_.ctB.eval(syncResults_.temperatureK);
@@ -273,8 +273,8 @@ void Awb::setManualGains(double manualR, double manualB)
 		syncResults_.gainB = prevSyncResults_.gainB = manualB_;
 		if (config_.bayes) {
 			/* Also estimate the best corresponding colour temperature from the curves. */
-			double ctR = config_.ctRInverse.eval(config_.ctRInverse.domain().clip(1 / manualR_));
-			double ctB = config_.ctBInverse.eval(config_.ctBInverse.domain().clip(1 / manualB_));
+			double ctR = config_.ctRInverse.eval(config_.ctRInverse.domain().clamp(1 / manualR_));
+			double ctB = config_.ctBInverse.eval(config_.ctBInverse.domain().clamp(1 / manualB_));
 			prevSyncResults_.temperatureK = (ctR + ctB) / 2;
 			syncResults_.temperatureK = prevSyncResults_.temperatureK;
 		}
@@ -468,7 +468,7 @@ double Awb::computeDelta2Sum(double gainR, double gainB)
 	return delta2Sum;
 }
 
-Pwl Awb::interpolatePrior()
+ipa::Pwl Awb::interpolatePrior()
 {
 	/*
 	 * Interpolate the prior log likelihood function for our current lux
@@ -485,7 +485,7 @@ Pwl Awb::interpolatePrior()
 			idx++;
 		double lux0 = config_.priors[idx].lux,
 		       lux1 = config_.priors[idx + 1].lux;
-		return Pwl::combine(config_.priors[idx].prior,
+		return ipa::Pwl::combine(config_.priors[idx].prior,
 				    config_.priors[idx + 1].prior,
 				    [&](double /*x*/, double y0, double y1) {
 					    return y0 + (y1 - y0) *
@@ -494,15 +494,15 @@ Pwl Awb::interpolatePrior()
 	}
 }
 
-static double interpolateQuadatric(Pwl::Point const &a, Pwl::Point const &b,
-				   Pwl::Point const &c)
+static double interpolateQuadatric(PointF const &a, PointF const &b,
+				   PointF const &c)
 {
 	/*
 	 * Given 3 points on a curve, find the extremum of the function in that
 	 * interval by fitting a quadratic.
 	 */
 	const double eps = 1e-3;
-	Pwl::Point ca = c - a, ba = b - a;
+	PointF ca = c - a, ba = b - a;
 	double denominator = 2 * (ba.y * ca.x - ca.y * ba.x);
 	if (abs(denominator) > eps) {
 		double numerator = ba.y * ca.x * ca.x - ca.y * ba.x * ba.x;
@@ -513,7 +513,7 @@ static double interpolateQuadatric(Pwl::Point const &a, Pwl::Point const &b,
 	return a.y < c.y - eps ? a.x : (c.y < a.y - eps ? c.x : b.x);
 }
 
-double Awb::coarseSearch(Pwl const &prior)
+double Awb::coarseSearch(ipa::Pwl const &prior)
 {
 	points_.clear(); /* assume doesn't deallocate memory */
 	size_t bestPoint = 0;
@@ -525,14 +525,14 @@ double Awb::coarseSearch(Pwl const &prior)
 		double b = config_.ctB.eval(t, &spanB);
 		double gainR = 1 / r, gainB = 1 / b;
 		double delta2Sum = computeDelta2Sum(gainR, gainB);
-		double priorLogLikelihood = prior.eval(prior.domain().clip(t));
+		double priorLogLikelihood = prior.eval(prior.domain().clamp(t));
 		double finalLogLikelihood = delta2Sum - priorLogLikelihood;
 		LOG(RPiAwb, Debug)
 			<< "t: " << t << " gain R " << gainR << " gain B "
 			<< gainB << " delta2_sum " << delta2Sum
 			<< " prior " << priorLogLikelihood << " final "
 			<< finalLogLikelihood;
-		points_.push_back(Pwl::Point(t, finalLogLikelihood));
+		points_.push_back(PointF(t, finalLogLikelihood));
 		if (points_.back().y < points_[bestPoint].y)
 			bestPoint = points_.size() - 1;
 		if (t == mode_->ctHi)
@@ -559,7 +559,7 @@ double Awb::coarseSearch(Pwl const &prior)
 	return t;
 }
 
-void Awb::fineSearch(double &t, double &r, double &b, Pwl const &prior)
+void Awb::fineSearch(double &t, double &r, double &b, ipa::Pwl const &prior)
 {
 	int spanR = -1, spanB = -1;
 	config_.ctR.eval(t, &spanR);
@@ -570,7 +570,7 @@ void Awb::fineSearch(double &t, double &r, double &b, Pwl const &prior)
 		       config_.ctR.eval(t - nsteps * step, &spanR);
 	double bDiff = config_.ctB.eval(t + nsteps * step, &spanB) -
 		       config_.ctB.eval(t - nsteps * step, &spanB);
-	Pwl::Point transverse(bDiff, -rDiff);
+	PointF transverse(bDiff, -rDiff);
 	if (transverse.len2() < 1e-6)
 		return;
 	/*
@@ -592,17 +592,17 @@ void Awb::fineSearch(double &t, double &r, double &b, Pwl const &prior)
 	for (int i = -nsteps; i <= nsteps; i++) {
 		double tTest = t + i * step;
 		double priorLogLikelihood =
-			prior.eval(prior.domain().clip(tTest));
+			prior.eval(prior.domain().clamp(tTest));
 		double rCurve = config_.ctR.eval(tTest, &spanR);
 		double bCurve = config_.ctB.eval(tTest, &spanB);
 		/* x will be distance off the curve, y the log likelihood there */
-		Pwl::Point points[maxNumDeltas];
+		PointF points[maxNumDeltas];
 		int bestPoint = 0;
 		/* Take some measurements transversely *off* the CT curve. */
 		for (int j = 0; j < numDeltas; j++) {
 			points[j].x = -config_.transverseNeg +
 				      (transverseRange * j) / (numDeltas - 1);
-			Pwl::Point rbTest = Pwl::Point(rCurve, bCurve) +
+			PointF rbTest = PointF(rCurve, bCurve) +
 					    transverse * points[j].x;
 			double rTest = rbTest.x, bTest = rbTest.y;
 			double gainR = 1 / rTest, gainB = 1 / bTest;
@@ -619,7 +619,7 @@ void Awb::fineSearch(double &t, double &r, double &b, Pwl const &prior)
 		 * now let's do a quadratic interpolation for the best result.
 		 */
 		bestPoint = std::max(1, std::min(bestPoint, numDeltas - 2));
-		Pwl::Point rbTest = Pwl::Point(rCurve, bCurve) +
+		PointF rbTest = PointF(rCurve, bCurve) +
 					transverse * interpolateQuadatric(points[bestPoint - 1],
 									points[bestPoint],
 									points[bestPoint + 1]);
@@ -653,7 +653,7 @@ void Awb::awbBayes()
 	 * Get the current prior, and scale according to how many zones are
 	 * valid... not entirely sure about this.
 	 */
-	Pwl prior = interpolatePrior();
+	ipa::Pwl prior = interpolatePrior();
 	prior *= zones_.size() / (double)(statistics_->awbRegions.numRegions());
 	prior.map([](double x, double y) {
 		LOG(RPiAwb, Debug) << "(" << x << "," << y << ")";
