@@ -33,6 +33,53 @@ protected:
 		return true;
 	}
 
+	template<typename T, typename U, typename V>
+	bool compareF(const T &lhs, const U &rhs,
+		      V (PointF::*op)(const U &) const,
+		      const char *opName, V expect)
+	{
+		V result = (lhs.*op)(rhs);
+
+		if (result != expect) {
+			cout << lhs << opName << " " << rhs
+			     << "test failed" << std::endl;
+			return false;
+		}
+
+		return true;
+	}
+
+	template<typename T, typename U, typename V>
+	bool compareFScale(const T &lhs, const U &rhs,
+			   V (PointF::*op)(U) const,
+			   const char *opName, V expect)
+	{
+		V result = (lhs.*op)(rhs);
+
+		if (result != expect) {
+			cout << lhs << opName << " " << rhs
+			     << "test failed" << std::endl;
+			return false;
+		}
+
+		return true;
+	}
+
+	template<typename T>
+	bool compareFLen(const T &lhs, double (PointF::*op)() const,
+			 const char *opName, double expect)
+	{
+		double result = (lhs.*op)();
+
+		if (result != expect) {
+			cout << lhs << opName
+			     << "test failed" << std::endl;
+			return false;
+		}
+
+		return true;
+	}
+
 	int run()
 	{
 		/*
@@ -84,6 +131,314 @@ protected:
 
 		/* Default constructor */
 		if (Point() != Point(0, 0)) {
+			cout << "Default constructor test failed" << endl;
+			return TestFail;
+		}
+
+		/*
+		 * PointF tests
+		 */
+
+		/* Equality */
+		if (!compare(PointF(50.1, 100.1), PointF(50.1, 100.1), &operator==, "==", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, 100.1), PointF(-50.1, 100.1), &operator==, "==", true))
+			return TestFail;
+
+		if (!compare(PointF(50.1, -100.1), PointF(50.1, -100.1), &operator==, "==", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, -100.1), PointF(-50.1, -100.1), &operator==, "==", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, -100.0), PointF(-50.1, -100), &operator==, "==", true))
+			return TestFail;
+
+		/* Inequality */
+		if (!compare(PointF(50.1, 100.1), PointF(50.1, 100.2), &operator!=, "!=", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, 100.1), PointF(-50.1, 100.01), &operator!=, "!=", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, 100.1), PointF(-50.1, 100.1), &operator!=, "!=", false))
+			return TestFail;
+
+		if (!compare(PointF(50.1, -100.1), PointF(50.2, -100.1), &operator!=, "!=", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, -100.1), PointF(-50.01, -100.0), &operator!=, "!=", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, 100.1), PointF(50.1, 100.1), &operator!=, "!=", true))
+			return TestFail;
+
+		if (!compare(PointF(50.1, -100.1), PointF(50.1, 100.1), &operator!=, "!=", true))
+			return TestFail;
+
+		if (!compare(PointF(-50.1, -100.1), PointF(-50.1, -100.1), &operator!=, "!=", false))
+			return TestFail;
+
+		/* Negation */
+		if (PointF(50.1, 100.1) != -PointF(-50.1, -100.1) ||
+		    PointF(50.1, 100.1) == -PointF(50.1, -100.1) ||
+		    PointF(50.1, 100.1) == -PointF(-50.1, 100.1)) {
+			cout << "PointF negation test failed" << endl;
+			return TestFail;
+		}
+
+		typedef PointF (PointF::*pointfOp)(const PointF &) const;
+		typedef double (PointF::*pointfDotProd)(const PointF &) const;
+		typedef PointF (PointF::*pointfScale)(double) const;
+		typedef double (PointF::*pointfLen)() const;
+
+		/* Subtraction */
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(0, 0)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(-50.1, 100.1), PointF(-50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(0, 0)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, -100.1), PointF(50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(0, 0)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(-50.1, -100.1), PointF(-50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(0, 0)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(-50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(100.2, 0)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(0, 200.2)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(-50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(100.2, 200.2)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(-50.1, 100.1), PointF(50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator-), "-",
+			      PointF(-100.2, 0)))
+			return TestFail;
+
+		/* Addition */
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(100.2, 200.2)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(-50.1, 100.1), PointF(-50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(-100.2, 200.2)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, -100.1), PointF(50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(100.2, -200.2)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(-50.1, -100), PointF(-50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(-100.2, -200.1)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(-50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(0, 200.2)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.0), PointF(50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(100.2, -0.09999999999999432)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(50.1, 100.1), PointF(-50.1, -100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(0, 0)))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, PointF>(PointF(-50.1, 100.1), PointF(50.1, 100.1),
+			      static_cast<pointfOp>(&PointF::operator+), "+",
+			      PointF(0, 200.2)))
+			return TestFail;
+
+		/* Dot product */
+		if (!compareF<PointF, PointF, double>(PointF(50.1, 100.1), PointF(50.1, 100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      12530.019999999999))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(50.1, 100.1), PointF(50.1, -100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      -7509.999999999998))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(50.1, 100.1), PointF(-50.1, 100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      7509.999999999998))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(50.1, 100.1), PointF(-50.1, -100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      -12530.019999999999))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(-50.1, 100.1), PointF(-50.1, 100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      12530.019999999999))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(50.1, -100.1), PointF(50.1, -100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      12530.019999999999))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(-50.1, -100.1), PointF(-50.1, -100.1),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      12530.019999999999))
+			return TestFail;
+
+		if (!compareF<PointF, PointF, double>(PointF(0, 0), PointF(0, 0),
+			      static_cast<pointfDotProd>(&PointF::operator%), "%",
+			      0))
+			return TestFail;
+
+
+		/* Scaling up */
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 0,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(0, 0)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 1,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(10.5, -100.1)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 1.0,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(10.5, -100.1)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), -4.2,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(-44.1, 420.42)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 4.2,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(44.1, -420.42)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(0, -100.1), 4.2,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(0, -420.42)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(-50.1, -100.1), 4.2,
+				   static_cast<pointfScale>(&PointF::operator*), "*",
+				   PointF(-210.42000000000002, -420.42)))
+			return TestFail;
+
+		/* Scaling down */
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 1,
+				   static_cast<pointfScale>(&PointF::operator/), "/",
+				   PointF(10.5, -100.1)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 1.0,
+				   static_cast<pointfScale>(&PointF::operator/), "/",
+				   PointF(10.5, -100.1)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), -4.2,
+				   static_cast<pointfScale>(&PointF::operator/), "/",
+				   PointF(-2.5, 23.833333333333332)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(10.5, -100.1), 4.2,
+				   static_cast<pointfScale>(&PointF::operator/), "/",
+				   PointF(2.5, -23.833333333333332)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(0, -100.1), 4.2,
+				   static_cast<pointfScale>(&PointF::operator/), "/",
+				   PointF(0, -23.833333333333332)))
+			return TestFail;
+
+		if (!compareFScale<PointF, double, PointF>(PointF(-50.1, -100.1), 4.2,
+				   static_cast<pointfScale>(&PointF::operator/), "/",
+				   PointF(-11.928571428571429, -23.833333333333332)))
+			return TestFail;
+
+
+		/* Squared length */
+		if (!compareFLen<PointF>(PointF(0, 0),
+					 static_cast<pointfLen>(&PointF::len2), "len2",
+					 0))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(10.4, 0),
+					 static_cast<pointfLen>(&PointF::len2), "len2",
+					 108.16000000000001))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(10.4, 50.1),
+					 static_cast<pointfLen>(&PointF::len2), "len2",
+					 2618.17))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(-10.4, 50.1),
+					 static_cast<pointfLen>(&PointF::len2), "len2",
+					 2618.17))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(-10.4, -50.1),
+					 static_cast<pointfLen>(&PointF::len2), "len2",
+					 2618.17))
+			return TestFail;
+
+		/* Length */
+		if (!compareFLen<PointF>(PointF(0, 0),
+					 static_cast<pointfLen>(&PointF::len), "len",
+					 0))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(10.4, 0),
+					 static_cast<pointfLen>(&PointF::len), "len",
+					 10.4))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(10.4, 50.1),
+					 static_cast<pointfLen>(&PointF::len), "len",
+					 51.16805644149483))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(-10.4, 50.1),
+					 static_cast<pointfLen>(&PointF::len), "len",
+					 51.16805644149483))
+			return TestFail;
+
+		if (!compareFLen<PointF>(PointF(-10.4, -50.1),
+					 static_cast<pointfLen>(&PointF::len), "len",
+					 51.16805644149483))
+			return TestFail;
+
+		/* Default constructor */
+		if (PointF() != PointF(0, 0)) {
 			cout << "Default constructor test failed" << endl;
 			return TestFail;
 		}

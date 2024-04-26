@@ -21,7 +21,7 @@ namespace libcamera {
 
 /**
  * \class Point
- * \brief Describe a point in two-dimensional space
+ * \brief Describe a point in two-dimensional integer space
  *
  * The Point structure defines a point in two-dimensional space with integer
  * precision. The coordinates of a Point may be negative as well as positive.
@@ -89,6 +89,127 @@ bool operator==(const Point &lhs, const Point &rhs)
  * \return The output stream \a out
  */
 std::ostream &operator<<(std::ostream &out, const Point &p)
+{
+	out << "(" << p.x << ", " << p.y << ")";
+	return out;
+}
+
+/**
+ * \class PointF
+ * \brief Describe a point in two-dimensional real space
+ *
+ * The Point structure defines a point in two-dimensional space with double
+ * precision. The coordinates of a Point may be negative as well as positive.
+ *
+ * This class exists separately from Point to not require all users of the
+ * Point class to have to use template parameters to specify a type.
+ */
+
+/**
+ * \fn PointF::PointF()
+ * \copydoc libcamera::Point::Point
+ */
+
+/**
+ * \fn PointF::PointF(double _x, double _y)
+ * \brief Construct a PointF at given \a _x and \a _y values
+ * \param[in] _x The x-coordinate
+ * \param[in] _y The y-coordinate
+ */
+
+/**
+ * \var PointF::x
+ * \copydoc libcamera::Point::x
+ */
+
+/**
+ * \var PointF::y
+ * \copydoc libcamera::Point::y
+ */
+
+/**
+ * \fn constexpr PointF PointF::operator-() const
+ * \copydoc libcamera::Point::operator-
+ */
+
+/**
+ * \fn constexpr PointF PointF::operator-(PointF const &p) const
+ * \brief Subtract one point from another, as if they were vectors
+ * \param[in] p The other point
+ * \return The difference of p from this point
+ */
+
+/**
+ * \fn PointF::operator+()
+ * \brief Add two points together, as if they were vectors
+ * \param[in] p The other point
+ * \return The sum of the two points
+ */
+
+/**
+ * \fn PointF::operator%()
+ * \brief Compute the dot product, treating the points as vectors
+ * \param[in] p The other point
+ * \return The dot product of the two points
+ */
+
+/**
+ * \fn PointF::operator*()
+ * \brief Scale up the point, as if it were a vector
+ * \param[in] f The factor
+ * \return The scaled point
+ */
+
+/**
+ * \fn PointF::operator/()
+ * \brief Scale down the point, as if it were a vector
+ * \param[in] f The factor
+ * \return The scaled point
+ */
+
+/**
+ * \fn PointF::len2()
+ * \brief Get the squared length of the point, as if it were a vector
+ * \return The squared length of the point
+ */
+
+/**
+ * \fn PointF::len()
+ * \brief Get the length of the point, as if it were a vector
+ * \return The length of the point
+ */
+
+/**
+ * \copydoc Point::toString()
+ */
+const std::string PointF::toString() const
+{
+	std::stringstream ss;
+	ss << *this;
+
+	return ss.str();
+}
+
+/**
+ * \copydoc operator==(const Point &lhs, const Point &rhs)
+ */
+bool operator==(const PointF &lhs, const PointF &rhs)
+{
+	return lhs.x == rhs.x && lhs.y == rhs.y;
+}
+
+/**
+ * \fn bool operator!=(const Point &lhs, const Point &rhs)
+ * \copydoc libcamera::Point::operator!=
+ */
+
+/**
+ * \brief Insert a text representation of a PointF into an output stream
+ * \param[in] out The output stream
+ * \param[in] p The point
+ * \return The output stream \a out
+ */
+std::ostream &operator<<(std::ostream &out, const PointF &p)
 {
 	out << "(" << p.x << ", " << p.y << ")";
 	return out;

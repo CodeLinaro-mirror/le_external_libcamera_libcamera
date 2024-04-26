@@ -8,6 +8,7 @@
 #pragma once
 
 #include <algorithm>
+#include <cmath>
 #include <ostream>
 #include <string>
 
@@ -48,6 +49,70 @@ static inline bool operator!=(const Point &lhs, const Point &rhs)
 }
 
 std::ostream &operator<<(std::ostream &out, const Point &p);
+
+struct PointF {
+	constexpr PointF()
+		: x(0), y(0)
+	{
+	}
+
+	constexpr PointF(double _x, double _y)
+		: x(_x), y(_y)
+	{
+	}
+
+	constexpr PointF operator-() const
+	{
+		return PointF{ -x, -y };
+	}
+
+	constexpr PointF operator-(const PointF &p) const
+	{
+		return PointF(x - p.x, y - p.y);
+	}
+
+	constexpr PointF operator+(const PointF &p) const
+	{
+		return PointF(x + p.x, y + p.y);
+	}
+
+	constexpr double operator%(const PointF &p) const
+	{
+		return x * p.x + y * p.y;
+	}
+
+	constexpr PointF operator*(double f) const
+	{
+		return PointF(x * f, y * f);
+	}
+
+	constexpr PointF operator/(double f) const
+	{
+		return PointF(x / f, y / f);
+	}
+
+	constexpr double len2() const
+	{
+		return x * x + y * y;
+	}
+
+	constexpr double len() const
+	{
+		return std::sqrt(len2());
+	}
+
+	const std::string toString() const;
+
+	double x, y;
+};
+
+bool operator==(const PointF &lhs, const PointF &rhs);
+static inline bool operator!=(const PointF &lhs, const PointF &rhs)
+{
+	return !(lhs == rhs);
+}
+
+std::ostream &operator<<(std::ostream &out, const PointF &p);
 
 class Size
 {
