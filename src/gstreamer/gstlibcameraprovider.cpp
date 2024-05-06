@@ -212,10 +212,6 @@ gst_libcamera_provider_probe(GstDeviceProvider *provider)
 static void
 gst_libcamera_provider_init(GstLibcameraProvider *self)
 {
-	GstDeviceProvider *provider = GST_DEVICE_PROVIDER(self);
-
-	/* Avoid devices being duplicated. */
-	gst_device_provider_hide_provider(provider, "v4l2deviceprovider");
 }
 
 static void
