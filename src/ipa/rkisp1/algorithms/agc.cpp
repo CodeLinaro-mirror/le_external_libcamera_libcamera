@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <tuple>
+#include <vector>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
@@ -48,6 +50,7 @@ int Agc::parseMeteringModes(IPAContext &context, const YamlObject &tuningData,
 		return -EINVAL;
 	}
 
+	std::vector<ControlValue> availableMeteringModes;
 	for (const auto &[key, value] : yamlMeteringModes.asDict()) {
 		if (controls::AeMeteringModeNameValueMap.find(key) ==
 		    controls::AeMeteringModeNameValueMap.end()) {
@@ -66,10 +69,12 @@ int Agc::parseMeteringModes(IPAContext &context, const YamlObject &tuningData,
 			return -ENODATA;
 		}
 
-		meteringModes_[controls::AeMeteringModeNameValueMap.at(key)] = weights;
+		int32_t control = controls::AeMeteringModeNameValueMap.at(key);
+		meteringModes_[control] = weights;
+		availableMeteringModes.push_back(control);
 	}
 
-	if (meteringModes_.empty()) {
+	if (availableMeteringModes.empty()) {
 		int32_t meteringModeId = controls::AeMeteringModeNameValueMap.at("MeteringMatrix");
 		std::vector<uint8_t> weights = {
 			1, 1, 1, 1, 1,
@@ -80,7 +85,11 @@ int Agc::parseMeteringModes(IPAContext &context, const YamlObject &tuningData,
 		};
 
 		meteringModes_[meteringModeId] = weights;
+		availableMeteringModes.push_back(meteringModeId);
 	}
+
+	Algorithm::controls_[&controls::AeMeteringMode] =
+		ControlInfo(availableMeteringModes);
 
 	return 0;
 }
@@ -142,6 +151,8 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 
 	context.ctrlMap.merge(controls());
 
+	Algorithm::controls_.merge(ControlInfoMap::Map(controls()));
+
 	return 0;
 }
 
@@ -164,6 +175,7 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 
 	context.activeState.agc.constraintMode = constraintModes().begin()->first;
 	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
+	context.activeState.agc.meteringMode = meteringModes_.begin()->first;
 
 	/*
 	 * Define the measurement window for AGC as a centered rectangle
@@ -174,7 +186,6 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.configuration.agc.measureWindow.h_size = 3 * configInfo.outputSize.width / 4;
 	context.configuration.agc.measureWindow.v_size = 3 * configInfo.outputSize.height / 4;
 
-	/* \todo Run this again when FrameDurationLimits is passed in */
 	setLimits(context.configuration.sensor.minShutterSpeed,
 		  context.configuration.sensor.maxShutterSpeed,
 		  context.configuration.sensor.minAnalogueGain,
@@ -228,6 +239,26 @@ void Agc::queueRequest(IPAContext &context,
 		frameContext.agc.exposure = agc.manual.exposure;
 		frameContext.agc.gain = agc.manual.gain;
 	}
+
+	const auto &meteringMode = controls.get(controls::AeMeteringMode);
+	if (meteringMode)
+		agc.meteringMode = *meteringMode;
+	frameContext.agc.meteringMode = agc.meteringMode;
+
+	const auto &exposureMode = controls.get(controls::AeExposureMode);
+	if (exposureMode)
+		agc.exposureMode = *exposureMode;
+	frameContext.agc.exposureMode = agc.exposureMode;
+
+	const auto &constraintMode = controls.get(controls::AeConstraintMode);
+	if (constraintMode)
+		agc.constraintMode = *constraintMode;
+	frameContext.agc.constraintMode = agc.constraintMode;
+
+	const auto &frameDurationLimits = controls.get(controls::FrameDurationLimits);
+	if (frameDurationLimits)
+		agc.maxShutterSpeed = std::chrono::milliseconds((*frameDurationLimits).back());
+	frameContext.agc.maxShutterSpeed = agc.maxShutterSpeed;
 }
 
 /**
@@ -266,8 +297,7 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 		params->meas.hst_config.hist_weight,
 		context.hw->numHistogramWeights
 	};
-	/* \todo Get this from control */
-	std::vector<uint8_t> &modeWeights = meteringModes_.at(controls::MeteringMatrix);
+	std::vector<uint8_t> &modeWeights = meteringModes_.at(frameContext.agc.meteringMode);
 	std::copy(modeWeights.begin(), modeWeights.end(), weights.begin());
 
 	std::stringstream str;
@@ -294,6 +324,7 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 				     * frameContext.sensor.exposure;
 	metadata.set(controls::AnalogueGain, frameContext.sensor.gain);
 	metadata.set(controls::ExposureTime, exposureTime.get<std::micro>());
+	metadata.set(controls::AeEnable, frameContext.agc.autoEnabled);
 
 	/* \todo Use VBlank value calculated from each frame exposure. */
 	uint32_t vTotal = context.configuration.sensor.size.height
@@ -301,6 +332,10 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 	utils::Duration frameDuration = context.configuration.sensor.lineDuration
 				      * vTotal;
 	metadata.set(controls::FrameDuration, frameDuration.get<std::micro>());
+
+	metadata.set(controls::AeMeteringMode, frameContext.agc.meteringMode);
+	metadata.set(controls::AeExposureMode, frameContext.agc.exposureMode);
+	metadata.set(controls::AeConstraintMode, frameContext.agc.constraintMode);
 }
 
 /**
@@ -374,6 +409,13 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	Histogram hist({ params->hist.hist_bins, context.hw->numHistogramBins },
 		       [](uint32_t x) { return x >> 4; });
 	expMeans_ = { params->ae.exp_mean, context.hw->numAeCells };
+
+	utils::Duration maxShutterSpeed = std::min(context.configuration.sensor.maxShutterSpeed,
+						   frameContext.agc.maxShutterSpeed);
+	setLimits(context.configuration.sensor.minShutterSpeed,
+		  maxShutterSpeed,
+		  context.configuration.sensor.minAnalogueGain,
+		  context.configuration.sensor.maxAnalogueGain);
 
 	/*
 	 * The Agc algorithm needs to know the effective exposure value that was

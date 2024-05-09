@@ -68,8 +68,10 @@ struct IPAActiveState {
 		} automatic;
 
 		bool autoEnabled;
-		uint32_t constraintMode;
-		uint32_t exposureMode;
+		int32_t constraintMode;
+		int32_t exposureMode;
+		int32_t meteringMode;
+		utils::Duration maxShutterSpeed;
 	} agc;
 
 	struct {
@@ -111,6 +113,10 @@ struct IPAFrameContext : public FrameContext {
 		uint32_t exposure;
 		double gain;
 		bool autoEnabled;
+		int32_t exposureMode;
+		int32_t constraintMode;
+		int32_t meteringMode;
+		utils::Duration maxShutterSpeed;
 	} agc;
 
 	struct {
