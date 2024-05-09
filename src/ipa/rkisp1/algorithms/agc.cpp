@@ -384,12 +384,15 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	double analogueGain = frameContext.sensor.gain;
 	utils::Duration effectiveExposureValue = exposureTime * analogueGain;
 
+	/* \todo Plumb in the lux value. Requires a lux algo + tuning */
+	double lux = 400;
+
 	utils::Duration shutterTime;
 	double aGain, dGain;
 	std::tie(shutterTime, aGain, dGain) =
 		calculateNewEv(context.activeState.agc.constraintMode,
 			       context.activeState.agc.exposureMode,
-			       hist, effectiveExposureValue);
+			       hist, effectiveExposureValue, lux);
 
 	LOG(RkISP1Agc, Debug)
 		<< "Divided up shutter, analogue gain and digital gain are "
