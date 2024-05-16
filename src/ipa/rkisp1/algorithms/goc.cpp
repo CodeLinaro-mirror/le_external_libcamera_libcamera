@@ -11,6 +11,8 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include <libcamera/control_ids.h>
+
 #include "libcamera/internal/yaml_parser.h"
 
 #include "linux/rkisp1-config.h"
@@ -54,6 +56,41 @@ int Gamma::init([[maybe_unused]] IPAContext &context,
 }
 
 /**
+ * \brief Configure the Gamma given a configInfo
+ * \param[in] context The shared IPA context
+ * \param[in] configInfo The IPA configuration data
+ *
+ * \return 0
+ */
+int Gamma::configure(IPAContext &context,
+		     [[maybe_unused]] const IPACameraSensorInfo &configInfo)
+{
+	context.activeState.gamma = 2.2;
+	return 0;
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void Gamma::queueRequest([[maybe_unused]] IPAContext &context,
+			 [[maybe_unused]] const uint32_t frame,
+			 IPAFrameContext &frameContext,
+			 const ControlList &controls)
+{
+	const auto &gamma = controls.get(controls::Gamma);
+	if (gamma) {
+		/* \todo This is not correct as it updates the current state with a
+		 * future value. But it does no harm at the moment an allows us to
+		 * track the last active gamma
+		 */
+		context.activeState.gamma = *gamma;
+		LOG(RkISP1Gamma, Debug) << "Set gamma to " << *gamma;
+	}
+
+	frameContext.gamma = context.activeState.gamma;
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void Gamma::prepare([[maybe_unused]] IPAContext &context,
@@ -67,19 +104,36 @@ void Gamma::prepare([[maybe_unused]] IPAContext &context,
 			   512, 512, 512, 512, 512, 0 };
 	auto gamma_y = params->others.goc_config.gamma_y;
 
-	if (frame > 0)
-		return;
+	if (frame == 0 || std::fabs(frameContext.gamma - gamma_) > 0.001) {
+		gamma_ = frameContext.gamma;
 
-	int x = 0;
-	for (int i = 0; i < RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V10; i++) {
-		gamma_y[i] = std::pow(x / 4096.0, 1.0 / gamma_) * 1023.0;
-		x += segments[i];
+		int x = 0;
+		for (int i = 0; i < RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V10; i++) {
+			gamma_y[i] = std::pow(x / 4096.0, 1.0 / gamma_) * 1023.0;
+			x += segments[i];
+		}
+
+		params->others.goc_config.mode = RKISP1_CIF_ISP_GOC_MODE_LOGARITHMIC;
+		params->module_cfg_update |= RKISP1_CIF_ISP_MODULE_GOC;
+
+		/* It is unclear why these bits need to be set more than once.
+		 * Setting them only on frame 0 didn't apply gamma.
+		 */
+		params->module_en_update |= RKISP1_CIF_ISP_MODULE_GOC;
+		params->module_ens |= RKISP1_CIF_ISP_MODULE_GOC;
 	}
+}
 
-	params->others.goc_config.mode = RKISP1_CIF_ISP_GOC_MODE_LOGARITHMIC;
-	params->module_en_update |= RKISP1_CIF_ISP_MODULE_GOC;
-	params->module_ens |= RKISP1_CIF_ISP_MODULE_GOC;
-	params->module_cfg_update |= RKISP1_CIF_ISP_MODULE_GOC;
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void Gamma::process([[maybe_unused]] IPAContext &context,
+		    [[maybe_unused]] const uint32_t frame,
+		    IPAFrameContext &frameContext,
+		    [[maybe_unused]] const rkisp1_stat_buffer *stats,
+		    ControlList &metadata)
+{
+	metadata.set(controls::Gamma, frameContext.gamma);
 }
 
 REGISTER_IPA_ALGORITHM(Gamma, "Gamma")

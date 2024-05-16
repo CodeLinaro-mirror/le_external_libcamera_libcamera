@@ -104,6 +104,8 @@ struct IPAActiveState {
 		uint8_t denoise;
 		uint8_t sharpness;
 	} filter;
+
+	double gamma;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -146,6 +148,8 @@ struct IPAFrameContext : public FrameContext {
 		uint32_t exposure;
 		double gain;
 	} sensor;
+
+	double gamma;
 };
 
 struct IPAContext {
