@@ -243,6 +243,12 @@ controls:
         Specify a fixed contrast parameter. Normal contrast is given by the
         value 1.0; larger values produce images with more contrast.
 
+  - Gamma:
+      type: float
+      description:  |
+        Specify a fixed gamma value. Default is 2.2 which closely mimics sRGB
+        gamma. Note that this is camera gamma, so it is applied as 1.0/gamma
+
   - Lux:
       type: float
       description: |
