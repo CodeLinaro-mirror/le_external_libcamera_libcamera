@@ -44,11 +44,17 @@ public:
 		     ControlList &metadata) override;
 
 private:
+	int parseMeteringModes(IPAContext &context, const YamlObject &tuningData,
+			       const char *prop);
+	uint8_t predivider(Size &size);
+
 	void fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 			  ControlList &metadata);
 	double estimateLuminance(double gain) const override;
 
 	Span<const uint8_t> expMeans_;
+
+	std::map<int32_t, std::vector<uint8_t>> meteringModes_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
