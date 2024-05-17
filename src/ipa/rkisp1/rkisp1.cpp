@@ -80,6 +80,7 @@ private:
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
 
 	ControlInfoMap sensorControls_;
+	ControlInfoMap::Map algoControls_;
 
 	/* Interface to the Camera Helper */
 	std::unique_ptr<CameraSensorHelper> camHelper_;
@@ -192,6 +193,14 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 	int ret = createAlgorithms(context_, (*data)["algorithms"]);
 	if (ret)
 		return ret;
+
+	for (auto const &a : algorithms()) {
+		Algorithm *algo = static_cast<Algorithm *>(a.get());
+
+		/* \todo Avoid merging duplicate controls */
+		if (!algo->controls_.empty())
+			algoControls_.merge(ControlInfoMap::Map(algo->controls_));
+	}
 
 	/* Initialize controls. */
 	updateControls(sensorInfo, sensorControls, ipaControls);
@@ -377,6 +386,7 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 			       ControlInfoMap *ipaControls)
 {
 	ControlInfoMap::Map ctrlMap = rkisp1Controls;
+	ctrlMap.merge(algoControls_);
 
 	/*
 	 * Compute exposure time limits from the V4L2_CID_EXPOSURE control

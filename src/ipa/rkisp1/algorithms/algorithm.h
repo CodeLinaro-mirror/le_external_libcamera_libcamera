@@ -25,6 +25,8 @@ public:
 
 	bool disabled_;
 	bool supportsRaw_;
+
+	ControlInfoMap::Map controls_;
 };
 
 } /* namespace ipa::rkisp1 */
