@@ -134,7 +134,7 @@ static constexpr double kDefaultRelativeLuminanceTarget = 0.16;
  */
 
 AgcMeanLuminance::AgcMeanLuminance()
-	: frameCount_(0), filteredExposure_(0s), relativeLuminanceTarget_(0)
+	: frameCount_(0), filteredExposure_(0s)
 {
 }
 
@@ -142,8 +142,16 @@ AgcMeanLuminance::~AgcMeanLuminance() = default;
 
 void AgcMeanLuminance::parseRelativeLuminanceTarget(const YamlObject &tuningData)
 {
-	relativeLuminanceTarget_ =
-		tuningData["relativeLuminanceTarget"].get<double>(kDefaultRelativeLuminanceTarget);
+	int ret = relativeLuminanceTarget_.readYaml(tuningData["relativeLuminanceTarget"]);
+	if (ret == 0)
+		return;
+
+	LOG(AgcMeanLuminance, Warning)
+		<< "Failed to load tuning parameter 'relativeLuminanceTarget', "
+		<< "using default [0, " << kDefaultRelativeLuminanceTarget << "]";
+
+	std::vector<PointF> points = { { 0, kDefaultRelativeLuminanceTarget } };
+	relativeLuminanceTarget_ = Pwl(points);
 }
 
 void AgcMeanLuminance::parseConstraint(const YamlObject &modeDict, int32_t id)
@@ -421,11 +429,18 @@ void AgcMeanLuminance::setLimits(utils::Duration minShutter,
 /**
  * \brief Estimate the initial gain needed to achieve a relative luminance
  * target
+ * \param[in] lux The lux value at which to sample the luminance target pwl
+ *
+ * To account for non-linearity caused by saturation, the value needs to be
+ * estimated in an iterative process, as multiplying by a gain will not increase
+ * the relative luminance by the same factor if some image regions are saturated
+ *
  * \return The calculated initial gain
  */
-double AgcMeanLuminance::estimateInitialGain() const
+double AgcMeanLuminance::estimateInitialGain(double lux) const
 {
-	double yTarget = relativeLuminanceTarget_;
+	double yTarget =
+		relativeLuminanceTarget_.eval(relativeLuminanceTarget_.domain().clamp(lux));
 	double yGain = 1.0;
 
 	/*
@@ -520,6 +535,7 @@ utils::Duration AgcMeanLuminance::filterExposure(utils::Duration exposureValue)
  * the calculated gain
  * \param[in] effectiveExposureValue The EV applied to the frame from which the
  * statistics in use derive
+ * \param[in] lux The lux value at which to sample the luminance target pwl
  *
  * Calculate a new exposure value to try to obtain the target. The calculated
  * exposure value is filtered to prevent rapid changes from frame to frame, and
@@ -531,7 +547,8 @@ std::tuple<utils::Duration, double, double>
 AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 				 uint32_t exposureModeIndex,
 				 const Histogram &yHist,
-				 utils::Duration effectiveExposureValue)
+				 utils::Duration effectiveExposureValue,
+				 double lux)
 {
 	/*
 	 * The pipeline handler should validate that we have received an allowed
@@ -540,7 +557,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	std::shared_ptr<ExposureModeHelper> exposureModeHelper =
 		exposureModeHelpers_.at(exposureModeIndex);
 
-	double gain = estimateInitialGain();
+	double gain = estimateInitialGain(lux);
 	gain = constraintClampGain(constraintModeIndex, yHist, gain);
 
 	/*

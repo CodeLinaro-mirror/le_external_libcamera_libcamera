@@ -18,6 +18,7 @@
 
 #include "exposure_mode_helper.h"
 #include "histogram.h"
+#include "pwl.h"
 
 namespace libcamera {
 
@@ -62,7 +63,7 @@ public:
 
 	std::tuple<utils::Duration, double, double>
 	calculateNewEv(uint32_t constraintModeIndex, uint32_t exposureModeIndex,
-		       const Histogram &yHist, utils::Duration effectiveExposureValue);
+		       const Histogram &yHist, utils::Duration effectiveExposureValue, double lux);
 
 	void resetFrameCount()
 	{
@@ -76,7 +77,7 @@ private:
 	void parseConstraint(const YamlObject &modeDict, int32_t id);
 	int parseConstraintModes(const YamlObject &tuningData);
 	int parseExposureModes(const YamlObject &tuningData);
-	double estimateInitialGain() const;
+	double estimateInitialGain(double lux) const;
 	double constraintClampGain(uint32_t constraintModeIndex,
 				   const Histogram &hist,
 				   double gain);
@@ -84,7 +85,7 @@ private:
 
 	uint64_t frameCount_;
 	utils::Duration filteredExposure_;
-	double relativeLuminanceTarget_;
+	Pwl relativeLuminanceTarget_;
 
 	std::map<int32_t, std::vector<AgcConstraint>> constraintModes_;
 	std::map<int32_t, std::shared_ptr<ExposureModeHelper>> exposureModeHelpers_;
