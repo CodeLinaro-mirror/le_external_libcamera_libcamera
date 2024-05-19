@@ -155,6 +155,15 @@ int V4L2M2MConverter::Stream::queueBuffers(FrameBuffer *input, FrameBuffer *outp
 	return 0;
 }
 
+int V4L2M2MConverter::Stream::setSelection(unsigned int target, Rectangle *rect)
+{
+	int ret = m2m_->output()->setSelection(target, rect);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 std::string V4L2M2MConverter::Stream::logPrefix() const
 {
 	return "stream" + std::to_string(index_);
@@ -368,6 +377,23 @@ int V4L2M2MConverter::exportBuffers(unsigned int output, unsigned int count,
 		return -EINVAL;
 
 	return streams_[output].exportBuffers(count, buffers);
+}
+
+/**
+ * \brief Set a selection rectangle \a rect for \a target
+ * \param[in] output Index of the output stream
+ * \param[in] target The selection target defined by the V4L2_SEL_TGT_* flags
+ * \param[inout] rect The selection rectangle to be applied
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int V4L2M2MConverter::setSelection(unsigned int output, unsigned int target,
+				   Rectangle *rect)
+{
+	if (output >= streams_.size())
+		return -EINVAL;
+
+	return streams_[output].setSelection(target, rect);
 }
 
 /**

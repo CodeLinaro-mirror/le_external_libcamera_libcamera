@@ -29,6 +29,7 @@ class MediaDevice;
 class Size;
 class SizeRange;
 struct StreamConfiguration;
+class Rectangle;
 class V4L2M2MDevice;
 
 class V4L2M2MConverter : public Converter
@@ -56,6 +57,8 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<unsigned int, FrameBuffer *> &outputs);
 
+	int setSelection(unsigned int output, unsigned int target, Rectangle *rect);
+
 private:
 	class Stream : protected Loggable
 	{
@@ -73,6 +76,8 @@ private:
 		void stop();
 
 		int queueBuffers(FrameBuffer *input, FrameBuffer *output);
+
+		int setSelection(unsigned int target, Rectangle *rect);
 
 	protected:
 		std::string logPrefix() const override;
