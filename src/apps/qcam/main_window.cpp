@@ -403,6 +403,13 @@ int MainWindow::startCapture()
 		return -EINVAL;
 	}
 
+	/* Apply a sensor configuration if requested. */
+	if (SensorKeyValueParser::updateConfiguration(config_.get(),
+						      options_[OptSensorFmt])) {
+		qWarning() << "Failed to apply sensor configuration";
+		return -EINVAL;
+	}
+
 	CameraConfiguration::Status validation = config_->validate();
 	if (validation == CameraConfiguration::Invalid) {
 		qWarning() << "Failed to create valid camera configuration";

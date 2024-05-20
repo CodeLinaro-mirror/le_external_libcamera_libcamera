@@ -32,6 +32,7 @@ void signalHandler([[maybe_unused]] int signal)
 OptionsParser::Options parseOptions(int argc, char *argv[])
 {
 	StreamKeyValueParser streamKeyValue;
+	SensorKeyValueParser sensorKeyValue;
 
 	OptionsParser parser;
 	parser.addOption(OptCamera, OptionString,
@@ -44,6 +45,8 @@ OptionsParser::Options parseOptions(int argc, char *argv[])
 			 "renderer", ArgumentRequired, "renderer");
 	parser.addOption(OptStream, &streamKeyValue,
 			 "Set configuration of a camera stream", "stream", true);
+	parser.addOption(OptSensorFmt, &sensorKeyValue,
+			 "Apply a format to the sensor", "sensor_format", true);
 	parser.addOption(OptVerbose, OptionNone,
 			 "Print verbose log messages", "verbose");
 

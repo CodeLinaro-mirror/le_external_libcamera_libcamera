@@ -42,6 +42,7 @@ enum {
 	OptHelp = 'h',
 	OptRenderer = 'r',
 	OptStream = 's',
+	OptSensorFmt = 'f',
 	OptVerbose = 'v',
 };
 
