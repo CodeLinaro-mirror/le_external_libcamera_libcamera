@@ -161,7 +161,7 @@ int AwbConfig::read(const libcamera::YamlObject &params)
 			bayes = false;
 		}
 	}
-	fast = params[fast].get<int>(bayes); /* default to fast for Bayesian, otherwise slow */
+	fast = params["fast"].get<int>(bayes); /* default to fast for Bayesian, otherwise slow */
 	whitepointR = params["whitepoint_r"].get<double>(0.0);
 	whitepointB = params["whitepoint_b"].get<double>(0.0);
 	if (bayes == false)
