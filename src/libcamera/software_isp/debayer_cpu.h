@@ -18,6 +18,7 @@
 #include <libcamera/base/object.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/software_isp/debayer_params.h"
 
 #include "debayer.h"
 #include "swstats_cpu.h"
@@ -125,9 +126,12 @@ private:
 	/* Max. supported Bayer pattern height is 4, debayering this requires 5 lines */
 	static constexpr unsigned int kMaxLineBuffers = 5;
 
-	DebayerParams::ColorLookupTable red_;
-	DebayerParams::ColorLookupTable green_;
-	DebayerParams::ColorLookupTable blue_;
+	using ColorLookupTable = std::array<uint8_t, DebayerParams::kRGBLookupSize>;
+	void updateColorLookupTable(const DebayerParams::ColorLookupTable &src,
+				    ColorLookupTable &dst);
+	ColorLookupTable red_;
+	ColorLookupTable green_;
+	ColorLookupTable blue_;
 	debayerFn debayer0_;
 	debayerFn debayer1_;
 	debayerFn debayer2_;

@@ -30,17 +30,17 @@ namespace libcamera {
 
 /**
  * \var DebayerParams::red
- * \brief Lookup table for red color, mapping input values to output values
+ * \brief Lookup table for red color, mapping input values to 0.0..1.0
  */
 
 /**
  * \var DebayerParams::green
- * \brief Lookup table for green color, mapping input values to output values
+ * \brief Lookup table for green color, mapping input values to 0.0..1.0
  */
 
 /**
  * \var DebayerParams::blue
- * \brief Lookup table for blue color, mapping input values to output values
+ * \brief Lookup table for blue color, mapping input values to 0.0..1.0
  */
 
 /**
