@@ -63,9 +63,7 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  * handler
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
-	: debayerParams_{ DebayerParams::kGain10, DebayerParams::kGain10,
-			  DebayerParams::kGain10, 0.5f, 0 },
-	  dmaHeap_(DmaHeap::DmaHeapFlag::Cma | DmaHeap::DmaHeapFlag::System)
+	: dmaHeap_(DmaHeap::DmaHeapFlag::Cma | DmaHeap::DmaHeapFlag::System)
 {
 	if (!dmaHeap_.isValid()) {
 		LOG(SoftwareIsp, Error) << "Failed to create DmaHeap object";

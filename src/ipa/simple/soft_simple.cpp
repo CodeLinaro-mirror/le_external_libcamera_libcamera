@@ -5,6 +5,7 @@
  * Simple Software Image Processing Algorithm module
  */
 
+#include <math.h>
 #include <numeric>
 #include <stdint.h>
 #include <sys/mman.h>
@@ -83,6 +84,10 @@ private:
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 	ControlInfoMap sensorInfoMap_;
 	BlackLevel blackLevel_;
+
+	static constexpr unsigned int kGammaLookupSize = 1024;
+	std::array<uint8_t, kGammaLookupSize> gammaTable_;
+	int lastBlackLevel_ = -1;
 
 	int32_t exposureMin_, exposureMax_;
 	int32_t exposure_;
@@ -246,7 +251,6 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	if (ignoreUpdates_ > 0)
 		blackLevel_.update(histogram);
 	const uint8_t blackLevel = blackLevel_.get();
-	params_->blackLevel = blackLevel;
 
 	/*
 	 * Calculate red and blue gains for AWB.
@@ -265,12 +269,41 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	const uint64_t sumG = subtractBlackLevel(stats_->sumG_, 2);
 	const uint64_t sumB = subtractBlackLevel(stats_->sumB_, 4);
 
-	params_->gainR = sumR <= sumG / 4 ? 1024 : 256 * sumG / sumR;
-	params_->gainB = sumB <= sumG / 4 ? 1024 : 256 * sumG / sumB;
-
+	/* Gain: 128 = 0.5, 256 = 1.0, 512 = 2.0, etc. */
+	const unsigned int gainR = sumR <= sumG / 4 ? 1024 : 256 * sumG / sumR;
+	const unsigned int gainB = sumB <= sumG / 4 ? 1024 : 256 * sumG / sumB;
 	/* Green gain and gamma values are fixed */
-	params_->gainG = 256;
-	params_->gamma = 0.5;
+	constexpr unsigned int gainG = 256;
+	/* gamma == 1.0 means no correction */
+	constexpr float gamma = 0.5;
+
+	/* Update the gamma table if needed */
+	if (blackLevel != lastBlackLevel_) {
+		const unsigned int blackIndex = blackLevel * kGammaLookupSize / 256;
+		std::fill(gammaTable_.begin(), gammaTable_.begin() + blackIndex, 0);
+		const float divisor = kGammaLookupSize - blackIndex - 1.0;
+		for (unsigned int i = blackIndex; i < kGammaLookupSize; i++)
+			gammaTable_[i] = UINT8_MAX * powf((i - blackIndex) / divisor, gamma);
+
+		lastBlackLevel_ = blackLevel;
+	}
+
+	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
+		constexpr unsigned int div =
+			DebayerParams::kRGBLookupSize * DebayerParams::kGain10 /
+			kGammaLookupSize;
+		unsigned int idx;
+
+		/* Apply gamma after gain! */
+		idx = std::min({ i * gainR / div, (kGammaLookupSize - 1) });
+		params_->red[i] = gammaTable_[idx];
+
+		idx = std::min({ i * gainG / div, (kGammaLookupSize - 1) });
+		params_->green[i] = gammaTable_[idx];
+
+		idx = std::min({ i * gainB / div, (kGammaLookupSize - 1) });
+		params_->blue[i] = gammaTable_[idx];
+	}
 
 	setIspParams.emit();
 
@@ -291,7 +324,7 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	 * https://www.araa.asn.au/acra/acra2007/papers/paper84final.pdf
 	 */
 	const unsigned int blackLevelHistIdx =
-		params_->blackLevel / (256 / SwIspStats::kYHistogramSize);
+		blackLevel / (256 / SwIspStats::kYHistogramSize);
 	const unsigned int histogramSize =
 		SwIspStats::kYHistogramSize - blackLevelHistIdx;
 	const unsigned int yHistValsPerBin = histogramSize / kExposureBinsCount;
@@ -339,8 +372,8 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 
 	LOG(IPASoft, Debug) << "exposureMSV " << exposureMSV
 			    << " exp " << exposure_ << " again " << again_
-			    << " gain R/B " << params_->gainR << "/" << params_->gainB
-			    << " black level " << params_->blackLevel;
+			    << " gain R/B " << gainR << "/" << gainB
+			    << " black level " << static_cast<unsigned int>(blackLevel);
 }
 
 void IPASoftSimple::updateExposure(double exposureMSV)

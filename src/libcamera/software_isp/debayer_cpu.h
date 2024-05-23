@@ -122,15 +122,12 @@ private:
 	void process2(const uint8_t *src, uint8_t *dst);
 	void process4(const uint8_t *src, uint8_t *dst);
 
-	static constexpr unsigned int kGammaLookupSize = 1024;
-	static constexpr unsigned int kRGBLookupSize = 256;
 	/* Max. supported Bayer pattern height is 4, debayering this requires 5 lines */
 	static constexpr unsigned int kMaxLineBuffers = 5;
 
-	std::array<uint8_t, kGammaLookupSize> gamma_;
-	std::array<uint8_t, kRGBLookupSize> red_;
-	std::array<uint8_t, kRGBLookupSize> green_;
-	std::array<uint8_t, kRGBLookupSize> blue_;
+	DebayerParams::ColorLookupTable red_;
+	DebayerParams::ColorLookupTable green_;
+	DebayerParams::ColorLookupTable blue_;
 	debayerFn debayer0_;
 	debayerFn debayer1_;
 	debayerFn debayer2_;
