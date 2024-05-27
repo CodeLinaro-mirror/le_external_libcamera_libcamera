@@ -30,7 +30,10 @@ public:
 	UniqueFD alloc(const char *name, std::size_t size);
 
 private:
+	UniqueFD allocFromHeap(const char *name, std::size_t size);
+	UniqueFD allocFromUDmaBuf(const char *name, std::size_t size);
 	UniqueFD dmaHeapHandle_;
+	bool useUDmaBuf_;
 };
 
 LIBCAMERA_FLAGS_ENABLE_OPERATORS(DmaHeap::DmaHeapFlag)
