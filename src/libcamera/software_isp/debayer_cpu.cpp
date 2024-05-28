@@ -11,6 +11,8 @@
 
 #include "debayer_cpu.h"
 
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <time.h>
 
@@ -688,6 +690,14 @@ static inline int64_t timeDiff(timespec &after, timespec &before)
 	       (int64_t)after.tv_nsec - (int64_t)before.tv_nsec;
 }
 
+void DebayerCpu::updateColorLookupTable(
+	const DebayerParams::ColorLookupTable &src,
+	ColorLookupTable &dst)
+{
+	for (std::size_t i = 0; i < src.size(); i++)
+		dst[i] = src[i] * UINT8_MAX;
+}
+
 void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
 {
 	timespec frameStartTime;
@@ -697,9 +707,11 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		clock_gettime(CLOCK_MONOTONIC_RAW, &frameStartTime);
 	}
 
-	green_ = params.green;
-	red_ = swapRedBlueGains_ ? params.blue : params.red;
-	blue_ = swapRedBlueGains_ ? params.red : params.blue;
+	updateColorLookupTable(params.green, green_);
+	updateColorLookupTable(swapRedBlueGains_ ? params.blue : params.red,
+			       red_);
+	updateColorLookupTable(swapRedBlueGains_ ? params.red : params.blue,
+			       blue_);
 
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();

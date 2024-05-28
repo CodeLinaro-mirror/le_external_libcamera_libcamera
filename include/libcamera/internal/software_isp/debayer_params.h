@@ -19,7 +19,7 @@ struct DebayerParams {
 	static constexpr unsigned int kRGBLookupSize = 256;
 	static constexpr float kGamma = 0.5;
 
-	using ColorLookupTable = std::array<uint8_t, kRGBLookupSize>;
+	using ColorLookupTable = std::array<float, kRGBLookupSize>;
 
 	ColorLookupTable red;
 	ColorLookupTable green;

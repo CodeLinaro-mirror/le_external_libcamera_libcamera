@@ -86,7 +86,7 @@ private:
 	BlackLevel blackLevel_;
 
 	static constexpr unsigned int kGammaLookupSize = 1024;
-	std::array<uint8_t, kGammaLookupSize> gammaTable_;
+	std::array<float, kGammaLookupSize> gammaTable_;
 	int lastBlackLevel_ = -1;
 
 	int32_t exposureMin_, exposureMax_;
@@ -281,8 +281,7 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 		std::fill(gammaTable_.begin(), gammaTable_.begin() + blackIndex, 0);
 		const float divisor = kGammaLookupSize - blackIndex - 1.0;
 		for (unsigned int i = blackIndex; i < kGammaLookupSize; i++)
-			gammaTable_[i] = UINT8_MAX *
-					 powf((i - blackIndex) / divisor, DebayerParams::kGamma);
+			gammaTable_[i] = powf((i - blackIndex) / divisor, DebayerParams::kGamma);
 
 		lastBlackLevel_ = blackLevel;
 	}
