@@ -7,6 +7,7 @@
 
 #include "libcamera/internal/software_isp/software_isp.h"
 
+#include <math.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -18,6 +19,7 @@
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/mapped_framebuffer.h"
+#include "libcamera/internal/software_isp/debayer_params.h"
 
 #include "debayer_cpu.h"
 
@@ -63,10 +65,17 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  * handler
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
-	: debayerParams_{ DebayerParams::kGain10, DebayerParams::kGain10,
-			  DebayerParams::kGain10, 0.5f, 0 },
-	  dmaHeap_(DmaHeap::DmaHeapFlag::Cma | DmaHeap::DmaHeapFlag::System)
+	: dmaHeap_(DmaHeap::DmaHeapFlag::Cma | DmaHeap::DmaHeapFlag::System)
 {
+	std::array<float, 256> gammaTable;
+	for (unsigned int i = 0; i < 256; i++)
+		gammaTable[i] = powf(i / 256.0, DebayerParams::kGamma);
+	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
+		debayerParams_.red[i] = gammaTable[i];
+		debayerParams_.green[i] = gammaTable[i];
+		debayerParams_.blue[i] = gammaTable[i];
+	}
+
 	if (!dmaHeap_.isValid()) {
 		LOG(SoftwareIsp, Error) << "Failed to create DmaHeap object";
 		return;
