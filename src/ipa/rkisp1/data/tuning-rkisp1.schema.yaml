@@ -1,0 +1,376 @@
+# SPDX-License-Identifier: CC0-1.0
+%YAML 1.1
+---
+$id: https://libcamera.org/tuning-rkisp1.schema.yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+description: Tuning file schema for the RKISP1 IPA
+type: object
+required: ['version', 'algorithms']
+properties:
+  version:
+    const: 1
+  algorithms:
+    type: array
+    items:
+      oneOf:
+        - $ref: '#/$defs/Agc'
+        - $ref: '#/$defs/Awb'
+        - $ref: '#/$defs/BlackLevelCorrection'
+        - $ref: '#/$defs/Ccm'
+        - $ref: '#/$defs/ColorProcessing'
+        - $ref: '#/$defs/Dpf'
+        - $ref: '#/$defs/Filter'
+        - $ref: '#/$defs/GammaSensorLinearization'
+        - $ref: '#/$defs/DefectPixelClusterCorrection'
+        - $ref: '#/$defs/LensShadingCorrection'
+$defs:
+  Agc:
+    type: object
+    additionalProperties: false
+    required: ['Agc']
+    properties:
+      Agc:
+        type: ['object', 'null']
+        additionalProperties: false
+        required: ['AeMeteringMode']
+        properties:
+          AeMeteringMode:
+            type: object
+            additionalProperties: false
+            required: ['MeteringCentreWeighted', 'MeteringSpot', 'MeteringMatrix']
+            properties:
+              MeteringCentreWeighted: { $ref: '#/$defs/_AgcMeteringMode' }
+              MeteringSpot: { $ref: '#/$defs/_AgcMeteringMode' }
+              MeteringMatrix: { $ref: '#/$defs/_AgcMeteringMode' }
+              MeteringCustom: { $ref: '#/$defs/_AgcMeteringMode' }
+          AeExposureMode:
+            type: object
+            additionalProperties: false
+            properties:
+              ExposureNormal: { $ref: '#/$defs/_AgcExposureMode' }
+              ExposureShort: { $ref: '#/$defs/_AgcExposureMode' }
+              ExposureLong: { $ref: '#/$defs/_AgcExposureMode' }
+              ExposureCustom: { $ref: '#/$defs/_AgcExposureMode' }
+          AeConstraintMode:
+            type: object
+            additionalProperties: false
+            properties:
+              ConstraintNormal: { $ref: '#/$defs/_AgcConstraintMode' }
+              ConstraintHighlight: { $ref: '#/$defs/_AgcConstraintMode' }
+              ConstraintShadows: { $ref: '#/$defs/_AgcConstraintMode' }
+              ConstraintCustom: { $ref: '#/$defs/_AgcConstraintMode' }
+          relativeLuminanceTarget:
+            type: array
+            items:
+              type: number
+
+  # Ideally these should be defined inside Agc and referenced using relative paths
+  # but apparently this is not supported by the spec.
+  # See https://github.com/python-jsonschema/jsonschema/issues/1265
+  _AgcMeteringMode:
+    type: array
+    items:
+      type: integer
+    minItems: 25
+    maxItems: 25
+  _AgcConstraintMode:
+    type: object
+    additionalProperties: false
+    properties:
+      lower:
+        type: object
+        additionalProperties: false
+        properties:
+          qLo:
+            type: number
+          qHi:
+            type: number
+          yTarget:
+            type: array
+            items:
+              type: number
+      upper:
+        type: object
+        additionalProperties: false
+        properties:
+          qLo:
+            type: number
+          qHi:
+            type: number
+          yTarget:
+            type: array
+            items:
+              type: number
+  _AgcExposureMode:
+    type: object
+    additionalProperties: false
+    required: ['shutter', 'gain']
+    properties:
+      shutter:
+        type: array
+        items:
+          type: integer
+      gain:
+        type: array
+        items:
+          type: number
+
+  Awb:
+    type: object
+    additionalProperties: false
+    required: ['Awb']
+    properties:
+      Awb: { $ref: '#/$defs/_Empty' }
+  BlackLevelCorrection:
+    type: object
+    additionalProperties: false
+    required: ['BlackLevelCorrection']
+    properties:
+      BlackLevelCorrection:
+        type: object
+        additionalProperties: false
+        required: ['B', 'Gb', 'Gr', 'R']
+        properties:
+          B:
+            type: integer
+          Gb:
+            type: integer
+          Gr:
+            type: integer
+          R:
+            type: integer
+  Ccm:
+    type: object
+    additionalProperties: false
+    required: ['Ccm']
+    properties:
+      Ccm:
+        type: object
+        additionalProperties: false
+        required: ['ccms']
+        properties:
+          ccms:
+            type: array
+            items:
+              type: object
+              additionalProperties: false
+              required: ['ct', 'ccm']
+              properties:
+                ct:
+                  type: integer
+                ccm:
+                  type: array
+                  items:
+                    type: number
+                  minItems: 9
+                  maxItems: 9
+                offsets:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 3
+                  maxItems: 3
+  ColorProcessing:
+    type: object
+    additionalProperties: false
+    required: ['ColorProcessing']
+    properties:
+      ColorProcessing: { $ref: '#/$defs/_Empty' }
+  DefectPixelClusterCorrection:
+    type: object
+    additionalProperties: false
+    required: ['DefectPixelClusterCorrection']
+    properties:
+      DefectPixelClusterCorrection:
+        type: object
+        additionalProperties: false
+        required: ['sets']
+        properties:
+          fixed-set:
+            type: boolean
+          sets:
+            type: array
+            maxItems: 3
+            items:
+              type: object
+              additionalProperties: false
+              # Todo clarify what is really required here ov5640 misses
+              # 'rg-factor', 'rnd-offsets', 'rnd-threshold'
+              required: ['line-mad-factor', 'line-threshold', 'pg-factor', 'ro-limits']
+              properties:
+                line-mad-factor: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+                line-threshold: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+                pg-factor: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+                rg-factor: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+                rnd-offsets: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+                rnd-threshold: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+                ro-limits: { $ref: '#/$defs/_DefectPixelClusterCorrectionFactor' }
+  _DefectPixelClusterCorrectionFactor:
+    type: object
+    additionalProperties: false
+    properties:
+      green:
+        type: integer
+      red-blue:
+        type: integer
+  Dpf:
+    type: object
+    additionalProperties: false
+    required: ['Dpf']
+    properties:
+      Dpf:
+        type: object
+        additionalProperties: false
+        required: ['DomainFilter', 'FilterStrength', 'NoiseLevelFunction']
+        properties:
+          DomainFilter:
+            type: object
+            additionalProperties: false
+            required: ['g', 'rb']
+            properties:
+              g:
+                type: array
+                items:
+                  type: integer
+                minItems: 6
+                maxItems: 6
+              rb:
+                type: array
+                items:
+                  type: integer
+                minItems: 6
+                maxItems: 6
+          FilterStrength:
+            type: object
+            additionalProperties: false
+            required: ['b', 'g', 'r']
+            properties:
+              b:
+                type: integer
+              g:
+                type: integer
+              r:
+                type: integer
+          NoiseLevelFunction:
+            type: object
+            additionalProperties: false
+            required: ['coeff', 'scale-mode']
+            properties:
+              coeff:
+                type: array
+                items:
+                  type: integer
+                minItems: 17
+                maxItems: 17
+              scale-mode:
+                type: string
+                enum: ['linear', 'logarithmic']
+  Filter:
+    type: object
+    additionalProperties: false
+    required: ['Filter']
+    properties:
+      Filter: { $ref: '#/$defs/_Empty' }
+  GammaSensorLinearization:
+    type: object
+    additionalProperties: false
+    required: ['GammaSensorLinearization']
+    properties:
+      GammaSensorLinearization:
+        type: object
+        additionalProperties: false
+        required: ['x-intervals', 'y']
+        properties:
+          x-intervals:
+            type: array
+            items:
+              type: number
+            minItems: 16
+            maxItems: 16
+          y:
+            type: object
+            additionalProperties: false
+            required: ['red', 'green', 'blue']
+            properties:
+              red:
+                type: array
+                items:
+                  type: integer
+                minItems: 17
+                maxItems: 17
+              green:
+                type: array
+                items:
+                  type: integer
+                minItems: 17
+                maxItems: 17
+              blue:
+                type: array
+                items:
+                  type: integer
+                minItems: 17
+                maxItems: 17
+  LensShadingCorrection:
+    type: object
+    additionalProperties: false
+    required: ['LensShadingCorrection']
+    properties:
+      LensShadingCorrection:
+        type: object
+        additionalProperties: false
+        required: [x-size, y-size, sets]
+        properties:
+          x-size:
+            type: array
+            items:
+              type: number
+            minItems: 8
+            maxItems: 8
+          y-size:
+            type: array
+            items:
+              type: number
+            minItems: 8
+            maxItems: 8
+          sets:
+            type: array
+            items:
+              type: object
+              additionalProperties: false
+              required: ['ct', 'r', 'gr', 'gb', 'b']
+              properties:
+                ct:
+                  type: integer
+                r:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 289
+                  maxItems: 289
+                gr:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 289
+                  maxItems: 289
+                gb:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 289
+                  maxItems: 289
+                b:
+                  type: array
+                  items:
+                    type: integer
+                  minItems: 289
+                  maxItems: 289
+                # ToDo: We have some tuning files with that property. Is this needed?
+                resolution:
+                  type: string
+  # special definition to denote algorithms that do not have any parameters
+  _Empty:
+    type: [ 'object', 'null' ]
+    additionalProperties: false
+    properties: {}
+...
