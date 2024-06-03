@@ -9,6 +9,7 @@
 
 /**
  * \file utils.h
+ * \brief Utility functions for rkisp1
  */
 
 namespace libcamera {

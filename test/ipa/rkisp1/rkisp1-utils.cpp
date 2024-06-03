@@ -7,8 +7,8 @@
 
 #include <cmath>
 #include <iostream>
-#include <map>
 #include <stdint.h>
+#include <tuple>
 
 #include "../src/ipa/rkisp1/utils.h"
 
@@ -21,53 +21,94 @@ using namespace ipa::rkisp1;
 class RkISP1UtilsTest : public Test
 {
 protected:
-	template<unsigned int IntPrec, unsigned FracPrec, typename T>
-	int testSingleFixedPoint(double input, T expected)
+	/* R for real, I for integer */
+	template<unsigned int IntPrec, unsigned FracPrec, typename I, typename R>
+	int testFixedToFloat(I input, R expected, R *output = nullptr)
 	{
-		T ret = utils::floatingToFixedPoint<IntPrec, FracPrec, T>(input);
-		if (ret != expected) {
-			cerr << "Expected " << input << " to convert to "
-			     << expected << ", got " << ret << std::endl;
-			return TestFail;
-		}
-
-		/*
-		 * The precision check is fairly arbitrary but is based on what
-		 * the rkisp1 is capable of in the crosstalk module.
-		 */
-		double f = utils::fixedToFloatingPoint<IntPrec, FracPrec, double>(ret);
-		if (std::abs(f - input) > 0.005) {
-			cerr << "Reverse conversion expected " << ret
-			     << " to convert to " << input
-			     << ", got " << f << std::endl;
+		R out = utils::fixedToFloatingPoint<IntPrec, FracPrec, R>(input);
+		if (output)
+			*output = out;
+		R prec = 1.0 / (1 << FracPrec);
+		if (std::abs(out - expected) > prec) {
+			cerr << "Reverse conversion expected " << input
+			     << " to convert to " << expected
+			     << ", got " << out << std::endl;
 			return TestFail;
 		}
 
 		return TestPass;
 	}
 
+	/* R for real, I for integer */
+	template<unsigned int IntPrec, unsigned FracPrec, typename R, typename I>
+	int testFloatToFixed(R input, I expected, I *output = nullptr)
+	{
+		I out = utils::floatingToFixedPoint<IntPrec, FracPrec, I>(input);
+		if (output)
+			*output = out;
+		if (out != expected) {
+			cerr << "Expected " << input << " to convert to "
+			     << expected << ", got " << out << std::endl;
+			return TestFail;
+		}
+
+		return TestPass;
+	}
+
+	/* R for real, I for integer */
+	template<unsigned int IntPrec, unsigned FracPrec, typename R, typename I>
+	int testFullConversion(R input, I expected)
+	{
+		I outInt;
+		R outReal;
+		int status;
+
+		status = testFloatToFixed<IntPrec, FracPrec, R, I>(input, expected, &outInt);
+		if (status != TestPass)
+			return status;
+
+		status = testFixedToFloat<IntPrec, FracPrec, I, R>(outInt, input, &outReal);
+		if (status != TestPass)
+			return status;
+
+		return TestPass;
+	}
+
+
 	int testFixedPoint()
 	{
 		/*
 		 * The second 7.992 test is to test that unused bits don't
 		 * affect the result.
+		 *
+		 * Third parameter is for testing forward, fourth parameter is
+		 * for testing reverse.
 		 */
-		std::map<double, uint16_t> testCases = {
-			{ 7.992, 0x3ff },
-			{ 7.992, 0xbff },
-			{   0.2, 0x01a },
-			{  -0.2, 0x7e6 },
-			{  -0.8, 0x79a },
-			{  -0.4, 0x7cd },
-			{  -1.4, 0x74d },
-			{    -8, 0x400 },
-			{     0, 0 },
+		static const std::tuple<double, uint16_t, bool, bool> testCases[] = {
+			{ 7.992, 0x3ff,  true, true },
+			{ 7.992, 0xbff, false, true },
+			{   0.2, 0x01a,  true, true },
+			{  -0.2, 0x7e6,  true, true },
+			{  -0.8, 0x79a,  true, true },
+			{  -0.4, 0x7cd,  true, true },
+			{  -1.4, 0x74d,  true, true },
+			{    -8, 0x400,  true, true },
+			{     0,     0,  true, true },
 		};
 
 		int ret;
 		for (const auto &testCase : testCases) {
-			ret = testSingleFixedPoint<4, 7, uint16_t>(testCase.first,
-								   testCase.second);
+			double floating;
+			uint16_t fixed;
+			bool forward, backward;
+			std::tie(floating, fixed, forward, backward) = testCase;
+			if (forward && backward)
+				ret = testFullConversion<4, 7, double, uint16_t>(floating, fixed);
+			else if (forward)
+				ret = testFloatToFixed<4, 7, double, uint16_t>(floating, fixed);
+			else if (backward)
+				ret = testFixedToFloat<4, 7, uint16_t, double>(fixed, floating);
+
 			if (ret != TestPass)
 				return ret;
 		}
