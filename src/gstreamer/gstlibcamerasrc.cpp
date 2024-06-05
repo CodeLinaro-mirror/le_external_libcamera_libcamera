@@ -1138,3 +1138,33 @@ gst_libcamera_src_child_proxy_init(gpointer g_iface, [[maybe_unused]] gpointer i
 	iface->get_child_by_index = gst_libcamera_src_child_proxy_get_child_by_index;
 	iface->get_children_count = gst_libcamera_src_child_proxy_get_children_count;
 }
+
+/* GstChildProxy implementation */
+static GObject *
+gst_libcamera_src_child_proxy_get_child_by_index(GstChildProxy *child_proxy,
+						 guint index)
+{
+	GLibLocker lock(GST_OBJECT(child_proxy));
+	GObject *obj = nullptr;
+
+	obj = reinterpret_cast<GObject *>(g_list_nth_data(GST_ELEMENT(child_proxy)->srcpads, index));
+	if (obj)
+		gst_object_ref(obj);
+
+	return obj;
+}
+
+static guint
+gst_libcamera_src_child_proxy_get_children_count(GstChildProxy *child_proxy)
+{
+	GLibLocker lock(GST_OBJECT(child_proxy));
+	return GST_ELEMENT_CAST(child_proxy)->numsrcpads;
+}
+
+static void
+gst_libcamera_src_child_proxy_init(gpointer g_iface, [[maybe_unused]] gpointer iface_data)
+{
+	GstChildProxyInterface *iface = reinterpret_cast<GstChildProxyInterface *>(g_iface);
+	iface->get_child_by_index = gst_libcamera_src_child_proxy_get_child_by_index;
+	iface->get_children_count = gst_libcamera_src_child_proxy_get_children_count;
+}
