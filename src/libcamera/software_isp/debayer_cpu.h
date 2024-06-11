@@ -86,18 +86,28 @@ private:
 
 	/* 8-bit raw bayer format */
 	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer8_BGBG_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	void debayer8_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer8_GRGR_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	/* unpacked 10-bit raw bayer format */
 	void debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10_BGBG_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10_GRGR_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	/* unpacked 12-bit raw bayer format */
 	void debayer12_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer12_BGBG_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	void debayer12_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer12_GRGR_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
 	void debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_BGBG_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10P_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_GRGR_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10P_GBGB_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_GBGB_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 	void debayer10P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void debayer10P_RGRG_XBGR8888(uint8_t *dst, const uint8_t *src[]);
 
 	struct DebayerInputConfig {
 		Size patternSize;
