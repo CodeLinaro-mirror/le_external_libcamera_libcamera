@@ -1099,8 +1099,7 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 		if (data->init())
 			return false;
 
-		/* \todo: Init properties. */
-
+		data->properties_ = data->sensor_->properties();
 		data->updateControls();
 
 		registerMaliCamera(std::move(data), sensor->name());
