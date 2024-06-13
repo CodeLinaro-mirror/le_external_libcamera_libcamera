@@ -342,7 +342,7 @@ CameraConfiguration::Status MaliC55CameraConfiguration::validate()
 		rawConfig = &config;
 	}
 
-	Size maxSize = kMaliC55MaxSize;
+	Size maxSize = std::min(kMaliC55MaxSize, data_->resolution());
 	if (rawConfig) {
 		/*
 		 * \todo Take into account the Bayer components ordering once
