@@ -75,7 +75,7 @@ PipelineHandler::PipelineHandler(CameraManager *manager)
 
 PipelineHandler::~PipelineHandler()
 {
-	for (std::shared_ptr<MediaDevice> media : mediaDevices_)
+	for (std::shared_ptr<MediaDevice> &media : mediaDevices_)
 		media->release();
 }
 
@@ -138,9 +138,7 @@ MediaDevice *PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
 	if (!media->acquire())
 		return nullptr;
 
-	mediaDevices_.push_back(media);
-
-	return media.get();
+	return mediaDevices_.emplace_back(std::move(media)).get();
 }
 
 /**
@@ -699,7 +697,7 @@ void PipelineHandler::disconnect()
 			continue;
 
 		camera->disconnect();
-		manager_->_d()->removeCamera(camera);
+		manager_->_d()->removeCamera(std::move(camera));
 	}
 }
 

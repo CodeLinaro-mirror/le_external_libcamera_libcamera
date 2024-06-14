@@ -269,7 +269,7 @@ void MainWindow::switchCamera()
 	if (camera_ && newCameraId == camera_->id())
 		return;
 
-	const std::shared_ptr<Camera> &cam = cm_->get(newCameraId);
+	std::shared_ptr<Camera> cam = cm_->get(newCameraId);
 
 	if (cam->acquire()) {
 		qInfo() << "Failed to acquire camera" << cam->id().c_str();
@@ -287,7 +287,7 @@ void MainWindow::switchCamera()
 	if (camera_)
 		camera_->release();
 
-	camera_ = cam;
+	camera_ = std::move(cam);
 
 	startStopAction_->setChecked(true);
 

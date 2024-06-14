@@ -15,7 +15,7 @@ using namespace libcamera;
 
 CaptureScript::CaptureScript(std::shared_ptr<Camera> camera,
 			     const std::string &fileName)
-	: camera_(camera), loop_(0), valid_(false)
+	: camera_(std::move(camera)), loop_(0), valid_(false)
 {
 	FILE *fh = fopen(fileName.c_str(), "r");
 	if (!fh) {

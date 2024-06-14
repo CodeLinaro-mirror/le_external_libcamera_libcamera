@@ -65,7 +65,7 @@ public:
 	}
 
 	explicit PyCameraSmartPtr(std::shared_ptr<T> p)
-		: ptr_(p)
+		: ptr_(std::move(p))
 	{
 	}
 

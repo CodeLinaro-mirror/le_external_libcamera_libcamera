@@ -127,7 +127,7 @@ Message::Type Message::registerMessageType()
 InvokeMessage::InvokeMessage(BoundMethodBase *method,
 			     std::shared_ptr<BoundMethodPackBase> pack,
 			     Semaphore *semaphore, bool deleteMethod)
-	: Message(Message::InvokeMessage), method_(method), pack_(pack),
+	: Message(Message::InvokeMessage), method_(method), pack_(std::move(pack)),
 	  semaphore_(semaphore), deleteMethod_(deleteMethod)
 {
 }

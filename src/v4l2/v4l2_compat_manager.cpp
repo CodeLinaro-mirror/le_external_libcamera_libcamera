@@ -85,7 +85,7 @@ int V4L2CompatManager::start()
 	 */
 	auto cameras = cm_->cameras();
 	for (auto [index, camera] : utils::enumerate(cameras)) {
-		V4L2CameraProxy *proxy = new V4L2CameraProxy(index, camera);
+		V4L2CameraProxy *proxy = new V4L2CameraProxy(index, std::move(camera));
 		proxies_.emplace_back(proxy);
 	}
 

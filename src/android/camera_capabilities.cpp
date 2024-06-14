@@ -401,7 +401,7 @@ void CameraCapabilities::computeHwLevel(
 int CameraCapabilities::initialize(std::shared_ptr<Camera> camera,
 				   int orientation, int facing)
 {
-	camera_ = camera;
+	camera_ = std::move(camera);
 	orientation_ = orientation;
 	facing_ = facing;
 	rawStreamAvailable_ = false;

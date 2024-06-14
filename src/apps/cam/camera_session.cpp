@@ -43,7 +43,7 @@ CameraSession::CameraSession(CameraManager *cm,
 	if (*endptr == '\0' && index > 0) {
 		auto cameras = cm->cameras();
 		if (index <= cameras.size())
-			camera_ = cameras[index - 1];
+			camera_ = std::move(cameras[index - 1]);
 	}
 
 	if (!camera_)

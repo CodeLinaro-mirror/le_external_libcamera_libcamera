@@ -355,13 +355,12 @@ void GstLibcameraSrcState::clearRequests()
 static bool
 gst_libcamera_src_open(GstLibcameraSrc *self)
 {
-	std::shared_ptr<CameraManager> cm;
 	std::shared_ptr<Camera> cam;
 	gint ret;
 
 	GST_DEBUG_OBJECT(self, "Opening camera device ...");
 
-	cm = gst_libcamera_get_camera_manager(ret);
+	std::shared_ptr<CameraManager> cm = gst_libcamera_get_camera_manager(ret);
 	if (ret) {
 		GST_ELEMENT_ERROR(self, LIBRARY, INIT,
 				  ("Failed listing cameras."),
@@ -392,7 +391,7 @@ gst_libcamera_src_open(GstLibcameraSrc *self)
 					  ("libcamera::CameraMananger::cameras() is empty"));
 			return false;
 		}
-		cam = cameras[0];
+		cam = std::move(cameras[0]);
 	}
 
 	GST_INFO_OBJECT(self, "Using camera '%s'", cam->id().c_str());
@@ -408,8 +407,8 @@ gst_libcamera_src_open(GstLibcameraSrc *self)
 	cam->requestCompleted.connect(self->state, &GstLibcameraSrcState::requestCompleted);
 
 	/* No need to lock here, we didn't start our threads yet. */
-	self->state->cm_ = cm;
-	self->state->cam_ = cam;
+	self->state->cm_ = std::move(cm);
+	self->state->cam_ = std::move(cam);
 
 	return true;
 }

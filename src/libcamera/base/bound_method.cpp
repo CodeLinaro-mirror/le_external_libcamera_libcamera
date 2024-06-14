@@ -89,7 +89,7 @@ bool BoundMethodBase::activatePack(std::shared_ptr<BoundMethodPackBase> pack,
 
 	case ConnectionTypeQueued: {
 		std::unique_ptr<Message> msg =
-			std::make_unique<InvokeMessage>(this, pack, nullptr, deleteMethod);
+			std::make_unique<InvokeMessage>(this, std::move(pack), nullptr, deleteMethod);
 		object_->postMessage(std::move(msg));
 		return false;
 	}
@@ -98,7 +98,7 @@ bool BoundMethodBase::activatePack(std::shared_ptr<BoundMethodPackBase> pack,
 		Semaphore semaphore;
 
 		std::unique_ptr<Message> msg =
-			std::make_unique<InvokeMessage>(this, pack, &semaphore, deleteMethod);
+			std::make_unique<InvokeMessage>(this, std::move(pack), &semaphore, deleteMethod);
 		object_->postMessage(std::move(msg));
 
 		semaphore.acquire();
