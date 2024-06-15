@@ -68,12 +68,13 @@ pycamera = shared_module('_libcamera',
 
 # Create symlinks from the build dir to the source dir so that we can use the
 # Python module directly from the build dir.
-
-run_command('ln', '-fsrT', files('__init__.py'),
+relative_target = fs.relative_to(files('__init__.py'), meson.current_build_dir())
+run_command('ln', '-fs', relative_target,
             meson.current_build_dir() / '__init__.py',
             check : true)
 
-run_command('ln', '-fsrT', meson.current_source_dir() / 'utils',
+relative_target = fs.relative_to(meson.current_source_dir() / 'utils', meson.current_build_dir())
+run_command('ln', '-fsT', relative_target,
             meson.current_build_dir() / 'utils',
             check : true)
 
