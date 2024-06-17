@@ -132,6 +132,7 @@ private:
 	debayerFn debayer1_;
 	debayerFn debayer2_;
 	debayerFn debayer3_;
+	bool addAlphaBit_;
 	Rectangle window_;
 	DebayerInputConfig inputConfig_;
 	DebayerOutputConfig outputConfig_;
