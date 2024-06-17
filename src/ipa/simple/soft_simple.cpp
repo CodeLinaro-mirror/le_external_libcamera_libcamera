@@ -309,6 +309,10 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	const float gains[] = { gainR / maxGain, gainB / maxGain };
 	metadata.set(controls::ColourGains, gains);
 
+	/* Assign each of the R G G B channels as the same black level. */
+	const auto blackLevels = { blackLevel, blackLevel, blackLevel, blackLevel };
+	metadata.set(controls::SensorBlackLevels, blackLevels);
+
 	setIspParams.emit(metadata);
 
 	/* \todo Switch to the libipa/algorithm.h API someday. */
