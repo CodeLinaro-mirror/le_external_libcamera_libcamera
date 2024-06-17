@@ -305,6 +305,10 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 		params_->blue[i] = gammaTable_[idx];
 	}
 
+	const float maxGain = 1024.0;
+	const float gains[] = { gainR / maxGain, gainB / maxGain };
+	metadata.set(controls::ColourGains, gains);
+
 	setIspParams.emit(metadata);
 
 	/* \todo Switch to the libipa/algorithm.h API someday. */
