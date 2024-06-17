@@ -80,8 +80,10 @@ public:
 	Signal<> ispStatsReady;
 	Signal<const ControlList &> setSensorControls;
 
+	const ControlList &metadata() { return metadata_; }
+
 private:
-	void saveIspParams();
+	void saveIspParams(const ControlList &metadata);
 	void setSensorCtrls(const ControlList &sensorControls);
 	void statsReady();
 	void inputReady(FrameBuffer *input);
@@ -92,6 +94,7 @@ private:
 	SharedMemObject<DebayerParams> sharedParams_;
 	DebayerParams debayerParams_;
 	DmaBufAllocator dmaHeap_;
+	ControlList metadata_;
 
 	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;
 };

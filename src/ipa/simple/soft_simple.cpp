@@ -250,6 +250,8 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 	SwIspStats::Histogram histogram = stats_->yHistogram;
 	if (ignoreUpdates_ > 0)
 		blackLevel_.update(histogram);
+
+	ControlList metadata(controls::controls);
 	const uint8_t blackLevel = blackLevel_.get();
 
 	/*
@@ -303,7 +305,7 @@ void IPASoftSimple::processStats(const ControlList &sensorControls)
 		params_->blue[i] = gammaTable_[idx];
 	}
 
-	setIspParams.emit();
+	setIspParams.emit(metadata);
 
 	/* \todo Switch to the libipa/algorithm.h API someday. */
 

@@ -68,7 +68,8 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
 	: dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
 		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
-		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
+		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf),
+	  metadata_(controls::controls)
 {
 	/*
 	 * debayerParams_ must be initialized because the initial value is used for
@@ -349,9 +350,10 @@ void SoftwareIsp::process(FrameBuffer *input, FrameBuffer *output)
 			       ConnectionTypeQueued, input, output, debayerParams_);
 }
 
-void SoftwareIsp::saveIspParams()
+void SoftwareIsp::saveIspParams(const ControlList &metadata)
 {
 	debayerParams_ = *sharedParams_;
+	metadata_.merge(metadata, ControlList::MergePolicy::OverwriteExisting);
 }
 
 void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls)

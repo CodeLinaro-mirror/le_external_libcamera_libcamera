@@ -860,10 +860,13 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 			return;
 		}
 
-		if (converter_)
+		if (converter_) {
 			converter_->queueBuffers(buffer, conversionQueue_.front());
-		else
+		} else {
 			swIsp_->queueBuffers(buffer, conversionQueue_.front());
+			if (request)
+				request->metadata().merge(swIsp_->metadata());
+		}
 
 		conversionQueue_.pop();
 		return;
