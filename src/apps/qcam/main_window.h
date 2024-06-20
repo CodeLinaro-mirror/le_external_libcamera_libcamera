@@ -40,6 +40,7 @@ class HotplugEvent;
 enum {
 	OptCamera = 'c',
 	OptHelp = 'h',
+	OptOrientation = 'o',
 	OptRenderer = 'r',
 	OptStream = 's',
 	OptVerbose = 'v',

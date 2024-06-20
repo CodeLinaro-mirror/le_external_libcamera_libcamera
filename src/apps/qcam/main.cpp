@@ -37,6 +37,9 @@ OptionsParser::Options parseOptions(int argc, char *argv[])
 			 ArgumentRequired, "camera");
 	parser.addOption(OptHelp, OptionNone, "Display this help message",
 			 "help");
+	parser.addOption(OptOrientation, OptionString,
+			 "Desired image orientation (rot0, rot90, rot180, rot270)",
+			 "orientation", ArgumentRequired, "orientation");
 	parser.addOption(OptRenderer, OptionString,
 			 "Choose the renderer type {qt,gles} (default: qt)",
 			 "renderer", ArgumentRequired, "renderer");

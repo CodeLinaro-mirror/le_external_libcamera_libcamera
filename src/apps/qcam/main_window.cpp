@@ -399,6 +399,25 @@ int MainWindow::startCapture()
 	if (rotation)
 		orientation = orientationFromRotation(*rotation);
 
+	/* Override if user specifies orientation in command line argument */
+	if (options_.isSet(OptOrientation)) {
+		std::string orientOpt = options_[OptOrientation].toString();
+		static const std::map<std::string, Orientation> possible_orientations{
+			{ "rot0", Orientation::Rotate0 },
+			{ "rot90", Orientation::Rotate90 },
+			{ "rot180", Orientation::Rotate180 },
+			{ "rot270", Orientation::Rotate270 },
+		};
+
+		auto requested_orientation = possible_orientations.find(orientOpt);
+		if (requested_orientation == possible_orientations.end()) {
+			std::cerr << "Unsupported orientation " << orientOpt << std::endl;
+			return -EINVAL;
+		}
+
+		orientation = requested_orientation->second;
+	}
+
 	StreamConfiguration &vfConfig = config_->at(0);
 
 	/* Use a format supported by the viewfinder if available. */
