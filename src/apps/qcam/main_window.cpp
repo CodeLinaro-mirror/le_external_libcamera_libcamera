@@ -363,6 +363,7 @@ void MainWindow::toggleCapture(bool start)
 int MainWindow::startCapture()
 {
 	std::vector<StreamRole> roles = StreamKeyValueParser::roles(options_[OptStream]);
+	Orientation orientation = Orientation::Rotate0;
 	int ret;
 
 	/* Verify roles are supported. */
@@ -391,6 +392,12 @@ int MainWindow::startCapture()
 		qWarning() << "Failed to generate configuration from roles";
 		return -EINVAL;
 	}
+
+	/* Get orientation provided by camera kernel driver */
+	const ControlList &properties = camera_->properties();
+	const auto &rotation = properties.get(properties::Rotation);
+	if (rotation)
+		orientation = orientationFromRotation(*rotation);
 
 	StreamConfiguration &vfConfig = config_->at(0);
 
@@ -444,7 +451,7 @@ int MainWindow::startCapture()
 	ret = viewfinder_->setFormat(vfConfig.pixelFormat,
 				     QSize(vfConfig.size.width, vfConfig.size.height),
 				     vfConfig.colorSpace.value_or(ColorSpace::Sycc),
-				     vfConfig.stride);
+				     vfConfig.stride, orientation);
 	if (ret < 0) {
 		qInfo() << "Failed to set viewfinder format";
 		return ret;

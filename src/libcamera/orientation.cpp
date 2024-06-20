@@ -93,6 +93,40 @@ Orientation orientationFromRotation(int angle, bool *success)
 }
 
 /**
+ * \brief Return the rotation angle for a given orientation
+ * \param[in] orientation The orientation to convert to a rotation angle
+ * \param[out] success Set to `true` if the given orientation is valid,
+ * otherwise `false`
+ * \return The rotation angle corresponding to the given orientation
+ * if \a success was set to `true`, otherwise 0.
+ */
+int rotationFromOrientation(const Orientation &orientation, bool *success)
+{
+	if (success != nullptr)
+		*success = true;
+
+	switch (orientation) {
+	case Orientation::Rotate0:
+	case Orientation::Rotate0Mirror:
+		return 0;
+	case Orientation::Rotate90:
+	case Orientation::Rotate90Mirror:
+		return 90;
+	case Orientation::Rotate180:
+	case Orientation::Rotate180Mirror:
+		return 180;
+	case Orientation::Rotate270:
+	case Orientation::Rotate270Mirror:
+		return 270;
+	}
+
+	if (success != nullptr)
+		*success = false;
+
+	return 0;
+}
+
+/**
  * \brief Prints human-friendly names for Orientation items
  * \param[in] out The output stream
  * \param[in] orientation The Orientation item

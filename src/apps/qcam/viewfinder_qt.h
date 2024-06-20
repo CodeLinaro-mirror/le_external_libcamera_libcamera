@@ -33,7 +33,8 @@ public:
 
 	int setFormat(const libcamera::PixelFormat &format, const QSize &size,
 		      const libcamera::ColorSpace &colorSpace,
-		      unsigned int stride) override;
+		      unsigned int stride,
+		      const libcamera::Orientation &orientation) override;
 	void render(libcamera::FrameBuffer *buffer, Image *image) override;
 	void stop() override;
 
@@ -51,6 +52,8 @@ private:
 
 	libcamera::PixelFormat format_;
 	QSize size_;
+	QTransform transform_;
+	libcamera::Orientation orientation_;
 
 	/* Camera stopped icon */
 	QSize vfSize_;

@@ -25,6 +25,8 @@ enum class Orientation {
 
 Orientation orientationFromRotation(int angle, bool *success = nullptr);
 
+int rotationFromOrientation(const Orientation &orientation, bool *success = nullptr);
+
 std::ostream &operator<<(std::ostream &out, const Orientation &orientation);
 
 } /* namespace libcamera */

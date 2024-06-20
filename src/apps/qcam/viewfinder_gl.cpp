@@ -77,7 +77,7 @@ const QList<libcamera::PixelFormat> &ViewFinderGL::nativeFormats() const
 
 int ViewFinderGL::setFormat(const libcamera::PixelFormat &format, const QSize &size,
 			    const libcamera::ColorSpace &colorSpace,
-			    unsigned int stride)
+			    unsigned int stride, const libcamera::Orientation &orientation)
 {
 	if (format != format_ || colorSpace != colorSpace_) {
 		/*
@@ -101,6 +101,7 @@ int ViewFinderGL::setFormat(const libcamera::PixelFormat &format, const QSize &s
 
 	size_ = size;
 	stride_ = stride;
+	orientation_ = orientation;
 
 	updateGeometry();
 	return 0;
@@ -511,7 +512,7 @@ void ViewFinderGL::initializeGL()
 	glEnable(GL_TEXTURE_2D);
 	glDisable(GL_DEPTH_TEST);
 
-	static const GLfloat coordinates[2][4][2]{
+	GLfloat coordinates[2][4][2]{
 		{
 			/* Vertex coordinates */
 			{ -1.0f, -1.0f },
@@ -527,6 +528,41 @@ void ViewFinderGL::initializeGL()
 			{ 1.0f, 1.0f },
 		},
 	};
+
+	switch (orientation_) {
+	case libcamera::Orientation::Rotate90:
+		coordinates[0][0][0] = -1.0f;
+		coordinates[0][0][1] = +1.0f;
+		coordinates[0][1][0] = +1.0f;
+		coordinates[0][1][1] = +1.0f;
+		coordinates[0][2][0] = +1.0f;
+		coordinates[0][2][1] = -1.0f;
+		coordinates[0][3][0] = -1.0f;
+		coordinates[0][3][1] = -1.0f;
+		break;
+	case libcamera::Orientation::Rotate180:
+		coordinates[0][0][0] = +1.0f;
+		coordinates[0][0][1] = +1.0f;
+		coordinates[0][1][0] = +1.0f;
+		coordinates[0][1][1] = -1.0f;
+		coordinates[0][2][0] = -1.0f;
+		coordinates[0][2][1] = -1.0f;
+		coordinates[0][3][0] = -1.0f;
+		coordinates[0][3][1] = +1.0f;
+		break;
+	case libcamera::Orientation::Rotate270:
+		coordinates[0][0][0] = +1.0f;
+		coordinates[0][0][1] = -1.0f;
+		coordinates[0][1][0] = -1.0f;
+		coordinates[0][1][1] = -1.0f;
+		coordinates[0][2][0] = -1.0f;
+		coordinates[0][2][1] = +1.0f;
+		coordinates[0][3][0] = +1.0f;
+		coordinates[0][3][1] = +1.0f;
+		break;
+	default:
+		break;
+	}
 
 	vertexBuffer_.create();
 	vertexBuffer_.bind();
@@ -831,5 +867,9 @@ void ViewFinderGL::resizeGL(int w, int h)
 
 QSize ViewFinderGL::sizeHint() const
 {
-	return size_.isValid() ? size_ : QSize(640, 480);
+	if (orientation_ == libcamera::Orientation::Rotate90 ||
+	    orientation_ == libcamera::Orientation::Rotate270)
+		return size_.isValid() ? size_.transposed() : QSize(480, 640);
+	else
+		return size_.isValid() ? size_ : QSize(640, 480);
 }

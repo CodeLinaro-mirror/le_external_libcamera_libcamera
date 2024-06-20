@@ -57,7 +57,7 @@ const QList<libcamera::PixelFormat> &ViewFinderQt::nativeFormats() const
 
 int ViewFinderQt::setFormat(const libcamera::PixelFormat &format, const QSize &size,
 			    [[maybe_unused]] const libcamera::ColorSpace &colorSpace,
-			    unsigned int stride)
+			    unsigned int stride, const libcamera::Orientation &orientation)
 {
 	image_ = QImage();
 
@@ -80,6 +80,15 @@ int ViewFinderQt::setFormat(const libcamera::PixelFormat &format, const QSize &s
 
 	format_ = format;
 	size_ = size;
+	orientation_ = orientation;
+
+	bool success;
+	int angle = libcamera::rotationFromOrientation(orientation, &success);
+	if (!success) {
+		qWarning() << "Unsupported orientation";
+		return -EINVAL;
+	}
+	transform_ = QTransform().rotate(angle);
 
 	updateGeometry();
 	return 0;
@@ -148,6 +157,7 @@ void ViewFinderQt::paintEvent(QPaintEvent *)
 
 	/* If we have an image, draw it. */
 	if (!image_.isNull()) {
+		image_ = image_.transformed(transform_);
 		painter.drawImage(rect(), image_, image_.rect());
 		return;
 	}
@@ -179,5 +189,9 @@ void ViewFinderQt::paintEvent(QPaintEvent *)
 
 QSize ViewFinderQt::sizeHint() const
 {
-	return size_.isValid() ? size_ : QSize(640, 480);
+	if (orientation_ == libcamera::Orientation::Rotate90 ||
+	    orientation_ == libcamera::Orientation::Rotate270)
+		return size_.isValid() ? size_.transposed() : QSize(480, 640);
+	else
+		return size_.isValid() ? size_ : QSize(640, 480);
 }

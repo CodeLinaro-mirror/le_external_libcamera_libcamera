@@ -14,6 +14,7 @@
 #include <libcamera/color_space.h>
 #include <libcamera/formats.h>
 #include <libcamera/framebuffer.h>
+#include <libcamera/orientation.h>
 
 class Image;
 
@@ -26,7 +27,8 @@ public:
 
 	virtual int setFormat(const libcamera::PixelFormat &format, const QSize &size,
 			      const libcamera::ColorSpace &colorSpace,
-			      unsigned int stride) = 0;
+			      unsigned int stride,
+			      const libcamera::Orientation &orientation) = 0;
 	virtual void render(libcamera::FrameBuffer *buffer, Image *image) = 0;
 	virtual void stop() = 0;
 
