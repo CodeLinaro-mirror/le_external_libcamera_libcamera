@@ -153,4 +153,6 @@ bool matrixValidateYaml(const YamlObject &obj, unsigned int size)
 }
 #endif /* __DOXYGEN__ */
 
+} /* namespace ipa */
+
 } /* namespace libcamera */
