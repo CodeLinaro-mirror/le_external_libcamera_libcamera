@@ -188,6 +188,13 @@ YamlObject::Getter<float>::get(const YamlObject &obj) const
 }
 
 template<>
+std::optional<float>
+YamlObject::Getter<float>::get(const YamlObject &obj) const
+{
+	return obj.get<double>();
+}
+
+template<>
 std::optional<double>
 YamlObject::Getter<double>::get(const YamlObject &obj) const
 {
