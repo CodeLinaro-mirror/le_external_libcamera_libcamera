@@ -36,7 +36,7 @@ int Colors::init(IPAContext &context,
 	updateGammaTable(context);
 
 	auto &gains = context.activeState.gains;
-	gains.red = gains.green = gains.blue = 256;
+	gains.red = gains.green = gains.blue = 1.0;
 
 	return 0;
 }
@@ -45,7 +45,7 @@ void Colors::updateGammaTable(IPAContext &context)
 {
 	auto &gammaTable = context.activeState.gammaTable;
 	const unsigned int blackIndex =
-		context.configuration.black.level * IPAActiveState::kGammaLookupSize / 256;
+		context.configuration.black.level * IPAActiveState::kGammaLookupSize;
 	std::fill(gammaTable.begin(), gammaTable.begin() + blackIndex, 0);
 	const float divisor = kGammaLookupSize - blackIndex - 1.0;
 	for (unsigned int i = blackIndex; i < kGammaLookupSize; i++)
@@ -65,15 +65,18 @@ void Colors::prepare(IPAContext &context,
 	auto &gains = context.activeState.gains;
 	auto &gammaTable = context.activeState.gammaTable;
 	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-		constexpr unsigned int div =
-			static_cast<double>(DebayerParams::kRGBLookupSize) * 256 / kGammaLookupSize;
+		constexpr double div =
+			static_cast<double>(DebayerParams::kRGBLookupSize) / kGammaLookupSize;
 		/* Apply gamma after gain! */
 		unsigned int idx;
-		idx = std::min({ i * gains.red / div, kGammaLookupSize - 1 });
+		idx = std::min({ static_cast<unsigned int>(i * gains.red / div),
+				 kGammaLookupSize - 1 });
 		params->red[i] = gammaTable[idx];
-		idx = std::min({ i * gains.green / div, kGammaLookupSize - 1 });
+		idx = std::min({ static_cast<unsigned int>(i * gains.green / div),
+				 kGammaLookupSize - 1 });
 		params->green[i] = gammaTable[idx];
-		idx = std::min({ i * gains.blue / div, kGammaLookupSize - 1 });
+		idx = std::min({ static_cast<unsigned int>(i * gains.blue / div),
+				 kGammaLookupSize - 1 });
 		params->blue[i] = gammaTable[idx];
 	}
 }
@@ -85,7 +88,7 @@ void Colors::process(IPAContext &context,
 		     [[maybe_unused]] ControlList &metadata)
 {
 	const SwIspStats::Histogram &histogram = stats->yHistogram;
-	const uint8_t blackLevel = context.configuration.black.level;
+	const double blackLevel = context.configuration.black.level;
 
 	/*
 	 * Black level must be subtracted to get the correct AWB ratios, they
@@ -102,12 +105,11 @@ void Colors::process(IPAContext &context,
 	/*
 	 * Calculate red and blue gains for AWB.
 	 * Clamp max gain at 4.0, this also avoids 0 division.
-	 * Gain: 128 = 0.5, 256 = 1.0, 512 = 2.0, etc.
 	 */
 	auto &gains = context.activeState.gains;
-	gains.red = sumR <= sumG / 4 ? 1024 : 256 * sumG / sumR;
-	gains.blue = sumB <= sumG / 4 ? 1024 : 256 * sumG / sumB;
-	/* Green gain is fixed to 256 */
+	gains.red = sumR <= sumG / 4 ? 4.0 : static_cast<double>(sumG) / sumR;
+	gains.blue = sumB <= sumG / 4 ? 4.0 : static_cast<double>(sumG) / sumB;
+	/* Green gain is fixed to 1.0 */
 
 	LOG(IPASoftColors, Debug) << "gain R/B " << gains.red << "/" << gains.blue;
 }

@@ -26,7 +26,7 @@ int BlackLevel::init(IPAContext &context,
 {
 	context.configuration.black.set = false;
 	context.configuration.black.changed = true;
-	context.configuration.black.level = 255;
+	context.configuration.black.level = 1.0;
 	return 0;
 }
 
@@ -51,16 +51,16 @@ void BlackLevel::process(IPAContext &context,
 	const unsigned int total =
 		std::accumulate(begin(histogram), end(histogram), 0);
 	const unsigned int pixelThreshold = ignoredPercentage_ * total;
-	const unsigned int histogramRatio = 256 / SwIspStats::kYHistogramSize;
 	const unsigned int currentBlackIdx =
-		context.configuration.black.level / histogramRatio;
+		context.configuration.black.level * SwIspStats::kYHistogramSize;
 
 	for (unsigned int i = 0, seen = 0;
 	     i < currentBlackIdx && i < SwIspStats::kYHistogramSize;
 	     i++) {
 		seen += histogram[i];
 		if (seen >= pixelThreshold) {
-			context.configuration.black.level = i * histogramRatio;
+			context.configuration.black.level =
+				static_cast<double>(i) / SwIspStats::kYHistogramSize;
 			context.configuration.black.changed = true;
 			LOG(IPASoftBL, Debug)
 				<< "Auto-set black level: "
