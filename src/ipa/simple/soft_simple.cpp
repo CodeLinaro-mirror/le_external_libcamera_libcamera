@@ -78,6 +78,7 @@ public:
 	int start() override;
 	void stop() override;
 
+	void prepare(const uint32_t frame) override;
 	void processStats(const uint32_t frame, const uint32_t bufferId,
 			  const ControlList &sensorControls) override;
 
@@ -262,6 +263,13 @@ int IPASoftSimple::start()
 
 void IPASoftSimple::stop()
 {
+}
+
+void IPASoftSimple::prepare(const uint32_t frame)
+{
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	for (auto const &algo : algorithms())
+		algo->prepare(context_, frame, frameContext, params_);
 }
 
 void IPASoftSimple::processStats(
