@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include <libipa/fc_queue.h>
 
 namespace libcamera {
@@ -15,6 +17,11 @@ namespace libcamera {
 namespace ipa::soft {
 
 struct IPASessionConfiguration {
+	struct {
+		uint8_t level;
+		bool set;
+		bool changed;
+	} black;
 };
 
 struct IPAActiveState {
