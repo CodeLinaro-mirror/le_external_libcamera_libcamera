@@ -314,10 +314,10 @@ void SwStatsCpu::startFrame(void)
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::finishFrame(void)
+void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
 {
 	*sharedStats_ = stats_;
-	statsReady.emit();
+	statsReady.emit(frame, bufferId);
 }
 
 /**

@@ -11,6 +11,7 @@
 #include <initializer_list>
 #include <map>
 #include <memory>
+#include <stdint.h>
 #include <string>
 #include <tuple>
 #include <vector>
@@ -65,7 +66,8 @@ public:
 	int exportBuffers(unsigned int output, unsigned int count,
 			  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
 
-	void processStats(const ControlList &sensorControls);
+	void processStats(const uint32_t frame, const uint32_t bufferId,
+			  const ControlList &sensorControls);
 
 	int start();
 	void stop();
@@ -77,13 +79,13 @@ public:
 
 	Signal<FrameBuffer *> inputBufferReady;
 	Signal<FrameBuffer *> outputBufferReady;
-	Signal<> ispStatsReady;
+	Signal<uint32_t, uint32_t> ispStatsReady;
 	Signal<const ControlList &> setSensorControls;
 
 private:
 	void saveIspParams();
 	void setSensorCtrls(const ControlList &sensorControls);
-	void statsReady();
+	void statsReady(uint32_t frame, uint32_t bufferId);
 	void inputReady(FrameBuffer *input);
 	void outputReady(FrameBuffer *output);
 
