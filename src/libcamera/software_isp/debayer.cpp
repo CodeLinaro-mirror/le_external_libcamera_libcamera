@@ -94,11 +94,12 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn void Debayer::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
- * \brief Process the bayer data into the requested format.
- * \param[in] input The input buffer.
- * \param[in] output The output buffer.
- * \param[in] params The parameters to be used in debayering.
+ * \fn void Debayer::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+ * \brief Process the bayer data into the requested format
+ * \param[in] frame The frame number
+ * \param[in] input The input buffer
+ * \param[in] output The output buffer
+ * \param[in] params The parameters to be used in debayering
  *
  * \note DebayerParams is passed by value deliberately so that a copy is passed
  * when this is run in another thread by invokeMethod().
