@@ -864,7 +864,7 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 		if (converter_)
 			converter_->queueBuffers(buffer, conversionQueue_.front());
 		else
-			swIsp_->queueBuffers(buffer, conversionQueue_.front());
+			swIsp_->queueBuffers(request->sequence(), buffer, conversionQueue_.front());
 
 		conversionQueue_.pop();
 		return;

@@ -731,7 +731,7 @@ static inline int64_t timeDiff(timespec &after, timespec &before)
 	       (int64_t)after.tv_nsec - (int64_t)before.tv_nsec;
 }
 
-void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
 {
 	timespec frameStartTime;
 
@@ -785,12 +785,11 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 	}
 
 	/*
-	 * Frame and buffer ids are currently not used, so pass zeros as parameters.
+	 * Buffer ids are currently not used, so pass zeros as its parameter.
 	 *
-	 * \todo Pass real values once frame is passed here and stats buffer passing
-	 * is changed.
+	 * \todo Pass real bufferId once stats buffer passing is changed.
 	 */
-	stats_->finishFrame(0, 0);
+	stats_->finishFrame(frame, 0);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

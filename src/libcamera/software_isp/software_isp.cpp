@@ -279,12 +279,13 @@ int SoftwareIsp::exportBuffers(unsigned int output, unsigned int count,
 
 /**
  * \brief Queue buffers to Software ISP
+ * \param[in] frame The frame number
  * \param[in] input The input framebuffer
  * \param[in] outputs The container holding the output stream indexes and
  * their respective frame buffer outputs
  * \return 0 on success, a negative errno on failure
  */
-int SoftwareIsp::queueBuffers(FrameBuffer *input,
+int SoftwareIsp::queueBuffers(uint32_t frame, FrameBuffer *input,
 			      const std::map<unsigned int, FrameBuffer *> &outputs)
 {
 	unsigned int mask = 0;
@@ -308,7 +309,7 @@ int SoftwareIsp::queueBuffers(FrameBuffer *input,
 		mask |= 1 << index;
 	}
 
-	process(input, outputs.at(0));
+	process(frame, input, outputs.at(0));
 
 	return 0;
 }
@@ -340,13 +341,14 @@ void SoftwareIsp::stop()
 
 /**
  * \brief Passes the input framebuffer to the ISP worker to process
+ * \param[in] frame The frame number
  * \param[in] input The input framebuffer
  * \param[out] output The framebuffer to write the processed frame to
  */
-void SoftwareIsp::process(FrameBuffer *input, FrameBuffer *output)
+void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
 	debayer_->invokeMethod(&DebayerCpu::process,
-			       ConnectionTypeQueued, input, output, debayerParams_);
+			       ConnectionTypeQueued, frame, input, output, debayerParams_);
 }
 
 void SoftwareIsp::saveIspParams()
