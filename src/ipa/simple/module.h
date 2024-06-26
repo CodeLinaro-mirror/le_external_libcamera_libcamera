@@ -10,6 +10,7 @@
 #include <libcamera/controls.h>
 
 #include <libcamera/ipa/core_ipa_interface.h>
+#include <libcamera/ipa/soft_ipa_interface.h>
 
 #include "libcamera/internal/software_isp/debayer_params.h"
 #include "libcamera/internal/software_isp/swisp_stats.h"
@@ -22,7 +23,7 @@ namespace libcamera {
 
 namespace ipa::soft {
 
-using Module = ipa::Module<IPAContext, IPAFrameContext, ControlInfoMap,
+using Module = ipa::Module<IPAContext, IPAFrameContext, IPAConfigInfo,
 			   DebayerParams, SwIspStats>;
 
 } /* namespace ipa::soft */

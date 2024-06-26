@@ -8,6 +8,10 @@ module ipa.soft;
 
 import "include/libcamera/ipa/core.mojom";
 
+struct IPAConfigInfo {
+	libcamera.ControlInfoMap sensorControls;
+};
+
 interface IPASoftInterface {
 	init(libcamera.IPASettings settings,
 	     libcamera.SharedFD fdStats,
@@ -16,7 +20,7 @@ interface IPASoftInterface {
 		=> (int32 ret);
 	start() => (int32 ret);
 	stop();
-	configure(libcamera.ControlInfoMap sensorCtrlInfoMap)
+	configure(IPAConfigInfo configInfo)
 		=> (int32 ret);
 
         prepare(uint32 frame);

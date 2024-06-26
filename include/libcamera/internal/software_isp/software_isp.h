@@ -61,7 +61,7 @@ public:
 
 	int configure(const StreamConfiguration &inputCfg,
 		      const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs,
-		      const ControlInfoMap &sensorControls);
+		      const ipa::soft::IPAConfigInfo &configInfo);
 
 	int exportBuffers(unsigned int output, unsigned int count,
 			  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
