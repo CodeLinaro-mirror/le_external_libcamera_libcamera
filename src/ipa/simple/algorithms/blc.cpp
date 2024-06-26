@@ -32,11 +32,13 @@ int BlackLevel::init(IPAContext &context,
 
 void BlackLevel::process(IPAContext &context,
 			 [[maybe_unused]] const uint32_t frame,
-			 [[maybe_unused]] IPAFrameContext &frameContext,
+			 IPAFrameContext &frameContext,
 			 const SwIspStats *stats,
 			 [[maybe_unused]] ControlList &metadata)
 {
-	if (context.configuration.black.set) {
+	if (context.configuration.black.set &&
+	    frameContext.sensor.exposure == exposure_ &&
+	    frameContext.sensor.gain == gain_) {
 		context.configuration.black.changed = false;
 		return;
 	}
@@ -61,7 +63,10 @@ void BlackLevel::process(IPAContext &context,
 		if (seen >= pixelThreshold) {
 			context.configuration.black.level =
 				static_cast<double>(i) / SwIspStats::kYHistogramSize;
+			context.configuration.black.set = true;
 			context.configuration.black.changed = true;
+			exposure_ = frameContext.sensor.exposure;
+			gain_ = frameContext.sensor.gain;
 			LOG(IPASoftBL, Debug)
 				<< "Auto-set black level: "
 				<< i << "/" << SwIspStats::kYHistogramSize
