@@ -2,4 +2,5 @@
 
 soft_simple_ipa_algorithms = files([
     'blc.cpp',
+    'colors.cpp',
 ])
