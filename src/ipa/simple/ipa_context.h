@@ -11,6 +11,8 @@
 #include <array>
 #include <stdint.h>
 
+#include <libcamera/controls.h>
+
 #include <libipa/fc_queue.h>
 
 namespace libcamera {
@@ -19,6 +21,10 @@ namespace ipa::soft {
 
 struct IPASessionConfiguration {
 	float gamma;
+	struct {
+		int32_t exposureMin, exposureMax;
+		double againMin, againMax, againMinStep;
+	} agc;
 	struct {
 		double level;
 		bool set;
@@ -32,11 +38,17 @@ struct IPAActiveState {
 		double green;
 		double blue;
 	} gains;
+	int32_t exposure;
+	double again;
 	static constexpr unsigned int kGammaLookupSize = 1024;
 	std::array<double, kGammaLookupSize> gammaTable;
 };
 
 struct IPAFrameContext : public FrameContext {
+	struct {
+		uint32_t exposure;
+		double gain;
+	} sensor;
 };
 
 struct IPAContext {
