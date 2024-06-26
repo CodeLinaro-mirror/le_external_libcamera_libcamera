@@ -265,10 +265,21 @@ void IPASoftSimple::stop()
 }
 
 void IPASoftSimple::processStats(
-	[[maybe_unused]] const uint32_t frame,
+	const uint32_t frame,
 	[[maybe_unused]] const uint32_t bufferId,
 	const ControlList &sensorControls)
 {
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	/*
+	 * \todo Software ISP currently doesn't produce any metadata so it is
+	 * possible to use a dummy metadata instance here. But metadata should be
+	 * properly handled in future.
+	 */
+	ControlList metadata(controls::controls);
+	for (auto const &algo : algorithms()) {
+		algo->process(context_, frame, frameContext, stats_, metadata);
+	}
+
 	SwIspStats::Histogram histogram = stats_->yHistogram;
 	if (ignoreUpdates_ > 0)
 		blackLevel_.update(histogram);
