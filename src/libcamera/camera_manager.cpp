@@ -113,14 +113,15 @@ void CameraManager::Private::createPipelineHandlers()
 	 * file and only fallback on environment variable or all handlers, if
 	 * there is no configuration file.
 	 */
-	const char *pipesList =
-		utils::secure_getenv("LIBCAMERA_PIPELINES_MATCH_LIST");
-	if (pipesList) {
+	std::optional<std::string> pipesList =
+		GlobalConfiguration::envOption("LIBCAMERA_PIPELINES_MATCH_LIST",
+					       "pipelines_match_list");
+	if (pipesList.has_value()) {
 		/*
 		 * When a list of preferred pipelines is defined, iterate
 		 * through the ordered list to match the enumerated devices.
 		 */
-		for (const auto &pipeName : utils::split(pipesList, ",")) {
+		for (const auto &pipeName : utils::split(pipesList.value(), ",")) {
 			const PipelineHandlerFactoryBase *factory;
 			factory = PipelineHandlerFactoryBase::getFactoryByName(pipeName);
 			if (!factory)
