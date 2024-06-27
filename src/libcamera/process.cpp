@@ -12,7 +12,9 @@
 #include <fcntl.h>
 #include <iostream>
 #include <list>
+#include <optional>
 #include <signal.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -23,6 +25,8 @@
 #include <libcamera/base/event_notifier.h>
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
+
+#include "libcamera/internal/global_configuration.h"
 
 /**
  * \file process.h
@@ -263,9 +267,10 @@ int Process::start(const std::string &path,
 
 		closeAllFdsExcept(fds);
 
-		const char *file = utils::secure_getenv("LIBCAMERA_LOG_FILE");
-		if (file && strcmp(file, "syslog"))
-			unsetenv("LIBCAMERA_LOG_FILE");
+		std::optional<std::string> file =
+			GlobalConfiguration::envOption("LIBCAMERA_LOG_FILE", "log.file");
+		if (file.has_value() && file.value() != "syslog")
+			setenv("LIBCAMERA_LOG_FILE", "", 1);
 
 		const char **argv = new const char *[args.size() + 2];
 		unsigned int len = args.size();

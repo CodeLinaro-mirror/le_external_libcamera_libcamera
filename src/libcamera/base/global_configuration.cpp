@@ -34,6 +34,7 @@ LOG_DEFINE_CATEGORY(Configuration)
  * \code{.yaml}
  * configuration:
  *   log:
+ *     file: syslog
  *     levels: 'IPAManager:DEBUG'
  * \endcode
  *
