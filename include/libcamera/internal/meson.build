@@ -28,6 +28,7 @@ libcamera_internal_headers = files([
     'dma_buf_allocator.h',
     'formats.h',
     'framebuffer.h',
+    'global_configuration.h',
     'ipa_manager.h',
     'ipa_module.h',
     'ipa_proxy.h',
