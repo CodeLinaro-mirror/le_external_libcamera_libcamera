@@ -19,7 +19,7 @@
    Pipeline Handler Writer's Guide <guides/pipeline-handler>
    IPA Writer's guide <guides/ipa>
    Tracing guide <guides/tracing>
-   Environment variables <environment_variables>
+   Runtime configuration <runtime_configuration>
    Sensor driver requirements <sensor_driver_requirements>
    Lens driver requirements <lens_driver_requirements>
    Python Bindings <python-bindings>
