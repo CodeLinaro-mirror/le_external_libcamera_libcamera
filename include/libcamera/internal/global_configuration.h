@@ -11,6 +11,8 @@
 #include <optional>
 #include <vector>
 
+#include <libcamera/base/utils.h>
+
 #include "libcamera/internal/yaml_parser.h"
 
 namespace libcamera {
@@ -22,7 +24,30 @@ public:
 
 	static unsigned int version();
 	static Configuration configuration();
-	static std::optional<std::string> option(const std::string &confPath);
+
+	template<typename T,
+		 std::enable_if_t<
+			 std::is_same_v<bool, T> ||
+			 std::is_same_v<double, T> ||
+			 std::is_same_v<int8_t, T> ||
+			 std::is_same_v<uint8_t, T> ||
+			 std::is_same_v<int16_t, T> ||
+			 std::is_same_v<uint16_t, T> ||
+			 std::is_same_v<int32_t, T> ||
+			 std::is_same_v<uint32_t, T> ||
+			 std::is_same_v<std::string, T> ||
+			 std::is_same_v<Size, T>> * = nullptr>
+	static std::optional<T> option(const std::string &confPath)
+	{
+		YamlObject *c = &const_cast<YamlObject &>(configuration());
+		for (auto part : utils::details::StringSplitter(confPath, "."))
+			if (c->contains(part))
+				c = &const_cast<YamlObject &>((*c)[part]);
+			else
+				return std::optional<T>();
+		return c->get<T>();
+	}
+
 	static std::optional<std::string> envOption(const char *const envVariable,
 						    const std::string &confPath);
 
