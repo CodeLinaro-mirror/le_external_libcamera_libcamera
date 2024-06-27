@@ -15,6 +15,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_module.h"
 
 /**
@@ -104,8 +105,11 @@ std::string IPAProxy::configurationFile(const std::string &name) const
 	std::string ipaName = ipam_->info().name;
 
 	/* Check the environment variable first. */
-	const char *confPaths = utils::secure_getenv("LIBCAMERA_IPA_CONFIG_PATH");
-	if (confPaths) {
+	auto confConfPaths =
+		GlobalConfiguration::envOption(
+			"LIBCAMERA_IPA_CONFIG_PATH", "ipa.config_paths");
+	if (confConfPaths.has_value()) {
+		const char *confPaths = confConfPaths.value().c_str();
 		for (const auto &dir : utils::split(confPaths, ":")) {
 			if (dir.empty())
 				continue;
