@@ -29,6 +29,13 @@ LOG_DEFINE_CATEGORY(Configuration)
  * The configuration file is a YAML file and the configuration itself is stored
  * under `configuration' top-level item.
  *
+ * Example configuration file content:
+ * \code{.yaml}
+ * configuration:
+ *   log:
+ *     levels: 'IPAManager:DEBUG'
+ * \endcode
+ *
  * The configuration file is looked up in user's home directory first and if it
  * is not found then in system-wide configuration directories. If multiple
  * configuration files exist then only the first one found is used and no
@@ -56,6 +63,11 @@ const std::vector<std::filesystem::path>
 		std::filesystem::path(LIBCAMERA_SYSCONF_DIR) / "configuration.yaml",
 		std::filesystem::path("/etc/libcamera/configuration.yaml"),
 	};
+
+/*
+ * Care is needed here to not log anything before the configuration is
+ * loaded otherwise the logger would be initialized with empty configuration.
+ */
 
 void GlobalConfiguration::load()
 {
@@ -87,10 +99,15 @@ void GlobalConfiguration::load()
 
 bool GlobalConfiguration::loadFile(const std::filesystem::path &fileName)
 {
+	/*
+	 * initialized_ must be set to true before any logging is called!
+	 */
+
 	File file(fileName);
 	if (!file.exists()) {
 		return false;
 	}
+	initialized_ = true;
 
 	if (!file.open(File::OpenModeFlag::ReadOnly)) {
 		LOG(Configuration, Warning)
@@ -105,7 +122,6 @@ bool GlobalConfiguration::loadFile(const std::filesystem::path &fileName)
 		return true;
 	}
 	configuration_ = std::move(root);
-	initialized_ = true;
 	LOG(Configuration, Info) << "Configuration file " << fileName << "loaded";
 
 	return true;
