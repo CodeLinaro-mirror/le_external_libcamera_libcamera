@@ -146,7 +146,7 @@ std::string IPAProxy::configurationFile(const std::string &name) const
 		}
 	}
 
-	LOG(IPAProxy, Error)
+	LOG(IPAProxy, Warning)
 		<< "Configuration file '" << name
 		<< "' not found for IPA module '" << ipaName << "'";
 
