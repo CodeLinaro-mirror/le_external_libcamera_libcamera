@@ -20,6 +20,7 @@
 #include <libcamera/property_ids.h>
 
 #include "libcamera/internal/camera_lens.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 
@@ -1088,7 +1089,12 @@ int CameraData::loadPipelineConfiguration()
 	/* Initial configuration of the platform, in case no config file is present */
 	platformPipelineConfigure({});
 
-	char const *configFromEnv = utils::secure_getenv("LIBCAMERA_RPI_CONFIG_FILE");
+	std::optional<std::string> configFile =
+		GlobalConfiguration::envOption("LIBCAMERA_RPI_CONFIG_FILE",
+					       "pipelines.rpi.config_file");
+	if (!configFile.has_value())
+		return 0;
+	char const *configFromEnv = configFile.value().c_str();
 	if (!configFromEnv || *configFromEnv == '\0')
 		return 0;
 
@@ -1147,14 +1153,18 @@ int CameraData::loadIPA(ipa::RPi::InitResult *result)
 	 * the environment variable overrides it.
 	 */
 	std::string configurationFile;
-	char const *configFromEnv = utils::secure_getenv("LIBCAMERA_RPI_TUNING_FILE");
-	if (!configFromEnv || *configFromEnv == '\0') {
+	const std::string confPath =
+		std::string("pipelines.rpi.cameras.") + sensor_->id() + std::string(".tuning_file");
+	std::optional<std::string> configFromEnv =
+		GlobalConfiguration::envOption("LIBCAMERA_RPI_TUNING_FILE",
+					       confPath.c_str());
+	if (!configFromEnv.has_value() || configFromEnv.value().empty()) {
 		std::string model = sensor_->model();
 		if (isMonoSensor(sensor_))
 			model += "_mono";
 		configurationFile = ipa_->configurationFile(model + ".json");
 	} else {
-		configurationFile = std::string(configFromEnv);
+		configurationFile = configFromEnv.value();
 	}
 
 	IPASettings settings(configurationFile, sensor_->model());
