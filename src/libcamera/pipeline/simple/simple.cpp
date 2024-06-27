@@ -32,6 +32,7 @@
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/converter.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/software_isp/software_isp.h"
@@ -1544,6 +1545,17 @@ bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 	}
 
 	swIspEnabled_ = info->swIspEnabled;
+	for (GlobalConfiguration::Configuration entry :
+	     GlobalConfiguration::configuration()
+		     ["pipelines"]["simple"]["supported_devices"]
+			     .asList()) {
+		auto name = entry["driver"].get<std::string>();
+		if (name.has_value() and !name.value().compare(info->driver)) {
+			swIspEnabled_ = entry["software_isp"].get<bool>().value_or(swIspEnabled_);
+			LOG(SimplePipeline, Debug) << "Overriding software ISP to " << swIspEnabled_;
+			break;
+		}
+	}
 
 	/* Locate the sensors. */
 	std::vector<MediaEntity *> sensors = locateSensors();
