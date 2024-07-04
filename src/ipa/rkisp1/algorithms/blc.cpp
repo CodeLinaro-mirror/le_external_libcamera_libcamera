@@ -110,7 +110,7 @@ int BlackLevelCorrection::init(IPAContext &context, const YamlObject &tuningData
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
+void BlackLevelCorrection::prepare(IPAContext &context,
 				   const uint32_t frame,
 				   [[maybe_unused]] IPAFrameContext &frameContext,
 				   RkISP1Params *params)
@@ -124,15 +124,30 @@ void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
 	if (!tuningParameters_)
 		return;
 
-	auto config = params->block<Block::Bls>();
-	config.setEnabled(true);
+	if (context.hw->compand) {
+		auto config = params->block<Block::CompandBls>();
+		config.setEnabled(true);
 
-	config->enable_auto = 0;
-	/* The rkisp1 uses 12bit based black levels. Scale down accordingly. */
-	config->fixed_val.r = blackLevelRed_ >> 4;
-	config->fixed_val.gr = blackLevelGreenR_ >> 4;
-	config->fixed_val.gb = blackLevelGreenB_ >> 4;
-	config->fixed_val.b = blackLevelBlue_ >> 4;
+		/*
+		 * Scale up to the 20-bit black levels used by the companding
+		 * block.
+		 */
+		config->r = blackLevelRed_ << 4;
+		config->gr = blackLevelGreenR_ << 4;
+		config->gb = blackLevelGreenB_ << 4;
+		config->b = blackLevelBlue_ << 4;
+	} else {
+		auto config = params->block<Block::Bls>();
+		config.setEnabled(true);
+
+		config->enable_auto = 0;
+
+		/* Scale down to the 12-bit black levels used by the BLS block. */
+		config->fixed_val.r = blackLevelRed_ >> 4;
+		config->fixed_val.gr = blackLevelGreenR_ >> 4;
+		config->fixed_val.gb = blackLevelGreenB_ >> 4;
+		config->fixed_val.b = blackLevelBlue_ >> 4;
+	}
 }
 
 /**
