@@ -79,6 +79,7 @@ private:
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
 
 	ControlInfoMap sensorControls_;
+	uint32_t paramFormat_;
 
 	/* Local parameter storage */
 	struct IPAContext context_;
@@ -208,6 +209,7 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 			 ControlInfoMap *ipaControls)
 {
 	sensorControls_ = ipaConfig.sensorControls;
+	paramFormat_ = ipaConfig.paramFormat;
 
 	const auto itExp = sensorControls_.find(V4L2_CID_EXPOSURE);
 	int32_t minExposure = itExp->second.min().get<int32_t>();
