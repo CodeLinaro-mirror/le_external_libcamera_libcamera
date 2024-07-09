@@ -35,7 +35,7 @@ class V4L2M2MDevice;
 class V4L2M2MConverter : public Converter
 {
 public:
-	V4L2M2MConverter(MediaDevice *media);
+	V4L2M2MConverter(MediaDevice *media, Features features = Feature::None);
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }
 	bool isValid() const { return m2m_ != nullptr; }
