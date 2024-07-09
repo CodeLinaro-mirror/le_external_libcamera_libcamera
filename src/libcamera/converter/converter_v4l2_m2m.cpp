@@ -155,6 +155,15 @@ int V4L2M2MConverter::V4L2M2MStream::queueBuffers(FrameBuffer *input, FrameBuffe
 	return 0;
 }
 
+int V4L2M2MConverter::V4L2M2MStream::setSelection(unsigned int target, Rectangle *rect)
+{
+	int ret = m2m_->output()->setSelection(target, rect);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 std::string V4L2M2MConverter::V4L2M2MStream::logPrefix() const
 {
 	return stream_->configuration().toString();
@@ -376,6 +385,81 @@ int V4L2M2MConverter::exportBuffers(const Stream *stream, unsigned int count,
 }
 
 /**
+ * \copydoc libcamera::Converter::setCrop
+ */
+int V4L2M2MConverter::setCrop(const Stream *stream, Rectangle *rect)
+{
+	if (!(getFeatures() & Feature::Crop))
+		return -ENOTSUP;
+
+	auto iter = streams_.find(stream);
+	if (iter == streams_.end())
+		return -EINVAL;
+
+	return iter->second->setSelection(V4L2_SEL_TGT_CROP, rect);
+}
+
+/**
+ * \copydoc libcamera::Converter::getCropBounds
+ */
+std::pair<Rectangle, Rectangle>
+V4L2M2MConverter::getCropBounds(const Stream *stream)
+{
+	Rectangle minCrop;
+	Rectangle maxCrop;
+	int ret;
+
+	minCrop.width = 1;
+	minCrop.height = 1;
+	maxCrop.width = UINT_MAX;
+	maxCrop.height = UINT_MAX;
+
+	if (!(getFeatures() & Feature::Crop)) {
+		LOG(Converter, Error) << "Crop functionality is not supported";
+		return {};
+	}
+
+	auto iter = streams_.find(stream);
+	if (iter == streams_.end()) {
+		/*
+		 * No streams configured, return minimum and maximum crop
+		 * bounds at initialization.
+		 */
+		ret = m2m_->output()->setSelection(V4L2_SEL_TGT_CROP, &minCrop);
+		if (ret) {
+			LOG(Converter, Error) << "Failed to query minimum crop bound";
+			return {};
+		}
+
+		ret = m2m_->output()->setSelection(V4L2_SEL_TGT_CROP, &maxCrop);
+		if (ret) {
+			LOG(Converter, Error) << "Failed to query maximum crop bound";
+			return {};
+		}
+
+		return { minCrop, maxCrop };
+	}
+
+	/*
+	 * If the streams are configured, return bounds from according to
+	 * stream configuration.
+	 */
+	ret = setCrop(stream, &minCrop);
+	if (ret) {
+		LOG(Converter, Error) << "Failed to query minimum crop bound";
+		return {};
+	}
+
+	ret = setCrop(stream, &maxCrop);
+	if (ret) {
+		LOG(Converter, Error) << "Failed to query maximum crop bound";
+		return {};
+	}
+
+	return { minCrop, maxCrop };
+}
+
+/**
  * \copydoc libcamera::Converter::start
  */
 int V4L2M2MConverter::start()
@@ -448,6 +532,10 @@ int V4L2M2MConverter::queueBuffers(FrameBuffer *input,
 	return 0;
 }
 
+/*
+ * \todo: This should be extended to include Feature::Flag to denote
+ * what each converter supports feature-wise.
+ */
 static std::initializer_list<std::string> compatibles = {
 	"mtk-mdp",
 	"pxp",
