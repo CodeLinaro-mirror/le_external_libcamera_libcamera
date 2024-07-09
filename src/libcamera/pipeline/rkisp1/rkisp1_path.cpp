@@ -56,7 +56,7 @@ const std::map<PixelFormat, uint32_t> formatToMediaBus = {
 
 RkISP1Path::RkISP1Path(const char *name, const Span<const PixelFormat> &formats,
 		       const Size &minResolution, const Size &maxResolution)
-	: name_(name), running_(false), formats_(formats),
+	: name_(name), running_(false), internalBufs_(false), formats_(formats),
 	  minResolution_(minResolution), maxResolution_(maxResolution),
 	  link_(nullptr)
 {
@@ -402,10 +402,12 @@ int RkISP1Path::start()
 	if (running_)
 		return -EBUSY;
 
-	/* \todo Make buffer count user configurable. */
-	ret = video_->importBuffers(RKISP1_BUFFER_COUNT);
-	if (ret)
-		return ret;
+	if (!internalBufs_) {
+		/* \todo Make buffer count user configurable. */
+		ret = video_->importBuffers(RKISP1_BUFFER_COUNT);
+		if (ret)
+			return ret;
+	}
 
 	ret = video_->streamOn();
 	if (ret) {

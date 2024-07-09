@@ -55,6 +55,19 @@ public:
 		return video_->exportBuffers(bufferCount, buffers);
 	}
 
+	int allocateBuffers(unsigned int bufferCount,
+			    std::vector<std::unique_ptr<FrameBuffer>> *buffers)
+	{
+		internalBufs_ = true;
+		return video_->allocateBuffers(bufferCount, buffers);
+	}
+
+	int releaseBuffers()
+	{
+		ASSERT(internalBufs_);
+		return video_->releaseBuffers();
+	}
+
 	int start();
 	void stop();
 
@@ -68,6 +81,7 @@ private:
 
 	const char *name_;
 	bool running_;
+	bool internalBufs_;
 
 	const Span<const PixelFormat> formats_;
 	std::set<PixelFormat> streamFormats_;
