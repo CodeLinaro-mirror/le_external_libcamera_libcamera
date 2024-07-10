@@ -304,7 +304,7 @@ def get_alsc_patches(Img, colour_cals, grey=True):
     """
     if grey:
         cen_coords = Img.cen_coords[3::4]
-        col = Img.col
+        col = Img.color
         patches = [np.array(Img.patches[i]) for i in Img.order]
         r_patchs = patches[0][3::4] - Img.blacklevel_16
         b_patchs = patches[3][3::4] - Img.blacklevel_16
