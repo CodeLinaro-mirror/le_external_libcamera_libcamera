@@ -33,6 +33,10 @@ namespace ipa::rkisp1::algorithms {
 
 LOG_DEFINE_CATEGORY(RkISP1Awb)
 
+constexpr int32_t kMinColourTemperature = 2500;
+constexpr int32_t kMaxColourTemperature = 10000;
+constexpr int32_t kDefaultColourTemperature = 6500;
+
 /* Minimum mean value below which AWB can't operate. */
 constexpr double kMeanMinThreshold = 2.0;
 
@@ -44,8 +48,13 @@ Awb::Awb()
 /**
  * \copydoc libcamera::ipa::Algorithm::init
  */
-int Awb::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
+int Awb::init(IPAContext &context, const YamlObject &tuningData)
 {
+	auto &cmap = context.ctrlMap;
+	cmap[&controls::ColourTemperature] = ControlInfo(kMinColourTemperature,
+							 kMaxColourTemperature,
+							 kDefaultColourTemperature);
+
 	Interpolator<Vector<double, 2>> gains;
 	int ret = gains.readYaml(tuningData["gains"], "ct", "gains");
 	if (ret < 0)
@@ -101,19 +110,31 @@ void Awb::queueRequest(IPAContext &context,
 			<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
 	}
 
-	const auto &colourGains = controls.get(controls::ColourGains);
-	if (colourGains && !awb.autoEnabled) {
-		awb.gains.manual.r() = (*colourGains)[0];
-		awb.gains.manual.b() = (*colourGains)[1];
-
-		LOG(RkISP1Awb, Debug)
-			<< "Set colour gains to " << awb.gains.manual;
-	}
-
 	frameContext.awb.autoEnabled = awb.autoEnabled;
 
-	if (!awb.autoEnabled)
-		frameContext.awb.gains = awb.gains.manual;
+	const auto &colourGains = controls.get(controls::ColourGains);
+	const auto &colourTemperature = controls.get(controls::ColourTemperature);
+
+	if (awb.autoEnabled)
+		return;
+
+	bool update = false;
+	if (colourGains) {
+		awb.gains.manual.r() = (*colourGains)[0];
+		awb.gains.manual.b() = (*colourGains)[1];
+		update = true;
+	} else if (colourTemperature && gains_) {
+		auto gains = gains_->getInterpolated(*colourTemperature);
+		awb.gains.manual.r() = gains[0];
+		awb.gains.manual.b() = gains[1];
+		update = true;
+	}
+
+	if (update)
+		LOG(RkISP1Awb, Debug)
+			<< "Set colour gains to " << awb.gains.manual;
+
+	frameContext.awb.gains = awb.gains.manual;
 }
 
 /**
