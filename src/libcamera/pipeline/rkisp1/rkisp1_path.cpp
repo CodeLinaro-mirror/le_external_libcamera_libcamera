@@ -62,7 +62,7 @@ RkISP1Path::RkISP1Path(const char *name, const Span<const PixelFormat> &formats,
 {
 }
 
-bool RkISP1Path::init(MediaDevice *media)
+bool RkISP1Path::init(MediaDevice *media, const Size &ispMaxInputSize)
 {
 	std::string resizer = std::string("rkisp1_resizer_") + name_ + "path";
 	std::string video = std::string("rkisp1_") + name_ + "path";
@@ -75,6 +75,7 @@ bool RkISP1Path::init(MediaDevice *media)
 	if (video_->open() < 0)
 		return false;
 
+	ispMaxInputSize_ = ispMaxInputSize;
 	populateFormats();
 
 	link_ = media->link("rkisp1_isp", 2, resizer, 0);
@@ -126,12 +127,33 @@ void RkISP1Path::populateFormats()
 	}
 }
 
+Size RkISP1Path::maxSupportedSensorResolution(const CameraSensor *sensor)
+{
+	Size sensorResolution;
+
+	/* Get highest sensor resolution which is just less than or equal to ISP input */
+	for (const auto &format : streamFormats_) {
+		auto sizes = sensor->sizes(formatToMediaBus.at(format));
+		for (auto &sz : sizes) {
+			if (sz <= ispMaxInputSize_ && sz > sensorResolution)
+				sensorResolution = sz;
+		}
+	}
+
+	return sensorResolution;
+}
+
 StreamConfiguration
 RkISP1Path::generateConfiguration(const CameraSensor *sensor, const Size &size,
 				  StreamRole role)
 {
 	const std::vector<unsigned int> &mbusCodes = sensor->mbusCodes();
-	const Size &resolution = sensor->resolution();
+	Size resolution = maxSupportedSensorResolution(sensor);
+	if (resolution.isNull()) {
+		LOG(RkISP1, Error) << "No suitable format/resolution found"
+				   << "for ISP input";
+		return {};
+	}
 
 	/* Min and max resolutions to populate the available stream formats. */
 	Size maxResolution = maxResolution_.boundedToAspectRatio(resolution)
@@ -220,7 +242,12 @@ CameraConfiguration::Status RkISP1Path::validate(const CameraSensor *sensor,
 						 StreamConfiguration *cfg)
 {
 	const std::vector<unsigned int> &mbusCodes = sensor->mbusCodes();
-	const Size &resolution = sensor->resolution();
+	Size resolution = maxSupportedSensorResolution(sensor);
+	if (resolution.isNull()) {
+		LOG(RkISP1, Error) << "No suitable format/resolution found"
+				   << "for ISP input";
+		return {};
+	}
 
 	const StreamConfiguration reqCfg = *cfg;
 	CameraConfiguration::Status status = CameraConfiguration::Valid;
@@ -275,8 +302,8 @@ CameraConfiguration::Status RkISP1Path::validate(const CameraSensor *sensor,
 	if (!found)
 		cfg->pixelFormat = isRaw ? rawFormat : formats::NV12;
 
-	Size minResolution;
-	Size maxResolution;
+	Size maxResolution = maxResolution_.boundedTo(resolution);
+	Size minResolution = minResolution_.expandedToAspectRatio(resolution);
 
 	if (isRaw) {
 		/*
@@ -287,16 +314,10 @@ CameraConfiguration::Status RkISP1Path::validate(const CameraSensor *sensor,
 		V4L2SubdeviceFormat sensorFormat =
 			sensor->getFormat({ mbusCode }, cfg->size);
 
-		minResolution = sensorFormat.size;
-		maxResolution = sensorFormat.size;
-	} else {
-		/*
-		 * Adjust the size based on the sensor resolution and absolute
-		 * limits of the ISP.
-		 */
-		minResolution = minResolution_.expandedToAspectRatio(resolution);
-		maxResolution = maxResolution_.boundedToAspectRatio(resolution)
-					      .boundedTo(resolution);
+		if (!sensorFormat.size.isNull()) {
+			minResolution = sensorFormat.size.boundedTo(ispMaxInputSize_);
+			maxResolution = sensorFormat.size.boundedTo(ispMaxInputSize_);
+		}
 	}
 
 	cfg->size.boundTo(maxResolution);

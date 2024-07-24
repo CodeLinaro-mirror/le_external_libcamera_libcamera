@@ -35,7 +35,7 @@ public:
 	RkISP1Path(const char *name, const Span<const PixelFormat> &formats,
 		   const Size &minResolution, const Size &maxResolution);
 
-	bool init(MediaDevice *media);
+	bool init(MediaDevice *media, const Size &ispMaxInputSize);
 
 	int setEnabled(bool enable) { return link_->setEnabled(enable); }
 	bool isEnabled() const { return link_->flags() & MEDIA_LNK_FL_ENABLED; }
@@ -63,6 +63,7 @@ public:
 
 private:
 	void populateFormats();
+	Size maxSupportedSensorResolution(const CameraSensor *sensor);
 
 	static constexpr unsigned int RKISP1_BUFFER_COUNT = 4;
 
@@ -77,6 +78,8 @@ private:
 	std::unique_ptr<V4L2Subdevice> resizer_;
 	std::unique_ptr<V4L2VideoDevice> video_;
 	MediaLink *link_;
+
+	Size ispMaxInputSize_;
 };
 
 class RkISP1MainPath : public RkISP1Path

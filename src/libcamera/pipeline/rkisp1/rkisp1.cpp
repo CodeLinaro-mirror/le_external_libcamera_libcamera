@@ -1202,11 +1202,24 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 	if (param_->open() < 0)
 		return false;
 
+	/*
+	 * Retrieve the ISP maximum input size for config validation in the
+	 * path classes.
+	 */
+	Size ispMaxInputSize;
+	V4L2Subdevice::Formats ispFormats = isp_->formats(0);
+	for (const auto &[mbus, sizes] : ispFormats) {
+		for (const auto &size : sizes) {
+			if (ispMaxInputSize < size.max)
+				ispMaxInputSize = size.max;
+		}
+	}
+
 	/* Locate and open the ISP main and self paths. */
-	if (!mainPath_.init(media_))
+	if (!mainPath_.init(media_, ispMaxInputSize))
 		return false;
 
-	if (hasSelfPath_ && !selfPath_.init(media_))
+	if (hasSelfPath_ && !selfPath_.init(media_, ispMaxInputSize))
 		return false;
 
 	mainPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::bufferReady);
