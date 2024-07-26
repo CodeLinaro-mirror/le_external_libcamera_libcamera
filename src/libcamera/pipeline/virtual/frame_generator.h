@@ -23,7 +23,7 @@ public:
 	/** Fill the output frame buffer.
 	 * Use the frame at the frameCount of image frames
 	 */
-	virtual void generateFrame(const Size &size,
+	virtual void generateFrame(unsigned int &frameCount, const Size &size,
 				   const FrameBuffer *buffer) = 0;
 
 protected:

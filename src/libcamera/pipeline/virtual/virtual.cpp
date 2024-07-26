@@ -20,8 +20,12 @@
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/yaml_parser.h"
 
-#include "frame_generator.h"
 #include "parser.h"
+
+#define ifTestPattern(v) std::holds_alternative<TestPattern>(v)
+#define getTestPattern(v) std::get<TestPattern>(v)
+#define ifImageFrames(v) std::holds_alternative<ImageFrames>(v)
+#define getImageFrames(v) std::get<ImageFrames>(v)
 
 namespace libcamera {
 
@@ -63,12 +67,12 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 	}
 
 	Size maxSize;
-	for (const auto &resolution : data_->supportedResolutions_)
+	for (const auto &resolution : data_->config_.resolutions)
 		maxSize = std::max(maxSize, resolution.size);
 
 	for (StreamConfiguration &cfg : config_) {
 		bool found = false;
-		for (const auto &resolution : data_->supportedResolutions_) {
+		for (const auto &resolution : data_->config_.resolutions) {
 			if (resolution.size.width == cfg.size.width &&
 			    resolution.size.height == cfg.size.height) {
 				found = true;
@@ -110,7 +114,7 @@ PipelineHandlerVirtual::generateConfiguration(Camera *camera,
 		return config;
 
 	Size minSize, sensorResolution;
-	for (const auto &resolution : data->supportedResolutions_) {
+	for (const auto &resolution : data->config_.resolutions) {
 		if (minSize.isNull() || minSize > resolution.size)
 			minSize = resolution.size;
 
@@ -191,7 +195,7 @@ int PipelineHandlerVirtual::exportFrameBuffers(
 int PipelineHandlerVirtual::start(Camera *camera,
 				  [[maybe_unused]] const ControlList *controls)
 {
-	/* \todo Start reading the virtual video if any. */
+	/* Start reading the images/generating test patterns */
 	VirtualCameraData *data = cameraData(camera);
 
 	data->frameGenerator_->configure(data->stream_.configuration().size);
@@ -211,8 +215,8 @@ int PipelineHandlerVirtual::queueRequestDevice([[maybe_unused]] Camera *camera,
 
 	/* \todo Read from the virtual video if any. */
 	for (auto const &[stream, buffer] : request->buffers()) {
-		/* map buffer and fill test patterns */
-		data->frameGenerator_->generateFrame(stream->configuration().size, buffer);
+		/* Map buffer. Fill test patterns or images */
+		data->frameGenerator_->generateFrame(data->frameCount_, stream->configuration().size, buffer);
 		completeBuffer(request, buffer);
 	}
 
@@ -242,9 +246,10 @@ bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator
 	/* Configure and register cameras with configData */
 	for (auto &data : configData) {
 		std::set<Stream *> streams{ &data->stream_ };
-		std::string id = data->id_;
+		std::string id = data->config_.id;
 		std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
 
+		/* Initialize FrameGenerator*/
 		initFrameGenerator(camera.get());
 
 		registerCamera(std::move(camera));
@@ -256,13 +261,19 @@ bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator
 void PipelineHandlerVirtual::initFrameGenerator(Camera *camera)
 {
 	auto data = cameraData(camera);
-	if (data->testPattern_ == TestPattern::DiagonalLines) {
-		data->frameGenerator_ = DiagonalLinesGenerator::create();
-	} else {
-		data->frameGenerator_ = ColorBarsGenerator::create();
+	auto &frame = data->config_.frame;
+	if (ifTestPattern(frame)) {
+		TestPattern &testPattern = getTestPattern(frame);
+		if (testPattern == TestPattern::DiagonalLines) {
+			data->frameGenerator_ = DiagonalLinesGenerator::create();
+		} else {
+			data->frameGenerator_ = ColorBarsGenerator::create();
+		}
+	} else if (ifImageFrames(frame)) {
+		data->frameGenerator_ = ImageFrameGenerator::create(getImageFrames(frame));
 	}
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerVirtual, "virtual")
 
-} /* namespace libcamera */
+} // namespace libcamera

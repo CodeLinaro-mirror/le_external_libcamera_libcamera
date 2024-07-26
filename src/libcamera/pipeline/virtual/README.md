@@ -15,8 +15,13 @@ Each camera block is a dictionary, containing the following keys:
 - `supported_formats` (list of `VirtualCameraData::Resolution`, optional) : List of supported resolution and frame rates of the emulated camera
     - `width` (`unsigned int`, default=1920): Width of the window resolution. This needs to be even.
     - `height` (`unsigned int`, default=1080): Height of the window resolution.
-    - `frame_rates` (list of `int`, default=`[30,60]` ): Range of the frame rate. The list has to be two values of the lower bound and the upper bound of the frame rate.
-- `test_pattern` (`string`, default="bars"): Which test pattern to use as frames. The options are "bars", "lines".
+    - `frame_rates` (list of `int`, default=`[30,60]` ): Range of the frame rate. The list has to be two values of the lower bound and the upper bound of the frame rate. This does not affect the frame rate for now.
+- `frames` (dictionary):
+  - `path` (`string`, default="bars"): Name of a test pattern, path to an image, or path to a directory of a series of images.
+    - The test patterns are "bars" which means color bars, and "lines" which means diagonal lines.
+    - The path to an image has ".jpg" extension.
+    - The path to a directory ends with "/". The name of the images in the directory are "{n}.jpg" with {n} is the sequence of images starting with 0.
+  - `scale_mode`(`string`, default="fill"): Scale mode when the frames are images. The scale modes are "fill", "contain", and "cover". This does not matter when frames is a test pattern. This does not affect the scale mode for now.
 - `location` (`string`, default="front"): The location of the camera. Support "front" and "back". This is displayed in qcam camera selection window but this does not change the output.
 - `model` (`string`, default="Unknown"): The model name of the camera. This is displayed in qcam camera selection window but this does not change the output.
 
@@ -35,13 +40,16 @@ A sample config file:
     frame_rates:
     - 70
     - 80
-  test_pattern: "bars"
+  frames:
+    path: "lines"
   location: "front"
   model: "Virtual Video Device"
 "Virtual1":
   supported_formats:
   - width: 800
-  test_pattern: "lines"
+  frames:
+    path: "path/to/directory_of_images/"
+    scale_mode: "contain"
   location: "back"
   model: "Virtual Video Device1"
 "Virtual2":
@@ -61,7 +69,7 @@ This is the procedure of the Parser class:
     - If the config file contains invalid configuration, this method returns nullptr. The camera will be skipped.
 3. Parse each property and register the data.
     - `parseSupportedFormats()`: Parses `supported_formats` in the config, which contains resolutions and frame rates.
-    - `parseTestPattern()`: Parses `test_pattern` in the config.
+    - `parseFrame()`: Parses `frames` in the config.
     - `parseLocation()`: Parses `location` in the config.
     - `parseModel()`: Parses `model` in the config.
 4. Back to `parseConfigFile()` and append the camera configuration.

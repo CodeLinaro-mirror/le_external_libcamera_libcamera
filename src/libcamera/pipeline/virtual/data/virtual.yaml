@@ -13,7 +13,9 @@
     frame_rates:
     - 70
     - 80
-  test_pattern: "lines"
+  frames:
+    path: "files/libcamera_short_anime/"
+    scale_mode: "fill"
   location: "front"
   model: "Virtual Video Device"
 "Virtual1":
@@ -23,27 +25,27 @@
     frame_rates:
     - 30
     - 60
-  test_pattern:
+  frames:
+    path: "files/bike-min.jpeg"
+    scale_mode: "contain"
   location: "back"
   model: "Virtual Video Device1"
 "Virtual2":
   supported_formats:
   - width: 400
     height: 300
-  test_pattern: "lines"
+  frames:
+    path: "lines"
+    scale_mode: "cover"
   location: "front"
   model: "Virtual Video Device2"
 "Virtual3":
+  location: "a"
+"Virtual4":
   supported_formats:
   - width: 100
-    height: 100
-  - width: 800
-    height: 600
-  - width: 1920
-    height: 1080
-    frame_rates:
-    - 20
-    - 30
-  location: "a"
-  model: "Virtual Video Device3"
-"Virtual4":
+    height: 101
+"Virtual5":
+  frames:
+    path: "files/chrome_anniversary.jpg"
+    scale_mode: "contain"
