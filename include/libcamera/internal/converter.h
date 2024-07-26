@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/flags.h>
 #include <libcamera/base/signal.h>
 
 #include <libcamera/geometry.h>
@@ -32,7 +33,13 @@ struct StreamConfiguration;
 class Converter
 {
 public:
-	Converter(MediaDevice *media);
+	enum class Feature {
+		None = 0,
+	};
+
+	using Features = Flags<Feature>;
+
+	Converter(MediaDevice *media, Features features = Feature::None);
 	virtual ~Converter();
 
 	virtual int loadConfiguration(const std::string &filename) = 0;
@@ -61,8 +68,12 @@ public:
 
 	const std::string &deviceNode() const { return deviceNode_; }
 
+	Features features() const { return features_; }
+
 private:
 	std::string deviceNode_;
+
+	Features features_;
 };
 
 class ConverterFactoryBase

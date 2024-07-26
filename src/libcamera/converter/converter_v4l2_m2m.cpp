@@ -191,10 +191,11 @@ void V4L2M2MConverter::V4L2M2MStream::captureBufferReady(FrameBuffer *buffer)
  * \fn V4L2M2MConverter::V4L2M2MConverter
  * \brief Construct a V4L2M2MConverter instance
  * \param[in] media The media device implementing the converter
+ * \param[in] features Features flags representing supported features
  */
 
-V4L2M2MConverter::V4L2M2MConverter(MediaDevice *media)
-	: Converter(media)
+V4L2M2MConverter::V4L2M2MConverter(MediaDevice *media, Features features)
+	: Converter(media, features)
 {
 	if (deviceNode().empty())
 		return;
