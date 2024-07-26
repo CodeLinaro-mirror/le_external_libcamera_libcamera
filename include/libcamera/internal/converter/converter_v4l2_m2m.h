@@ -30,6 +30,7 @@ class Size;
 class SizeRange;
 class Stream;
 struct StreamConfiguration;
+class Rectangle;
 class V4L2M2MDevice;
 
 class V4L2M2MConverter : public Converter
@@ -57,6 +58,9 @@ public:
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<const Stream *, FrameBuffer *> &outputs);
 
+	int setInputCrop(const Stream *stream, Rectangle *rect);
+	std::pair<Rectangle, Rectangle> inputCropBounds(const Stream *stream);
+
 private:
 	class V4L2M2MStream : protected Loggable
 	{
@@ -74,6 +78,8 @@ private:
 		void stop();
 
 		int queueBuffers(FrameBuffer *input, FrameBuffer *output);
+
+		int setSelection(unsigned int target, Rectangle *rect);
 
 	protected:
 		std::string logPrefix() const override;

@@ -11,6 +11,8 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/stream.h>
+
 #include "libcamera/internal/media_device.h"
 
 /**
@@ -39,6 +41,8 @@ LOG_DEFINE_CATEGORY(Converter)
  * \brief Specify the features supported by the converter
  * \var Converter::Feature::None
  * \brief No extra features supported by the converter
+ * \var Converter::Feature::InputCrop
+ * \brief Cropping capability at input is supported by the converter
  */
 
 /**
@@ -160,6 +164,54 @@ Converter::~Converter()
  *
  * \return 0 on success or a negative error code otherwise
  */
+
+/**
+ * \brief Set the crop rectangle \a rect for \a stream
+ * \param[in] stream Pointer to output stream
+ * \param[inout] rect The crop rectangle to be applied
+ *
+ * Set the crop rectangle \a rect for \a stream provided the converter supports
+ * cropping. The converter should have the Feature::InputCrop flag in this
+ * case.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int Converter::setInputCrop([[maybe_unused]] const Stream *stream, [[maybe_unused]] Rectangle *rect)
+{
+	if (!(features() & Feature::InputCrop)) {
+		LOG(Converter, Error) << "Converter doesn't support cropping capabilities";
+		return -ENOTSUP;
+	}
+
+	return 0;
+}
+
+/**
+ * \brief Get the crop bounds \a stream
+ * \param[in] stream Pointer to output stream
+ *
+ * Get the minimum and maximum crop bounds for \a stream. The converter
+ * should supporting cropping (Feature::InputCrop).
+ *
+ * \return A std::pair<Rectangle, Rectangle> containining minimum and maximum
+ * crop bound respectively.
+ */
+std::pair<Rectangle, Rectangle> Converter::inputCropBounds([[maybe_unused]] const Stream *stream)
+{
+	const StreamConfiguration &config = stream->configuration();
+	Rectangle rect;
+
+	if (!(features() & Feature::InputCrop))
+		LOG(Converter, Error) << "Converter doesn't support cropping capabilities";
+
+	/*
+	 * This is base implementation for the Converter class, so just return
+	 * the stream configured size as minimum and maximum crop bounds.
+	 */
+	rect.size() = config.size;
+
+	return { rect, rect };
+}
 
 /**
  * \var Converter::inputBufferReady
