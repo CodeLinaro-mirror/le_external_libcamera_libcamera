@@ -23,6 +23,11 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/framebuffer.h>
+#include <libcamera/stream.h>
+
+#include "libcamera/internal/formats.h"
+
 /**
  * \file dma_buf_allocator.cpp
  * \brief dma-buf allocator
@@ -130,8 +135,8 @@ DmaBufAllocator::~DmaBufAllocator() = default;
 /* uClibc doesn't provide the file sealing API. */
 #ifndef __DOXYGEN__
 #if not HAVE_FILE_SEALS
-#define F_ADD_SEALS		1033
-#define F_SEAL_SHRINK		0x0002
+#define F_ADD_SEALS 1033
+#define F_SEAL_SHRINK 0x0002
 #endif
 #endif
 
@@ -241,6 +246,54 @@ UniqueFD DmaBufAllocator::alloc(const char *name, std::size_t size)
 		return allocFromUDmaBuf(name, size);
 	else
 		return allocFromHeap(name, size);
+}
+
+int DmaBufAllocator::exportFrameBuffers(
+	const StreamConfiguration &config,
+	std::vector<std::unique_ptr<FrameBuffer>> *buffers)
+{
+	unsigned int count = config.bufferCount;
+
+	for (unsigned i = 0; i < count; ++i) {
+		std::unique_ptr<FrameBuffer> buffer = createBuffer(config);
+		if (!buffer) {
+			LOG(DmaBufAllocator, Error) << "Unable to create buffer";
+
+			buffers->clear();
+			return -EINVAL;
+		}
+
+		buffers->push_back(std::move(buffer));
+	}
+
+	return count;
+}
+
+std::unique_ptr<FrameBuffer> DmaBufAllocator::createBuffer(
+	const StreamConfiguration &config)
+{
+	std::vector<FrameBuffer::Plane> planes;
+
+	auto info = PixelFormatInfo::info(config.pixelFormat);
+	for (size_t i = 0; i < info.planes.size(); ++i) {
+		unsigned int planeSize = info.planeSize(config.size, i);
+		if (planeSize == 0)
+			continue;
+
+		UniqueFD fd = alloc("FrameBuffer", planeSize);
+		if (!fd.isValid())
+			return nullptr;
+
+		SharedFD sharedFd(std::move(fd));
+
+		FrameBuffer::Plane plane;
+		plane.fd = sharedFd;
+		plane.offset = 0;
+		plane.length = planeSize;
+		planes.push_back(std::move(plane));
+	}
+
+	return std::make_unique<FrameBuffer>(planes);
 }
 
 } /* namespace libcamera */
