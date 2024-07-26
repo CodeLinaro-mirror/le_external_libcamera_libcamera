@@ -3,6 +3,7 @@
 libcamera_sources += files([
     'virtual.cpp',
     'test_pattern_generator.cpp',
+    'parser.cpp',
 ])
 
 libyuv_dep = dependency('libyuv', required : false)
