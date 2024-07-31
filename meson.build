@@ -250,6 +250,14 @@ endif
 # Utilities are parsed first to provide support for other components.
 subdir('utils')
 
+# To support auto-generation of documentation we need an array of the paths to
+# public headers and source files so that we can tell doxygen which files to
+# look at later. Unfortunately the inclusion of custom targets in some of the
+# existing arrays precludes using them directly and you cannot generate File
+# objects from generated files, so we need to collect paths to relevant files
+# within an array.
+doxygen_public_sources = []
+
 subdir('include')
 subdir('src')
 

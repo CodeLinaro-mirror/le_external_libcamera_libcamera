@@ -24,12 +24,22 @@ if doxygen.found() and dot.found()
 
     cdata.set('PREDEFINED', ' \\\n\t\t\t '.join(doxygen_predefined))
 
+    # We run doxygen twice - the first run excludes internal API objects as it
+    # is intended to document the public API only. A second run covers all of
+    # the library's objects for libcamera developers. Common configuration is
+    # set in an initially generated Doxyfile, which is then included by the two
+    # final Doxyfiles. We collected a list of the public sources in
+    # doxygen_public_sources to pass to the public run and include it in cdata
+    # here - although both Doxyfile and Doxyfile-internal will also receive
+    # the same parameter they simply ignore it.
+
+    cdata.set('INPUT', '" \\\n\t\t\t "'.join(doxygen_public_sources))
+
     doxyfile = configure_file(input : 'Doxyfile.in',
                               output : 'Doxyfile',
                               configuration : cdata)
 
-    doxygen_input = [
-        doxyfile,
+    global_doxygen_input = [
         libcamera_base_headers,
         libcamera_base_sources,
         libcamera_internal_headers,
@@ -42,16 +52,44 @@ if doxygen.found() and dot.found()
     ]
 
     if is_variable('ipu3_ipa_sources')
-        doxygen_input += [ipu3_ipa_sources]
+        global_doxygen_input += [ipu3_ipa_sources]
     endif
 
+    # This is the "public" run of doxygen generating an abridged version of the
+    # API's documentation, as informed by the INPUT parameter in cdata.
+
+    doxyfile_public = configure_file(input : 'Doxyfile-public.in',
+                                     output : 'Doxyfile-public',
+                                     configuration : cdata)
+
+    public_doxygen_input = global_doxygen_input
+    public_doxygen_input += doxyfile_public
+
     custom_target('doxygen',
-                  input : doxygen_input,
+                  input : public_doxygen_input,
                   output : 'api-html',
-                  command : [doxygen, doxyfile],
+                  command : [doxygen, doxyfile_public],
                   install : true,
                   install_dir : doc_install_dir,
                   install_tag : 'doc')
+
+    # This is the internal documentation, which hard-codes a list of directories
+    # to parse in its doxyfile and so ignores the INPUT parameter from cdata.
+
+    doxyfile_internal = configure_file(input : 'Doxyfile-internal.in',
+                                       output : 'Doxyfile-internal',
+                                       configuration : cdata)
+
+    internal_doxygen_input = global_doxygen_input
+    internal_doxygen_input += doxyfile_internal
+
+    custom_target('doxygen-internal',
+                  input : internal_doxygen_input,
+                  output : 'internal-api-html',
+                  command : [doxygen, doxyfile_internal],
+                  install : true,
+                  install_dir : doc_install_dir,
+                  install_tag : 'doc-internal')
 endif
 
 #

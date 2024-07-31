@@ -60,5 +60,12 @@ libcamera_internal_headers = [
     libcamera_internal_headers_undocumented,
 ]
 
+foreach lph : libcamera_internal_headers_documented
+	doxygen_public_sources += '/'.join(
+		meson.project_source_root(),
+		'@0@'.format(lph)
+	)
+endforeach
+
 subdir('converter')
 subdir('software_isp')

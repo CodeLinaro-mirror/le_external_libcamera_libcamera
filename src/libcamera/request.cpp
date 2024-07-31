@@ -33,6 +33,7 @@ namespace libcamera {
 LOG_DEFINE_CATEGORY(Request)
 
 /**
+ * \internal
  * \class Request::Private
  * \brief Request private data
  *

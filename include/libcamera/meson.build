@@ -26,6 +26,13 @@ subdir('ipa')
 install_headers(libcamera_public_headers,
                 subdir : libcamera_include_dir)
 
+foreach lph : libcamera_public_headers
+	doxygen_public_sources += '/'.join(
+		meson.project_source_root(),
+		'@0@'.format(lph)
+	)
+endforeach
+
 #
 # Generate headers from templates.
 #
@@ -86,6 +93,7 @@ foreach mode, entry : controls_map
                                                 '-r', ranges_file, '@INPUT@'],
                                      install : true,
                                      install_dir : libcamera_headers_install_dir)
+    doxygen_public_sources += control_headers.get(-1).full_path()
 endforeach
 
 libcamera_public_headers += control_headers
@@ -102,6 +110,7 @@ formats_h = custom_target('formats_h',
                           install : true,
                           install_dir : libcamera_headers_install_dir)
 libcamera_public_headers += formats_h
+doxygen_public_sources += formats_h.full_path()
 
 # libcamera.h
 libcamera_h = custom_target('gen-header',
@@ -112,6 +121,7 @@ libcamera_h = custom_target('gen-header',
                             install_dir : libcamera_headers_install_dir)
 
 libcamera_public_headers += libcamera_h
+doxygen_public_sources += libcamera_h.full_path()
 
 # version.h
 version = libcamera_version.split('.')

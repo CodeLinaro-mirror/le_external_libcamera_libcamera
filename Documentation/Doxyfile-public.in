@@ -1,0 +1,15 @@
+# SPDX-License-Identifier: CC-BY-SA-4.0
+
+@INCLUDE_PATH          = @TOP_BUILDDIR@/Documentation
+@INCLUDE               = Doxyfile
+
+HIDE_UNDOC_CLASSES     = YES
+HIDE_UNDOC_MEMBERS     = YES
+HTML_OUTPUT            = api-html
+INTERNAL_DOCS          = NO
+
+INPUT                  = "@TOP_SRCDIR@/Documentation" \
+                         "@INPUT@" \
+                         "@TOP_BUILDDIR@/src/libcamera/version.cpp"
+
+EXCLUDE                = @TOP_SRCDIR@/include/libcamera/base/span.h

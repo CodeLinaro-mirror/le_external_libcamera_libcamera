@@ -31,6 +31,13 @@ libcamera_base_sources = [
 	libcamera_base_internal_sources
 ]
 
+foreach lbps : libcamera_base_public_sources
+	doxygen_public_sources += '/'.join(
+		meson.project_source_root(),
+		'@0@'.format(lbps)
+	)
+endforeach
+
 libdw = dependency('libdw', required : false)
 libunwind = dependency('libunwind', required : false)
 

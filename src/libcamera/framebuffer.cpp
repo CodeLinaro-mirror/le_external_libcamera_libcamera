@@ -16,7 +16,10 @@
 /**
  * \file libcamera/framebuffer.h
  * \brief Frame buffer handling
- *
+ */
+
+/**
+ * \internal
  * \file libcamera/internal/framebuffer.h
  * \brief Internal frame buffer handling support
  */
@@ -105,6 +108,7 @@ LOG_DEFINE_CATEGORY(Buffer)
  */
 
 /**
+ * \internal
  * \class FrameBuffer::Private
  * \brief Base class for FrameBuffer private data
  *

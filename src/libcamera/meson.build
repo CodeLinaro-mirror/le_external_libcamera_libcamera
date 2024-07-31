@@ -59,6 +59,13 @@ libcamera_sources = [
 	libcamera_internal_sources
 ]
 
+foreach lps : libcamera_public_sources
+	doxygen_public_sources += '/'.join(
+		meson.project_source_root(),
+		'@0@'.format(lps)
+	)
+endforeach
+
 libcamera_sources += libcamera_public_headers
 libcamera_sources += libcamera_generated_ipa_headers
 libcamera_sources += libcamera_tracepoint_header

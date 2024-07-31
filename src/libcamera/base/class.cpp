@@ -184,6 +184,7 @@ Extensible::Extensible(std::unique_ptr<Extensible::Private> d)
  */
 
 /**
+ * \internal
  * \class Extensible::Private
  * \brief Base class for private data managed through a d-pointer
  */

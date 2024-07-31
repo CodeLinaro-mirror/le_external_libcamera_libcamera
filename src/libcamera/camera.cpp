@@ -560,6 +560,13 @@ CameraConfiguration::Status CameraConfiguration::validateColorSpaces(ColorSpaceF
  */
 
 /**
+ * \internal
+ * \file libcamera\internal\camera.h
+ * \brief Internal Camera device handling
+ */
+
+/**
+ * \internal
  * \class Camera::Private
  * \brief Base class for camera private data
  *

@@ -39,3 +39,10 @@ libcamera_base_headers = [
 
 install_headers(libcamera_base_public_headers,
                 subdir : libcamera_base_include_dir)
+
+foreach lbph : libcamera_base_public_headers
+	doxygen_public_sources += '/'.join(
+		meson.project_source_root(),
+		'@0@'.format(lbph)
+	)
+endforeach
