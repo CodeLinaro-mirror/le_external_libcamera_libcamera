@@ -1,14 +1,26 @@
 # SPDX-License-Identifier: CC0-1.0
 
-libcamera_sources = files([
-    'bayer_format.cpp',
-    'byte_stream_buffer.cpp',
+libcamera_public_sources = files([
     'camera.cpp',
-    'camera_controls.cpp',
-    'camera_lens.cpp',
     'camera_manager.cpp',
     'color_space.cpp',
     'controls.cpp',
+    'fence.cpp',
+    'framebuffer.cpp',
+    'framebuffer_allocator.cpp',
+    'geometry.cpp',
+    'orientation.cpp',
+    'pixel_format.cpp',
+    'request.cpp',
+    'stream.cpp',
+    'transform.cpp',
+])
+
+libcamera_internal_sources = files([
+    'bayer_format.cpp',
+    'byte_stream_buffer.cpp',
+    'camera_controls.cpp',
+    'camera_lens.cpp',
     'control_serializer.cpp',
     'control_validator.cpp',
     'converter.cpp',
@@ -16,11 +28,7 @@ libcamera_sources = files([
     'device_enumerator.cpp',
     'device_enumerator_sysfs.cpp',
     'dma_buf_allocator.cpp',
-    'fence.cpp',
     'formats.cpp',
-    'framebuffer.cpp',
-    'framebuffer_allocator.cpp',
-    'geometry.cpp',
     'ipa_controls.cpp',
     'ipa_data_serializer.cpp',
     'ipa_interface.cpp',
@@ -33,23 +41,23 @@ libcamera_sources = files([
     'mapped_framebuffer.cpp',
     'media_device.cpp',
     'media_object.cpp',
-    'orientation.cpp',
     'pipeline_handler.cpp',
-    'pixel_format.cpp',
     'process.cpp',
     'pub_key.cpp',
-    'request.cpp',
     'shared_mem_object.cpp',
     'source_paths.cpp',
-    'stream.cpp',
     'sysfs.cpp',
-    'transform.cpp',
     'v4l2_device.cpp',
     'v4l2_pixelformat.cpp',
     'v4l2_subdevice.cpp',
     'v4l2_videodevice.cpp',
     'yaml_parser.cpp',
 ])
+
+libcamera_sources = [
+	libcamera_public_sources,
+	libcamera_internal_sources
+]
 
 libcamera_sources += libcamera_public_headers
 libcamera_sources += libcamera_generated_ipa_headers

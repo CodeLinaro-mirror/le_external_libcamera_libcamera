@@ -9,13 +9,21 @@ libcamera_tracepoint_header = custom_target(
     command : [gen_tracepoints_header, include_build_dir, '@OUTPUT@', '@INPUT@'],
 )
 
-libcamera_internal_headers = files([
+# Where libcamera's public API classes have Extensible::Private counterparts we
+# need to include them in doxygen's public API run or it will complain that the
+# functions defined in the "public" source are undeclared.
+libcamera_internal_headers_documented = files([
+    'camera.h',
+    'camera_manager.h',
+    'framebuffer.h',
+    'request.h',
+])
+
+libcamera_internal_headers_undocumented = files([
     'bayer_format.h',
     'byte_stream_buffer.h',
-    'camera.h',
     'camera_controls.h',
     'camera_lens.h',
-    'camera_manager.h',
     'camera_sensor.h',
     'camera_sensor_properties.h',
     'control_serializer.h',
@@ -27,7 +35,6 @@ libcamera_internal_headers = files([
     'device_enumerator_udev.h',
     'dma_buf_allocator.h',
     'formats.h',
-    'framebuffer.h',
     'ipa_manager.h',
     'ipa_module.h',
     'ipa_proxy.h',
@@ -38,7 +45,6 @@ libcamera_internal_headers = files([
     'pipeline_handler.h',
     'process.h',
     'pub_key.h',
-    'request.h',
     'shared_mem_object.h',
     'source_paths.h',
     'sysfs.h',
@@ -48,6 +54,11 @@ libcamera_internal_headers = files([
     'v4l2_videodevice.h',
     'yaml_parser.h',
 ])
+
+libcamera_internal_headers = [
+    libcamera_internal_headers_documented,
+    libcamera_internal_headers_undocumented,
+]
 
 subdir('converter')
 subdir('software_isp')
