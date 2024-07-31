@@ -3,6 +3,7 @@
 @INCLUDE_PATH          = @TOP_BUILDDIR@/Documentation
 @INCLUDE               = Doxyfile
 
+ENABLED_SECTIONS       = internal
 HIDE_UNDOC_CLASSES     = NO
 HIDE_UNDOC_MEMBERS     = NO
 HTML_OUTPUT            = internal-api-html
