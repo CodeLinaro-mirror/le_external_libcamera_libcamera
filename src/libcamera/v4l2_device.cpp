@@ -513,11 +513,17 @@ int V4L2Device::setFrameStartEnabled(bool enable)
  */
 int V4L2Device::ioctl(unsigned long request, void *argp)
 {
+	int ret;
+
+	do {
+		ret = ::ioctl(fd_.get(), request, argp);
+	} while (ret == -1 && errno == EINTR);
+
 	/*
 	 * Printing out an error message is usually better performed
 	 * in the caller, which can provide more context.
 	 */
-	if (::ioctl(fd_.get(), request, argp) < 0)
+	if (ret < 0)
 		return -errno;
 
 	return 0;
