@@ -131,6 +131,8 @@ DmaBufAllocator::~DmaBufAllocator() = default;
  */
 UniqueFD DmaBufAllocator::allocFromUDmaBuf(const char *name, std::size_t size)
 {
+	int ret;
+
 	/* Size must be a multiple of the page size. Round it up. */
 	std::size_t pageMask = sysconf(_SC_PAGESIZE) - 1;
 	size = (size + pageMask) & ~pageMask;
@@ -147,7 +149,10 @@ UniqueFD DmaBufAllocator::allocFromUDmaBuf(const char *name, std::size_t size)
 	create.offset = 0;
 	create.size = size;
 
-	int ret = ::ioctl(providerHandle_.get(), UDMABUF_CREATE, &create);
+	do {
+		ret = ::ioctl(providerHandle_.get(), UDMABUF_CREATE, &create);
+	} while (ret == -1 && errno == EINTR);
+
 	if (ret < 0) {
 		ret = errno;
 		LOG(DmaBufAllocator, Error)
@@ -168,7 +173,10 @@ UniqueFD DmaBufAllocator::allocFromHeap(const char *name, std::size_t size)
 	alloc.len = size;
 	alloc.fd_flags = O_CLOEXEC | O_RDWR;
 
-	ret = ::ioctl(providerHandle_.get(), DMA_HEAP_IOCTL_ALLOC, &alloc);
+	do {
+		ret = ::ioctl(providerHandle_.get(), DMA_HEAP_IOCTL_ALLOC, &alloc);
+	} while (ret == -1 && errno == EINTR);
+
 	if (ret < 0) {
 		LOG(DmaBufAllocator, Error)
 			<< "dma-heap allocation failure for " << name;
@@ -176,7 +184,11 @@ UniqueFD DmaBufAllocator::allocFromHeap(const char *name, std::size_t size)
 	}
 
 	UniqueFD allocFd(alloc.fd);
-	ret = ::ioctl(allocFd.get(), DMA_BUF_SET_NAME, name);
+
+	do {
+		ret = ::ioctl(allocFd.get(), DMA_BUF_SET_NAME, name);
+	} while (ret == -1 && errno == EINTR);
+
 	if (ret < 0) {
 		LOG(DmaBufAllocator, Error)
 			<< "dma-heap naming failure for " << name;
