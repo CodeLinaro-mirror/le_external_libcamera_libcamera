@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <stdint.h>
+
 #include <iterator>
 #include <map>
 #include <optional>
