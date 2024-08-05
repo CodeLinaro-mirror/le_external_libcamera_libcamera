@@ -1,0 +1,46 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/*
+ * Copyright (C) 2023, Collabora Ltd.
+ *     Author: Nicolas Dufresne <nicolas.dufresne@collabora.com>
+ *
+ * gstlibcamera-controls.cpp - GStreamer Camera Controls
+ *
+ * This file is auto-generated. Do not edit.
+ */
+
+#include "gstlibcamera-controls.h"
+
+#include <libcamera/control_ids.h>
+
+using namespace libcamera;
+
+${enum_def}
+
+void GstCameraControls::installProperties(GObjectClass *klass, int lastPropId)
+{
+${install_properties}
+}
+
+bool GstCameraControls::getProperty(guint propId, GValue *value, GParamSpec *pspec)
+{
+	switch (propId) {
+${get_properties}
+	default:
+		return false;
+	}
+}
+
+bool GstCameraControls::setProperty(guint propId, const GValue *value,
+				    [[maybe_unused]] GParamSpec *pspec)
+{
+	switch (propId) {
+${set_properties}
+	default:
+		return false;
+	}
+}
+
+void GstCameraControls::applyControls(std::unique_ptr<libcamera::Request> &request)
+{
+	request->controls().merge(controls_);
+}
