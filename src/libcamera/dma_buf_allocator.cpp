@@ -23,6 +23,11 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/memfd.h>
 
+#include <libcamera/framebuffer.h>
+#include <libcamera/stream.h>
+
+#include "libcamera/internal/formats.h"
+
 /**
  * \file dma_buf_allocator.cpp
  * \brief dma-buf allocator
@@ -203,6 +208,56 @@ UniqueFD DmaBufAllocator::alloc(const char *name, std::size_t size)
 		return allocFromUDmaBuf(name, size);
 	else
 		return allocFromHeap(name, size);
+}
+
+/**
+ * \brief Allocate and export buffers for \a stream from the DmaBufAllocator
+ * \param[in] count The number of FrameBuffers required
+ * \param[in] frameSizes The sizes of planes in the FrameBuffer
+ * \param[out] buffers Array of buffers successfully allocated
+ *
+ * \return The number of allocated buffers on success or a negative error code
+ * otherwise
+ */
+int DmaBufAllocator::exportBuffers(
+	std::size_t count,
+	std::vector<std::size_t> frameSizes,
+	std::vector<std::unique_ptr<FrameBuffer>> *buffers)
+{
+	for (unsigned i = 0; i < count; ++i) {
+		std::unique_ptr<FrameBuffer> buffer =
+			createBuffer("frame-" + std::to_string(i), frameSizes);
+		if (!buffer) {
+			LOG(DmaBufAllocator, Error) << "Unable to create buffer";
+
+			buffers->clear();
+			return -EINVAL;
+		}
+
+		buffers->push_back(std::move(buffer));
+	}
+
+	return count;
+}
+
+std::unique_ptr<FrameBuffer> DmaBufAllocator::createBuffer(
+	std::string name, std::vector<std::size_t> frameSizes)
+{
+	std::vector<FrameBuffer::Plane> planes;
+
+	for (auto frameSize : frameSizes) {
+		UniqueFD fd = alloc(name.c_str(), frameSize);
+		if (!fd.isValid())
+			return nullptr;
+
+		FrameBuffer::Plane plane;
+		plane.fd = SharedFD(std::move(fd));
+		plane.offset = 0;
+		plane.length = frameSize;
+		planes.push_back(std::move(plane));
+	}
+
+	return std::make_unique<FrameBuffer>(planes);
 }
 
 } /* namespace libcamera */

@@ -8,11 +8,15 @@
 #pragma once
 
 #include <stddef.h>
+#include <vector>
 
 #include <libcamera/base/flags.h>
 #include <libcamera/base/unique_fd.h>
 
 namespace libcamera {
+
+class FrameBuffer;
+struct StreamConfiguration;
 
 class DmaBufAllocator
 {
@@ -30,7 +34,15 @@ public:
 	bool isValid() const { return providerHandle_.isValid(); }
 	UniqueFD alloc(const char *name, std::size_t size);
 
+	int exportBuffers(
+		std::size_t count,
+		std::vector<std::size_t> frameSize,
+		std::vector<std::unique_ptr<FrameBuffer>> *buffers);
+
 private:
+	std::unique_ptr<FrameBuffer> createBuffer(
+		std::string name, std::vector<std::size_t> frameSizes);
+
 	UniqueFD allocFromHeap(const char *name, std::size_t size);
 	UniqueFD allocFromUDmaBuf(const char *name, std::size_t size);
 	UniqueFD providerHandle_;
