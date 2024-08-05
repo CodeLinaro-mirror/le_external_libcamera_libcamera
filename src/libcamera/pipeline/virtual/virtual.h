@@ -22,7 +22,7 @@ class VirtualCameraData : public Camera::Private
 public:
 	struct Resolution {
 		Size size;
-		std::vector<int> frame_rates;
+		std::vector<int> frameRates;
 	};
 	VirtualCameraData(PipelineHandler *pipe)
 		: Camera::Private(pipe)
@@ -31,9 +31,9 @@ public:
 
 	~VirtualCameraData() = default;
 
-	TestPattern testPattern_;
-
+	std::string id_;
 	std::vector<Resolution> supportedResolutions_;
+	TestPattern testPattern_;
 
 	Stream stream_;
 

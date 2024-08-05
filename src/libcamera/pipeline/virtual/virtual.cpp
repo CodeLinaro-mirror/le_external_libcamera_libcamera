@@ -18,6 +18,10 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/pipeline_handler.h"
+#include "libcamera/internal/yaml_parser.h"
+
+#include "frame_generator.h"
+#include "parser.h"
 
 namespace libcamera {
 
@@ -228,32 +232,31 @@ int PipelineHandlerVirtual::queueRequestDevice([[maybe_unused]] Camera *camera,
 
 bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator)
 {
-	/* \todo Add virtual cameras according to a config file. */
+	File file(configurationFile("virtual", "virtual.yaml"));
+	bool isOpen = file.open(File::OpenModeFlag::ReadOnly);
+	if (!isOpen) {
+		LOG(Virtual, Error) << "Failed to open config file: " << file.fileName();
+		return false;
+	}
 
-	std::unique_ptr<VirtualCameraData> data = std::make_unique<VirtualCameraData>(this);
+	Parser parser;
+	auto configData = parser.parseConfigFile(file, this);
+	if (configData.size() == 0) {
+		LOG(Virtual, Error) << "Failed to parse any cameras from the config file: "
+				    << file.fileName();
+		return false;
+	}
 
-	data->supportedResolutions_.resize(2);
-	data->supportedResolutions_[0] = { .size = Size(1920, 1080), .frame_rates = { 30 } };
-	data->supportedResolutions_[1] = { .size = Size(1280, 720), .frame_rates = { 30, 60 } };
+	/* Configure and register cameras with configData */
+	for (auto &data : configData) {
+		std::set<Stream *> streams{ &data->stream_ };
+		std::string id = data->id_;
+		std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
 
-	data->properties_.set(properties::Location, properties::CameraLocationFront);
-	data->properties_.set(properties::Model, "Virtual Video Device");
-	data->properties_.set(properties::PixelArrayActiveAreas, { Rectangle(Size(1920, 1080)) });
+		initFrameGenerator(camera.get());
 
-	/* \todo Set FrameDurationLimits based on config. */
-	ControlInfoMap::Map controls;
-	int64_t min_frame_duration = 30, max_frame_duration = 60;
-	controls[&controls::FrameDurationLimits] = ControlInfo(min_frame_duration, max_frame_duration);
-	data->controlInfo_ = ControlInfoMap(std::move(controls), controls::controls);
-
-	/* Create and register the camera. */
-	std::set<Stream *> streams{ &data->stream_ };
-	const std::string id = "Virtual0";
-	std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
-
-	initFrameGenerator(camera.get());
-
-	registerCamera(std::move(camera));
+		registerCamera(std::move(camera));
+	}
 
 	return false; // Prevent infinite loops for now
 }
