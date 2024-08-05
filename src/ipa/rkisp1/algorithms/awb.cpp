@@ -31,6 +31,10 @@ namespace ipa::rkisp1::algorithms {
 
 LOG_DEFINE_CATEGORY(RkISP1Awb)
 
+constexpr int32_t kMinColourTemperature = 2500;
+constexpr int32_t kMaxColourTemperature = 10000;
+constexpr int32_t kDefaultColourTemperature = 6500;
+
 /* Minimum mean value below which AWB can't operate. */
 constexpr double kMeanMinThreshold = 2.0;
 
@@ -44,6 +48,11 @@ Awb::Awb()
  */
 int Awb::init(IPAContext &context, const YamlObject &tuningData)
 {
+	auto &cmap = context.ctrlMap;
+	cmap[&controls::ColourTemperature] = ControlInfo(kMinColourTemperature,
+							 kMaxColourTemperature,
+							 kDefaultColourTemperature);
+
 	MatrixInterpolator<double, 2, 1> gains;
 	int ret = gains.readYaml(tuningData["gains"], "ct", "gains");
 	if (ret < 0)
@@ -107,6 +116,17 @@ void Awb::queueRequest(IPAContext &context,
 	if (colourGains && !awb.autoEnabled) {
 		awb.gains.manual.red = (*colourGains)[0];
 		awb.gains.manual.blue = (*colourGains)[1];
+
+		LOG(RkISP1Awb, Debug)
+			<< "Set colour gains to red: " << awb.gains.manual.red
+			<< ", blue: " << awb.gains.manual.blue;
+	}
+
+	const auto &colourTemperature = controls.get(controls::ColourTemperature);
+	if (colourTemperature && !awb.autoEnabled && gains_ && !colourGains) {
+		Matrix<double, 2, 1> gains = gains_->get(*colourTemperature);
+		awb.gains.manual.red = gains[0][0];
+		awb.gains.manual.blue = gains[1][0];
 
 		LOG(RkISP1Awb, Debug)
 			<< "Set colour gains to red: " << awb.gains.manual.red
