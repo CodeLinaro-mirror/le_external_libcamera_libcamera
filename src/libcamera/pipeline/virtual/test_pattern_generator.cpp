@@ -28,6 +28,9 @@ void TestPatternGenerator::generateFrame(
 
 	auto planes = mappedFrameBuffer.planes();
 
+	/* TODO: select whether to do shifting or not */
+	shiftLeft(size);
+
 	/* Convert the template_ to the frame buffer */
 	int ret = libyuv::ARGBToNV12(
 		template_.get(), /*src_stride_argb=*/size.width * kARGBSize,
@@ -36,6 +39,39 @@ void TestPatternGenerator::generateFrame(
 		size.width, size.height);
 	if (ret != 0) {
 		LOG(Virtual, Error) << "ARGBToNV12() failed with " << ret;
+	}
+}
+
+void TestPatternGenerator::shiftLeft(const Size &size)
+{
+	/* Store the first column temporarily */
+	uint8_t firstColumn[size.height * kARGBSize];
+	for (size_t h = 0; h < size.height; h++) {
+		unsigned int index = h * size.width * kARGBSize;
+		unsigned int index1 = h * kARGBSize;
+		firstColumn[index1] = template_[index];
+		firstColumn[index1 + 1] = template_[index + 1];
+		firstColumn[index1 + 2] = template_[index + 2];
+		firstColumn[index1 + 3] = 0x00;
+	}
+
+	/* Overwrite template_ */
+	uint8_t *buf = template_.get();
+	for (size_t h = 0; h < size.height; h++) {
+		for (size_t w = 0; w < size.width - 1; w++) {
+			/* Overwrite with the pixel on the right */
+			unsigned int index = (h * size.width + w + 1) * kARGBSize;
+			*buf++ = template_[index]; // B
+			*buf++ = template_[index + 1]; // G
+			*buf++ = template_[index + 2]; // R
+			*buf++ = 0x00; // A
+		}
+		/* Overwrite the new last column with the original first column */
+		unsigned int index1 = h * kARGBSize;
+		*buf++ = firstColumn[index1]; // B
+		*buf++ = firstColumn[index1 + 1]; // G
+		*buf++ = firstColumn[index1 + 2]; // R
+		*buf++ = 0x00; // A
 	}
 }
 
