@@ -252,9 +252,12 @@ controls:
   - AwbEnable:
       type: bool
       description: |
-        Enable or disable the AWB.
+        Enable or disable the AWB. Disabling AWB stops updates to the
+        ColourGains and to the ColourCorrectionMatrix.
 
+        \sa ColourCorrectionMatrix
         \sa ColourGains
+        \sa ColourTemperature
 
   # AwbMode needs further attention:
   # - Auto-generate max enum value.
@@ -309,13 +312,24 @@ controls:
         disabled.
 
         \sa AwbEnable
+        \sa ColourTemperature
       size: [2]
 
   - ColourTemperature:
       type: int32_t
-      description: Report the current estimate of the colour temperature, in
-        kelvin, for this frame. The ColourTemperature control can only be
-        returned in metadata.
+      description: |
+        Report the current estimate of the colour temperature, in kelvin, for
+        this frame. An implementation may also allow this control to be set when
+        AWB is disabled. In that case ColourGains and the ColourCorrectionMatrix
+        get set accordingly. If either ColourGains or ColourCorrectionMatrix are
+        specified at the same time, they takes precedence.
+
+        Note that the metadata always contains the measured value, even when the
+        value was set manually.
+
+        \sa AwbEnable
+        \sa ColourCorrectionMatrix
+        \sa ColourGains
 
   - Saturation:
       type: float
@@ -365,6 +379,8 @@ controls:
         transformation. The 3x3 matrix is stored in conventional reading
         order in an array of 9 floating point values.
 
+        \sa AwbEnable
+        \sa ColourTemperature
       size: [3,3]
 
   - ScalerCrop:
