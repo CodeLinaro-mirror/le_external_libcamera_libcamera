@@ -14,7 +14,7 @@ from libtuning.generators import RaspberryPiOutput
 from raspberrypi.alsc import ALSC
 
 tuner = lt.Tuner('Raspberry Pi (ALSC only)')
-tuner.add(ALSC)
+tuner.add([ALSC])
 tuner.set_input_parser(RaspberryPiParser())
 tuner.set_output_formatter(RaspberryPiOutput())
 tuner.set_output_order([ALSC])
