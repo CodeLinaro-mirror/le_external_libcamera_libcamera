@@ -192,10 +192,14 @@ int PipelineHandlerVirtual::exportFrameBuffers(
 	return dmaBufAllocator_.exportBuffers(config.bufferCount, planeSizes, buffers);
 }
 
-int PipelineHandlerVirtual::start([[maybe_unused]] Camera *camera,
+int PipelineHandlerVirtual::start(Camera *camera,
 				  [[maybe_unused]] const ControlList *controls)
 {
 	/* \todo Start reading the virtual video if any. */
+	VirtualCameraData *data = cameraData(camera);
+
+	data->frameGenerator_->configure(data->stream_.configuration().size);
+
 	return 0;
 }
 
@@ -207,9 +211,14 @@ void PipelineHandlerVirtual::stopDevice([[maybe_unused]] Camera *camera)
 int PipelineHandlerVirtual::queueRequestDevice([[maybe_unused]] Camera *camera,
 					       Request *request)
 {
+	VirtualCameraData *data = cameraData(camera);
+
 	/* \todo Read from the virtual video if any. */
-	for (auto it : request->buffers())
-		completeBuffer(request, it.second);
+	for (auto const &[stream, buffer] : request->buffers()) {
+		/* map buffer and fill test patterns */
+		data->frameGenerator_->generateFrame(stream->configuration().size, buffer);
+		completeBuffer(request, buffer);
+	}
 
 	request->metadata().set(controls::SensorTimestamp, currentTimestamp());
 	completeRequest(request);
@@ -241,9 +250,22 @@ bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator
 	std::set<Stream *> streams{ &data->stream_ };
 	const std::string id = "Virtual0";
 	std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
+
+	initFrameGenerator(camera.get());
+
 	registerCamera(std::move(camera));
 
 	return false; // Prevent infinite loops for now
+}
+
+void PipelineHandlerVirtual::initFrameGenerator(Camera *camera)
+{
+	auto data = cameraData(camera);
+	if (data->testPattern_ == TestPattern::DiagonalLines) {
+		data->frameGenerator_ = DiagonalLinesGenerator::create();
+	} else {
+		data->frameGenerator_ = ColorBarsGenerator::create();
+	}
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerVirtual, "virtual")

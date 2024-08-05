@@ -13,6 +13,8 @@
 #include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/pipeline_handler.h"
 
+#include "test_pattern_generator.h"
+
 namespace libcamera {
 
 class VirtualCameraData : public Camera::Private
@@ -29,9 +31,13 @@ public:
 
 	~VirtualCameraData() = default;
 
+	TestPattern testPattern_;
+
 	std::vector<Resolution> supportedResolutions_;
 
 	Stream stream_;
+
+	std::unique_ptr<FrameGenerator> frameGenerator_;
 };
 
 class VirtualCameraConfiguration : public CameraConfiguration
@@ -71,6 +77,8 @@ private:
 	{
 		return static_cast<VirtualCameraData *>(camera->_d());
 	}
+
+	void initFrameGenerator(Camera *camera);
 
 	DmaBufAllocator dmaBufAllocator_;
 };
