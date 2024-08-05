@@ -222,6 +222,7 @@ pipelines_support = {
     'simple':       ['any'],
     'uvcvideo':     ['any'],
     'vimc':         ['test'],
+    'virtual':      ['test'],
 }
 
 if pipelines.contains('all')
