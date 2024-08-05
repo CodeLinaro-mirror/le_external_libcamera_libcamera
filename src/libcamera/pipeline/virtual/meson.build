@@ -2,11 +2,14 @@
 
 libcamera_sources += files([
     'virtual.cpp',
-    'test_pattern_generator.cpp',
     'parser.cpp',
+    'test_pattern_generator.cpp',
+    'image_frame_generator.cpp',
+    'common_functions.cpp',
 ])
 
 libyuv_dep = dependency('libyuv', required : false)
+libjpeg = dependency('libjpeg', required : false)
 
 # Fallback to a subproject if libyuv isn't found, as it's typically not
 # provided by distributions.
@@ -26,3 +29,4 @@ if not libyuv_dep.found()
 endif
 
 libcamera_deps += [libyuv_dep]
+libcamera_deps += [libjpeg]

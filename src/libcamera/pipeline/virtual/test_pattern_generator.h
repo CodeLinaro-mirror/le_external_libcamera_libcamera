@@ -25,7 +25,7 @@ enum class TestPattern : char {
 class TestPatternGenerator : public FrameGenerator
 {
 private:
-	void generateFrame(const Size &size,
+	void generateFrame(unsigned int &frameCount, const Size &size,
 			   const FrameBuffer *buffer) override;
 
 protected:

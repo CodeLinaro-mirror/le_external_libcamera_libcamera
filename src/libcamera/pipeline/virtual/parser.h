@@ -34,12 +34,15 @@ private:
 
 	int parseSupportedFormats(
 		const YamlObject &cameraConfigData, VirtualCameraData *data);
-	int parseTestPattern(
+	int parseFrame(
 		const YamlObject &cameraConfigData, VirtualCameraData *data);
 	int parseLocation(
 		const YamlObject &cameraConfigData, VirtualCameraData *data);
 	int parseModel(
 		const YamlObject &cameraConfigData, VirtualCameraData *data);
+
+	int parseScaleMode(
+		const YamlObject &framesConfigData, ScaleMode *scaleMode);
 };
 
 } // namespace libcamera

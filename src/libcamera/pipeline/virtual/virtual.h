@@ -7,15 +7,21 @@
 
 #pragma once
 
+#include <variant>
+
 #include <libcamera/base/file.h>
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/pipeline_handler.h"
 
+#include "frame_generator.h"
+#include "image_frame_generator.h"
 #include "test_pattern_generator.h"
 
 namespace libcamera {
+
+using VirtualFrame = std::variant<TestPattern, ImageFrames>;
 
 class VirtualCameraData : public Camera::Private
 {
@@ -24,6 +30,13 @@ public:
 		Size size;
 		std::vector<int> frameRates;
 	};
+	/* The config file is parsed to the Configuration struct */
+	struct Configuration {
+		std::string id;
+		std::vector<Resolution> resolutions;
+		VirtualFrame frame;
+	};
+
 	VirtualCameraData(PipelineHandler *pipe)
 		: Camera::Private(pipe)
 	{
@@ -31,12 +44,9 @@ public:
 
 	~VirtualCameraData() = default;
 
-	std::string id_;
-	std::vector<Resolution> supportedResolutions_;
-	TestPattern testPattern_;
-
+	unsigned int frameCount_ = 0;
+	Configuration config_;
 	Stream stream_;
-
 	std::unique_ptr<FrameGenerator> frameGenerator_;
 };
 

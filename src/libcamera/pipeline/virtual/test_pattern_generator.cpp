@@ -20,7 +20,7 @@ LOG_DECLARE_CATEGORY(Virtual)
 static const unsigned int kARGBSize = 4;
 
 void TestPatternGenerator::generateFrame(
-	const Size &size,
+	[[maybe_unused]] unsigned int &frameCount, const Size &size,
 	const FrameBuffer *buffer)
 {
 	MappedFrameBuffer mappedFrameBuffer(buffer,
@@ -29,7 +29,7 @@ void TestPatternGenerator::generateFrame(
 	auto planes = mappedFrameBuffer.planes();
 
 	/* TODO: select whether to do shifting or not */
-	shiftLeft(size);
+	// shiftLeft(size);
 
 	/* Convert the template_ to the frame buffer */
 	int ret = libyuv::ARGBToNV12(
