@@ -7,6 +7,10 @@
 
 #pragma once
 
+#include <optional>
+
+#include "libipa/matrix_interpolator.h"
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -19,6 +23,7 @@ public:
 	Awb();
 	~Awb() = default;
 
+	int init(IPAContext &context, const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPACameraSensorInfo &configInfo) override;
 	void queueRequest(IPAContext &context, const uint32_t frame,
 			  IPAFrameContext &frameContext,
@@ -34,6 +39,7 @@ public:
 private:
 	uint32_t estimateCCT(double red, double green, double blue);
 
+	std::optional<MatrixInterpolator<double, 2, 1>> gains_;
 	bool rgbMode_;
 };
 
