@@ -37,6 +37,7 @@
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
+#include "libcamera/internal/media_pipeline.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
@@ -108,6 +109,11 @@ public:
 
 	std::unique_ptr<ipa::rkisp1::IPAProxyRkISP1> ipa_;
 
+	/*
+	 * All entities in the pipeline, from the camera sensor to the RKISP1.
+	 */
+	MediaPipeline pipe_;
+
 private:
 	void paramFilled(unsigned int frame, unsigned int bytesused);
 	void setSensorControls(unsigned int frame,
@@ -171,8 +177,7 @@ private:
 	friend RkISP1CameraData;
 	friend RkISP1Frames;
 
-	int initLinks(Camera *camera, const CameraSensor *sensor,
-		      const RkISP1CameraConfiguration &config);
+	int initLinks(Camera *camera, const RkISP1CameraConfiguration &config);
 	int createCamera(MediaEntity *sensor);
 	void tryCompleteRequest(RkISP1FrameInfo *info);
 	void bufferReady(FrameBuffer *buffer);
@@ -712,7 +717,7 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 	CameraSensor *sensor = data->sensor_.get();
 	int ret;
 
-	ret = initLinks(camera, sensor, *config);
+	ret = initLinks(camera, *config);
 	if (ret)
 		return ret;
 
@@ -729,12 +734,12 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 
 	LOG(RkISP1, Debug) << "Sensor configured with " << format;
 
-	if (csi_) {
-		ret = csi_->setFormat(0, &format);
-		if (ret < 0)
-			return ret;
-	}
+	/* Propagate format through the internal media pipeline up to the ISP */
+	ret = data->pipe_.configure(sensor, &format);
+	if (ret < 0)
+		return ret;
 
+	LOG(RkISP1, Debug) << "Configuring ISP with : " << format;
 	ret = isp_->setFormat(0, &format);
 	if (ret < 0)
 		return ret;
@@ -1035,7 +1040,6 @@ int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
  */
 
 int PipelineHandlerRkISP1::initLinks(Camera *camera,
-				     const CameraSensor *sensor,
 				     const RkISP1CameraConfiguration &config)
 {
 	RkISP1CameraData *data = cameraData(camera);
@@ -1046,31 +1050,16 @@ int PipelineHandlerRkISP1::initLinks(Camera *camera,
 		return ret;
 
 	/*
-	 * Configure the sensor links: enable the link corresponding to this
-	 * camera.
+	 * Configure the sensor links: enable the links corresponding to this
+	 * pipeline all the way up to the ISP, through any connected CSI receiver.
 	 */
-	for (MediaLink *link : ispSink_->links()) {
-		if (link->source()->entity() != sensor->entity())
-			continue;
-
-		LOG(RkISP1, Debug)
-			<< "Enabling link from sensor '"
-			<< link->source()->entity()->name()
-			<< "' to ISP";
-
-		ret = link->setEnabled(true);
-		if (ret < 0)
-			return ret;
+	ret = data->pipe_.initLinks();
+	if (ret) {
+		LOG(RkISP1, Error) << "Failed to set up pipe links";
+		return ret;
 	}
 
-	if (csi_) {
-		MediaLink *link = isp_->entity()->getPadByIndex(0)->links().at(0);
-
-		ret = link->setEnabled(true);
-		if (ret < 0)
-			return ret;
-	}
-
+	/* Configure the paths after the ISP */
 	for (const StreamConfiguration &cfg : config) {
 		if (cfg.stream() == &data->mainPathStream_)
 			ret = data->mainPath_->setEnabled(true);
@@ -1093,6 +1082,13 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	std::unique_ptr<RkISP1CameraData> data =
 		std::make_unique<RkISP1CameraData>(this, &mainPath_,
 						   hasSelfPath_ ? &selfPath_ : nullptr);
+
+	/* Identify the pipeline path between the sensor and the rkisp1_isp */
+	ret = data->pipe_.init(sensor, "rkisp1_isp");
+	if (ret) {
+		LOG(RkISP1, Error) << "Failed to identify path from sensor to sink";
+		return ret;
+	}
 
 	data->sensor_ = std::make_unique<CameraSensor>(sensor);
 	ret = data->sensor_->init();
@@ -1129,6 +1125,7 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	const std::string &id = data->sensor_->id();
 	std::shared_ptr<Camera> camera =
 		Camera::create(std::move(data), id, streams);
+
 	registerCamera(std::move(camera));
 
 	return 0;
@@ -1205,8 +1202,10 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 	 * camera instance for each of them.
 	 */
 	bool registered = false;
-	for (MediaLink *link : ispSink_->links()) {
-		if (!createCamera(link->source()->entity()))
+
+	for (MediaEntity *entity : media_->locateEntities(MEDIA_ENT_F_CAM_SENSOR)) {
+		LOG(RkISP1, Info) << "Identified " << entity->name();
+		if (!createCamera(entity))
 			registered = true;
 	}
 
