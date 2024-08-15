@@ -146,6 +146,31 @@ MediaLink::MediaLink(const struct media_v2_link *link, MediaPad *source,
 {
 }
 
+std::string MediaLink::toString() const
+{
+	std::stringstream ss;
+	ss << *this;
+
+	return ss.str();
+}
+
+/**
+ * \brief Insert a text representation of a Link into an output stream
+ * \param[in] out The output stream
+ * \param[in] r The MediaLink
+ * \return The output stream \a out
+ */
+std::ostream &operator<<(std::ostream &out, const MediaLink &link)
+{
+	out << "'"
+	    << link.source()->entity()->name() << "'["
+	    << link.source()->index() << "] -> '"
+	    << link.sink()->entity()->name() << "'["
+	    << link.sink()->index() << "]";
+
+	return out;
+}
+
 /**
  * \brief Generate a string representation of the MediaLink
  * \return A string representing the MediaLink
