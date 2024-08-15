@@ -818,9 +818,11 @@ int MediaDevice::setupLink(const MediaLink *link, unsigned int flags)
 	int ret = ioctl(fd_.get(), MEDIA_IOC_SETUP_LINK, &linkDesc);
 	if (ret) {
 		ret = -errno;
+
 		LOG(MediaDevice, Error)
 			<< "Failed to setup link " << *link << ": "
 			<< strerror(-ret);
+
 		return ret;
 	}
 
