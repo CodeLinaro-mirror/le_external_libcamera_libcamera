@@ -262,6 +262,8 @@ public:
 	{
 	}
 
+	constexpr Rectangle(const Point &topLeft, const Point &bottomRight);
+
 	int x;
 	int y;
 	unsigned int width;
