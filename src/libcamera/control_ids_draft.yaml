@@ -227,4 +227,89 @@ controls:
             value. All of the custom test patterns will be static (that is the
             raw image must not vary from frame to frame).
 
+  - FaceDetectMode:
+      type: uint8_t
+      description: |
+        Reporting mode of face detection.
+
+        The number of faces in each list must be the same.
+
+        Currently identical to ANDROID_STATISTICS_FACE_DETECT_MODE.
+
+        \sa FaceDetectFaceRectangles
+        \sa FaceDetectFaceScores
+        \sa FaceDetectFaceLandmarks
+        \sa FaceDetectFaceIds
+
+      enum:
+        - name: FaceDetectModeOff
+          value: 0
+          description: |
+            Pipeline should not report face detection result.
+        - name: FaceDetectModeSimple
+          value: 1
+          description: |
+            Pipeline should at least report FaceDetectFaceRectangles and
+            FaceDetectFaceScores for each detected faces.
+            FaceDetectFaceLandmarks and FaceDetectFaceIds is optional.
+
+        - name: FaceDetectModeFull
+          value: 2
+          description: |
+            Pipeline should report all face controls, including
+            FaceDetectFaceRectangles, FaceDetectFaceScores,
+            FaceDetectFaceLandmarks, and FaceDeteceFaceIds.
+
+  - FaceDetectFaceRectangles:
+      type: Rectangle
+      description: |
+        Boundary rectangles of the detected faces.
+        The number of values should be the number of faces.
+
+        The FaceDetectFaceRectangles control can only be returned in metadata.
+
+        Currently identical to ANDROID_STATISTICS_FACE_RECTANGLES.
+
+      size: [n]
+
+  - FaceDetectFaceScores:
+      type: uint8_t
+      description: |
+        Confidence score of each of the detected faces by face detector.
+        The range of score is [0, 100].
+        The FaceDetectFaceScores control can only be returned in metadata.
+        The number of values should be the number of faces.
+
+        Currently identical to ANDROID_STATISTICS_FACE_SCORES.
+
+      size: [n]
+
+  - FaceDetectFaceLandmarks:
+      type: Point
+      description: |
+        Array of human face landmark coordinates in format:
+        [..., left_eye_i, right_eye_i, mouth_i, left_eye_i+1, ...],
+        with i = index of face.
+        The number of values should be 3 * the number of faces.
+
+        The FaceDetectFaceLandmarks control can only be returned in metadata.
+
+        Currently identical to ANDROID_STATISTICS_FACE_LANDMARKS.
+
+      size: [n]
+
+  - FaceDetectFaceIds:
+      type: int32_t
+      description: |
+        Each detected face is given a unique ID that is valid for as long as
+        the face is visible to the camera device. A face that leaves the field
+        of view and later returns may be assigned a new ID.
+        The number of values should be the number of faces.
+
+        The FaceDetectFaceIds control can only be returned in metadata.
+
+        Currently identical to ANDROID_STATISTICS_FACE_IDS.
+
+      size: [n]
+
 ...
