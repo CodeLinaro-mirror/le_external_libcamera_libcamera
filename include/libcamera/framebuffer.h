@@ -32,9 +32,9 @@ struct FrameMetadata {
 		unsigned int bytesused;
 	};
 
-	Status status;
-	unsigned int sequence;
-	uint64_t timestamp;
+	Status status = FrameSuccess;
+	unsigned int sequence = 0;
+	uint64_t timestamp = 0;
 
 	Span<Plane> planes() { return planes_; }
 	Span<const Plane> planes() const { return planes_; }
