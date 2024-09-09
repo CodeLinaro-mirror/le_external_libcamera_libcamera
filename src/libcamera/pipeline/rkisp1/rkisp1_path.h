@@ -63,6 +63,7 @@ public:
 
 private:
 	void populateFormats();
+	Size filterSensorResolution(const CameraSensor *sensor);
 
 	static constexpr unsigned int RKISP1_BUFFER_COUNT = 4;
 
@@ -77,6 +78,8 @@ private:
 	std::unique_ptr<V4L2Subdevice> resizer_;
 	std::unique_ptr<V4L2VideoDevice> video_;
 	MediaLink *link_;
+
+	std::vector<Size> sensorSizes_;
 };
 
 class RkISP1MainPath : public RkISP1Path
