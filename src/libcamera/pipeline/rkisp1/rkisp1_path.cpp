@@ -62,7 +62,7 @@ RkISP1Path::RkISP1Path(const char *name, const Span<const PixelFormat> &formats,
 {
 }
 
-bool RkISP1Path::init(MediaDevice *media)
+bool RkISP1Path::init(MediaDevice *media, Size ispMaxInputSize)
 {
 	std::string resizer = std::string("rkisp1_resizer_") + name_ + "path";
 	std::string video = std::string("rkisp1_") + name_ + "path";
@@ -76,6 +76,8 @@ bool RkISP1Path::init(MediaDevice *media)
 		return false;
 
 	populateFormats();
+
+	maxResolution_.boundTo(ispMaxInputSize);
 
 	link_ = media->link("rkisp1_isp", 2, resizer, 0);
 	if (!link_)
