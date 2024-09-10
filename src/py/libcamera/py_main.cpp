@@ -404,7 +404,8 @@ PYBIND11_MODULE(_libcamera, m)
 		.def("__repr__", [](const ControlId &self) {
 			return py::str("libcamera.ControlId({}, {}, {})")
 				.format(self.id(), self.name(), self.type());
-		});
+		})
+		.def("enum_str", &ControlId::enumToString);
 
 	pyControlInfo
 		.def_property_readonly("min", [](const ControlInfo &self) {
