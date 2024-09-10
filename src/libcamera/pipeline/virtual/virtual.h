@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <string>
+#include <variant>
 #include <vector>
 
 #include <libcamera/base/file.h>
@@ -14,9 +16,13 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/pipeline_handler.h"
 
+#include "frame_generator.h"
+#include "image_frame_generator.h"
 #include "test_pattern_generator.h"
 
 namespace libcamera {
+
+using VirtualFrame = std::variant<TestPattern, ImageFrames>;
 
 class VirtualCameraData : public Camera::Private
 {
@@ -31,17 +37,22 @@ public:
 		Stream stream;
 		std::unique_ptr<FrameGenerator> frameGenerator;
 	};
+	/* The config file is parsed to the Configuration struct */
+	struct Configuration {
+		std::string id;
+		std::vector<Resolution> resolutions;
+		VirtualFrame frame;
+
+		Size maxResolutionSize;
+		Size minResolutionSize;
+	};
 
 	VirtualCameraData(PipelineHandler *pipe,
 			  std::vector<Resolution> supportedResolutions);
 
 	~VirtualCameraData() = default;
 
-	TestPattern testPattern_ = TestPattern::ColorBars;
-
-	const std::vector<Resolution> supportedResolutions_;
-	Size maxResolutionSize_;
-	Size minResolutionSize_;
+	Configuration config_;
 
 	std::vector<StreamConfig> streamConfigs_;
 };
