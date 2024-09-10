@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <vector>
 
 #include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
@@ -77,6 +78,44 @@ protected:
 		if (awbEnable.values()[0].get<bool>() != true) {
 			cout << "Invalid control values for AwbEnable" << endl;
 			return TestFail;
+		}
+
+		/*
+		 * Test information retrieval from an enum control.
+		 */
+		ControlInfo awbMode(static_cast<int32_t>(controls::AwbTungsten),
+				    static_cast<int32_t>(controls::AwbDaylight));
+		if (awbMode.min().get<int32_t>() != controls::AwbTungsten ||
+		    awbMode.max().get<int32_t>() != controls::AwbDaylight) {
+			cout << "Invalid control range for AwbMode" << endl;
+			return TestFail;
+		}
+
+		std::vector<ControlValue> modes = {
+			static_cast<int32_t>(controls::AwbTungsten),
+			static_cast<int32_t>(controls::AwbFluorescent),
+			static_cast<int32_t>(controls::AwbDaylight),
+		};
+		ControlInfo awbModes(Span<const ControlValue>{ modes });
+
+		if (awbModes.min() != modes.front() ||
+		    awbModes.def() != modes.front() ||
+		    awbModes.max() != modes.back()) {
+			cout << "Invalid control range for AwbModes" << endl;
+			return TestFail;
+		}
+
+		if (awbModes.values().size() != modes.size()) {
+			cout << "Invalid size for AwbModes" << endl;
+			return TestFail;
+		}
+
+		unsigned int i = 0;
+		for (const auto &value : awbModes.values()) {
+			if (value != modes.at(i++)) {
+				cout << "Invalid control values for AwbModes" << endl;
+				return TestFail;
+			}
 		}
 
 		return TestPass;
