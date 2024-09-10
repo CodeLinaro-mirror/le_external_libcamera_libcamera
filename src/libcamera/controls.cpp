@@ -7,6 +7,8 @@
 
 #include <libcamera/controls.h>
 
+#include <algorithm>
+#include <map>
 #include <sstream>
 #include <string.h>
 #include <string>
@@ -389,7 +391,15 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  * \param[in] id The control numerical ID
  * \param[in] name The control name
  * \param[in] type The control data type
+ * \param[in] nameValueMap The map from enum names to values (optional)
  */
+ControlId::ControlId(unsigned int id, const std::string &name, ControlType type,
+		     const std::map<std::string, int32_t> &nameValueMap)
+	: id_(id), name_(name), type_(type), nameValueMap_(nameValueMap)
+{
+	for (const auto &pair : nameValueMap_)
+		reverseMap_[pair.second] = pair.first;
+}
 
 /**
  * \fn unsigned int ControlId::id() const
@@ -407,6 +417,24 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  * \fn ControlType ControlId::type() const
  * \brief Retrieve the control data type
  * \return The control data type
+ */
+
+/**
+ * \brief Retrieve the name of an enum value
+ * \return The name of the enum value
+ */
+const std::string ControlId::enumName(int32_t value) const
+{
+	if (reverseMap_.find(value) != reverseMap_.end())
+		return reverseMap_.at(value);
+
+	return "UNKNOWN";
+}
+
+/**
+ * \fn std::map<std::string, int32_t> ControlId::nameValueMap() const
+ * \brief Retrieve the map from enum names to enum values (if applicable)
+ * \return The map from enum names to enum values
  */
 
 /**
@@ -459,6 +487,7 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  * \brief Construct a Control instance
  * \param[in] id The control numerical ID
  * \param[in] name The control name
+ * \param[in] nameValueMap The map from enum names to values (optional)
  *
  * The control data type is automatically deduced from the template type T.
  */
