@@ -169,6 +169,11 @@ void CameraSession::listControls() const
 				std::cout << "  - " << id->enumToString(val) << " (" << val << ")" << std::endl;
 			}
 		}
+
+		if (id->isArray()) {
+			std::size_t size = id->size();
+			std::cout << "   Size: " << (size == std::numeric_limits<std::size_t>::max() ? "n" : std::to_string(size)) << std::endl;
+		}
 	}
 }
 
