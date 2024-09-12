@@ -105,25 +105,73 @@ or any other tracing mechanism if desired.
 Collecting a trace
 ------------------
 
-A trace can be collected fairly simply from lttng:
+To collect a trace from lttng, we first start by creating a session:
 
-.. code-block:: bash
+``lttng create $SESSION_NAME``
 
-   lttng create $SESSION_NAME
-   lttng enable-event -u libcamera:\*
-   lttng start
-   # run libcamera application
-   lttng stop
-   lttng view
-   lttng destroy $SESSION_NAME
+Next we enable events that we want to listen to. To enable the libcamera
+events:
 
-See the `lttng documentation <https://lttng.org/docs/>`_ for further details.
+``lttng enable-event -u libcamera:\*``
+
+We can also enable the events for
+`function tracing <https://lttng.org/man/3/lttng-ust-cyg-profile>`_:
+
+``lttng enable-event -u lttng_ust_cyg_profile:\*``
+
+Or for the fast version:
+
+``lttng enable-event -u lttng_ust_cyg_profile_fast:\*``
+
+Note that function tracing requires libcamera to be built in either the
+``debug`` or ``debugoptimized`` build types (which can be specified in
+``meson`` with the ``--buildtype`` option).
+
+Lastly, we can
+`add context fields <https://lttng.org/man/1/lttng-add-context>`_
+that allow the flame graph to work in tracecompass:
+
+``lttng add-context -u -t vpid -t vtid -t procname``
+
+Now we can start lttng:
+
+``lttng start``
+
+And run the libcamera application. For example:
+
+``cam -c 1 --capture=10``
+
+We also have the option to LD_PRELOAD the function tracer:
+
+``LD_PRELOAD=/usr/lib/liblttng-ust-cyg-profile.so cam -c 1 --capture=10``
+
+For for the fast function tracer:
+
+``LD_PRELOAD=/usr/lib/liblttng-ust-cyg-profile-fast.so cam -c 1 --capture=10``
+
+After running the application, we probably want to stop the tracing capture:
+
+``lttng stop``
+
+Optionally we can view the trace in text form:
+
+``lttng view``
+
+And finally we can destroy the session:
+
+``lttng destroy $SESSION_NAME``
+
+Tracing capture can be restarted without destruction, but it will end up in the
+same log. The session can also be saved by ``lttng save`` before destruction,
+and then loaded again by ``lttng load $SESSION_NAME``.
 
 The location of the trace file is printed when running
 ``lttng create $SESSION_NAME``. After destroying the session, it can still be
 viewed by: ``lttng view -t $PATH_TO_TRACE``, where ``$PATH_TO_TRACE`` is the
 path that was printed when the session was created. This is the same path that
 is used when analyzing traces programatically, as described in the next section.
+
+See the `lttng documentation <https://lttng.org/docs/>`_ for further details.
 
 Analyzing a trace
 -----------------
@@ -147,3 +195,35 @@ As an example, there is a script ``utils/tracepoints/analyze-ipa-trace.py``
 that gathers statistics for the time taken for an IPA function call, by
 measuring the time difference between pairs of events
 ``libcamera:ipa_call_start`` and ``libcamera:ipa_call_finish``.
+
+Tracecompass
+------------
+
+`Tracecompass <https://eclipse.dev/tracecompass>`_
+is an easy way to visualize and explore traces without having to first write a
+script with babeltrace.
+
+To open the trace, go through File -> "Open Trace...", then navigate into the
+``lttng-traces`` directory and go into the directory of ``$SESSION_NAME`` from
+above. Keep going down through ``ust`` and ``uid`` and keep going down until
+you get to the channel files, and opening any of them should load the full
+trace into tracecompass. It will take some time to load, especially the flame
+graph (if applicable).
+
+The flame graph loads symbol names from the current system's root directory,
+and thus if the trace was generated on the same system as the system running
+tracecompass, the symbol names should load fine. This will not be the case if
+the trace is from another system.
+
+In this case the easiest solution is the mount the root filesystem of the
+system that the trace was gathered on, and the path to that system needs to be
+configured. Click on the "Configure how addresses are mapped to function names"
+in the flame graph view, and under the "LTTng" tab, select "Use custom target
+root directory", and then "Browse" for the root filesystem of the target
+system. For example, if the root filesystem of the device is mounted at
+``/mnt/arm64``, then that would be the directory to open. Then the symbol names
+in the flame graph should load correctly.
+
+See the
+`tracecompass lttng documentation <https://archive.eclipse.org/tracecompass/doc/stable/org.eclipse.tracecompass.doc.user/LTTng-UST-Analyses.html>`_
+for further details.
