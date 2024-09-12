@@ -109,6 +109,12 @@ common_arguments = [
     '-include', meson.current_build_dir() / 'config.h',
 ]
 
+if get_option('buildtype').startswith('debug')
+    common_arguments += [
+        '-finstrument-functions',
+    ]
+endif
+
 c_arguments = []
 cpp_arguments = [
     '-Wnon-virtual-dtor',
