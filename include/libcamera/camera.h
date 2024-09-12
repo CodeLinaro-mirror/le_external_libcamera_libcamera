@@ -122,6 +122,7 @@ public:
 
 	const std::string &id() const;
 
+	Signal<Request *, const ControlList &> metadataCompleted;
 	Signal<Request *, FrameBuffer *> bufferCompleted;
 	Signal<Request *> requestCompleted;
 	Signal<> disconnected;

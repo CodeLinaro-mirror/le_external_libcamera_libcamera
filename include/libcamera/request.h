@@ -12,6 +12,7 @@
 #include <ostream>
 #include <stdint.h>
 #include <string>
+#include <unordered_set>
 
 #include <libcamera/base/class.h>
 #include <libcamera/base/signal.h>
@@ -64,6 +65,8 @@ public:
 
 	std::string toString() const;
 
+	ControlList addCompletedMetadata(const ControlList &metadata);
+
 private:
 	LIBCAMERA_DISABLE_COPY(Request)
 
@@ -73,6 +76,8 @@ private:
 
 	const uint64_t cookie_;
 	Status status_;
+
+	std::unordered_set<unsigned int> completedMetadata_;
 };
 
 std::ostream &operator<<(std::ostream &out, const Request &r);

@@ -598,6 +598,26 @@ std::string Request::toString() const
 }
 
 /**
+ * \brief Add completed metadata, as a partial result
+ * \param[in] metadata The metadata completed
+ *
+ * Request will record the entries that has been sent to the application, to
+ * prevent duplicated controls.
+ *
+ * \return ControlList that hasn't been completed before
+ */
+ControlList Request::addCompletedMetadata(const ControlList &metadata)
+{
+	ControlList resultMetadata;
+	for (auto &[id, value] : metadata) {
+		if (!completedMetadata_.count(id))
+			resultMetadata.set(id, value);
+	}
+
+	return resultMetadata;
+}
+
+/**
  * \brief Insert a text representation of a Request into an output stream
  * \param[in] out The output stream
  * \param[in] r The Request
