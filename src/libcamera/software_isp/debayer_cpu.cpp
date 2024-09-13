@@ -12,7 +12,10 @@
 #include "debayer_cpu.h"
 
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <time.h>
+
+#include <linux/dma-buf.h>
 
 #include <libcamera/formats.h>
 
@@ -733,6 +736,22 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		clock_gettime(CLOCK_MONOTONIC_RAW, &frameStartTime);
 	}
 
+	for (const FrameBuffer::Plane &plane : input->planes()) {
+		const int fd = plane.fd.get();
+		struct dma_buf_sync sync = { DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ };
+
+		if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync) < 0)
+			LOG(Debayer, Error) << "Syncing buffer FD " << fd << "failed: " << errno;
+	}
+
+	for (const FrameBuffer::Plane &plane : output->planes()) {
+		const int fd = plane.fd.get();
+		struct dma_buf_sync sync = { DMA_BUF_SYNC_START | DMA_BUF_SYNC_WRITE };
+
+		if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync) < 0)
+			LOG(Debayer, Error) << "Syncing buffer FD " << fd << "failed: " << errno;
+	}
+
 	green_ = params.green;
 	red_ = swapRedBlueGains_ ? params.blue : params.red;
 	blue_ = swapRedBlueGains_ ? params.red : params.blue;
@@ -759,6 +778,22 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		process4(in.planes()[0].data(), out.planes()[0].data());
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
+
+	for (const FrameBuffer::Plane &plane : output->planes()) {
+		const int fd = plane.fd.get();
+		struct dma_buf_sync sync = { DMA_BUF_SYNC_END | DMA_BUF_SYNC_WRITE };
+
+		if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync) < 0)
+			LOG(Debayer, Error) << "Syncing buffer FD " << fd << "failed: " << errno;
+	}
+
+	for (const FrameBuffer::Plane &plane : input->planes()) {
+		const int fd = plane.fd.get();
+		struct dma_buf_sync sync = { DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ };
+
+		if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync) < 0)
+			LOG(Debayer, Error) << "Syncing buffer FD " << fd << "failed: " << errno;
+	}
 
 	/* Measure before emitting signals */
 	if (measuredFrames_ < DebayerCpu::kLastFrameToMeasure &&
