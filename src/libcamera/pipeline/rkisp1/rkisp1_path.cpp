@@ -62,7 +62,7 @@ RkISP1Path::RkISP1Path(const char *name, const Span<const PixelFormat> &formats,
 {
 }
 
-bool RkISP1Path::init(MediaDevice *media)
+bool RkISP1Path::init(MediaDevice *media, Size ispMaxInputSize)
 {
 	std::string resizer = std::string("rkisp1_resizer_") + name_ + "path";
 	std::string video = std::string("rkisp1_") + name_ + "path";
@@ -76,6 +76,17 @@ bool RkISP1Path::init(MediaDevice *media)
 		return false;
 
 	populateFormats();
+
+	/*
+	 * The maximum size reported by the video node during populateFormats()
+	 * is hard coded to a fixed size which can exceed the platform specific
+	 * ISP limitations.
+	 *
+	 * The video node should report a maximum size according to the ISP
+	 * model. This should be fixed in the kernel. For now, restrict the
+	 * maximum size to the ISP limitations correctly.
+	 */
+	maxResolution_.boundTo(ispMaxInputSize);
 
 	link_ = media->link("rkisp1_isp", 2, resizer, 0);
 	if (!link_)

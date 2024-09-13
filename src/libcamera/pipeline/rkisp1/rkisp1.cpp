@@ -1162,6 +1162,17 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 	if (isp_->open() < 0)
 		return false;
 
+	/*
+	 * Retrieve the ISP maximum input size for config validation in the
+	 * path classes.
+	 *
+	 * The ISP maximum input size is independent of the media bus formats
+	 * hence, pick the one first entry of ispFormats and its size range.
+	 */
+	const V4L2Subdevice::Formats ispFormats = isp_->formats(0);
+	const SizeRange range = ispFormats.cbegin()->second[0];
+	const Size ispMaxInputSize = range.max;
+
 	/* Locate and open the optional CSI-2 receiver. */
 	ispSink_ = isp_->entity()->getPadByIndex(0);
 	if (!ispSink_ || ispSink_->links().empty())
@@ -1188,10 +1199,10 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 		return false;
 
 	/* Locate and open the ISP main and self paths. */
-	if (!mainPath_.init(media_))
+	if (!mainPath_.init(media_, ispMaxInputSize))
 		return false;
 
-	if (hasSelfPath_ && !selfPath_.init(media_))
+	if (hasSelfPath_ && !selfPath_.init(media_, ispMaxInputSize))
 		return false;
 
 	mainPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::bufferReady);
