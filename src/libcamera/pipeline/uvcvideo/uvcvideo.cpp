@@ -341,8 +341,8 @@ int PipelineHandlerUVC::processControl(ControlList *controls, unsigned int id,
 
 	case V4L2_CID_EXPOSURE_AUTO: {
 		int32_t ivalue = value.get<bool>()
-			       ? V4L2_EXPOSURE_APERTURE_PRIORITY
-			       : V4L2_EXPOSURE_MANUAL;
+					 ? V4L2_EXPOSURE_APERTURE_PRIORITY
+					 : V4L2_EXPOSURE_MANUAL;
 		controls->set(V4L2_CID_EXPOSURE_AUTO, ivalue);
 		break;
 	}
@@ -818,10 +818,60 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 void UVCCameraData::bufferReady(FrameBuffer *buffer)
 {
 	Request *request = buffer->request();
+	ControlList *metadata = &request->metadata();
 
 	/* \todo Use the UVC metadata to calculate a more precise timestamp */
-	request->metadata().set(controls::SensorTimestamp,
-				buffer->metadata().timestamp);
+	metadata->set(controls::SensorTimestamp, buffer->metadata().timestamp);
+
+	/* Retrieve control as reported by the device. */
+	std::vector<uint32_t> ids;
+	for (const auto &ctrl : video_->controls()) {
+		uint32_t cid = ctrl.first->id();
+		switch (cid) {
+		case V4L2_CID_BRIGHTNESS:
+		case V4L2_CID_CONTRAST:
+		case V4L2_CID_SATURATION:
+		case V4L2_CID_EXPOSURE_AUTO:
+		case V4L2_CID_EXPOSURE_ABSOLUTE:
+		case V4L2_CID_GAIN:
+		case V4L2_CID_FOCUS_ABSOLUTE:
+		case V4L2_CID_FOCUS_AUTO:
+			ids.push_back(cid);
+			break;
+		default:
+			continue;
+		}
+	}
+
+	ControlList deviceControls = video_->getControls(ids);
+	for (const auto &item : deviceControls) {
+		switch (item.first) {
+		case V4L2_CID_BRIGHTNESS:
+			metadata->set(controls::Brightness, item.second.get<float>());
+			break;
+		case V4L2_CID_CONTRAST:
+			metadata->set(controls::Contrast, item.second.get<float>());
+			break;
+		case V4L2_CID_SATURATION:
+			metadata->set(controls::Saturation, item.second.get<float>());
+			break;
+		case V4L2_CID_EXPOSURE_AUTO:
+			metadata->set(controls::AeEnable, item.second.get<bool>());
+			break;
+		case V4L2_CID_EXPOSURE_ABSOLUTE:
+			metadata->set(controls::ExposureTime, item.second.get<int>());
+			break;
+		case V4L2_CID_GAIN:
+			metadata->set(controls::AnalogueGain, item.second.get<float>());
+			break;
+		case V4L2_CID_FOCUS_ABSOLUTE:
+			metadata->set(controls::LensPosition, item.second.get<float>());
+			break;
+		case V4L2_CID_FOCUS_AUTO:
+			metadata->set(controls::AfMode, item.second.get<int>());
+			break;
+		}
+	}
 
 	pipe()->completeBuffer(request, buffer);
 	pipe()->completeRequest(request);
