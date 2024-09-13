@@ -333,8 +333,8 @@ int PipelineHandlerUVC::processControl(ControlList *controls, unsigned int id,
 
 	case V4L2_CID_EXPOSURE_AUTO: {
 		int32_t ivalue = value.get<bool>()
-			       ? V4L2_EXPOSURE_APERTURE_PRIORITY
-			       : V4L2_EXPOSURE_MANUAL;
+					 ? V4L2_EXPOSURE_APERTURE_PRIORITY
+					 : V4L2_EXPOSURE_MANUAL;
 		controls->set(V4L2_CID_EXPOSURE_AUTO, ivalue);
 		break;
 	}
@@ -750,10 +750,117 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 void UVCCameraData::bufferReady(FrameBuffer *buffer)
 {
 	Request *request = buffer->request();
+	ControlList *metadata = &request->metadata();
 
 	/* \todo Use the UVC metadata to calculate a more precise timestamp */
-	request->metadata().set(controls::SensorTimestamp,
-				buffer->metadata().timestamp);
+	metadata->set(controls::SensorTimestamp, buffer->metadata().timestamp);
+
+	/* Retrieve control as reported by the device. */
+	std::vector<uint32_t> ids;
+	for (const auto &[controlId, _] : video_->controls()) {
+		switch (uint32_t cid = controlId->id()) {
+		case V4L2_CID_BRIGHTNESS:
+		case V4L2_CID_CONTRAST:
+		case V4L2_CID_SATURATION:
+		case V4L2_CID_EXPOSURE_AUTO:
+		case V4L2_CID_EXPOSURE_ABSOLUTE:
+		case V4L2_CID_GAIN:
+		case V4L2_CID_FOCUS_ABSOLUTE:
+		case V4L2_CID_FOCUS_AUTO:
+			ids.push_back(cid);
+			break;
+		default:;
+		}
+	}
+
+	/*
+	 * See UVCCameraData::addControl() for explanations of the different
+	 * value mappings.
+	 */
+	ControlList deviceControls = video_->getControls(ids);
+	for (const auto &[cid, value] : deviceControls) {
+		switch (cid) {
+		case V4L2_CID_BRIGHTNESS: {
+			ControlInfo v4l2Info = video_->controls().at(cid);
+			int32_t min = v4l2Info.min().get<int32_t>();
+			int32_t def = v4l2Info.def().get<int32_t>();
+			int32_t max = v4l2Info.max().get<int32_t>();
+
+			float scale = std::max(max - def, def - min);
+			int ivalue = (value.get<int32_t>() - def) / scale;
+			metadata->set(controls::Brightness, ivalue);
+			break;
+		}
+
+		case V4L2_CID_GAIN:
+		case V4L2_CID_CONTRAST: {
+			ControlInfo v4l2Info = video_->controls().at(cid);
+			int32_t min = v4l2Info.min().get<int32_t>();
+			int32_t def = v4l2Info.def().get<int32_t>();
+			int32_t max = v4l2Info.max().get<int32_t>();
+
+			float m = (4.0f - 1.0f) / (max - def);
+			float p = 1.0f - m * def;
+
+			if (m * min + p < 0.5f) {
+				m = (1.0f - 0.5f) / (def - min);
+				p = 1.0f - m * def;
+			}
+
+			if (cid == V4L2_CID_GAIN)
+				metadata->set(controls::AnalogueGain, m * value.get<int32_t>() + p);
+			else if (cid == V4L2_CID_CONTRAST)
+				metadata->set(controls::Contrast, m * value.get<int32_t>() + p);
+			break;
+		}
+
+		case V4L2_CID_SATURATION: {
+			ControlInfo v4l2Info = video_->controls().at(cid);
+			int32_t min = v4l2Info.min().get<int32_t>();
+			int32_t def = v4l2Info.def().get<int32_t>();
+
+			float scale = def - min;
+			metadata->set(controls::Saturation, (value.get<int32_t>() - min) / scale);
+			break;
+		}
+
+		case V4L2_CID_EXPOSURE_AUTO: {
+			int ivalue = value.get<int>();
+			if (ivalue == V4L2_EXPOSURE_APERTURE_PRIORITY)
+				metadata->set(controls::AeEnable, true);
+			else if (ivalue == V4L2_EXPOSURE_MANUAL)
+				metadata->set(controls::AeEnable, false);
+			break;
+		}
+
+		case V4L2_CID_EXPOSURE_ABSOLUTE:
+			metadata->set(controls::ExposureTime, value.get<int>() * 100);
+			break;
+
+		case V4L2_CID_FOCUS_ABSOLUTE: {
+			ControlInfo v4l2Info = video_->controls().at(cid);
+			int32_t min = v4l2Info.min().get<int32_t>();
+			int32_t max = v4l2Info.max().get<int32_t>();
+
+			float focusedAt50Cm = 0.15f * (max - min);
+			float scale = 2.0f / focusedAt50Cm;
+
+			metadata->set(controls::LensPosition, (value.get<int>() - min) * scale);
+			break;
+		}
+
+		case V4L2_CID_FOCUS_AUTO: {
+			int ivalue = value.get<int>();
+			if (ivalue == V4L2_FOCUS_MANUAL)
+				metadata->set(controls::AfMode, controls::AfModeManual);
+			else if (ivalue == V4L2_FOCUS_AUTO)
+				metadata->set(controls::AfMode, controls::AfModeAuto);
+			break;
+		}
+
+		default:;
+		}
+	}
 
 	pipe()->completeBuffer(request, buffer);
 	pipe()->completeRequest(request);
