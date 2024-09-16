@@ -514,6 +514,12 @@ protected:
 			i++;
 		}
 
+		/* Test access to nonexistent member */
+		if (dictObj["nonexistent"].get<std::string>("default") != "default") {
+			cerr << "Accessing nonexistent dict fails to return default" << std::endl;
+			return TestFail;
+		}
+
 		/* Make sure utils::map_keys() works on the adapter. */
 		(void)utils::map_keys(dictObj.asDict());
 
