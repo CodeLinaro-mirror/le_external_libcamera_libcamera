@@ -12,7 +12,10 @@
 #include "debayer_cpu.h"
 
 #include <stdlib.h>
+#include <sys/ioctl.h>
 #include <time.h>
+
+#include <linux/dma-buf.h>
 
 #include <libcamera/formats.h>
 
@@ -718,6 +721,17 @@ void DebayerCpu::process4(const uint8_t *src, uint8_t *dst)
 	}
 }
 
+static void syncBufferForCPU(FrameBuffer *buffer, uint64_t syncFlags)
+{
+	for (const FrameBuffer::Plane &plane : buffer->planes()) {
+		const int fd = plane.fd.get();
+		struct dma_buf_sync sync = { syncFlags };
+
+		if (ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync) < 0)
+			LOG(Debayer, Error) << "Syncing buffer FD " << fd << "failed: " << errno;
+	}
+}
+
 static inline int64_t timeDiff(timespec &after, timespec &before)
 {
 	return (after.tv_sec - before.tv_sec) * 1000000000LL +
@@ -732,6 +746,9 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		frameStartTime = {};
 		clock_gettime(CLOCK_MONOTONIC_RAW, &frameStartTime);
 	}
+
+	syncBufferForCPU(input, DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ);
+	syncBufferForCPU(output, DMA_BUF_SYNC_START | DMA_BUF_SYNC_WRITE);
 
 	green_ = params.green;
 	red_ = swapRedBlueGains_ ? params.blue : params.red;
@@ -759,6 +776,9 @@ void DebayerCpu::process(FrameBuffer *input, FrameBuffer *output, DebayerParams 
 		process4(in.planes()[0].data(), out.planes()[0].data());
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
+
+	syncBufferForCPU(output, DMA_BUF_SYNC_END | DMA_BUF_SYNC_WRITE);
+	syncBufferForCPU(input, DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ);
 
 	/* Measure before emitting signals */
 	if (measuredFrames_ < DebayerCpu::kLastFrameToMeasure &&
