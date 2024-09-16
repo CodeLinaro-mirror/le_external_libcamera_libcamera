@@ -281,7 +281,7 @@ SizeRange StreamFormats::range(const PixelFormat &pixelformat) const
  */
 StreamConfiguration::StreamConfiguration()
 	: pixelFormat(0), stride(0), frameSize(0), bufferCount(0),
-	  stream_(nullptr)
+	  role(StreamRole::Viewfinder), stream_(nullptr)
 {
 }
 
@@ -290,7 +290,7 @@ StreamConfiguration::StreamConfiguration()
  */
 StreamConfiguration::StreamConfiguration(const StreamFormats &formats)
 	: pixelFormat(0), stride(0), frameSize(0), bufferCount(0),
-	  stream_(nullptr), formats_(formats)
+	  role(StreamRole::Viewfinder), stream_(nullptr), formats_(formats)
 {
 }
 
@@ -348,6 +348,14 @@ StreamConfiguration::StreamConfiguration(const StreamFormats &formats)
  *
  * Note that platforms will typically have different constraints on what
  * color spaces can be supported and in what combinations.
+ */
+
+/**
+ * \var StreamConfiguration::role
+ * \brief The StreamRole that this StreamConfiguration should be set to
+ *
+ * Some applications may want to assign a StreamConfiguration to a certain
+ * role of Stream.
  */
 
 /**
