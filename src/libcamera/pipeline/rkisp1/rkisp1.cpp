@@ -1500,13 +1500,18 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 								      maxCrop);
 		}
 
-		if (data->dewarpParams_.has_value()) {
-			if (dewarper_->supportsRequests())
+		if (dewarper_->supportsRequests()) {
+			controls[&controls::draft::Dw100Scale] = ControlInfo(0.2f, 8.0f, 1.0f);
+			controls[&controls::draft::Dw100Rotation] = ControlInfo(-180.0f, 180.0f, 0.0f);
+			controls[&controls::draft::Dw100Offset] = ControlInfo(Point(-10000, -10000), Point(10000, 10000), Point(0, 0));
+			controls[&controls::draft::Dw100ScaleMode] = ControlInfo(controls::draft::Dw100ScaleModeValues, controls::draft::Fill);
+
+			if (data->dewarpParams_.has_value())
 				controls[&controls::LensDewarpEnable] = ControlInfo(false, true, true);
-			else
-				LOG(RkISP1, Warning)
-					<< "dw100 kernel driver has no requests support."
-					   " No dynamic configuration possible.";
+		} else {
+			LOG(RkISP1, Warning)
+				<< "dw100 kernel driver has no requests support."
+				   " No dynamic configuration possible.";
 		}
 	}
 
@@ -1784,6 +1789,30 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 	bool update = false;
 	auto &vertexMap = dewarper_->vertexMap(&data->mainPathStream_);
 
+	const auto &scale = request->controls().get(controls::draft::Dw100Scale);
+	if (scale) {
+		vertexMap.setScale(*scale);
+		update = true;
+	}
+
+	const auto &rotation = request->controls().get(controls::draft::Dw100Rotation);
+	if (rotation) {
+		vertexMap.setRotation(*rotation);
+		update = true;
+	}
+
+	const auto &offset = request->controls().get(controls::draft::Dw100Offset);
+	if (offset) {
+		vertexMap.setOffset(*offset);
+		update = true;
+	}
+
+	const auto &scaleMode = request->controls().get(controls::draft::Dw100ScaleMode);
+	if (scaleMode) {
+		vertexMap.setMode(static_cast<Dw100VertexMap::ScaleMode>(*scaleMode));
+		update = true;
+	}
+
 	const auto &lensDewarpEnable = request->controls().get(controls::LensDewarpEnable);
 	if (lensDewarpEnable) {
 		vertexMap.setLensDewarpEnable(*lensDewarpEnable);
@@ -1836,6 +1865,11 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 	}
 
 	auto &meta = request->metadata();
+	std::array<float, 2> effectiveScale = vertexMap.effectiveScale();
+	meta.set(controls::draft::Dw100EffectiveScale, effectiveScale);
+	meta.set(controls::draft::Dw100Scale, (effectiveScale[0] + effectiveScale[1]) / 2.0);
+	meta.set(controls::draft::Dw100Rotation, vertexMap.rotation());
+	meta.set(controls::draft::Dw100Offset, vertexMap.effectiveOffset());
 	meta.set(controls::ScalerCrop, vertexMap.effectiveScalerCrop());
 
 	if (vertexMap.dewarpParamsValid())

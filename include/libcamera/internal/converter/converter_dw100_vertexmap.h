@@ -47,7 +47,7 @@ public:
 	const Transform &transform() const { return transform_; }
 
 	void setScale(const float scale) { scale_ = scale; }
-	float effectiveScale() const { return (effectiveScaleX_ + effectiveScaleY_) * 0.5; }
+	std::array<float, 2> effectiveScale() const { return { static_cast<float>(effectiveScaleX_), static_cast<float>(effectiveScaleY_) }; }
 
 	void setRotation(const float rotation) { rotation_ = rotation; }
 	float rotation() const { return rotation_; }
