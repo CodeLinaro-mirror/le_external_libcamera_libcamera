@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <stdint.h>
 #include <string>
 #include <string.h>
@@ -826,6 +827,92 @@ int MediaDevice::setupLink(const MediaLink *link, unsigned int flags)
 	LOG(MediaDevice, Debug) << *link << ": " << flags;
 
 	return 0;
+}
+
+/**
+ * \brief Allocate \a count requests with ioctl
+ * \param[in] count The number of requests to be allocated
+ * \param[out] requests The request file descriptors to be returned
+ *
+ * This function returns request file descriptors if the MediaDevice supports
+ * requests. The file descriptors can then be queued and re-inited afterwards.
+ *
+ * \sa queueRequest(int requestFd)
+ * \sa reInitRequest(int requestFd)
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaDevice::allocateRequests(unsigned int count, std::vector<UniqueFD> &requests)
+{
+	for (unsigned int i = 0; i < count; i++) {
+		int fd;
+		int ret = ioctl(fd_.get(), MEDIA_IOC_REQUEST_ALLOC, &fd);
+		if (ret) {
+			LOG(MediaDevice, Error) << "Allocate request failed "
+						<< strerror(-ret);
+			return -EBUSY;
+		}
+		requests.emplace_back(fd);
+	}
+
+	return 0;
+}
+
+/**
+ * \brief Queue a request with ioctl
+ * \param[in] requestFd The request file descriptor
+ *
+ * This function queues a request that was allocated before.
+ *
+ * \sa allocateRequests(unsigned int count, std::vector<UniqueFD> &requests)
+ * \sa reInitRequest(int requestFd)
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaDevice::queueRequest(int requestFd)
+{
+	int ret = ioctl(requestFd, MEDIA_REQUEST_IOC_QUEUE, NULL);
+	if (ret)
+		LOG(MediaDevice, Error) << "QueueRequest fd " << requestFd
+					<< "failed: " << strerror(-ret);
+	return ret;
+}
+
+/**
+ * \brief Re-init a request with ioctl
+ * \param[in] requestFd The request file descriptor
+ *
+ * This function recycles a request that was allocated and queued before. It
+ * polls on \a requestFd to ensure the request is completed, and reinits the
+ * request.
+ *
+ * \sa allocateRequests(unsigned int count, std::vector<UniqueFD> &requests)
+ * \sa queueRequest(int requestFd)
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaDevice::reInitRequest(int requestFd)
+{
+	struct pollfd pfd;
+
+	pfd.fd = requestFd;
+	pfd.events = POLLPRI;
+
+	int ret = TEMP_FAILURE_RETRY(poll(&pfd, 1, 300));
+	if (ret < 0)
+		LOG(MediaDevice, Error) << "The request " << requestFd
+					<< " polled failed: " << strerror(-ret);
+	else if (ret == 0)
+		LOG(MediaDevice, Error) << "The request " << requestFd
+					<< " polled timeout: " << strerror(-ret);
+
+	ret = ::ioctl(requestFd, MEDIA_REQUEST_IOC_REINIT, NULL);
+	if (ret)
+		LOG(MediaDevice, Error) << "The request " << requestFd
+					<< " is queued but not yet completed: "
+					<< strerror(-ret);
+
+	return ret;
 }
 
 } /* namespace libcamera */
