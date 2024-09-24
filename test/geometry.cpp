@@ -363,16 +363,16 @@ protected:
 			return TestFail;
 		}
 
-		/* Rectangle::size(), Rectangle::topLeft() and Rectangle::center() tests */
+		/* Rectangle::size(), Rectangle::origin() and Rectangle::center() tests */
 		if (Rectangle(-1, -2, 3, 4).size() != Size(3, 4) ||
 		    Rectangle(0, 0, 100000, 200000).size() != Size(100000, 200000)) {
 			cout << "Rectangle::size() test failed" << endl;
 			return TestFail;
 		}
 
-		if (Rectangle(1, 2, 3, 4).topLeft() != Point(1, 2) ||
-		    Rectangle(-1, -2, 3, 4).topLeft() != Point(-1, -2)) {
-			cout << "Rectangle::topLeft() test failed" << endl;
+		if (Rectangle(1, 2, 3, 4).origin() != Point(1, 2) ||
+		    Rectangle(-1, -2, 3, 4).origin() != Point(-1, -2)) {
+			cout << "Rectangle::origin() test failed" << endl;
 			return TestFail;
 		}
 

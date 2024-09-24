@@ -277,7 +277,7 @@ public:
 		return { width, height };
 	}
 
-	Point topLeft() const
+	Point origin() const
 	{
 		return { x, y };
 	}

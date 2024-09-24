@@ -1289,7 +1289,7 @@ Rectangle CameraData::scaleIspCrop(const Rectangle &ispCrop) const
 	 */
 	Rectangle nativeCrop = ispCrop.scaledBy(sensorInfo_.analogCrop.size(),
 						sensorInfo_.outputSize);
-	nativeCrop.translateBy(sensorInfo_.analogCrop.topLeft());
+	nativeCrop.translateBy(sensorInfo_.analogCrop.origin());
 	return nativeCrop;
 }
 
@@ -1303,7 +1303,7 @@ void CameraData::applyScalerCrop(const ControlList &controls)
 			nativeCrop = { 0, 0, 1, 1 };
 
 		/* Create a version of the crop scaled to ISP (camera mode) pixels. */
-		Rectangle ispCrop = nativeCrop.translatedBy(-sensorInfo_.analogCrop.topLeft());
+		Rectangle ispCrop = nativeCrop.translatedBy(-sensorInfo_.analogCrop.origin());
 		ispCrop.scaleBy(sensorInfo_.outputSize, sensorInfo_.analogCrop.size());
 
 		/*

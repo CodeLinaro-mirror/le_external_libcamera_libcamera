@@ -155,7 +155,7 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 	 * - Return the AF ROI as metadata in the Request
 	 */
 	Rectangle roi = gridSize.centeredTo(bds.center());
-	Point start = roi.topLeft();
+	Point start = roi.origin();
 
 	/* x_start and y_start should be even */
 	grid.x_start = utils::alignDown(start.x, 2);

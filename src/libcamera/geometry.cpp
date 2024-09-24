@@ -593,11 +593,39 @@ std::ostream &operator<<(std::ostream &out, const SizeRange &sr)
  * \brief Describe a rectangle's position and dimensions
  *
  * Rectangles are used to identify an area of an image. They are specified by
- * the coordinates of top-left corner and their horizontal and vertical size.
+ * the coordinates of the corner closer to the reference system's origin point
+ * and by horizontal and vertical increments from there.
  *
- * The measure unit of the rectangle coordinates and size, as well as the
- * reference point from which the Rectangle::x and Rectangle::y displacements
- * refers to, are defined by the context were rectangle is used.
+ * The corner closer to the reference system's origin point is the rectangle's
+ * origin corner.
+ *
+ * \verbatim
+
+  o = origin corner
+
+         ^
+         |
+         |      -------------------
+         |      ^                 |
+         |      |                 |
+         |      o---->-------------
+         |
+          ------------------------------->
+         (0,0)
+
+         (0,0)
+           ------------------------------->
+          |
+          |      o---->-------------
+          |      |                 |
+          |      v                 |
+          |      -------------------
+          |
+          V
+   \endverbatim
+ *
+ * The measure unit of the rectangle coordinates and size are defined by the
+ * context were the rectangle is used.
  */
 
 /**
@@ -608,35 +636,50 @@ std::ostream &operator<<(std::ostream &out, const SizeRange &sr)
 /**
  * \fn Rectangle::Rectangle(int x, int y, const Size &size)
  * \brief Construct a Rectangle with the given position and size
- * \param[in] x The horizontal coordinate of the top-left corner
- * \param[in] y The vertical coordinate of the top-left corner
+ * \param[in] x The horizontal coordinate of the origin corner
+ * \param[in] y The vertical coordinate of the origin corner
  * \param[in] size The size
+ *
+ * The rectangle's origin corner is the corner closer to the reference system
+ * origin point (0, 0).
  */
 
 /**
  * \fn Rectangle::Rectangle(int x, int y, unsigned int width, unsigned int height)
  * \brief Construct a Rectangle with the given position and size
- * \param[in] x The horizontal coordinate of the top-left corner
- * \param[in] y The vertical coordinate of the top-left corner
+ * \param[in] x The horizontal coordinate of the origin corner
+ * \param[in] y The vertical coordinate of the origin corner
  * \param[in] width The width
  * \param[in] height The height
+ *
+ * The rectangle's origin corner is the corner closer to the reference system
+ * origin point (0, 0).
  */
 
 /**
  * \fn Rectangle::Rectangle(const Size &size)
- * \brief Construct a Rectangle of \a size with its top left corner located
+ * \brief Construct a Rectangle of \a size with its origin corner located
  * at (0,0)
  * \param[in] size The desired Rectangle size
+ *
+ * The rectangle's origin corner is the corner closer to the reference system
+ * origin point (0, 0).
  */
 
 /**
  * \var Rectangle::x
- * \brief The horizontal coordinate of the rectangle's top-left corner
+ * \brief The horizontal coordinate of the rectangle's origin corner
+ *
+ * The rectangle's origin corner is the corner closer to the reference system
+ * origin point (0, 0).
  */
 
 /**
  * \var Rectangle::y
- * \brief The vertical coordinate of the rectangle's top-left corner
+ * \brief The vertical coordinate of the rectangle's origin corner
+ *
+ * The rectangle's origin corner is the corner closer to the reference system
+ * origin point (0, 0).
  */
 
 /**
@@ -683,9 +726,13 @@ Point Rectangle::center() const
  */
 
 /**
- * \fn Point Rectangle::topLeft() const
- * \brief Retrieve the coordinates of the top left corner of this Rectangle
- * \return The Rectangle's top left corner
+ * \fn Point Rectangle::origin() const
+ * \brief Retrieve the coordinates of the origin corner of this Rectangle
+ *
+ * The rectangle's origin corner is the corner closer to the reference system
+ * origin point (0, 0).
+ *
+ * \return The Rectangle's origin corner
  */
 
 /**
@@ -740,15 +787,15 @@ Rectangle &Rectangle::translateBy(const Point &point)
  */
 Rectangle Rectangle::boundedTo(const Rectangle &bound) const
 {
-	int topLeftX = std::max(x, bound.x);
-	int topLeftY = std::max(y, bound.y);
+	int originX = std::max(x, bound.x);
+	int originY = std::max(y, bound.y);
 	int bottomRightX = std::min<int>(x + width, bound.x + bound.width);
 	int bottomRightY = std::min<int>(y + height, bound.y + bound.height);
 
-	unsigned int newWidth = std::max(bottomRightX - topLeftX, 0);
-	unsigned int newHeight = std::max(bottomRightY - topLeftY, 0);
+	unsigned int newWidth = std::max(bottomRightX - originX, 0);
+	unsigned int newHeight = std::max(bottomRightY - originY, 0);
 
-	return { topLeftX, topLeftY, newWidth, newHeight };
+	return { originX, originY, newWidth, newHeight };
 }
 
 /**
