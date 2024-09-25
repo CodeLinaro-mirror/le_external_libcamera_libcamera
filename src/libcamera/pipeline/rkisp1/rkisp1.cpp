@@ -35,6 +35,7 @@
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
@@ -348,12 +349,21 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision)
 	 * environment variable overrides it.
 	 */
 	std::string ipaTuningFile;
-	char const *configFromEnv = utils::secure_getenv("LIBCAMERA_RKISP1_TUNING_FILE");
-	if (!configFromEnv || *configFromEnv == '\0') {
-		ipaTuningFile =
-			ipa_->configurationFile(sensor_->model() + ".yaml", "uncalibrated.yaml");
+	const std::string confPath =
+		std::string("pipelines.rkisp1.cameras.") + sensor_->id() + std::string(".tuning_file");
+	const auto confTuningFile =
+		GlobalConfiguration::envOption(
+			"LIBCAMERA_RKISP1_TUNING_FILE", confPath.c_str());
+	if (!confTuningFile.has_value() || confTuningFile.value() == "") {
+		ipaTuningFile = ipa_->configurationFile(sensor_->model() + ".yaml");
+		/*
+		 * If the tuning file isn't found, fall back to the
+		 * 'uncalibrated' configuration file.
+		 */
+		if (ipaTuningFile.empty())
+			ipaTuningFile = ipa_->configurationFile("uncalibrated.yaml");
 	} else {
-		ipaTuningFile = std::string(configFromEnv);
+		ipaTuningFile = confTuningFile.value();
 	}
 
 	IPACameraSensorInfo sensorInfo{};
