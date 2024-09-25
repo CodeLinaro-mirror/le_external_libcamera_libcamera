@@ -56,6 +56,9 @@ file structure:
           tuning-file: # full path
       simple:
         copy_input_buffer: # true/false
+        measure:
+          skip: # non-negative integer, frames to skip initially
+          number: # non-negative integer, frames to measure
         supported_devices:
         - driver: # driver name, e.g. `mxc-isi`
           software_isp: # true/false
@@ -89,6 +92,9 @@ Configuration file example
          config_file: /usr/local/share/libcamera/pipeline/rpi/vc4/minimal_mem.yaml
        simple:
          copy_input_buffer: false
+         measure:
+           skip: 50
+           number: 30
          supported_devices:
          - driver: mxc-isi
            software_isp: true
