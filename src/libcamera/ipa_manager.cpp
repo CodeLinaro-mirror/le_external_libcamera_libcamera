@@ -16,6 +16,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_module.h"
 #include "libcamera/internal/ipa_proxy.h"
 #include "libcamera/internal/pipeline_handler.h"
@@ -103,6 +104,17 @@ LOG_DEFINE_CATEGORY(IPAManager)
  */
 IPAManager::IPAManager()
 {
+	/*
+	 * Make sure configuration is loaded early.
+	 * Otherwise there would be problems with mutual
+	 * configuration-logging dependencies.
+	 *
+	 * This is needed to be here in addition to CameraManager constructor
+	 * because logging is called before CameraManager constructor body is
+	 * executed.
+	 */
+	GlobalConfiguration::configuration();
+
 #if HAVE_IPA_PUBKEY
 	if (!pubKey_.isValid())
 		LOG(IPAManager, Warning) << "Public key not valid";

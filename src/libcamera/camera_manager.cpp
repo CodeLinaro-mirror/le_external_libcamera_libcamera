@@ -15,6 +15,7 @@
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/pipeline_handler.h"
 
@@ -41,6 +42,15 @@ CameraManager::Private::Private()
 	: initialized_(false)
 {
 	ipaManager_ = std::make_unique<IPAManager>();
+
+	/*
+	 * This is needed to initialize global configuration
+	 * before any logging is called.  Actually, IPAManager
+	 * constructor is called before this, so the configuration
+	 * call is superfluous here, but the initialization belongs
+	 * here.
+	 */
+	GlobalConfiguration::configuration();
 }
 
 int CameraManager::Private::start()
