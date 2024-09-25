@@ -7,10 +7,10 @@
 
 #include "libcamera/internal/yaml_parser.h"
 
-#include <cstdlib>
 #include <errno.h>
 #include <functional>
 #include <limits>
+#include <stdlib.h>
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
