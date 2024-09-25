@@ -630,6 +630,13 @@ std::ostream &operator<<(std::ostream &out, const SizeRange &sr)
  */
 
 /**
+ * \fn Rectangle::Rectangle(const Point &point1, const Point &point2)
+ * \brief Construct a Rectangle with the two given points
+ * \param[in] point1 One corner point of the rectangle
+ * \param[in] point2 The diagonal corner point from \a point1
+ */
+
+/**
  * \var Rectangle::x
  * \brief The horizontal coordinate of the rectangle's top-left corner
  */

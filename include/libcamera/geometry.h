@@ -262,6 +262,13 @@ public:
 	{
 	}
 
+	constexpr Rectangle(const Point &point1, const Point &point2)
+		: Rectangle(std::min(point1.x, point2.x), std::max(point1.y, point2.y),
+			    std::max(point1.x, point2.x) - std::min(point1.x, point2.x),
+			    std::max(point1.y, point2.y) - std::min(point1.y, point2.y))
+	{
+	}
+
 	int x;
 	int y;
 	unsigned int width;
