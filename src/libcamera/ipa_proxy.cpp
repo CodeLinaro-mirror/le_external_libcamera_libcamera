@@ -14,6 +14,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_module.h"
 
 /**
@@ -108,8 +109,11 @@ std::string IPAProxy::configurationFile(const std::string &name,
 	std::string ipaName = ipam_->info().name;
 
 	/* Check the environment variable first. */
-	const char *confPaths = utils::secure_getenv("LIBCAMERA_IPA_CONFIG_PATH");
-	if (confPaths) {
+	auto confConfPaths =
+		GlobalConfiguration::envOption(
+			"LIBCAMERA_IPA_CONFIG_PATH", "ipa.config_paths");
+	if (confConfPaths.has_value()) {
+		const char *confPaths = confConfPaths.value().c_str();
 		for (const auto &dir : utils::split(confPaths, ":")) {
 			if (dir.empty())
 				continue;
@@ -183,9 +187,11 @@ std::string IPAProxy::resolvePath(const std::string &file) const
 	std::string proxyFile = "/" + file;
 
 	/* Check env variable first. */
-	const char *execPaths = utils::secure_getenv("LIBCAMERA_IPA_PROXY_PATH");
-	if (execPaths) {
-		for (const auto &dir : utils::split(execPaths, ":")) {
+	const auto execPaths =
+		GlobalConfiguration::envOption(
+			"LIBCAMERA_IPA_PROXY_PATH", "ipa.proxy_paths");
+	if (execPaths.has_value()) {
+		for (const auto &dir : utils::split(execPaths.value().c_str(), ":")) {
 			if (dir.empty())
 				continue;
 
