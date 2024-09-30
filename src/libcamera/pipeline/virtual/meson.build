@@ -2,6 +2,7 @@
 
 libcamera_internal_sources += files([
     'image_frame_generator.cpp',
+    'parser.cpp',
     'test_pattern_generator.cpp',
     'virtual.cpp',
 ])
