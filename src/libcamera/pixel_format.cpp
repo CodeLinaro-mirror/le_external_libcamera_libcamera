@@ -101,6 +101,17 @@ bool PixelFormat::operator<(const PixelFormat &other) const
  */
 
 /**
+ * \brief Checks if \a this is a RAW pixel format
+ * \return True if \a this is a RAW pixel format, false otherwise
+ */
+bool PixelFormat::isRaw() const
+{
+	const PixelFormatInfo &info = PixelFormatInfo::info(*this);
+
+	return info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
+}
+
+/**
  * \brief Assemble and return a string describing the pixel format
  * \return A string describing the pixel format
  */

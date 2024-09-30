@@ -37,6 +37,7 @@ public:
 	constexpr uint64_t modifier() const { return modifier_; }
 
 	std::string toString() const;
+	bool isRaw() const;
 
 	static PixelFormat fromString(const std::string &name);
 
