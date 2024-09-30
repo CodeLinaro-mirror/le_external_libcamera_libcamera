@@ -716,6 +716,64 @@ std::ostream &operator<<(std::ostream &out, const SizeRange &sr)
  */
 
 /**
+ * \fn Rectangle::Rectangle(const Point &point1, const Point &point2)
+ * \brief Construct a Rectangle with the two given points
+ * \param[in] point1 One of corners of the rectangle
+ * \param[in] point2 The opposite diagonal corner point of \a point1
+ *
+ * Contruct a rectangle that spans the space between two given points. The
+ * position of the two given points is not relevant for the rectangle's
+ * contruction.
+ *
+ * \verbatim
+
+  p1 = point1
+  p2 = point2
+
+          ^
+          |
+          |      ----------------p2
+          |     |                 |
+          |     |                 |
+          |     p1----------------
+          |
+          o------------------------------->
+         (0,0)
+
+          ^
+          |
+          |     p1----------------
+          |     |                 |
+          |     |                 |
+          |      ----------------p2
+          |
+          o------------------------------->
+         (0,0)
+
+          ^
+          |
+          |      ----------------p1
+          |     |                 |
+          |     |                 |
+          |     p2----------------
+          |
+          o------------------------------->
+         (0,0)
+
+          ^
+          |
+          |     p2----------------
+          |     |                 |
+          |     |                 |
+          |      ----------------p1
+          |
+          o------------------------------->
+         (0,0)
+
+   \endverbatim
+ */
+
+/**
  * \var Rectangle::x
  * \brief The horizontal coordinate of the rectangle's top-left corner
  *
