@@ -313,8 +313,7 @@ unsigned int ISICameraData::getYuvMediaBusFormat(const PixelFormat &pixelFormat)
 
 unsigned int ISICameraData::getMediaBusFormat(PixelFormat *pixelFormat) const
 {
-	if (PixelFormatInfo::info(*pixelFormat).colourEncoding ==
-	    PixelFormatInfo::ColourEncodingRAW)
+	if (pixelFormat->isRaw())
 		return getRawMediaBusFormat(pixelFormat);
 
 	return getYuvMediaBusFormat(*pixelFormat);
@@ -453,8 +452,7 @@ ISICameraConfiguration::validateYuv(std::set<Stream *> &availableStreams,
 		LOG(ISI, Debug) << "Stream " << i << ": " << cfg.toString();
 
 		/* If the stream is RAW or not supported default it to YUYV. */
-		const PixelFormatInfo &cfgInfo = PixelFormatInfo::info(cfg.pixelFormat);
-		if (cfgInfo.colourEncoding == PixelFormatInfo::ColourEncodingRAW ||
+		if (cfg.pixelFormat.isRaw() ||
 		    !formatsMap_.count(cfg.pixelFormat)) {
 
 			LOG(ISI, Debug) << "Stream " << i << " format: "
@@ -522,10 +520,8 @@ CameraConfiguration::Status ISICameraConfiguration::validate()
 		maxResolution.width = std::min(2048U, maxResolution.width);
 
 	/* Validate streams according to the format of the first one. */
-	const PixelFormatInfo info = PixelFormatInfo::info(config_[0].pixelFormat);
-
 	Status validationStatus;
-	if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW)
+	if (config_[0].pixelFormat.isRaw())
 		validationStatus = validateRaw(availableStreams, maxResolution);
 	else
 		validationStatus = validateYuv(availableStreams, maxResolution);
@@ -652,8 +648,7 @@ StreamConfiguration PipelineHandlerISI::generateYUVConfiguration(Camera *camera,
 	std::map<PixelFormat, std::vector<SizeRange>> streamFormats;
 
 	for (const auto &[pixFmt, pipeFmt] : ISICameraConfiguration::formatsMap_) {
-		const PixelFormatInfo &info = PixelFormatInfo::info(pixFmt);
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW)
+		if (pixFmt.isRaw())
 			continue;
 
 		streamFormats[pixFmt] = { { kMinISISize, sensorSize } };

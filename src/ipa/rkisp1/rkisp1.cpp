@@ -273,8 +273,7 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	context_.configuration.raw = std::any_of(streamConfig.begin(), streamConfig.end(),
 		[](auto &cfg) -> bool {
 			PixelFormat pixelFormat{ cfg.second.pixelFormat };
-			const PixelFormatInfo &format = PixelFormatInfo::info(pixelFormat);
-			return format.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
+			return pixelFormat.isRaw();
 		});
 
 	for (auto const &a : algorithms()) {

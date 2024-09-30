@@ -182,10 +182,8 @@ RkISP1Path::generateConfiguration(const CameraSensor *sensor, const Size &size,
 	PixelFormat rawFormat;
 
 	for (const auto &format : streamFormats_) {
-		const PixelFormatInfo &info = PixelFormatInfo::info(format);
-
 		/* Populate stream formats for non-RAW configurations. */
-		if (info.colourEncoding != PixelFormatInfo::ColourEncodingRAW) {
+		if (!format.isRaw()) {
 			if (role == StreamRole::Raw)
 				continue;
 
@@ -217,6 +215,7 @@ RkISP1Path::generateConfiguration(const CameraSensor *sensor, const Size &size,
 		 * Store the raw format with the highest bits per pixel for
 		 * later usage.
 		 */
+		const PixelFormatInfo &info = PixelFormatInfo::info(format);
 		if (info.bitsPerPixel > rawBitsPerPixel) {
 			rawBitsPerPixel = info.bitsPerPixel;
 			rawFormat = format;
@@ -272,9 +271,7 @@ CameraConfiguration::Status RkISP1Path::validate(const CameraSensor *sensor,
 	bool found = false;
 
 	for (const auto &format : streamFormats_) {
-		const PixelFormatInfo &info = PixelFormatInfo::info(format);
-
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW) {
+		if (format.isRaw()) {
 			/* Skip raw formats not supported by the sensor. */
 			uint32_t mbusCode = formatToMediaBus.at(format);
 			if (std::find(mbusCodes.begin(), mbusCodes.end(), mbusCode) ==
@@ -285,6 +282,7 @@ CameraConfiguration::Status RkISP1Path::validate(const CameraSensor *sensor,
 			 * Store the raw format with the highest bits per pixel
 			 * for later usage.
 			 */
+			const PixelFormatInfo &info = PixelFormatInfo::info(format);
 			if (info.bitsPerPixel > rawBitsPerPixel) {
 				rawBitsPerPixel = info.bitsPerPixel;
 				rawFormat = format;
@@ -297,8 +295,7 @@ CameraConfiguration::Status RkISP1Path::validate(const CameraSensor *sensor,
 		}
 	}
 
-	bool isRaw = PixelFormatInfo::info(cfg->pixelFormat).colourEncoding ==
-		     PixelFormatInfo::ColourEncodingRAW;
+	bool isRaw = cfg->pixelFormat.isRaw();
 
 	/*
 	 * If no raw format supported by the sensor has been found, use a

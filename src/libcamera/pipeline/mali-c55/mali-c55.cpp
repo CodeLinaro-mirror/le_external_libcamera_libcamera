@@ -31,16 +31,6 @@
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
-namespace {
-
-bool isFormatRaw(const libcamera::PixelFormat &pixFmt)
-{
-	return libcamera::PixelFormatInfo::info(pixFmt).colourEncoding ==
-	       libcamera::PixelFormatInfo::ColourEncodingRAW;
-}
-
-} /* namespace */
-
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(MaliC55)
@@ -227,7 +217,7 @@ PixelFormat MaliC55CameraData::bestRawFormat() const
 	 */
 	for (const auto &maliFormat : maliC55FmtToCode) {
 		PixelFormat pixFmt = maliFormat.first;
-		if (!isFormatRaw(pixFmt))
+		if (!pixFmt.isRaw())
 			continue;
 
 		unsigned int rawCode = maliFormat.second;
@@ -330,7 +320,7 @@ CameraConfiguration::Status MaliC55CameraConfiguration::validate()
 	bool frPipeAvailable = true;
 	StreamConfiguration *rawConfig = nullptr;
 	for (StreamConfiguration &config : config_) {
-		if (!isFormatRaw(config.pixelFormat))
+		if (!config.pixelFormat.isRaw())
 			continue;
 
 		if (rawConfig) {
@@ -375,7 +365,7 @@ CameraConfiguration::Status MaliC55CameraConfiguration::validate()
 	/* Adjust processed streams. */
 	Size maxYuvSize;
 	for (StreamConfiguration &config : config_) {
-		if (isFormatRaw(config.pixelFormat))
+		if (config.pixelFormat.isRaw())
 			continue;
 
 		/* Adjust format and size for processed streams. */
@@ -599,7 +589,7 @@ PipelineHandlerMaliC55::generateConfiguration(Camera *camera,
 		std::map<PixelFormat, std::vector<SizeRange>> formats;
 		for (const auto &maliFormat : maliC55FmtToCode) {
 			PixelFormat pixFmt = maliFormat.first;
-			bool isRaw = isFormatRaw(pixFmt);
+			bool isRaw = pixFmt.isRaw();
 
 			/* RAW formats are only supported on the FR pipe. */
 			if (pipe != &pipes_[MaliC55FR] && isRaw)
@@ -795,7 +785,7 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 		Stream *stream = streamConfig.stream();
 		MaliC55Pipe *pipe = pipeFromStream(data, stream);
 
-		if (isFormatRaw(streamConfig.pixelFormat))
+		if (streamConfig.pixelFormat.isRaw())
 			ret = configureRawStream(data, streamConfig, subdevFormat);
 		else
 			ret = configureProcessedStream(data, streamConfig, subdevFormat);

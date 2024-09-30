@@ -485,8 +485,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 	 */
 	if (config_.size() > 1) {
 		for (const auto &cfg : config_) {
-			if (PixelFormatInfo::info(cfg.pixelFormat).colourEncoding ==
-			    PixelFormatInfo::ColourEncodingRAW) {
+			if (cfg.pixelFormat.isRaw()) {
 				config_.resize(1);
 				status = Adjusted;
 				break;
@@ -566,8 +565,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 	Size maxSize;
 
 	for (const StreamConfiguration &cfg : config_) {
-		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW)
+		if (cfg.pixelFormat.isRaw())
 			rawFormat = cfg.pixelFormat;
 
 		maxSize = std::max(maxSize, cfg.size);
@@ -749,8 +747,7 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 		<< " crop " << rect;
 
 	const PixelFormat &streamFormat = config->at(0).pixelFormat;
-	const PixelFormatInfo &info = PixelFormatInfo::info(streamFormat);
-	isRaw_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
+	isRaw_ = streamFormat.isRaw();
 
 	/* YUYV8_2X8 is required on the ISP source path pad for YUV output. */
 	if (!isRaw_)
