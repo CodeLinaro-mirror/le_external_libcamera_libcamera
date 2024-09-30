@@ -8,6 +8,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 
 #include <chrono>
+#include <fstream>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
@@ -68,14 +69,36 @@ LOG_DEFINE_CATEGORY(Pipeline)
  * through the PipelineHandlerFactoryBase::create() function.
  */
 PipelineHandler::PipelineHandler(CameraManager *manager)
-	: manager_(manager), useCount_(0)
+	: manager_(manager), useCount_(0),
+	  dumpCaptureScript_(nullptr), dumpMetadata_(nullptr)
 {
+	/* TODO Print notification that we're dumping capture script */
+	const char *file = utils::secure_getenv("LIBCAMERA_DUMP_CAPTURE_SCRIPT");
+	if (!file)
+		return;
+
+	dumpCaptureScript_ = new std::ofstream(file);
+
+	/*
+	 * Metadata needs to go into a separate file because otherwise it'll
+	 * flood the capture script
+	 */
+	dumpMetadata_ = new std::ofstream(std::string(file) + ".metadata");
+	std::string str = "frames:\n";
+	dumpMetadata_->write(str.c_str(), str.size());
+	dumpMetadata_->flush();
 }
 
 PipelineHandler::~PipelineHandler()
 {
 	for (std::shared_ptr<MediaDevice> &media : mediaDevices_)
 		media->release();
+
+	if (dumpCaptureScript_)
+		delete dumpCaptureScript_;
+
+	if (dumpMetadata_)
+		delete dumpMetadata_;
 }
 
 /**
@@ -462,6 +485,8 @@ void PipelineHandler::doQueueRequest(Request *request)
 
 	request->_d()->sequence_ = data->requestSequence_++;
 
+	dumpRequest(request, DumpMode::Controls);
+
 	if (request->_d()->cancelled_) {
 		completeRequest(request);
 		return;
@@ -550,6 +575,8 @@ void PipelineHandler::completeRequest(Request *request)
 	Camera *camera = request->_d()->camera();
 
 	request->_d()->complete();
+
+	dumpRequest(request, DumpMode::Metadata);
 
 	Camera::Private *data = camera->_d();
 
@@ -775,6 +802,70 @@ void PipelineHandler::disconnect()
  * \context This function is \threadsafe.
  * \return The CameraManager for this pipeline handler
  */
+
+void PipelineHandler::dumpConfiguration(const std::set<const Stream *> &streams,
+					const Orientation &orientation)
+{
+	if (!dumpCaptureScript_)
+		return;
+
+	std::stringstream ss;
+	ss << "configuration:" << std::endl;
+	ss << "  orientation: " << orientation << std::endl;
+
+	/* TODO Dump Sensor configuration */
+
+	ss << "  streams:" << std::endl;
+	for (const auto &stream : streams) {
+		const StreamConfiguration &streamConfig = stream->configuration();
+		ss << "    - pixelFormat: " << streamConfig.pixelFormat << std::endl;
+		ss << "      size: " << streamConfig.size << std::endl;
+		ss << "      stride: " << streamConfig.stride << std::endl;
+		ss << "      frameSize: " << streamConfig.frameSize << std::endl;
+		ss << "      bufferCount: " << streamConfig.bufferCount << std::endl;
+		if (streamConfig.colorSpace)
+			ss << "      colorSpace: " << streamConfig.colorSpace->toString() << std::endl;
+	}
+
+	dumpCaptureScript_->write(ss.str().c_str(), ss.str().size());
+
+	std::string str = "frames:\n";
+	dumpCaptureScript_->write(str.c_str(), str.size());
+	dumpCaptureScript_->flush();
+}
+
+void PipelineHandler::dumpRequest(Request *request, DumpMode mode)
+{
+	ControlList &controls =
+		mode == DumpMode::Controls ? request->controls()
+					   : request->metadata();
+	std::ostream *output =
+		mode == DumpMode::Controls ? dumpCaptureScript_
+					   : dumpMetadata_;
+
+	if (!output || controls.empty())
+		return;
+
+	std::stringstream ss;
+	/* TODO Figure out PFC */
+	ss << "  - " << request->sequence() << ":" << std::endl;
+
+	const ControlIdMap *idMap = controls.idMap();
+	for (const auto &pair : controls) {
+		const ControlId *ctrlId = idMap->at(pair.first);
+		/* TODO Prettify enums (probably by upgrading ControlValue::toString()) */
+		ss << "      " << ctrlId->name() << ": " << pair.second.toString() << std::endl;
+	}
+
+	/*
+	 * TODO Investigate the overhead of flushing this frequently
+	 * Controls aren't going to be queued too frequently so it should be
+	 * fine to dump controls every frame. Metadata on the other hand needs
+	 * to be investigated.
+	 */
+	output->write(ss.str().c_str(), ss.str().size());
+	output->flush();
+}
 
 /**
  * \class PipelineHandlerFactoryBase

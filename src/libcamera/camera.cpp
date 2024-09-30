@@ -1223,6 +1223,9 @@ int Camera::configure(CameraConfiguration *config)
 		d->activeStreams_.insert(stream);
 	}
 
+	/* TODO Save sensor configuration for dumping it to capture script */
+	d->orientation_ = config->orientation;
+
 	d->setState(Private::CameraConfigured);
 
 	return 0;
@@ -1382,6 +1385,16 @@ int Camera::start(const ControlList *controls)
 	LOG(Camera, Debug) << "Starting capture";
 
 	ASSERT(d->requestSequence_ == 0);
+
+	/*
+	 * Invoke method in blocking mode to avoid the risk of writing after
+	 * streaming has started.
+	 * This needs to be here as PipelineHandler::start is a virtual function
+	 * so it is impractical to add the dumping there.
+	 * TODO Pass the sensor configuration, once it is supported
+	 */
+	d->pipe_->invokeMethod(&PipelineHandler::dumpConfiguration,
+			       ConnectionTypeBlocking, d->activeStreams_, d->orientation_);
 
 	ret = d->pipe_->invokeMethod(&PipelineHandler::start,
 				     ConnectionTypeBlocking, this, controls);

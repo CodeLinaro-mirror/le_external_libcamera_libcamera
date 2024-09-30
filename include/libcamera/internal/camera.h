@@ -20,6 +20,8 @@
 
 namespace libcamera {
 
+enum class Orientation;
+
 class CameraControlValidator;
 class PipelineHandler;
 class Stream;
@@ -67,6 +69,7 @@ private:
 	std::string id_;
 	std::set<Stream *> streams_;
 	std::set<const Stream *> activeStreams_;
+	Orientation orientation_;
 
 	bool disconnected_;
 	std::atomic<State> state_;
