@@ -22,6 +22,7 @@
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/mapped_framebuffer.h"
 
 namespace libcamera {
@@ -48,7 +49,9 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	 * always set it to true as the safer choice but this should be changed in
 	 * future.
 	 */
-	enableInputMemcpy_ = true;
+	enableInputMemcpy_ = GlobalConfiguration::option<bool>(
+				     "pipelines.simple.copy_input_buffer")
+				     .value_or(true);
 
 	/* Initialize color lookup tables */
 	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++)
