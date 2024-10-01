@@ -39,6 +39,7 @@ libcamera_internal_sources = files([
     'ipc_pipe.cpp',
     'ipc_pipe_unixsocket.cpp',
     'ipc_unixsocket.cpp',
+    'mailbox.cpp',
     'mapped_framebuffer.cpp',
     'matrix.cpp',
     'media_device.cpp',
