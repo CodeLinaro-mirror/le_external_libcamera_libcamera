@@ -114,8 +114,11 @@ IPAManager::IPAManager()
 	unsigned int ipaCount = 0;
 
 	/* User-specified paths take precedence. */
-	const char *modulePaths = utils::secure_getenv("LIBCAMERA_IPA_MODULE_PATH");
-	if (modulePaths) {
+	const auto confModulePaths =
+		GlobalConfiguration::envOption(
+			"LIBCAMERA_IPA_MODULE_PATH", "ipa.module_paths");
+	if (confModulePaths.has_value()) {
+		const char *modulePaths = confModulePaths.value().c_str();
 		for (const auto &dir : utils::split(modulePaths, ":")) {
 			if (dir.empty())
 				continue;
@@ -289,7 +292,9 @@ bool IPAManager::isSignatureValid([[maybe_unused]] IPAModule *ipa) const
 {
 #if HAVE_IPA_PUBKEY
 	char *force = utils::secure_getenv("LIBCAMERA_IPA_FORCE_ISOLATION");
-	if (force && force[0] != '\0') {
+	if ((force && force[0] != '\0') ||
+	    (!force && GlobalConfiguration::option<bool>("ipa.force_isolation")
+			       .value_or(false))) {
 		LOG(IPAManager, Debug)
 			<< "Isolation of IPA module " << ipa->path()
 			<< " forced through environment variable";
