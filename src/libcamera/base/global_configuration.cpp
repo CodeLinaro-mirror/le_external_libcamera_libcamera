@@ -19,11 +19,19 @@
 
 namespace libcamera {
 
+LOG_DEFINE_CATEGORY(Configuration)
+
 std::unique_ptr<GlobalConfiguration> GlobalConfiguration::instance_ =
 	std::make_unique<GlobalConfiguration>();
 
 /**
- * \brief Do not create GlobalConfiguration instance directly, use initialize()
+ * \brief Initialize the global configuration
+ *
+ * This method is expected to be called only once, before the configuration is
+ * queried for the first time.
+ *
+ * \note Most notably, the method must be called before any logging, because
+ * logging queries the configuration.
  */
 void GlobalConfiguration::initialize()
 {
@@ -39,6 +47,13 @@ void GlobalConfiguration::initialize()
  *
  * The configuration file is a YAML file and the configuration itself is stored
  * under `configuration' top-level item.
+ *
+ * Example configuration file content:
+ * \code{.yaml}
+ * configuration:
+ *   log:
+ *     levels: 'IPAManager:DEBUG'
+ * \endcode
  *
  * The configuration file is looked up in user's home directory first and if it
  * is not found then in system-wide configuration directories. If multiple
@@ -57,6 +72,9 @@ void GlobalConfiguration::initialize()
  * the underlying type.
  */
 
+/**
+ * \brief Do not create GlobalConfiguration instance directly, use initialize()
+ */
 GlobalConfiguration::GlobalConfiguration()
 	: configuration_(std::make_unique<YamlObject>())
 {
@@ -67,6 +85,11 @@ const std::vector<std::filesystem::path>
 		std::filesystem::path(LIBCAMERA_SYSCONF_DIR) / "configuration.yaml",
 		std::filesystem::path("/etc/libcamera/configuration.yaml"),
 	};
+
+/*
+ * Care is needed here to not log anything before the configuration is
+ * loaded otherwise the logger would be initialized with empty configuration.
+ */
 
 void GlobalConfiguration::load()
 {
@@ -100,12 +123,18 @@ bool GlobalConfiguration::loadFile(const std::filesystem::path &fileName)
 		return false;
 	}
 
-	if (!file.open(File::OpenModeFlag::ReadOnly))
+	if (!file.open(File::OpenModeFlag::ReadOnly)) {
+		LOG(Configuration, Warning)
+			<< "Failed to open configuration file " << fileName;
 		return true;
+	}
 
 	auto root = YamlParser::parse(file);
-	if (!root)
+	if (!root) {
+		LOG(Configuration, Warning)
+			<< "Failed to parse configuration file " << fileName;
 		return true;
+	}
 	configuration_ = std::move(root);
 
 	return true;

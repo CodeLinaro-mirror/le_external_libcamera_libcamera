@@ -35,6 +35,7 @@ private:
 
 	bool loadFile(const std::filesystem::path &fileName);
 	void load();
+
 	static Configuration get();
 };
 
