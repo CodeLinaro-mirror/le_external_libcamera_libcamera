@@ -9,6 +9,7 @@
 
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <sys/types.h>
 
 #include <libcamera/base/file.h>
@@ -60,8 +61,10 @@ void GlobalConfiguration::initialize()
  * configuration files exist then only the first one found is used and no
  * configuration merging is performed.
  *
- * The class is used as a private singleton and the configuration can be
- * accessed using GlobalConfiguration::configuration().
+ * The class is used as a private singleton accessed by the provided
+ * helpers. Namely GlobalConfiguration::option or GlobalConfiguration::envOption
+ * to access individual options or GlobalConfiguration::configuration() to
+ * access the whole configuration.
  */
 
 /**
@@ -143,6 +146,52 @@ bool GlobalConfiguration::loadFile(const std::filesystem::path &fileName)
 GlobalConfiguration::Configuration GlobalConfiguration::get()
 {
 	return *instance_->configuration_;
+}
+
+/**
+ * \brief Return value of the configuration option identified by \a confPath
+ * \param[in] confPath Sequence of the YAML section names (excluding
+ * `configuration') leading to the requested option separated by dots
+ * \return A value if an item corresponding to \a confPath exists in the
+ * configuration file, no value otherwise
+ */
+std::optional<std::string> GlobalConfiguration::option(
+	const std::string &confPath)
+{
+	YamlObject *c = &const_cast<YamlObject &>(configuration());
+	for (auto part : utils::details::StringSplitter(confPath, "."))
+		if (c->contains(part))
+			c = &const_cast<YamlObject &>((*c)[part]);
+		else
+			return std::optional<std::string>();
+	return c->get<std::string>();
+}
+
+/**
+ * \brief Return value of the configuration option from a file or environment
+ * \param[in] envVariable Environment variable to get the value from
+ * \param[in] confPath The same as in GlobalConfiguration::option
+ *
+ * This helper looks first at the given environment variable and if it is
+ * defined then it returns its value (even if it is empty). Otherwise it looks
+ * for \a confPath the same way as in GlobalConfiguration::option. Only string
+ * values are supported.
+ *
+ * \note Support for using environment variables to configure libcamera behavior
+ * is provided here mostly for backward compatibility reasons. Introducing new
+ * configuration environment variables is discouraged.
+ *
+ * \return A value retrieved from the given environment option or configuration
+ * file or no value if not found
+ */
+std::optional<std::string> GlobalConfiguration::envOption(
+	const char *const envVariable,
+	const std::string &confPath)
+{
+	const char *envValue = utils::secure_getenv(envVariable);
+	if (envValue)
+		return std::optional{ std::string{ envValue } };
+	return option(confPath);
 }
 
 /**

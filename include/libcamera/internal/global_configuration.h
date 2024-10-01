@@ -8,6 +8,8 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
+#include <string>
 #include <vector>
 
 #include "libcamera/internal/yaml_parser.h"
@@ -25,6 +27,9 @@ public:
 
 	static unsigned int version();
 	static Configuration configuration();
+	static std::optional<std::string> option(const std::string &confPath);
+	static std::optional<std::string> envOption(const char *const envVariable,
+						    const std::string &confPath);
 
 private:
 	static const std::vector<std::filesystem::path> globalConfigurationFiles;
