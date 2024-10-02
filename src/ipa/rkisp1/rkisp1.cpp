@@ -328,6 +328,11 @@ void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame);
 	context_.debugMetadata.checkForEnable(controls);
+	/*
+	 * Todo: Remove the unconditional enable as soon as camshark supports
+	 * metadata that is not available on every frame
+	 */
+	context_.debugMetadata.enable();
 
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
