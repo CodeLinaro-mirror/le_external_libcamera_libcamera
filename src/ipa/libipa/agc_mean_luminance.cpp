@@ -133,6 +133,11 @@ static constexpr double kDefaultRelativeLuminanceTarget = 0.16;
  * values.
  */
 
+/**
+ * \var AgcMeanLuminance::debugMeta_
+ * \brief DebugMetadata helper
+ */
+
 AgcMeanLuminance::AgcMeanLuminance()
 	: frameCount_(0), filteredExposure_(0s), relativeLuminanceTarget_(0)
 {
@@ -541,7 +546,10 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 		exposureModeHelpers_.at(exposureModeIndex);
 
 	double gain = estimateInitialGain();
+	debugMeta_.set<float>(controls::debug::AgcInitialGain, static_cast<float>(gain));
 	gain = constraintClampGain(constraintModeIndex, yHist, gain);
+
+	debugMeta_.set<float>(controls::debug::AgcNewGain, static_cast<float>(gain));
 
 	/*
 	 * We don't check whether we're already close to the target, because

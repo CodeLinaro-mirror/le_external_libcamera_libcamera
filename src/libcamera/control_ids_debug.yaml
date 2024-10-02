@@ -8,4 +8,19 @@
 # set through Request::controls() and returned out through Request::metadata().
 vendor: debug
 controls:
-
+- AgcAnalogGain:
+    type: float
+    description: Debug control AgcAnalogGain found in src/ipa/rkisp1/algorithms/agc.cpp:448
+- AgcDigitalGain:
+    type: float
+    description: Debug control AgcDigitalGain found in src/ipa/rkisp1/algorithms/agc.cpp:449
+- AgcHistogram:
+    type: int64_t
+    description: Debug control AgcHistogram found in src/ipa/rkisp1/algorithms/agc.cpp:452
+    size: '[n]'
+- AgcInitialGain:
+    type: float
+    description: Debug control AgcInitialGain found in src/ipa/libipa/agc_mean_luminance.cpp:543
+- AgcNewGain:
+    type: float
+    description: Debug control AgcNewGain found in src/ipa/libipa/agc_mean_luminance.cpp:546
