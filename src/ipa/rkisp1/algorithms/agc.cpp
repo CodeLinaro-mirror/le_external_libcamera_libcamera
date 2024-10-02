@@ -400,8 +400,10 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 {
 	utils::Duration exposureTime = context.configuration.sensor.lineDuration
 				     * frameContext.sensor.exposure;
+	utils::Duration exposureTimeCorrected = exposureTime * frameContext.awb.additionalGain;
 	metadata.set(controls::AnalogueGain, frameContext.sensor.gain);
 	metadata.set(controls::ExposureTime, exposureTime.get<std::micro>());
+	metadata.set<float>(controls::debug::ExposureTimeCorrected, exposureTimeCorrected.get<std::micro>());
 	metadata.set(controls::FrameDuration, frameContext.agc.frameDuration.get<std::micro>());
 	metadata.set(controls::ExposureTimeMode,
 		     frameContext.agc.autoExposureEnabled
@@ -573,6 +575,20 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		calculateNewEv(frameContext.agc.constraintMode,
 			       frameContext.agc.exposureMode,
 			       hist, effectiveExposureValue);
+
+	auto &debugMeta = context.debugMetadata;
+	std::vector<int32_t> histMeta;
+	for (unsigned i = 0; i < context.hw->numHistogramBins; i++)
+		histMeta.push_back(params->hist.hist_bins[i] >> 4);
+	debugMeta.set<Span<const int32_t>>(controls::debug::StatsHistogram, histMeta);
+
+	double meanExposure = 0;
+	for (uint8_t expMean : expMeans_)
+		meanExposure += expMean;
+	meanExposure = meanExposure / expMeans_.size() / 255.0;
+	debugMeta.set<const float>(controls::debug::StatsExpMean, meanExposure);
+
+	debugMeta.set<Span<const uint8_t>>(controls::debug::StatsExpMeans, expMeans_);
 
 	LOG(RkISP1Agc, Debug)
 		<< "Divided up exposure time, analogue gain and digital gain are "

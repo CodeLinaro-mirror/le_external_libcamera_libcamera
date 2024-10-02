@@ -310,6 +310,9 @@ void Awb::process(IPAContext &context,
 
 	RGB<double> rgbMeans = calculateRgbMeans(frameContext, awb);
 
+	context.debugMetadata.set<Span<const float>>(controls::debug::RgbMeans, Vector<float, 3>(rgbMeans).data());
+	context.debugMetadata.set<int>(controls::debug::AwbCount, awb->awb_mean[0].cnt);
+
 	/*
 	 * If the means are too small we don't have enough information to
 	 * meaningfully calculate gains. Freeze the algorithm in that case.
