@@ -1,0 +1,11 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2024, Ideas on Board Oy
+#
+%YAML 1.1
+---
+# Unless otherwise stated, all controls are bi-directional, i.e. they can be
+# set through Request::controls() and returned out through Request::metadata().
+vendor: debug
+controls:
+
