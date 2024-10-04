@@ -176,7 +176,9 @@ int CamApp::parseOptions(int argc, char *argv[])
 			 "metadata", ArgumentNone, nullptr, false,
 			 OptCamera);
 	parser.addOption(OptCaptureScript, OptionString,
-			 "Load a capture session configuration script from a file",
+			 "Load a capture session configuration script from a file.\n"
+			 "Configuration options specified in the capture script will be\n"
+			 "overwritten by --stream and --orientation.",
 			 "script", ArgumentRequired, "script", false,
 			 OptCamera);
 
