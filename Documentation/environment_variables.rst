@@ -29,6 +29,32 @@ LIBCAMERA_IPA_CONFIG_PATH
 
    Example value: ``${HOME}/.libcamera/share/ipa:/opt/libcamera/vendor/share/ipa``
 
+LIBCAMERA_DUMP_CAPTURE_SCRIPT
+   The custom destination for capture script dump output.
+
+   The precensce of this environment variable enables capture script dumping.
+   All controls that are set for each request will be dumped into the file
+   specified by the environment variable as a capture script, which can later
+   be fed into the cam application to replay a control sequence.
+
+   The file that is written to will be suffixed with a number indicating the
+   number of capture. That is, if the capture is stopped and started again, a
+   new capture script will be dumped with the suffix incremented.
+
+   Example value: ``/home/{user}/capture_script.yaml``
+
+LIBCAMERA_DUMP_METADATA
+   The custom destination for metadata dump output.
+
+   This is similar to LIBCAMERA_DUMP_CAPTURE_SCRIPT, except instead of a
+   capture script with controls for each frame, the dump will consist of all
+   metadata that was returned for every frame.
+
+   Also similar to LIBCAMERA_DUMP_CAPTURE_SCRIPT, there will be a number suffix
+   added to the filename of the dump.
+
+   Example value: ``/home/{user}/metadata_dump.yaml``
+
 LIBCAMERA_IPA_FORCE_ISOLATION
    When set to a non-empty string, force process isolation of all IPA modules.
 

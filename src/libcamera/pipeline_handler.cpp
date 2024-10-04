@@ -8,6 +8,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 
 #include <chrono>
+#include <fstream>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
@@ -68,8 +69,10 @@ LOG_DEFINE_CATEGORY(Pipeline)
  * through the PipelineHandlerFactoryBase::create() function.
  */
 PipelineHandler::PipelineHandler(CameraManager *manager)
-	: manager_(manager), useCount_(0)
+	: manager_(manager), useCount_(0), captureCount_(0)
 {
+	fileCapture_ = utils::secure_getenv("LIBCAMERA_DUMP_CAPTURE_SCRIPT");
+	fileMetadata_ = utils::secure_getenv("LIBCAMERA_DUMP_METADATA");
 }
 
 PipelineHandler::~PipelineHandler()
@@ -462,6 +465,8 @@ void PipelineHandler::doQueueRequest(Request *request)
 
 	request->_d()->sequence_ = data->requestSequence_++;
 
+	dumpRequest(request, DumpMode::Controls);
+
 	if (request->_d()->cancelled_) {
 		completeRequest(request);
 		return;
@@ -550,6 +555,8 @@ void PipelineHandler::completeRequest(Request *request)
 	Camera *camera = request->_d()->camera();
 
 	request->_d()->complete();
+
+	dumpRequest(request, DumpMode::Metadata);
 
 	Camera::Private *data = camera->_d();
 
@@ -775,6 +782,82 @@ void PipelineHandler::disconnect()
  * \context This function is \threadsafe.
  * \return The CameraManager for this pipeline handler
  */
+
+void PipelineHandler::dumpConfiguration(const std::set<const Stream *> &streams,
+					Orientation orientation)
+{
+	captureCount_++;
+
+	/* These need to be done here in case capture is restarted */
+	if (!fileCapture_.empty()) {
+		std::string file = fileCapture_ + "." + std::to_string(captureCount_);
+		LOG(Pipeline, Info) << "Dumping capture script to " << file;
+		dumpCaptureScript_ = std::make_unique<std::ofstream>(file);
+	}
+
+	/*
+	 * Metadata needs to go into a separate file because otherwise it'll
+	 * flood the capture script
+	 */
+	if (!fileMetadata_.empty()) {
+		std::string file = fileMetadata_ + "." + std::to_string(captureCount_);
+		LOG(Pipeline, Info) << "Dumping metadata to " << file;
+		dumpMetadata_ = std::make_unique<std::ofstream>(file);
+		*dumpMetadata_ << "frames:" << std::endl;
+		dumpMetadata_->flush();
+	}
+
+	if (!dumpCaptureScript_)
+		return;
+
+	std::ostream &output = *dumpCaptureScript_;
+
+	output << "configuration:" << std::endl;
+	output << "  orientation: " << orientation << std::endl;
+
+	/* \todo Dump Sensor configuration */
+
+	output << "  streams:" << std::endl;
+	for (const auto &stream : streams) {
+		const StreamConfiguration &streamConfig = stream->configuration();
+		output << "    - pixelFormat: " << streamConfig.pixelFormat << std::endl;
+		output << "      size: " << streamConfig.size << std::endl;
+		output << "      stride: " << streamConfig.stride << std::endl;
+		output << "      frameSize: " << streamConfig.frameSize << std::endl;
+		output << "      bufferCount: " << streamConfig.bufferCount << std::endl;
+		if (streamConfig.colorSpace) {
+			output << "      colorSpace: " << streamConfig.colorSpace->toString() << std::endl;
+		}
+	}
+
+	output << "frames:" << std::endl;
+	dumpCaptureScript_->flush();
+}
+
+void PipelineHandler::dumpRequest(Request *request, DumpMode mode)
+{
+	ControlList &controls =
+		mode == DumpMode::Controls ? request->controls()
+					   : request->metadata();
+	std::ostream *output =
+		mode == DumpMode::Controls ? dumpCaptureScript_.get()
+					   : dumpMetadata_.get();
+
+	if (!output || controls.empty())
+		return;
+
+	/* \todo Figure out PFC */
+	*output << "  - " << request->sequence() << ":" << std::endl;
+
+	const ControlIdMap *idMap = controls.idMap();
+	for (const auto &pair : controls) {
+		const ControlId *ctrlId = idMap->at(pair.first);
+		*output << "      " << ctrlId->name() << ": " << pair.second.toString() << std::endl;
+	}
+
+	/* \todo Investigate the overhead of flushing this frequently */
+	output->flush();
+}
 
 /**
  * \class PipelineHandlerFactoryBase

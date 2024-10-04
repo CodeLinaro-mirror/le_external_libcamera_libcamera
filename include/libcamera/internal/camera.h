@@ -17,6 +17,7 @@
 #include <libcamera/base/class.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/orientation.h>
 
 namespace libcamera {
 
@@ -67,6 +68,7 @@ private:
 	std::string id_;
 	std::set<Stream *> streams_;
 	std::set<const Stream *> activeStreams_;
+	Orientation orientation_;
 
 	bool disconnected_;
 	std::atomic<State> state_;
