@@ -25,6 +25,7 @@ libcamera_internal_sources = files([
     'control_validator.cpp',
     'converter.cpp',
     'delayed_controls.cpp',
+    'debug_controls.cpp',
     'device_enumerator.cpp',
     'device_enumerator_sysfs.cpp',
     'dma_buf_allocator.cpp',
