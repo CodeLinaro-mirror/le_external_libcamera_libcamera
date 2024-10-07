@@ -139,6 +139,8 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 {
 	int ret;
 
+	debugMeta_.setParent(&context.debugMetadata);
+
 	ret = parseTuningData(tuningData);
 	if (ret)
 		return ret;
@@ -443,6 +445,14 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		calculateNewEv(frameContext.agc.constraintMode,
 			       frameContext.agc.exposureMode,
 			       hist, effectiveExposureValue);
+
+	debugMeta_.set<float>(controls::debug::AgcAnalogGain, aGain);
+	debugMeta_.set<float>(controls::debug::AgcDigitalGain, dGain);
+
+	const Span<const uint64_t> orig = hist.data();
+	const Span<const int64_t> data{ reinterpret_cast<const int64_t *>(&orig[0]),
+					orig.size() };
+	debugMeta_.set<Span<const int64_t>>(controls::debug::AgcHistogram, data);
 
 	LOG(RkISP1Agc, Debug)
 		<< "Divided up shutter, analogue gain and digital gain are "

@@ -16,6 +16,7 @@
 
 #include <libcamera/controls.h>
 
+#include "libcamera/internal/debug_controls.h"
 #include "libcamera/internal/yaml_parser.h"
 
 #include "exposure_mode_helper.h"
@@ -70,6 +71,9 @@ public:
 	{
 		frameCount_ = 0;
 	}
+
+protected:
+	DebugMetadata debugMeta_;
 
 private:
 	virtual double estimateLuminance(const double gain) const = 0;
