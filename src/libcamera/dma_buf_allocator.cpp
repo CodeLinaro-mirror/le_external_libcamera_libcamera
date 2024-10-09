@@ -255,7 +255,8 @@ DmaBufAllocator::createBuffer(std::string name,
 		return nullptr;
 
 	for (auto planeSize : planeSizes) {
-		planes.emplace_back(FrameBuffer::Plane{ fd, offset, planeSize });
+		/* \todo Invalid stride information. Consider adding strides as input. */
+		planes.emplace_back(FrameBuffer::Plane{ fd, offset, planeSize, 0 });
 		offset += planeSize;
 	}
 

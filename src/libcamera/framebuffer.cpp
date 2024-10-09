@@ -282,6 +282,11 @@ FrameBuffer::Private::~Private()
  * \brief The plane length in bytes
  */
 
+/**
+ * \var FrameBuffer::Plane::stride
+ * \brief The plane stride in bytes
+ */
+
 namespace {
 
 ino_t fileDescriptorInode(const SharedFD &fd)
