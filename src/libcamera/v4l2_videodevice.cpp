@@ -2138,6 +2138,11 @@ V4L2VideoDevice::fromEntityName(const MediaDevice *media,
 }
 
 /**
+ * \fn V4L2VideoDevice::getCachedFormat()
+ * \return Cached \a V4L2VideoDevice::format_
+ */
+
+/**
  * \brief Convert \a PixelFormat to a V4L2PixelFormat supported by the device
  * \param[in] pixelFormat The PixelFormat to convert
  *

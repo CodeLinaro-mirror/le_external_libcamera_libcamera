@@ -240,6 +240,8 @@ public:
 protected:
 	std::string logPrefix() const override;
 
+	V4L2DeviceFormat getCachedFormat() { return format_; }
+
 private:
 	LIBCAMERA_DISABLE_COPY(V4L2VideoDevice)
 
