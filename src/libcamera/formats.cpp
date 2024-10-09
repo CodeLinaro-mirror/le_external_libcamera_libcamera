@@ -1093,6 +1093,7 @@ unsigned int PixelFormatInfo::stride(unsigned int width, unsigned int plane,
  * \param[in] size The size of the frame, in pixels
  * \param[in] plane The plane index
  * \param[in] align The stride alignment, in bytes (1 for default alignment)
+ * \param[in] scanAlign The scanline alignment, in bytes (1 for default alignment)
  *
  * The plane size is computed by multiplying the line stride and the frame
  * height, taking subsampling and other format characteristics into account.
@@ -1105,13 +1106,19 @@ unsigned int PixelFormatInfo::stride(unsigned int width, unsigned int plane,
  * format
  */
 unsigned int PixelFormatInfo::planeSize(const Size &size, unsigned int plane,
-					unsigned int align) const
+					unsigned int align, unsigned scanAlign) const
 {
 	unsigned int stride = PixelFormatInfo::stride(size.width, plane, align);
 	if (!stride)
 		return 0;
 
-	return planeSize(size.height, plane, stride);
+	unsigned int vertSubSample = planes[plane].verticalSubSampling;
+	if (!vertSubSample)
+		return 0;
+
+	unsigned int planeHeight = (size.height + vertSubSample - 1) / vertSubSample;
+
+	return stride * ((planeHeight + scanAlign - 1) / scanAlign * scanAlign);
 }
 
 /**
@@ -1143,6 +1150,7 @@ unsigned int PixelFormatInfo::planeSize(unsigned int height, unsigned int plane,
  * \brief Compute the number of bytes necessary to store a frame
  * \param[in] size The size of the frame, in pixels
  * \param[in] align The stride alignment, in bytes (1 for default alignment)
+ * \param[in] scanAlign The scanline alignment, in bytes (1 for default alignment)
  *
  * The frame size is computed by adding the size of all planes, as computed by
  * planeSize(), using the specified alignment constraints for all planes. For
@@ -1154,7 +1162,8 @@ unsigned int PixelFormatInfo::planeSize(unsigned int height, unsigned int plane,
  * \return The number of bytes necessary to store the frame, or 0 if the
  * PixelFormatInfo instance is not valid
  */
-unsigned int PixelFormatInfo::frameSize(const Size &size, unsigned int align) const
+unsigned int PixelFormatInfo::frameSize(const Size &size, unsigned int align,
+					unsigned scanAlign) const
 {
 	unsigned int sum = 0;
 
@@ -1162,7 +1171,7 @@ unsigned int PixelFormatInfo::frameSize(const Size &size, unsigned int align) co
 		if (plane.bytesPerGroup == 0)
 			break;
 
-		sum += planeSize(size, i, align);
+		sum += planeSize(size, i, align, scanAlign);
 	}
 
 	return sum;
