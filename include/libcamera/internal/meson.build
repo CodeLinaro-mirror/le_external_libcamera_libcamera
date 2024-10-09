@@ -35,6 +35,7 @@ libcamera_internal_headers = files([
     'media_object.h',
     'media_pipeline.h',
     'pipeline_handler.h',
+    'pool.h',
     'process.h',
     'pub_key.h',
     'request.h',
