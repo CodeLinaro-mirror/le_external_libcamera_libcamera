@@ -438,6 +438,33 @@ const std::string V4L2DeviceFormat::toString() const
 }
 
 /**
+ * \brief Compare V4L2DeviceFormat for equality
+ * \return True if the two formats are identical, false otherwise
+ */
+bool operator==(const V4L2DeviceFormat &lhs, const V4L2DeviceFormat &rhs)
+{
+	if (!(lhs.fourcc == rhs.fourcc &&
+	      lhs.size == rhs.size &&
+	      lhs.colorSpace == rhs.colorSpace &&
+	      lhs.planesCount == rhs.planesCount))
+		return false;
+
+	for (unsigned int i = 0; i < lhs.planesCount; ++i) {
+		if (lhs.planes[i].size != rhs.planes[i].size ||
+		    lhs.planes[i].bpl != rhs.planes[i].bpl)
+			return false;
+	}
+
+	return true;
+}
+
+/**
+ * \fn bool operator!=(const V4L2DeviceFormat &lhs, const V4L2DeviceFormat &rhs)
+ * \brief Comparetwo formats for inequality
+ * \return True if the two formats are not identical, false otherwise
+ */
+
+/**
  * \brief Insert a text representation of a V4L2DeviceFormat into an output
  * stream
  * \param[in] out The output stream
