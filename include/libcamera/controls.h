@@ -435,6 +435,7 @@ public:
 
 	void clear() { controls_.clear(); }
 	void merge(const ControlList &source, MergePolicy policy = MergePolicy::KeepExisting);
+	void merge(ControlList &source, MergePolicy policy = MergePolicy::KeepExisting);
 
 	bool contains(unsigned int id) const;
 
