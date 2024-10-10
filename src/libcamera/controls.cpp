@@ -396,11 +396,14 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  * \param[in] name The control name
  * \param[in] type The control data type
  * \param[in] size The size of the array control, or 0 if scalar control
+ * \param[in] vendor The vendor name
  * \param[in] enumStrMap The map from enum names to values (optional)
  */
 ControlId::ControlId(unsigned int id, const std::string &name, ControlType type,
-		     std::size_t size, const std::map<std::string, int32_t> &enumStrMap)
-	: id_(id), name_(name), type_(type), size_(size), enumStrMap_(enumStrMap)
+		     const std::string &vendor, std::size_t size,
+		     const std::map<std::string, int32_t> &enumStrMap)
+	: id_(id), name_(name), type_(type), vendor_(vendor), size_(size),
+	  enumStrMap_(enumStrMap)
 {
 	for (const auto &pair : enumStrMap_)
 		reverseMap_[pair.second] = pair.first;
@@ -428,6 +431,12 @@ ControlId::ControlId(unsigned int id, const std::string &name, ControlType type,
  * \fn bool ControlId::isArray() const
  * \brief Determine if the control is an array control
  * \return True if the control is an array control, false otherwise
+ */
+
+/**
+ * \fn const std::string &ControlId::vendor() const
+ * \brief Retrieve the vendor name
+ * \return The vendor name, as a string
  */
 
 /**
@@ -489,10 +498,11 @@ ControlId::ControlId(unsigned int id, const std::string &name, ControlType type,
  */
 
 /**
- * \fn Control::Control(unsigned int id, const char *name)
+ * \fn Control::Control(unsigned int id, const char *name, const char *vendor)
  * \brief Construct a Control instance
  * \param[in] id The control numerical ID
  * \param[in] name The control name
+ * \param[in] vendor The vendor name
  * \param[in] enumStrMap The map from enum names to values (optional)
  *
  * The control data type is automatically deduced from the template type T.

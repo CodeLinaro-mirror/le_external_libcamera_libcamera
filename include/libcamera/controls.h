@@ -235,12 +235,14 @@ class ControlId
 {
 public:
 	ControlId(unsigned int id, const std::string &name, ControlType type,
+		  const std::string &vendor,
 		  std::size_t size = 0,
 		  const std::map<std::string, int32_t> &enumStrMap = {});
 
 	unsigned int id() const { return id_; }
 	const std::string &name() const { return name_; }
 	ControlType type() const { return type_; }
+	const std::string &vendor() const { return vendor_; }
 	bool isArray() const { return size_ > 0; }
 	std::size_t size() const { return size_; }
 	const std::map<int32_t, std::string> &enumerators() const { return reverseMap_; }
@@ -251,6 +253,7 @@ private:
 	unsigned int id_;
 	std::string name_;
 	ControlType type_;
+	std::string vendor_;
 	std::size_t size_;
 	std::map<std::string, int32_t> enumStrMap_;
 	std::map<int32_t, std::string> reverseMap_;
@@ -282,9 +285,10 @@ class Control : public ControlId
 public:
 	using type = T;
 
-	Control(unsigned int id, const char *name, const std::map<std::string, int32_t> &enumStrMap = {})
+	Control(unsigned int id, const char *name, const char *vendor,
+		const std::map<std::string, int32_t> &enumStrMap = {})
 		: ControlId(id, name, details::control_type<std::remove_cv_t<T>>::value,
-			    details::control_type<std::remove_cv_t<T>>::size, enumStrMap)
+			    vendor, details::control_type<std::remove_cv_t<T>>::size, enumStrMap)
 	{
 	}
 
