@@ -400,6 +400,7 @@ PYBIND11_MODULE(_libcamera, m)
 		.def_property_readonly("id", &ControlId::id)
 		.def_property_readonly("name", &ControlId::name)
 		.def_property_readonly("type", &ControlId::type)
+		.def_property_readonly("vendor", &ControlId::vendor)
 		.def("__str__", [](const ControlId &self) { return self.name(); })
 		.def("__repr__", [](const ControlId &self) {
 			return py::str("libcamera.ControlId({}, {}, {})")
