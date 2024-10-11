@@ -1157,7 +1157,8 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		const Size &size = pipeConfig->captureSize;
 
 		if (size.width >= maxStreamSize.width &&
-		    size.height >= maxStreamSize.height) {
+		    size.height >= maxStreamSize.height &&
+		    pipeConfig->outputSizes.contains(maxStreamSize)) {
 			if (!pipeConfig_ || size < pipeConfig_->captureSize)
 				pipeConfig_ = pipeConfig;
 		}
