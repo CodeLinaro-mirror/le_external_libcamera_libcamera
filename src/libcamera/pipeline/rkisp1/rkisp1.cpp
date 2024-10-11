@@ -36,7 +36,7 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/camera_sensor_properties.h"
-#include "libcamera/internal/converter/converter_v4l2_m2m.h"
+#include "libcamera/internal/converter/converter_dw100.h"
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/framebuffer.h"
@@ -234,7 +234,7 @@ private:
 	RkISP1MainPath mainPath_;
 	RkISP1SelfPath selfPath_;
 
-	std::unique_ptr<V4L2M2MConverter> dewarper_;
+	std::unique_ptr<ConverterDW100> dewarper_;
 	Rectangle scalerMaxCrop_;
 
 	std::optional<Rectangle> activeCrop_;
@@ -1500,7 +1500,7 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 
 	std::shared_ptr<MediaDevice> dwpMediaDevice = enumerator->search(dwp);
 	if (dwpMediaDevice) {
-		dewarper_ = std::make_unique<V4L2M2MConverter>(dwpMediaDevice);
+		dewarper_ = std::make_unique<ConverterDW100>(dwpMediaDevice);
 		if (dewarper_->isValid()) {
 			dewarper_->outputBufferReady.connect(
 				this, &PipelineHandlerRkISP1::dewarpBufferReady);
