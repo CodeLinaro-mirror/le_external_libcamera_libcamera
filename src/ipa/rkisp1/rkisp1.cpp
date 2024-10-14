@@ -432,9 +432,8 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
 	}
 
-	ctrlMap[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
-							      frameDurations[1],
-							      frameDurations[2]);
+	context_.ctrlMap[&controls::FrameDurationLimits] =
+		ControlInfo(frameDurations[0], frameDurations[1], frameDurations[2]);
 
 	ctrlMap.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
