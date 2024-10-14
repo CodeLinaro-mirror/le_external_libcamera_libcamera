@@ -394,6 +394,12 @@ void RkISP1CameraData::paramFilled(unsigned int frame, unsigned int bytesused)
 void RkISP1CameraData::setSensorControls([[maybe_unused]] unsigned int frame,
 					 const ControlList &sensorControls)
 {
+	if (frame == 0) {
+		ControlList controls = sensorControls;
+		sensor_->setControls(&controls);
+		return;
+	}
+
 	delayedCtrls_->push(sensorControls);
 }
 
@@ -1138,6 +1144,7 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
 		{ V4L2_CID_ANALOGUE_GAIN, { 1, false } },
 		{ V4L2_CID_EXPOSURE, { 2, false } },
+		{ V4L2_CID_VBLANK, { 1, false } },
 	};
 
 	data->delayedCtrls_ =

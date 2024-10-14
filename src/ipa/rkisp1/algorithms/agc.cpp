@@ -180,6 +180,7 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 
 	/* Limit the frame duration to match current initialisation */
 	ControlInfo &frameDurationLimits = context.ctrlMap[&controls::FrameDurationLimits];
+	context.activeState.agc.minFrameDuration = std::chrono::microseconds(frameDurationLimits.min().get<int64_t>());
 	context.activeState.agc.maxFrameDuration = std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
 
 	/*
@@ -267,10 +268,21 @@ void Agc::queueRequest(IPAContext &context,
 
 	const auto &frameDurationLimits = controls.get(controls::FrameDurationLimits);
 	if (frameDurationLimits) {
-		utils::Duration maxFrameDuration =
-			std::chrono::milliseconds((*frameDurationLimits).back());
-		agc.maxFrameDuration = maxFrameDuration;
+		/* Limit the control value to the limits in ControlInfo */
+		ControlInfo &limits = context.ctrlMap[&controls::FrameDurationLimits];
+		int64_t minFrameDuration =
+			std::clamp((*frameDurationLimits).front(),
+				   limits.min().get<int64_t>(),
+				   limits.max().get<int64_t>());
+		int64_t maxFrameDuration =
+			std::clamp((*frameDurationLimits).back(),
+				   limits.min().get<int64_t>(),
+				   limits.max().get<int64_t>());
+
+		agc.minFrameDuration = std::chrono::microseconds(minFrameDuration);
+		agc.maxFrameDuration = std::chrono::microseconds(maxFrameDuration);
 	}
+	frameContext.agc.minFrameDuration = agc.minFrameDuration;
 	frameContext.agc.maxFrameDuration = agc.maxFrameDuration;
 }
 
@@ -330,15 +342,8 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 				     * frameContext.sensor.exposure;
 	metadata.set(controls::AnalogueGain, frameContext.sensor.gain);
 	metadata.set(controls::ExposureTime, exposureTime.get<std::micro>());
+	metadata.set(controls::FrameDuration, frameContext.agc.frameDuration.get<std::micro>());
 	metadata.set(controls::AeEnable, frameContext.agc.autoEnabled);
-
-	/* \todo Use VBlank value calculated from each frame exposure. */
-	uint32_t vTotal = context.configuration.sensor.size.height
-			+ context.configuration.sensor.defVBlank;
-	utils::Duration frameDuration = context.configuration.sensor.lineDuration
-				      * vTotal;
-	metadata.set(controls::FrameDuration, frameDuration.get<std::micro>());
-
 	metadata.set(controls::AeMeteringMode, frameContext.agc.meteringMode);
 	metadata.set(controls::AeExposureMode, frameContext.agc.exposureMode);
 	metadata.set(controls::AeConstraintMode, frameContext.agc.constraintMode);
@@ -400,6 +405,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		return;
 	}
 
+	IPACameraSensorInfo &sensorInfo = context.sensorInfo;
 	utils::Duration lineDuration = context.configuration.sensor.lineDuration;
 
 	/*
@@ -418,11 +424,19 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		       [](uint32_t x) { return x >> 4; });
 	expMeans_ = { params->ae.exp_mean, context.hw->numAeCells };
 
+	/*
+	 * Limit the allowed shutter speeds for the exposure helper based on
+	 * the frame duration limits.
+	 */
+	utils::Duration minShutterSpeed =
+		std::clamp(frameContext.agc.minFrameDuration,
+			   context.configuration.sensor.minShutterSpeed,
+			   context.configuration.sensor.maxShutterSpeed);
 	utils::Duration maxShutterSpeed =
 		std::clamp(frameContext.agc.maxFrameDuration,
 			   context.configuration.sensor.minShutterSpeed,
 			   context.configuration.sensor.maxShutterSpeed);
-	setLimits(context.configuration.sensor.minShutterSpeed,
+	setLimits(minShutterSpeed,
 		  maxShutterSpeed,
 		  context.configuration.sensor.minAnalogueGain,
 		  context.configuration.sensor.maxAnalogueGain);
@@ -450,6 +464,20 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	/* Update the estimated exposure and gain. */
 	activeState.agc.automatic.exposure = shutterTime / lineDuration;
 	activeState.agc.automatic.gain = aGain;
+
+	/*
+	 * Determine what our FrameDuration must be and adapt VBLANK to suit
+	 * this if we need to expand the shutter time calculated to fill the
+	 * remaining time so that we do not run faster than the minimum frame
+	 * duration (maximum requested frame rate) when we have short exposures.
+	 */
+	utils::Duration frameDuration = std::max(frameContext.agc.minFrameDuration,
+						 shutterTime);
+
+	frameContext.agc.vblank = (frameDuration / lineDuration) - sensorInfo.outputSize.height;
+
+	/* Update accounting for line length quantization. */
+	frameContext.agc.frameDuration = (sensorInfo.outputSize.height + frameContext.agc.vblank) * lineDuration;
 
 	fillMetadata(context, frameContext, metadata);
 	expMeans_ = {};
