@@ -398,7 +398,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext, const rkisp1_stat_buffer *stats,
 		  ControlList &metadata)
 {
-	if (!stats) {
+	if (!(stats && stats->meas_type & RKISP1_CIF_ISP_STAT_AUTOEXP)) {
 		fillMetadata(context, frameContext, metadata);
 		return;
 	}
@@ -412,7 +412,6 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	 */
 
 	const rkisp1_cif_isp_stat *params = &stats->params;
-	ASSERT(stats->meas_type & RKISP1_CIF_ISP_STAT_AUTOEXP);
 
 	/* The lower 4 bits are fractional and meant to be discarded. */
 	Histogram hist({ params->hist.hist_bins, context.hw->numHistogramBins },
