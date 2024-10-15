@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <list>
+#include <optional>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -128,6 +129,8 @@ private:
 	int exitCode_;
 
 	MessageQueue messages_;
+
+	std::optional<cpu_set_t> cpuset_ = std::nullopt;
 };
 
 /**
@@ -254,6 +257,8 @@ void Thread::start()
 	data_->exit_.store(false, std::memory_order_relaxed);
 
 	thread_ = std::thread(&Thread::startThread, this);
+
+	setThreadAffinityInternal();
 }
 
 void Thread::startThread()
@@ -408,6 +413,54 @@ bool Thread::wait(utils::duration duration)
 		thread_.join();
 
 	return hasFinished;
+}
+
+/**
+ * \brief Set the CPU affinity mask of the thread
+ * \param[in] cpus The list of CPU indices that the thread is set affinity to
+ *
+ * The cpu indices should be within [0, std::thread::hardware_concurrency()),
+ * and the total number should not exceed `CPU_SETSIZE`. Invalid indices and
+ * extra indices will be ignored.
+ */
+void Thread::setThreadAffinity(const Span<const unsigned int> &cpus)
+{
+	const unsigned int numCpus = std::thread::hardware_concurrency();
+
+	MutexLocker locker(data_->mutex_);
+	data_->cpuset_ = cpu_set_t();
+	CPU_ZERO(&data_->cpuset_.value());
+
+	unsigned int count = 0;
+	for (const unsigned int &cpu : cpus) {
+		if (count == CPU_SETSIZE) {
+			LOG(Thread, Error) << "cpus_ already contains " << CPU_SETSIZE
+					   << " cpus. Ignoring the rest.";
+			break;
+		}
+
+		if (cpu >= numCpus) {
+			LOG(Thread, Error) << "Ignore an invalid cpu index: " << cpu;
+			continue;
+		}
+
+		++count;
+		CPU_SET(cpu, &data_->cpuset_.value());
+	}
+
+	if (data_->running_)
+		setThreadAffinityInternal();
+}
+
+void Thread::setThreadAffinityInternal()
+{
+	if (!data_->cpuset_)
+		return;
+
+	auto handle = thread_.native_handle();
+
+	pthread_setaffinity_np(handle, sizeof(data_->cpuset_.value()),
+			       &data_->cpuset_.value());
 }
 
 /**
