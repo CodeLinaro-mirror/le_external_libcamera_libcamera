@@ -231,6 +231,8 @@ public:
 
 	V4L2PixelFormat toV4L2PixelFormat(const PixelFormat &pixelFormat) const;
 
+	void changePollerThread(Thread *thread);
+
 protected:
 	std::string logPrefix() const override;
 
