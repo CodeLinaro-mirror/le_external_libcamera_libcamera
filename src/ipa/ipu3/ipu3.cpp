@@ -561,7 +561,8 @@ void IPAIPU3::fillParamsBuffer(const uint32_t frame, const uint32_t bufferId)
 	 */
 	params->use = {};
 
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 
 	for (auto const &algo : algorithms())
 		algo->prepare(context_, frame, frameContext, params);
@@ -594,7 +595,8 @@ void IPAIPU3::processStatsBuffer(const uint32_t frame,
 	const ipu3_uapi_stats_3a *stats =
 		reinterpret_cast<ipu3_uapi_stats_3a *>(mem.data());
 
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 
 	frameContext.sensor.exposure = sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
 	frameContext.sensor.gain = camHelper_->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
@@ -627,7 +629,8 @@ void IPAIPU3::processStatsBuffer(const uint32_t frame,
  */
 void IPAIPU3::queueRequest(const uint32_t frame, const ControlList &controls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame,
+								     context_.activeState);
 
 	for (auto const &algo : algorithms())
 		algo->queueRequest(context_, frame, frameContext, controls);

@@ -24,7 +24,7 @@ struct IPASessionConfiguration {
 	} agc;
 };
 
-struct IPAActiveState {
+struct IPAActiveState : public ActiveState {
 	struct {
 		uint8_t level;
 	} blc;

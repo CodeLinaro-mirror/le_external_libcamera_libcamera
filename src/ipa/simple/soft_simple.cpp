@@ -249,7 +249,8 @@ void IPASoftSimple::stop()
 
 void IPASoftSimple::queueRequest(const uint32_t frame, const ControlList &controls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame,
+								     context_.activeState);
 
 	for (auto const &algo : algorithms())
 		algo->queueRequest(context_, frame, frameContext, controls);
@@ -257,7 +258,8 @@ void IPASoftSimple::queueRequest(const uint32_t frame, const ControlList &contro
 
 void IPASoftSimple::fillParamsBuffer(const uint32_t frame)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 	for (auto const &algo : algorithms())
 		algo->prepare(context_, frame, frameContext, params_);
 	setIspParams.emit();
@@ -267,7 +269,8 @@ void IPASoftSimple::processStats(const uint32_t frame,
 				 [[maybe_unused]] const uint32_t bufferId,
 				 const ControlList &sensorControls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 
 	frameContext.sensor.exposure =
 		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();

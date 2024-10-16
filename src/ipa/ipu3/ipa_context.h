@@ -46,7 +46,7 @@ struct IPASessionConfiguration {
 	} sensor;
 };
 
-struct IPAActiveState {
+struct IPAActiveState : public ActiveState {
 	struct {
 		uint32_t focus;
 		double maxVariance;

@@ -21,9 +21,16 @@ namespace ipa {
 template<typename FrameContext>
 class FCQueue;
 
+struct ActiveState {
+};
+
 struct FrameContext {
+public:
+	virtual ~FrameContext() = default;
+
 protected:
-	virtual void init(const uint32_t frameNum)
+	virtual void init(const uint32_t frameNum,
+			  [[maybe_unused]] const ActiveState &activeState)
 	{
 		frame = frameNum;
 		initialised = true;
@@ -52,7 +59,7 @@ public:
 		}
 	}
 
-	FrameContext &alloc(const uint32_t frame)
+	FrameContext &alloc(const uint32_t frame, const ActiveState &activeState)
 	{
 		FrameContext &frameContext = contexts_[frame % contexts_.size()];
 
@@ -71,12 +78,12 @@ public:
 			LOG(FCQueue, Warning)
 				<< "Frame " << frame << " already initialised";
 		else
-			frameContext.init(frame);
+			frameContext.init(frame, activeState);
 
 		return frameContext;
 	}
 
-	FrameContext &get(uint32_t frame)
+	FrameContext &get(uint32_t frame, const ActiveState &activeState)
 	{
 		FrameContext &frameContext = contexts_[frame % contexts_.size()];
 
@@ -103,7 +110,7 @@ public:
 			 * Make sure the FrameContext gets initialised if get()
 			 * is called before alloc() by the IPA for frame#0.
 			 */
-			frameContext.init(frame);
+			frameContext.init(frame, activeState);
 
 			return frameContext;
 		}
@@ -123,7 +130,7 @@ public:
 		LOG(FCQueue, Warning)
 			<< "Obtained an uninitialised FrameContext for " << frame;
 
-		frameContext.init(frame);
+		frameContext.init(frame, activeState);
 
 		return frameContext;
 	}

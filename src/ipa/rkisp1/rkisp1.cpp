@@ -325,7 +325,8 @@ void IPARkISP1::unmapBuffers(const std::vector<unsigned int> &ids)
 
 void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.alloc(frame,
+								     context_.activeState);
 
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
@@ -337,7 +338,8 @@ void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 
 void IPARkISP1::fillParamsBuffer(const uint32_t frame, const uint32_t bufferId)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 
 	RkISP1Params params(context_.configuration.paramFormat,
 			    mappedBuffers_.at(bufferId).planes()[0]);
@@ -351,7 +353,8 @@ void IPARkISP1::fillParamsBuffer(const uint32_t frame, const uint32_t bufferId)
 void IPARkISP1::processStatsBuffer(const uint32_t frame, const uint32_t bufferId,
 				   const ControlList &sensorControls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 
 	/*
 	 * In raw capture mode, the ISP is bypassed and no statistics buffer is
@@ -447,7 +450,8 @@ void IPARkISP1::setControls(unsigned int frame)
 	 * internal sensor delays and other timing parameters into account.
 	 */
 
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame,
+								   context_.activeState);
 	uint32_t exposure = frameContext.agc.exposure;
 	uint32_t gain = context_.camHelper->gainCode(frameContext.agc.gain);
 

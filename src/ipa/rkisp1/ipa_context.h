@@ -64,7 +64,7 @@ struct IPASessionConfiguration {
 	uint32_t paramFormat;
 };
 
-struct IPAActiveState {
+struct IPAActiveState : public ActiveState {
 	struct {
 		struct {
 			uint32_t exposure;
@@ -178,7 +178,8 @@ struct IPAFrameContext : public FrameContext {
 		Matrix<float, 3, 3> ccm;
 	} ccm;
 
-	void init(const uint32_t frame) override;
+	void init(const uint32_t frame,
+		  const ActiveState &activeState) override;
 };
 
 struct IPAContext {

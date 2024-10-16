@@ -42,6 +42,7 @@ namespace ipa {
  * \fn FrameContext::init()
  * \brief Initialize a frame context
  * \param[in] frameNum The frame number to assign to this FrameContext
+ * \param[in] activeState The IPA current active state
  *
  * This function initializes a frame context by assigning it a frame number.
  * The single IPA modules are expected to override this function to initialize
@@ -117,9 +118,10 @@ namespace ipa {
  */
 
 /**
- * \fn FCQueue::alloc(uint32_t frame)
+ * \fn FCQueue::alloc(uint32_t frame, const ActiveState &activeState)
  * \brief Allocate and return a FrameContext for the \a frame
  * \param[in] frame The frame context sequence number
+ * \param[in] activeState The IPA current active state
  *
  * The first call to obtain a FrameContext from the FCQueue should be handled
  * through this function. The FrameContext will be initialised, if not
@@ -135,12 +137,14 @@ namespace ipa {
  */
 
 /**
- * \fn FCQueue::get(uint32_t frame)
+ * \fn FCQueue::get(uint32_t frame, const ActiveState &activeState)
  * \brief Obtain the FrameContext for the \a frame
  * \param[in] frame The frame context sequence number
+ * \param[in] activeState The IPA current active state
  *
  * If the FrameContext is not correctly initialised for the \a frame, it will be
- * initialised.
+ * initialised using the most current state of IPA algorithm contained in
+ * \a activeState.
  *
  * \return A reference to the FrameContext for sequence \a frame
  */
