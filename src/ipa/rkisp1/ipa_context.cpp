@@ -421,6 +421,11 @@ void IPAFrameContext::init(const uint32_t frameNum,
 			   const ActiveState &activeState)
 {
 	FrameContext::init(frameNum, activeState);
+
+	const IPAActiveState *rkisp1ActiveState =
+		reinterpret_cast<const IPAActiveState *>(&activeState);
+
+	agc.meteringMode = rkisp1ActiveState->agc.meteringMode;
 }
 
 /**

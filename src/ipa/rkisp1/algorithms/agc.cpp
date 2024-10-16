@@ -175,6 +175,8 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 		static_cast<controls::AeConstraintModeEnum>(constraintModes().begin()->first);
 	context.activeState.agc.exposureMode =
 		static_cast<controls::AeExposureModeEnum>(exposureModeHelpers().begin()->first);
+
+	/* Use the metering matrix mode by default. */
 	context.activeState.agc.meteringMode =
 		static_cast<controls::AeMeteringModeEnum>(meteringModes_.begin()->first);
 
