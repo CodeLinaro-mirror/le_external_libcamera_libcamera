@@ -39,6 +39,16 @@ namespace ipa {
  */
 
 /**
+ * \fn FrameContext::init()
+ * \brief Initialize a frame context
+ * \param[in] frameNum The frame number to assign to this FrameContext
+ *
+ * This function initializes a frame context by assigning it a frame number.
+ * The single IPA modules are expected to override this function to initialize
+ * their derived FrameContext implementation to their desired default values.
+ */
+
+/**
  * \class FCQueue
  * \brief A support class for managing FrameContext instances in IPA modules
  * \tparam FrameContext The IPA module-specific FrameContext derived class type

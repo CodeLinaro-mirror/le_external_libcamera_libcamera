@@ -417,6 +417,11 @@ namespace libcamera::ipa::rkisp1 {
  * \brief Analogue gain multiplier
  */
 
+void IPAFrameContext::init(const uint32_t frameNum)
+{
+	FrameContext::init(frameNum);
+}
+
 /**
  * \struct IPAContext
  * \brief Global IPA context data shared between all algorithms

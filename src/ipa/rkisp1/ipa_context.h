@@ -177,6 +177,8 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		Matrix<float, 3, 3> ccm;
 	} ccm;
+
+	void init(const uint32_t frame) override;
 };
 
 struct IPAContext {

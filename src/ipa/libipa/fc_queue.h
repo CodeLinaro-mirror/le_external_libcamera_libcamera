@@ -22,6 +22,12 @@ template<typename FrameContext>
 class FCQueue;
 
 struct FrameContext {
+protected:
+	virtual void init(const uint32_t frameNum)
+	{
+		frame = frameNum;
+	}
+
 private:
 	template<typename T> friend class FCQueue;
 	uint32_t frame;
@@ -61,7 +67,7 @@ public:
 			LOG(FCQueue, Warning)
 				<< "Frame " << frame << " already initialised";
 		else
-			init(frameContext, frame);
+			frameContext.init(frame);
 
 		return frameContext;
 	}
@@ -98,18 +104,12 @@ public:
 		LOG(FCQueue, Warning)
 			<< "Obtained an uninitialised FrameContext for " << frame;
 
-		init(frameContext, frame);
+		frameContext.init(frame);
 
 		return frameContext;
 	}
 
 private:
-	void init(FrameContext &frameContext, const uint32_t frame)
-	{
-		frameContext = {};
-		frameContext.frame = frame;
-	}
-
 	std::vector<FrameContext> contexts_;
 };
 
