@@ -87,6 +87,15 @@ LOG_DEFINE_CATEGORY(Buffer)
  */
 
 /**
+ * \var FrameMetadata::hwSequence
+ * \brief The real hardware Frame sequence number
+ *
+ * \a FrameMetadata::sequence auto-corrects the initial value to zero on frame
+ * start. This value keeps the original hardware sequence to allow users to
+ * query processing information of particular frames.
+ */
+
+/**
  * \var FrameMetadata::timestamp
  * \brief Time when the frame was captured
  *

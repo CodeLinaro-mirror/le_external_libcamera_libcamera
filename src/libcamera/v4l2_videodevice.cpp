@@ -1886,6 +1886,7 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 			? FrameMetadata::FrameError
 			: FrameMetadata::FrameSuccess;
 	metadata.sequence = buf.sequence;
+	metadata.hwSequence = buf.sequence;
 	metadata.timestamp = buf.timestamp.tv_sec * 1000000000ULL
 			   + buf.timestamp.tv_usec * 1000ULL;
 

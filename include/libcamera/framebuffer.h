@@ -34,6 +34,7 @@ struct FrameMetadata {
 
 	Status status;
 	unsigned int sequence;
+	unsigned int hwSequence;
 	uint64_t timestamp;
 
 	Span<Plane> planes() { return planes_; }
