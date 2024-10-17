@@ -235,9 +235,6 @@ private:
 	RkISP1SelfPath selfPath_;
 
 	std::unique_ptr<ConverterDW100> dewarper_;
-	Rectangle scalerMaxCrop_;
-
-	std::optional<Rectangle> activeCrop_;
 
 	/* Internal buffers used when dewarper is being used */
 	std::vector<std::unique_ptr<FrameBuffer>> mainPathBuffers_;
@@ -969,13 +966,22 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 					return ret;
 
 				/*
-				 * Calculate the crop rectangle of the data
-				 * flowing into the dewarper in sensor
-				 * coordinates.
+				 * Apply the actual sensor crop, for proper
+				 * dewarp map calculation
 				 */
-				scalerMaxCrop_ =
-					outputCrop.transformedBetween(inputCrop,
-								      sensorInfo.analogCrop);
+				Rectangle sensorCrop = outputCrop.transformedBetween(
+					inputCrop, sensorInfo.analogCrop);
+				auto &vertexMap = dewarper_->vertexMap(cfg.stream());
+				vertexMap.setSensorCrop(sensorCrop);
+				data->properties_.set(properties::ScalerCropMaximum, sensorCrop);
+
+				/*
+				 * Apply a default sensor crop that keeps the
+				 * aspect ratio.
+				 */
+				Size crop = format.size.boundedToAspectRatio(cfg.size);
+				vertexMap.setScalerCrop(crop.centeredTo(
+					Rectangle(format.size).center()));
 			}
 
 			ret = mainPath_.configure(ispCfg, format);
@@ -1186,6 +1192,18 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 		actions += [&]() { stat_->streamOff(); };
 
 		if (data->usesDewarper_) {
+			/*
+			 * Apply the vertex map before start to partially
+			 * support ScalerCrop on kernels with a dw100 driver
+			 * that has no dynamic vertex map/requests support.
+			 */
+			if (controls && controls->contains(controls::ScalerCrop.id())) {
+				const auto &crop = controls->get(controls::ScalerCrop);
+				auto &vertexMap = dewarper_->vertexMap(&data->mainPathStream_);
+				vertexMap.setScalerCrop(*crop);
+			}
+			dewarper_->applyVertexMap(&data->mainPathStream_);
+
 			ret = dewarper_->start();
 			if (ret) {
 				LOG(RkISP1, Error) << "Failed to start dewarper";
@@ -1338,25 +1356,31 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 
 	if (data->usesDewarper_) {
 		std::pair<Rectangle, Rectangle> cropLimits;
-		if (dewarper_->isConfigured(&data->mainPathStream_))
-			cropLimits = dewarper_->inputCropBounds(&data->mainPathStream_);
-		else
+		if (dewarper_->isConfigured(&data->mainPathStream_)) {
+			auto &vertexMap = dewarper_->vertexMap(&data->mainPathStream_);
+			vertexMap.applyLimits();
+			cropLimits = vertexMap.scalerCropBounds();
+			controls[&controls::ScalerCrop] = ControlInfo(cropLimits.first,
+								      cropLimits.second,
+								      vertexMap.effectiveScalerCrop());
+		} else {
+			/* This happens before configure() has run. Maybe we need a better solution.*/
+			/*
+			* ScalerCrop is specified to be in Sensor coordinates.
+			* So we need to transform the limits to sensor coordinates.
+			* We can safely assume that the maximum crop limit contains the
+			* full fov of the dewarper.
+			*/
 			cropLimits = dewarper_->inputCropBounds();
+			Rectangle maxCrop = Rectangle(data->sensor_->resolution());
+			Rectangle min = cropLimits.first.transformedBetween(cropLimits.second,
+									    maxCrop);
 
-		/*
-		 * ScalerCrop is specified to be in Sensor coordinates.
-		 * So we need to transform the limits to sensor coordinates.
-		 * We can safely assume that the maximum crop limit contains the
-		 * full fov of the dewarper.
-		 */
-		Rectangle min = cropLimits.first.transformedBetween(cropLimits.second,
-								    scalerMaxCrop_);
+			controls[&controls::ScalerCrop] = ControlInfo(min,
+								      maxCrop,
+								      maxCrop);
+		}
 
-		controls[&controls::ScalerCrop] = ControlInfo(min,
-							      scalerMaxCrop_,
-							      scalerMaxCrop_);
-		data->properties_.set(properties::ScalerCropMaximum, scalerMaxCrop_);
-		activeCrop_ = scalerMaxCrop_;
 	}
 
 	/* Add the IPA registered controls to list of camera controls. */
@@ -1396,8 +1420,6 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 
 	/* Initialize the camera properties. */
 	data->properties_ = data->sensor_->properties();
-
-	scalerMaxCrop_ = Rectangle(data->sensor_->resolution());
 
 	const CameraSensorProperties::SensorDelays &delays = data->sensor_->sensorDelays();
 	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
@@ -1632,36 +1654,17 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		availableDewarpRequests_.pop();
 	}
 
+	auto &vertexMap = dewarper_->vertexMap(&data->mainPathStream_);
+
 	/* Handle scaler crop control. */
 	const auto &crop = request->controls().get(controls::ScalerCrop);
 	if (crop) {
-		Rectangle rect = crop.value();
-
-		/*
-		 * ScalerCrop is specified to be in Sensor coordinates.
-		 * So we need to transform it into dewarper coordinates.
-		 * We can safely assume that the maximum crop limit contains the
-		 * full fov of the dewarper.
-		 */
-		std::pair<Rectangle, Rectangle> cropLimits =
-			dewarper_->inputCropBounds(&data->mainPathStream_);
-
-		rect = rect.transformedBetween(scalerMaxCrop_, cropLimits.second);
-		int ret = dewarper_->setInputCrop(&data->mainPathStream_,
-						  &rect);
-		rect = rect.transformedBetween(cropLimits.second, scalerMaxCrop_);
-		if (!ret && rect != crop.value()) {
-			/*
-			 * If the rectangle is changed by setInputCrop on the
-			 * dewarper, log a debug message and cache the actual
-			 * applied rectangle for metadata reporting.
-			 */
-			LOG(RkISP1, Debug)
-				<< "Applied rectangle " << rect.toString()
-				<< " differs from requested " << crop.value().toString();
-		}
-
-		activeCrop_ = rect;
+		if (!dewarper_->supportsRequests())
+			LOG(RkISP1, Error)
+				<< "Dynamically setting ScalerCrop requires a "
+				   "dw100 driver with requests support";
+		vertexMap.setScalerCrop(*crop);
+		dewarper_->applyVertexMap(&data->mainPathStream_, dewarpRequest);
 	}
 
 	/*
@@ -1695,7 +1698,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		}
 	}
 
-	request->metadata().set(controls::ScalerCrop, activeCrop_.value());
+	request->metadata().set(controls::ScalerCrop, vertexMap.effectiveScalerCrop());
 }
 
 void PipelineHandlerRkISP1::dewarpRequestReady(V4L2Request *request)
