@@ -70,6 +70,18 @@ CameraSession::CameraSession(CameraManager *cm,
 		return;
 	}
 
+	if (options_.isSet(OptCaptureScript)) {
+		std::string scriptName = options_[OptCaptureScript].toString();
+		script_ = std::make_unique<CaptureScript>(camera_, scriptName);
+		if (!script_->valid()) {
+			std::cerr << "Invalid capture script '" << scriptName
+				  << "'" << std::endl;
+			return;
+		}
+
+		script_->populateConfiguration(config.get());
+	}
+
 	if (options_.isSet(OptOrientation)) {
 		std::string orientOpt = options_[OptOrientation].toString();
 		static const std::map<std::string, libcamera::Orientation> orientations{
@@ -118,16 +130,6 @@ CameraSession::CameraSession(CameraManager *cm,
 		}
 	}
 #endif
-
-	if (options_.isSet(OptCaptureScript)) {
-		std::string scriptName = options_[OptCaptureScript].toString();
-		script_ = std::make_unique<CaptureScript>(camera_, scriptName);
-		if (!script_->valid()) {
-			std::cerr << "Invalid capture script '" << scriptName
-				  << "'" << std::endl;
-			return;
-		}
-	}
 
 	switch (config->validate()) {
 	case CameraConfiguration::Valid:

@@ -26,6 +26,7 @@ public:
 
 	const libcamera::ControlList &frameControls(unsigned int frame);
 
+	void populateConfiguration(libcamera::CameraConfiguration *configuration) const;
 private:
 	struct EventDeleter {
 		void operator()(yaml_event_t *event) const
@@ -43,6 +44,9 @@ private:
 	unsigned int loop_;
 	bool valid_;
 
+	libcamera::Orientation orientation_;
+	std::vector<libcamera::StreamConfiguration> streamConfigs_;
+
 	EventPtr nextEvent(yaml_event_type_t expectedType = YAML_NO_EVENT);
 	bool checkEvent(const EventPtr &event, yaml_event_type_t expectedType) const;
 	static std::string eventScalarValue(const EventPtr &event);
@@ -55,6 +59,10 @@ private:
 	int parseFrames();
 	int parseFrame(EventPtr event);
 	int parseControl(EventPtr event, libcamera::ControlList &controls);
+	int parseConfiguration();
+	int parseOrientation(EventPtr event);
+	int parseStreams(EventPtr event);
+	int parseStream(EventPtr event, unsigned int index);
 
 	libcamera::ControlValue parseScalarControl(const libcamera::ControlId *id,
 						   const std::string repr);
