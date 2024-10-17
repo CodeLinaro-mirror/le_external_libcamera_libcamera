@@ -93,7 +93,7 @@ public:
 			{{method|method_return_value}} _callRet =
 {%- endif -%}
 			ipa_->{{method.mojom_name}}({{method.parameters|params_comma_sep}}
-{{- ", " if method|method_param_outputs|params_comma_sep -}}
+{{- ", " if method|method_param_outputs|params_comma_sep and method.parameters|params_comma_sep -}}
 {%- for param in method|method_param_outputs -%}
 &{{param.mojom_name}}{{", " if not loop.last}}
 {%- endfor -%}
