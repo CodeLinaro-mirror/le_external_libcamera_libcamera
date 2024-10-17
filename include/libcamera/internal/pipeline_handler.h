@@ -19,6 +19,8 @@
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
 
+#include "libcamera/internal/yaml_emitter.h"
+
 namespace libcamera {
 
 enum class Orientation;
@@ -110,8 +112,13 @@ private:
 	const char *name_;
 	unsigned int useCount_;
 
-	std::ostream *dumpCaptureScript_;
-	std::ostream *dumpMetadata_;
+	std::unique_ptr<YamlRoot> controlsEmitter_;
+	std::unique_ptr<YamlDict> controlsDict_;
+	std::unique_ptr<YamlList> controlsList_;
+
+	std::unique_ptr<YamlRoot> metadataEmitter_;
+	std::unique_ptr<YamlDict> metadataDict_;
+	std::unique_ptr<YamlList> metadataList_;
 
 	friend class PipelineHandlerFactoryBase;
 };

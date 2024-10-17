@@ -69,36 +69,31 @@ LOG_DEFINE_CATEGORY(Pipeline)
  * through the PipelineHandlerFactoryBase::create() function.
  */
 PipelineHandler::PipelineHandler(CameraManager *manager)
-	: manager_(manager), useCount_(0),
-	  dumpCaptureScript_(nullptr), dumpMetadata_(nullptr)
+	: manager_(manager), useCount_(0)
 {
 	/* TODO Print notification that we're dumping capture script */
 	const char *file = utils::secure_getenv("LIBCAMERA_DUMP_CAPTURE_SCRIPT");
 	if (!file)
 		return;
 
-	dumpCaptureScript_ = new std::ofstream(file);
+	std::string filePath(file);
+	controlsEmitter_ = YamlEmitter::root(filePath);
+	controlsDict_ = controlsEmitter_->dict();
 
 	/*
 	 * Metadata needs to go into a separate file because otherwise it'll
 	 * flood the capture script
 	 */
-	dumpMetadata_ = new std::ofstream(std::string(file) + ".metadata");
-	std::string str = "frames:\n";
-	dumpMetadata_->write(str.c_str(), str.size());
-	dumpMetadata_->flush();
+	std::string metadataFilePath = filePath + ".metadata";
+	metadataEmitter_ = YamlEmitter::root(metadataFilePath);
+	metadataDict_ = metadataEmitter_->dict();
+	metadataList_ = metadataDict_->list("frames");
 }
 
 PipelineHandler::~PipelineHandler()
 {
 	for (std::shared_ptr<MediaDevice> media : mediaDevices_)
 		media->release();
-
-	if (dumpCaptureScript_)
-		delete dumpCaptureScript_;
-
-	if (dumpMetadata_)
-		delete dumpMetadata_;
 }
 
 /**
@@ -788,65 +783,72 @@ void PipelineHandler::disconnect()
 void PipelineHandler::dumpConfiguration(const std::set<const Stream *> &streams,
 					const Orientation &orientation)
 {
-	if (!dumpCaptureScript_)
+	if (!controlsEmitter_)
 		return;
 
-	std::stringstream ss;
-	ss << "configuration:" << std::endl;
-	ss << "  orientation: " << orientation << std::endl;
+	auto configurationDict = controlsDict_->dict("configuration");
+
+	std::stringstream o;
+	o << orientation;
+	(*configurationDict)["orientation"] = o.str();
 
 	/* TODO Dump Sensor configuration */
 
-	ss << "  streams:" << std::endl;
+	auto streamsList = configurationDict->list("streams");
+
 	for (const auto &stream : streams) {
 		const StreamConfiguration &streamConfig = stream->configuration();
-		ss << "    - pixelFormat: " << streamConfig.pixelFormat << std::endl;
-		ss << "      size: " << streamConfig.size << std::endl;
-		ss << "      stride: " << streamConfig.stride << std::endl;
-		ss << "      frameSize: " << streamConfig.frameSize << std::endl;
-		ss << "      bufferCount: " << streamConfig.bufferCount << std::endl;
+		auto yamlStream = streamsList->dict();
+
+		(*yamlStream)["pixelformat"] = streamConfig.pixelFormat.toString();
+		(*yamlStream)["size"] = streamConfig.size.toString();
+		(*yamlStream)["stride"] = std::to_string(streamConfig.stride);
+		(*yamlStream)["frameSize"] = std::to_string(streamConfig.frameSize);
+		(*yamlStream)["bufferCount"] = std::to_string(streamConfig.bufferCount);
+
 		if (streamConfig.colorSpace)
-			ss << "      colorSpace: " << streamConfig.colorSpace->toString() << std::endl;
+			(*yamlStream)["colorSpace"] =
+				streamConfig.colorSpace->toString();
 	}
-
-	dumpCaptureScript_->write(ss.str().c_str(), ss.str().size());
-
-	std::string str = "frames:\n";
-	dumpCaptureScript_->write(str.c_str(), str.size());
-	dumpCaptureScript_->flush();
 }
 
 void PipelineHandler::dumpRequest(Request *request, DumpMode mode)
 {
-	ControlList &controls =
-		mode == DumpMode::Controls ? request->controls()
-					   : request->metadata();
-	std::ostream *output =
-		mode == DumpMode::Controls ? dumpCaptureScript_
-					   : dumpMetadata_;
-
-	if (!output || controls.empty())
+	if (!controlsEmitter_)
 		return;
 
-	std::stringstream ss;
+	ControlList &controls = mode == DumpMode::Controls ? request->controls()
+							   : request->metadata();
+	if (controls.empty())
+		return;
+
+	std::unique_ptr<YamlDict> yamlFrame;
+	if (mode == DumpMode::Controls) {
+		if (!controlsEmitter_)
+			return;
+
+		if (!controlsList_)
+			controlsList_ = controlsDict_->list("frames");
+
+		yamlFrame = controlsList_->dict();
+	} else {
+		if (!metadataEmitter_)
+			return;
+
+		yamlFrame = metadataList_->dict();
+	}
+
+	auto yamlCtrls = yamlFrame->dict(std::to_string(request->sequence()));
+
 	/* TODO Figure out PFC */
-	ss << "  - " << request->sequence() << ":" << std::endl;
 
 	const ControlIdMap *idMap = controls.idMap();
 	for (const auto &pair : controls) {
 		const ControlId *ctrlId = idMap->at(pair.first);
-		/* TODO Prettify enums (probably by upgrading ControlValue::toString()) */
-		ss << "      " << ctrlId->name() << ": " << pair.second.toString() << std::endl;
-	}
 
-	/*
-	 * TODO Investigate the overhead of flushing this frequently
-	 * Controls aren't going to be queued too frequently so it should be
-	 * fine to dump controls every frame. Metadata on the other hand needs
-	 * to be investigated.
-	 */
-	output->write(ss.str().c_str(), ss.str().size());
-	output->flush();
+		/* TODO Prettify enums (probably by upgrading ControlValue::toString()) */
+		(*yamlCtrls)[ctrlId->name()] = pair.second.toString();
+	}
 }
 
 /**
