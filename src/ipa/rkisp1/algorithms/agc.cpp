@@ -30,8 +30,12 @@
 namespace libcamera {
 
 using namespace std::literals::chrono_literals;
+using utils::Duration;
 
 namespace ipa::rkisp1::algorithms {
+
+constexpr double defaultAnalogueGain = 1.0;
+constexpr Duration defaultExposureTime = 10.0ms;
 
 /**
  * \class Agc
@@ -164,9 +168,9 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 {
 	/* Configure the default exposure and gain. */
-	context.activeState.agc.automatic.gain = context.configuration.sensor.minAnalogueGain;
+	context.activeState.agc.automatic.gain = defaultAnalogueGain;
 	context.activeState.agc.automatic.exposure =
-		10ms / context.configuration.sensor.lineDuration;
+		defaultExposureTime / context.configuration.sensor.lineDuration;
 	context.activeState.agc.manual.gain = context.activeState.agc.automatic.gain;
 	context.activeState.agc.manual.exposure = context.activeState.agc.automatic.exposure;
 	context.activeState.agc.autoEnabled = !context.configuration.raw;
