@@ -943,6 +943,7 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 {
 	RkISP1CameraData *data = cameraData(camera);
 	utils::ScopeExitActions actions;
+	ControlList sensorControls;
 	int ret;
 
 	/* Allocate buffers for internal pipeline usage. */
@@ -951,7 +952,7 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 		return ret;
 	actions += [&]() { freeBuffers(camera); };
 
-	ret = data->ipa_->start();
+	ret = data->ipa_->start(&sensorControls);
 	if (ret) {
 		LOG(RkISP1, Error)
 			<< "Failed to start IPA " << camera->id();
@@ -960,6 +961,9 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	actions += [&]() { data->ipa_->stop(); };
 
 	data->frame_ = 0;
+
+	data->sensor_->setControls(&sensorControls);
+	data->delayedCtrls_->reset();
 
 	if (!isRaw_) {
 		ret = param_->streamOn();

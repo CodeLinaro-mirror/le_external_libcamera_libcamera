@@ -191,6 +191,8 @@ struct IPAContext {
 
 	/* Interface to the Camera Helper */
 	std::unique_ptr<CameraSensorHelper> camHelper;
+
+	bool sensorControlsNeedSync;
 };
 
 } /* namespace ipa::rkisp1 */
