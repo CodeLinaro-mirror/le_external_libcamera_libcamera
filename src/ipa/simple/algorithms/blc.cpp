@@ -21,11 +21,20 @@ BlackLevel::BlackLevel()
 {
 }
 
+int BlackLevel::init(IPAContext &context, const YamlObject &tuningData)
+{
+	auto blackLevel = tuningData["blackLevel"].get<int16_t>();
+	if (blackLevel.has_value())
+		context.configuration.black.level = blackLevel.value() / 256;
+	return 0;
+}
+
 int BlackLevel::configure(IPAContext &context,
 			  [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
 	context.activeState.blc.level =
 		context.configuration.black.level.value_or(255);
+	LOG(IPASoftBL, Info) << "pdm: blll: " << context.activeState.blc.level;
 	return 0;
 }
 
