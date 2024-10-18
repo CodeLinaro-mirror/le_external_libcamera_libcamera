@@ -303,6 +303,8 @@ int MainWindow::openCamera()
 	 */
 	if (options_.isSet(OptCamera))
 		cameraName = static_cast<std::string>(options_[OptCamera]);
+	else if (cm_->cameras().size() == 1)
+		cameraName = cm_->cameras()[0]->id();
 	else
 		cameraName = chooseCamera();
 
