@@ -670,6 +670,9 @@ static const char *const camera_state_names[] = {
 	"Running",
 };
 
+/**
+ * \return True if the camera is acquired, false otherwise
+ */
 bool Camera::Private::isAcquired() const
 {
 	return state_.load(std::memory_order_acquire) != CameraAvailable;
