@@ -282,7 +282,7 @@ public:
 	std::unique_ptr<DelayedControls> delayedCtrls_;
 
 	std::vector<std::unique_ptr<FrameBuffer>> conversionBuffers_;
-	std::queue<std::map<const Stream *, FrameBuffer *>> conversionQueue_;
+	std::queue<std::pair<Request *, std::map<const Stream *, FrameBuffer *>>> conversionQueue_;
 	bool useConversion_;
 
 	std::unique_ptr<Converter> converter_;
@@ -813,16 +813,12 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 		if (conversionQueue_.empty())
 			return;
 
-		Request *request = nullptr;
-		for (auto &item : conversionQueue_.front()) {
-			FrameBuffer *outputBuffer = item.second;
-			request = outputBuffer->request();
-			pipe->completeBuffer(request, outputBuffer);
-		}
+		Request *request = conversionQueue_.front().first;
+		for (auto &item : conversionQueue_.front().second)
+			pipe->completeBuffer(request, item.second);
+		pipe->completeRequest(request);
 		conversionQueue_.pop();
 
-		if (request)
-			pipe->completeRequest(request);
 		return;
 	}
 
@@ -838,7 +834,7 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 
 	if (useConversion_ && !conversionQueue_.empty()) {
 		const std::map<const Stream *, FrameBuffer *> &outputs =
-			conversionQueue_.front();
+			conversionQueue_.front().second;
 		if (!outputs.empty()) {
 			FrameBuffer *outputBuffer = outputs.begin()->second;
 			if (outputBuffer)
@@ -862,7 +858,7 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 		}
 
 		if (converter_)
-			converter_->queueBuffers(buffer, conversionQueue_.front());
+			converter_->queueBuffers(buffer, conversionQueue_.front().second);
 		else
 			/*
 			 * request->sequence() cannot be retrieved from `buffer' inside
@@ -870,7 +866,7 @@ void SimpleCameraData::bufferReady(FrameBuffer *buffer)
 			 * already here.
 			 */
 			swIsp_->queueBuffers(request->sequence(), buffer,
-					     conversionQueue_.front());
+					     conversionQueue_.front().second);
 
 		conversionQueue_.pop();
 		return;
@@ -1434,7 +1430,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 	}
 
 	if (data->useConversion_) {
-		data->conversionQueue_.push(std::move(buffers));
+		data->conversionQueue_.push(std::make_pair(request, std::move(buffers)));
 		if (data->swIsp_)
 			data->swIsp_->queueRequest(request->sequence(), request->controls());
 	}
