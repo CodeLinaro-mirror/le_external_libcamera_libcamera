@@ -131,6 +131,11 @@ void EventNotifier::setEnabled(bool enable)
  * parameter.
  */
 
+/**
+ * \var EventNotifier::disconnected
+ * \brief Signal emitted when the file descriptor is disconnected
+ */
+
 void EventNotifier::message(Message *msg)
 {
 	if (msg->type() == Message::ThreadMoveMessage) {
