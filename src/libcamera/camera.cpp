@@ -604,6 +604,16 @@ Camera::Private::~Private()
  */
 
 /**
+ * \brief Notify the application that camera is disconnected with signal
+ * Camera::disconnected
+ */
+void Camera::Private::notifyDisconnection()
+{
+	Camera *o = LIBCAMERA_O_PTR();
+	o->disconnected.emit();
+}
+
+/**
  * \fn Camera::Private::validator()
  * \brief Retrieve the control validator related to this camera
  * \return The control validator associated with this camera

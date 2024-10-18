@@ -28,6 +28,8 @@ public:
 
 	int sendAsync(const IPCMessage &data) override;
 
+	Signal<> *disconnected();
+
 private:
 	struct CallData {
 		IPCUnixSocket::Payload *response;

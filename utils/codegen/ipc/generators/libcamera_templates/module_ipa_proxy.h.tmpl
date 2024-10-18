@@ -53,6 +53,8 @@ public:
 > {{method.mojom_name}};
 {% endfor %}
 
+	Signal<> *disconnected();
+
 private:
 	void recvMessage(const IPCMessage &data);
 

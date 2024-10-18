@@ -33,6 +33,8 @@ public:
 
 	PipelineHandler *pipe() { return pipe_.get(); }
 
+	void notifyDisconnection();
+
 	std::list<Request *> queuedRequests_;
 	ControlInfoMap controlInfo_;
 	ControlList properties_;

@@ -39,6 +39,8 @@ public:
 
 	Signal<> readyRead;
 
+	Signal<> disconnected;
+
 private:
 	struct Header {
 		uint32_t data;

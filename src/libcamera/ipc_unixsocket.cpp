@@ -186,11 +186,16 @@ int IPCUnixSocket::send(const Payload &payload)
 	if (!hdr.data && !hdr.fds)
 		return -EINVAL;
 
-	ret = ::send(fd_.get(), &hdr, sizeof(hdr), 0);
+	ret = ::send(fd_.get(), &hdr, sizeof(hdr), MSG_NOSIGNAL);
 	if (ret < 0) {
 		ret = -errno;
 		LOG(IPCUnixSocket, Error)
 			<< "Failed to send: " << strerror(-ret);
+		if (errno == ECONNRESET) {
+			disconnected.emit();
+			fd_.reset();
+		}
+
 		return ret;
 	}
 
@@ -241,6 +246,11 @@ int IPCUnixSocket::receive(Payload *payload)
  * \brief A Signal emitted when a message is ready to be read
  */
 
+/**
+ * \var IPCUnixSocket::disconnected
+ * \brief A Signal emitted when the Unix socket IPC is disconnected
+ */
+
 int IPCUnixSocket::sendData(const void *buffer, size_t length,
 			    const int32_t *fds, unsigned int num)
 {
@@ -266,10 +276,15 @@ int IPCUnixSocket::sendData(const void *buffer, size_t length,
 	if (fds)
 		memcpy(CMSG_DATA(cmsg), fds, num * sizeof(uint32_t));
 
-	if (sendmsg(fd_.get(), &msg, 0) < 0) {
+	if (sendmsg(fd_.get(), &msg, MSG_NOSIGNAL) < 0) {
 		int ret = -errno;
 		LOG(IPCUnixSocket, Error)
 			<< "Failed to sendmsg: " << strerror(-ret);
+		if (errno == ECONNRESET) {
+			disconnected.emit();
+			fd_.reset();
+		}
+
 		return ret;
 	}
 
@@ -324,6 +339,11 @@ void IPCUnixSocket::dataNotifier()
 			ret = -errno;
 			LOG(IPCUnixSocket, Error)
 				<< "Failed to receive header: " << strerror(-ret);
+			if (errno == ECONNRESET) {
+				disconnected.emit();
+				fd_.reset();
+			}
+
 			return;
 		}
 
