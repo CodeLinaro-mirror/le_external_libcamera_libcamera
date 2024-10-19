@@ -201,8 +201,6 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 	const ControlInfo &gainInfo = sensorInfoMap_.find(V4L2_CID_ANALOGUE_GAIN)->second;
 
 	/* Clear the IPA context before the streaming session. */
-	context_.configuration = {};
-	context_.activeState = {};
 	context_.frameContexts.clear();
 
 	context_.configuration.agc.lineDuration =
