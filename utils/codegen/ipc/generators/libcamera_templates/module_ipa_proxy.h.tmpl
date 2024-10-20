@@ -95,13 +95,10 @@ private:
 {%- elif method.mojom_name == "start" %}
 		{{proxy_funcs.func_sig(proxy_name, method, "", false)|indent(16)}}
 		{
-{%- if method|method_return_value != "void" %}
-			return ipa_->{{method.mojom_name}}({{method.parameters|params_comma_sep}});
-{%- else %}
-			ipa_->{{method.mojom_name}}({{method.parameters|params_comma_sep}}
-	{{- ", " if method|method_param_outputs|params_comma_sep -}}
-	{{- method|method_param_outputs|params_comma_sep}});
-{%- endif %}
+			{{ "return" if method|method_return_value != "void" }} ipa_->
+			{{- method.mojom_name}}({{method.parameters|params_comma_sep}}
+				{{- ", " if method|method_param_outputs|params_comma_sep and method.parameters|params_comma_sep -}}
+				{{- method|method_param_outputs|params_comma_sep}});
 		}
 {%- endif %}
 {%- endfor %}
