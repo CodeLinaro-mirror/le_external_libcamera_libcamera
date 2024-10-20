@@ -20,7 +20,7 @@ interface IPARkISP1Interface {
 	     libcamera.IPACameraSensorInfo sensorInfo,
 	     libcamera.ControlInfoMap sensorControls)
 		=> (int32 ret, libcamera.ControlInfoMap ipaControls);
-	start() => (int32 ret);
+	start() => (int32 ret, libcamera.ControlList sensorControls);
 	stop();
 
 	configure(IPAConfigInfo configInfo,

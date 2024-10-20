@@ -55,7 +55,7 @@ public:
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls) override;
-	int start() override;
+	int start(ControlList *sensorControls) override;
 	void stop() override;
 
 	int configure(const IPAConfigInfo &ipaConfig,
@@ -124,7 +124,7 @@ const ControlInfoMap::Map rkisp1Controls{
 } /* namespace */
 
 IPARkISP1::IPARkISP1()
-	: context_({ {}, {}, {}, {}, { kMaxFrameContexts }, {}, {} })
+	: context_({ {}, {}, {}, {}, { kMaxFrameContexts }, {}, {}, false })
 {
 }
 
@@ -208,10 +208,19 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 	return 0;
 }
 
-int IPARkISP1::start()
+int IPARkISP1::start(ControlList *sensorControls)
 {
-	setControls(0);
+	if (context_.sensorControlsNeedSync) {
+		const auto &agc = context_.activeState.agc;
+		uint32_t exposure = agc.automatic.exposure;
+		uint32_t gain = context_.camHelper->gainCode(agc.automatic.gain);
 
+		*sensorControls = ControlList{ sensorControls_ };
+		sensorControls->set(V4L2_CID_EXPOSURE, static_cast<int32_t>(exposure));
+		sensorControls->set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gain));
+
+		context_.sensorControlsNeedSync = false;
+	}
 	return 0;
 }
 
@@ -289,6 +298,8 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 		if (ret)
 			return ret;
 	}
+
+	context_.sensorControlsNeedSync = true;
 
 	return 0;
 }
