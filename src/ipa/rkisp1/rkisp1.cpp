@@ -458,9 +458,11 @@ void IPARkISP1::setControls(unsigned int frame)
 	 * internal sensor delays and other timing parameters into account.
 	 */
 
-	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
-	uint32_t exposure = frameContext.agc.exposure;
-	uint32_t gain = context_.camHelper->gainCode(frameContext.agc.gain);
+	const auto &agc = context_.activeState.agc;
+	uint32_t exposure = agc.autoEnabled ?
+			    agc.automatic.exposure : agc.manual.exposure;
+	uint32_t gain = context_.camHelper->gainCode(agc.autoEnabled ?
+						     agc.automatic.gain : agc.manual.gain);
 
 	ControlList ctrls(sensorControls_);
 	ctrls.set(V4L2_CID_EXPOSURE, static_cast<int32_t>(exposure));
