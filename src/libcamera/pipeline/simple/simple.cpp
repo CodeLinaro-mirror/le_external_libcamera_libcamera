@@ -288,6 +288,7 @@ public:
 	};
 	std::queue<RequestOutputs> conversionQueue_;
 	bool useConversion_;
+	void clearIncompleteRequests();
 
 	std::unique_ptr<Converter> converter_;
 	std::unique_ptr<SoftwareIsp> swIsp_;
@@ -897,6 +898,14 @@ void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
 		pipe->completeRequest(request);
 }
 
+void SimpleCameraData::clearIncompleteRequests()
+{
+	while (!conversionQueue_.empty()) {
+		pipe()->cancelRequest(conversionQueue_.front().request);
+		conversionQueue_.pop();
+	}
+}
+
 void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
 {
 	swIsp_->processStats(frame, bufferId,
@@ -1406,6 +1415,7 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 
 	video->bufferReady.disconnect(data, &SimpleCameraData::bufferReady);
 
+	data->clearIncompleteRequests();
 	data->conversionBuffers_.clear();
 
 	releasePipeline(data);
