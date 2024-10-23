@@ -26,6 +26,8 @@ class Thread;
 class Object
 {
 public:
+	static void Deleter(Object *obj);
+
 	Object(Object *parent = nullptr);
 	virtual ~Object();
 
