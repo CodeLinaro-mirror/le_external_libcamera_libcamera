@@ -9,6 +9,7 @@
 
 #include <fcntl.h>
 #include <map>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -17,10 +18,13 @@
 #include <vector>
 
 #include <linux/v4l2-mediabus.h>
+#include <linux/videodev2.h>
 
 #include <libcamera/base/event_notifier.h>
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
+
+#include <libcamera/controls.h>
 
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/sysfs.h"
@@ -488,6 +492,9 @@ ControlType V4L2Device::v4l2CtrlType(uint32_t ctrlType)
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		return ControlTypeBool;
 
+	case V4L2_CTRL_TYPE_U32:
+		return ControlTypeUnsigned32;
+
 	case V4L2_CTRL_TYPE_INTEGER:
 		return ControlTypeInteger32;
 
@@ -535,6 +542,11 @@ std::optional<ControlInfo> V4L2Device::v4l2ControlInfo(const v4l2_query_ext_ctrl
 		return ControlInfo(static_cast<uint8_t>(ctrl.minimum),
 				   static_cast<uint8_t>(ctrl.maximum),
 				   static_cast<uint8_t>(ctrl.default_value));
+
+	case V4L2_CTRL_TYPE_U32:
+		return ControlInfo(static_cast<uint32_t>(ctrl.minimum),
+				   static_cast<uint32_t>(ctrl.maximum),
+				   static_cast<uint32_t>(ctrl.default_value));
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		return ControlInfo(static_cast<bool>(ctrl.minimum),
@@ -622,6 +634,7 @@ void V4L2Device::listControls()
 		case V4L2_CTRL_TYPE_BITMASK:
 		case V4L2_CTRL_TYPE_INTEGER_MENU:
 		case V4L2_CTRL_TYPE_U8:
+		case V4L2_CTRL_TYPE_U32:
 			break;
 		/* \todo Support other control types. */
 		default:
