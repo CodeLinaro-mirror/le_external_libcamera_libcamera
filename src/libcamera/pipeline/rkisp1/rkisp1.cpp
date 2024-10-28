@@ -96,7 +96,7 @@ public:
 	}
 
 	PipelineHandlerRkISP1 *pipe();
-	int loadIPA(unsigned int hwRevision);
+	int loadIPA(unsigned int hwRevision, IPASensorDelays *sensorDelays);
 
 	Stream mainPathStream_;
 	Stream selfPathStream_;
@@ -360,7 +360,7 @@ PipelineHandlerRkISP1 *RkISP1CameraData::pipe()
 	return static_cast<PipelineHandlerRkISP1 *>(Camera::Private::pipe());
 }
 
-int RkISP1CameraData::loadIPA(unsigned int hwRevision)
+int RkISP1CameraData::loadIPA(unsigned int hwRevision, IPASensorDelays *sensorDelays)
 {
 	ipa_ = IPAManager::createIPA<ipa::rkisp1::IPAProxyRkISP1>(pipe(), 1, 1);
 	if (!ipa_)
@@ -391,7 +391,8 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision)
 	}
 
 	ret = ipa_->init({ ipaTuningFile, sensor_->model() }, hwRevision,
-			 sensorInfo, sensor_->controls(), &ipaControls_);
+			 sensorInfo, sensor_->controls(), &controlInfo_,
+			 sensorDelays);
 	if (ret < 0) {
 		LOG(RkISP1, Error) << "IPA initialization failure";
 		return ret;
@@ -1240,14 +1241,14 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	/* Initialize the camera properties. */
 	data->properties_ = data->sensor_->properties();
 
-	/*
-	 * \todo Read delay values from the sensor itself or from a
-	 * a sensor database. For now use generic values taken from
-	 * the Raspberry Pi and listed as generic values.
-	 */
+	IPASensorDelays sensorDelays;
+	ret = data->loadIPA(media_->hwRevision(), &sensorDelays);
+	if (ret)
+		return ret;
+
 	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-		{ V4L2_CID_ANALOGUE_GAIN, { 1, false } },
-		{ V4L2_CID_EXPOSURE, { 2, false } },
+		{ V4L2_CID_ANALOGUE_GAIN, { sensorDelays.gainDelay, false } },
+		{ V4L2_CID_EXPOSURE, { sensorDelays.exposureDelay, false } },
 	};
 
 	data->delayedCtrls_ =
@@ -1255,12 +1256,6 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 						  params);
 	isp_->frameStart.connect(data->delayedCtrls_.get(),
 				 &DelayedControls::applyControls);
-
-	ret = data->loadIPA(media_->hwRevision());
-	if (ret)
-		return ret;
-
-	updateControls(data.get());
 
 	std::set<Stream *> streams{
 		&data->mainPathStream_,

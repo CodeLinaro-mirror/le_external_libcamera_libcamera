@@ -54,7 +54,8 @@ public:
 	int init(const IPASettings &settings, unsigned int hwRevision,
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
-		 ControlInfoMap *ipaControls) override;
+		 ControlInfoMap *ipaControls,
+		 IPASensorDelays *sensorDelays) override;
 	int start() override;
 	void stop() override;
 
@@ -136,7 +137,8 @@ std::string IPARkISP1::logPrefix() const
 int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 		    const IPACameraSensorInfo &sensorInfo,
 		    const ControlInfoMap &sensorControls,
-		    ControlInfoMap *ipaControls)
+		    ControlInfoMap *ipaControls,
+		    IPASensorDelays *sensorDelays)
 {
 	/* \todo Add support for other revisions */
 	switch (hwRevision) {
@@ -167,6 +169,8 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 			<< settings.sensorModel;
 		return -ENODEV;
 	}
+
+	*sensorDelays = context_.camHelper->sensorDelays();
 
 	context_.configuration.sensor.lineDuration =
 		sensorInfo.minLineLength * 1.0s / sensorInfo.pixelRate;
