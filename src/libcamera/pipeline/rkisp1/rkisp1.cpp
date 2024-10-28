@@ -114,11 +114,11 @@ public:
 	ControlInfoMap ipaControls_;
 
 private:
-	void paramFilled(unsigned int frame, unsigned int bytesused);
+	void paramsComputed(unsigned int frame, unsigned int bytesused);
 	void setSensorControls(unsigned int frame,
 			       const ControlList &sensorControls);
 
-	void metadataReady(unsigned int frame, const ControlList &metadata);
+	void statsProcessed(unsigned int frame, const ControlList &metadata);
 };
 
 class RkISP1CameraConfiguration : public CameraConfiguration
@@ -180,9 +180,9 @@ private:
 		      const RkISP1CameraConfiguration &config);
 	int createCamera(MediaEntity *sensor);
 	void tryCompleteRequest(RkISP1FrameInfo *info);
-	void bufferReady(FrameBuffer *buffer);
-	void paramReady(FrameBuffer *buffer);
-	void statReady(FrameBuffer *buffer);
+	void videoBufferReady(FrameBuffer *buffer);
+	void paramsBufferReady(FrameBuffer *buffer);
+	void statsBufferReady(FrameBuffer *buffer);
 	void dewarpBufferReady(FrameBuffer *buffer);
 	void frameStart(uint32_t sequence);
 
@@ -367,8 +367,8 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision)
 		return -ENOENT;
 
 	ipa_->setSensorControls.connect(this, &RkISP1CameraData::setSensorControls);
-	ipa_->paramsBufferReady.connect(this, &RkISP1CameraData::paramFilled);
-	ipa_->metadataReady.connect(this, &RkISP1CameraData::metadataReady);
+	ipa_->paramsComputed.connect(this, &RkISP1CameraData::paramsComputed);
+	ipa_->statsProcessed.connect(this, &RkISP1CameraData::statsProcessed);
 
 	/*
 	 * The API tuning file is made from the sensor name unless the
@@ -400,7 +400,7 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision)
 	return 0;
 }
 
-void RkISP1CameraData::paramFilled(unsigned int frame, unsigned int bytesused)
+void RkISP1CameraData::paramsComputed(unsigned int frame, unsigned int bytesused)
 {
 	PipelineHandlerRkISP1 *pipe = RkISP1CameraData::pipe();
 	RkISP1FrameInfo *info = frameInfo_.find(frame);
@@ -424,7 +424,7 @@ void RkISP1CameraData::setSensorControls([[maybe_unused]] unsigned int frame,
 	delayedCtrls_->push(sensorControls);
 }
 
-void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &metadata)
+void RkISP1CameraData::statsProcessed(unsigned int frame, const ControlList &metadata)
 {
 	RkISP1FrameInfo *info = frameInfo_.find(frame);
 	if (!info)
@@ -1120,8 +1120,8 @@ int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
 		if (data->selfPath_ && info->selfPathBuffer)
 			data->selfPath_->queueBuffer(info->selfPathBuffer);
 	} else {
-		data->ipa_->fillParamsBuffer(data->frame_,
-					     info->paramBuffer->cookie());
+		data->ipa_->computeParams(data->frame_,
+					  info->paramBuffer->cookie());
 	}
 
 	data->frame_++;
@@ -1334,11 +1334,11 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 	if (hasSelfPath_ && !selfPath_.init(media_))
 		return false;
 
-	mainPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::bufferReady);
+	mainPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::videoBufferReady);
 	if (hasSelfPath_)
-		selfPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::bufferReady);
-	stat_->bufferReady.connect(this, &PipelineHandlerRkISP1::statReady);
-	param_->bufferReady.connect(this, &PipelineHandlerRkISP1::paramReady);
+		selfPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::videoBufferReady);
+	stat_->bufferReady.connect(this, &PipelineHandlerRkISP1::statsBufferReady);
+	param_->bufferReady.connect(this, &PipelineHandlerRkISP1::paramsBufferReady);
 
 	/* If dewarper is present, create its instance. */
 	DeviceMatch dwp("dw100");
@@ -1399,7 +1399,7 @@ void PipelineHandlerRkISP1::tryCompleteRequest(RkISP1FrameInfo *info)
 	completeRequest(request);
 }
 
-void PipelineHandlerRkISP1::bufferReady(FrameBuffer *buffer)
+void PipelineHandlerRkISP1::videoBufferReady(FrameBuffer *buffer)
 {
 	ASSERT(activeCamera_);
 	RkISP1CameraData *data = cameraData(activeCamera_);
@@ -1424,7 +1424,7 @@ void PipelineHandlerRkISP1::bufferReady(FrameBuffer *buffer)
 		if (isRaw_) {
 			const ControlList &ctrls =
 				data->delayedCtrls_->get(metadata.sequence);
-			data->ipa_->processStatsBuffer(info->frame, 0, ctrls);
+			data->ipa_->processStats(info->frame, 0, ctrls);
 		}
 	} else {
 		if (isRaw_)
@@ -1508,7 +1508,7 @@ void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
 	tryCompleteRequest(info);
 }
 
-void PipelineHandlerRkISP1::paramReady(FrameBuffer *buffer)
+void PipelineHandlerRkISP1::paramsBufferReady(FrameBuffer *buffer)
 {
 	ASSERT(activeCamera_);
 	RkISP1CameraData *data = cameraData(activeCamera_);
@@ -1521,7 +1521,7 @@ void PipelineHandlerRkISP1::paramReady(FrameBuffer *buffer)
 	tryCompleteRequest(info);
 }
 
-void PipelineHandlerRkISP1::statReady(FrameBuffer *buffer)
+void PipelineHandlerRkISP1::statsBufferReady(FrameBuffer *buffer)
 {
 	ASSERT(activeCamera_);
 	RkISP1CameraData *data = cameraData(activeCamera_);
@@ -1539,8 +1539,8 @@ void PipelineHandlerRkISP1::statReady(FrameBuffer *buffer)
 	if (data->frame_ <= buffer->metadata().sequence)
 		data->frame_ = buffer->metadata().sequence + 1;
 
-	data->ipa_->processStatsBuffer(info->frame, info->statBuffer->cookie(),
-				       data->delayedCtrls_->get(buffer->metadata().sequence));
+	data->ipa_->processStats(info->frame, info->statBuffer->cookie(),
+				 data->delayedCtrls_->get(buffer->metadata().sequence));
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerRkISP1, "rkisp1")
