@@ -141,6 +141,17 @@ double CameraSensorHelper::gain(uint32_t gainCode) const
 }
 
 /**
+ * \fn CameraSensorHelper::sensorDelays()
+ * \brief Fetch the delays for sensor subdevice controls
+ *
+ * This function returns the delays between setting a control on a
+ * sensor subdevice and it becoming effective, measured in frames. If
+ * they are unknown, default values are used.
+ *
+ * \return The delays for sensor subdevice controls
+ */
+
+/**
  * \enum CameraSensorHelper::AnalogueGainType
  * \brief The gain calculation modes as defined by the MIPI CCS
  *
@@ -250,6 +261,12 @@ double CameraSensorHelper::gain(uint32_t gainCode) const
  *
  * The analogue gain is calculated through a formula, and its parameters are
  * sensor specific. Use this variable to store the values at init time.
+ */
+
+/**
+ * \var CameraSensorHelper::sensorDelays_
+ * \brief The delays for sensor subdevice controls
+ * \sa CameraSensorHelper::sensorDelays()
  */
 
 /**
@@ -567,6 +584,12 @@ public:
 		blackLevel_ = 3200;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 0, 2048, -1, 2048 };
+
+		/* Taken from CamHelper. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 2;
+		sensorDelays_.hblankDelay = 2;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx283", CameraSensorHelperImx283)
@@ -578,6 +601,12 @@ public:
 	{
 		gainType_ = AnalogueGainExponential;
 		gainConstants_.exp = { 1.0, expGainDb(0.3) };
+
+		/* Taken from CamHelper. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 2;
+		sensorDelays_.hblankDelay = 2;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx290", CameraSensorHelperImx290)
@@ -589,6 +618,12 @@ public:
 	{
 		gainType_ = AnalogueGainExponential;
 		gainConstants_.exp = { 1.0, expGainDb(0.1) };
+
+		/* Taken from CamHelper. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 2;
+		sensorDelays_.hblankDelay = 2;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx296", CameraSensorHelperImx296)
@@ -629,6 +664,12 @@ public:
 	{
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 0, 1024, -1, 1024 };
+
+		/* Taken from CamHelper. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 3;
+		sensorDelays_.hblankDelay = 3;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx477", CameraSensorHelperImx477)
@@ -668,6 +709,12 @@ public:
 		blackLevel_ = 1024;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 1, 0, 0, 128 };
+
+		/* Found by experimentation. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 2;
+		sensorDelays_.hblankDelay = 2;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("ov4689", CameraSensorHelperOv4689)
@@ -692,6 +739,12 @@ public:
 	{
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 1, 0, 0, 16 };
+
+		/* Taken from CamHelper. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 2;
+		sensorDelays_.hblankDelay = 2;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("ov5647", CameraSensorHelperOv5647)
@@ -738,6 +791,12 @@ public:
 	{
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 1, 0, 0, 128 };
+
+		/* Taken from CamHelper. */
+		sensorDelays_.exposureDelay = 2;
+		sensorDelays_.gainDelay = 2;
+		sensorDelays_.vblankDelay = 2;
+		sensorDelays_.hblankDelay = 2;
 	}
 };
 REGISTER_CAMERA_SENSOR_HELPER("ov64a40", CameraSensorHelperOv64a40)

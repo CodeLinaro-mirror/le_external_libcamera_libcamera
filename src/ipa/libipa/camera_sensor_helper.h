@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/ipa/core_ipa_interface.h>
 
 namespace libcamera {
 
@@ -28,6 +29,7 @@ public:
 	std::optional<int16_t> blackLevel() const { return blackLevel_; }
 	virtual uint32_t gainCode(double gain) const;
 	virtual double gain(uint32_t gainCode) const;
+	IPASensorDelays sensorDelays() const { return sensorDelays_; };
 
 protected:
 	enum AnalogueGainType {
@@ -55,6 +57,9 @@ protected:
 	std::optional<int16_t> blackLevel_;
 	AnalogueGainType gainType_;
 	AnalogueGainConstants gainConstants_;
+
+	/* Generic values taken from the Raspberry Pi. */
+	IPASensorDelays sensorDelays_{ 2, 1, 2, 2 };
 
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(CameraSensorHelper)
