@@ -341,3 +341,38 @@ struct IPAStream {
 	uint32 pixelFormat;
 	Size size;
 };
+
+/**
+ * \struct IPASensorDelays
+ * \brief Sensor control delays for the IPA interface
+ *
+ * The IPASensorDelays structure is used to pass sensoer control delays from
+ * the CameraSensorHelper instance in an IPA to the DelayedControls instance
+ * in a pipeline handler.
+ */
+
+/**
+ * \var IPASensorDelays::exposureDelay
+ * \brief The delay for CID_EXPOSURE
+ */
+
+/**
+ * \var IPASensorDelays::gainDelay
+ * \brief The delay for CID_ANALOGUE_GAIN
+ */
+
+/**
+ * \var IPASensorDelays::hblankDelay
+ * \brief The delay for CID_HBLANK
+ */
+
+/**
+ * \var IPASensorDelays::vblankDelay
+ * \brief The delay for CID_VBLANK
+ */
+struct IPASensorDelays {
+	uint32 exposureDelay;
+	uint32 gainDelay;
+	uint32 hblankDelay;
+	uint32 vblankDelay;
+};
