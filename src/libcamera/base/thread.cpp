@@ -286,6 +286,8 @@ void Thread::startThread()
 	data_->tid_ = syscall(SYS_gettid);
 	currentThreadData = data_;
 
+	setThreadAffinityInternal();
+
 	run();
 }
 
