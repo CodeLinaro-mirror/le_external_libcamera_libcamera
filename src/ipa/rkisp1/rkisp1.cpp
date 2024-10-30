@@ -352,6 +352,15 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 
+	if (frameContext.underrun) {
+		for (auto const &a : algorithms()) {
+			Algorithm *algo = static_cast<Algorithm *>(a.get());
+			if (algo->disabled_)
+				continue;
+			algo->initFrameContext(context_, frameContext);
+		}
+	}
+
 	/*
 	 * In raw capture mode, the ISP is bypassed and no statistics buffer is
 	 * provided.

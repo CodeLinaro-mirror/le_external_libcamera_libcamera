@@ -208,6 +208,14 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	return 0;
 }
 
+void Agc::initFrameContext(IPAContext &context,
+			   IPAFrameContext &frameContext)
+{
+	auto &agc = context.activeState.agc;
+
+	frameContext.agc.meteringMode = agc.meteringMode;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */

@@ -36,6 +36,12 @@ namespace ipa {
  *
  * \var FrameContext::frame
  * \brief The frame number
+ *
+ * \var FrameContext::underrun
+ * \brief Boolean flag that reports if the FrameContext has been accessed with
+ * a FCQeueu::get() call before being FCQueue::alloc()-ated. If the flag is set
+ * to True then the frame context needs to be initialized by algorithms to safe
+ * defaults as it won't be initialized with any non-user provided control.
  */
 
 /**

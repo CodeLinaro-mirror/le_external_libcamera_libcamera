@@ -22,6 +22,9 @@ template<typename FrameContext>
 class FCQueue;
 
 struct FrameContext {
+public:
+	bool underrun = false;
+
 private:
 	template<typename T> friend class FCQueue;
 	uint32_t frame;
@@ -97,6 +100,7 @@ public:
 			 * is called before alloc() by the IPA for frame#0.
 			 */
 			init(frameContext, frame);
+			frameContext.underrun = true;
 
 			return frameContext;
 		}
@@ -117,6 +121,7 @@ public:
 			<< "Obtained an uninitialised FrameContext for " << frame;
 
 		init(frameContext, frame);
+		frameContext.underrun = true;
 
 		return frameContext;
 	}

@@ -30,6 +30,10 @@ public:
 
 	int init(IPAContext &context, const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPACameraSensorInfo &configInfo) override;
+
+	void initFrameContext(IPAContext &context,
+			      IPAFrameContext &frameContext) override;
+
 	void queueRequest(IPAContext &context,
 			  const uint32_t frame,
 			  IPAFrameContext &frameContext,

@@ -23,6 +23,11 @@ public:
 	{
 	}
 
+	virtual void initFrameContext([[maybe_unused]] IPAContext &context,
+				      [[maybe_unused]] IPAFrameContext &frameContext)
+	{
+	}
+
 	bool disabled_;
 	bool supportsRaw_;
 };
