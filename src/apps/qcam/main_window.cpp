@@ -251,15 +251,13 @@ void MainWindow::updateTitle()
 void MainWindow::switchCamera()
 {
 	/* Get and acquire the new camera. */
-	std::string newCameraId = chooseCamera();
+	std::shared_ptr<Camera> cam = chooseCamera();
 
-	if (newCameraId.empty())
+	if (!cam)
 		return;
 
-	if (camera_ && newCameraId == camera_->id())
+	if (camera_ && cam == camera_)
 		return;
-
-	const std::shared_ptr<Camera> &cam = cm_->get(newCameraId);
 
 	if (cam->acquire()) {
 		qInfo() << "Failed to acquire camera" << cam->id().c_str();
@@ -282,20 +280,21 @@ void MainWindow::switchCamera()
 	startStopAction_->setChecked(true);
 
 	/* Display the current cameraId in the toolbar .*/
-	cameraSelectButton_->setText(QString::fromStdString(newCameraId));
+	cameraSelectButton_->setText(QString::fromStdString(cam->id()));
 }
 
-std::string MainWindow::chooseCamera()
+std::shared_ptr<Camera> MainWindow::chooseCamera()
 {
 	if (cameraSelectorDialog_->exec() != QDialog::Accepted)
-		return std::string();
+		return {};
 
-	return cameraSelectorDialog_->getCameraId();
+	std::string id = cameraSelectorDialog_->getCameraId();
+	return cm_->get(id);
 }
 
 int MainWindow::openCamera()
 {
-	std::string cameraName;
+	std::string cameraName = "";
 
 	/*
 	 * If a camera is specified on the command line, get it. Otherwise, if
@@ -304,24 +303,21 @@ int MainWindow::openCamera()
 	 */
 	if (options_.isSet(OptCamera)) {
 		cameraName = static_cast<std::string>(options_[OptCamera]);
+		camera_ = cm_->get(cameraName);
 	} else {
 		std::vector<std::shared_ptr<Camera>> cameras = cm_->cameras();
 		if (cameras.size() == 1)
-			cameraName = cameras[0]->id();
+			camera_ = cameras[0];
 		else
-			cameraName = chooseCamera();
+			camera_ = chooseCamera();
 	}
 
-	if (cameraName == "")
-		return -EINVAL;
-
-	/* Get and acquire the camera. */
-	camera_ = cm_->get(cameraName);
 	if (!camera_) {
 		qInfo() << "Camera" << cameraName.c_str() << "not found";
 		return -ENODEV;
 	}
 
+	/* Acquire the camera. */
 	if (camera_->acquire()) {
 		qInfo() << "Failed to acquire camera";
 		camera_.reset();
