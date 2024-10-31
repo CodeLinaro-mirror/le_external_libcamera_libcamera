@@ -24,6 +24,7 @@
 #include <libcamera/control_ids.h>
 #include <libcamera/formats.h>
 #include <libcamera/framebuffer.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 #include <libcamera/transform.h>
@@ -1240,14 +1241,11 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	/* Initialize the camera properties. */
 	data->properties_ = data->sensor_->properties();
 
-	/*
-	 * \todo Read delay values from the sensor itself or from a
-	 * a sensor database. For now use generic values taken from
-	 * the Raspberry Pi and listed as generic values.
-	 */
+	unsigned int gainDelay = data->properties_.get(properties::GainDelay).value();
+	unsigned int exposureDelay = data->properties_.get(properties::ExposureDelay).value();
 	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-		{ V4L2_CID_ANALOGUE_GAIN, { 1, false } },
-		{ V4L2_CID_EXPOSURE, { 2, false } },
+		{ V4L2_CID_ANALOGUE_GAIN, { gainDelay, false } },
+		{ V4L2_CID_EXPOSURE, { exposureDelay, false } },
 	};
 
 	data->delayedCtrls_ =
