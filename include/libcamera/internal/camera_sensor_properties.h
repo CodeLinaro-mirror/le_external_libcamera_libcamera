@@ -10,6 +10,8 @@
 #include <map>
 #include <string>
 
+#include <stdint.h>
+
 #include <libcamera/control_ids.h>
 #include <libcamera/geometry.h>
 
@@ -20,6 +22,17 @@ struct CameraSensorProperties {
 
 	Size unitCellSize;
 	std::map<controls::draft::TestPatternModeEnum, int32_t> testPatternModes;
+
+	/*
+	 * These values are correct for many sensors. Other sensors will need to
+	 * have the defaults overwritten in their CameraSensorProperties entry.
+	 */
+	struct {
+		uint8_t exposureDelay;
+		uint8_t gainDelay;
+		uint8_t vblankDelay;
+		uint8_t hblankDelay;
+	} sensorDelays;
 };
 
 } /* namespace libcamera */

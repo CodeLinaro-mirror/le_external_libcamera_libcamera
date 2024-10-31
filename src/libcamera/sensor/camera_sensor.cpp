@@ -387,6 +387,14 @@ void CameraSensor::initStaticProperties()
 
 	/* Register the properties retrieved from the sensor database. */
 	properties_.set(properties::UnitCellSize, staticProps_->unitCellSize);
+	properties_.set(properties::ExposureDelay,
+			staticProps_->sensorDelays.exposureDelay);
+	properties_.set(properties::GainDelay,
+			staticProps_->sensorDelays.gainDelay);
+	properties_.set(properties::VerticalBlankingDelay,
+			staticProps_->sensorDelays.vblankDelay);
+	properties_.set(properties::HorizontalBlankingDelay,
+			staticProps_->sensorDelays.hblankDelay);
 
 	initTestPatternModes();
 }

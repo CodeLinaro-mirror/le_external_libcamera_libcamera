@@ -701,4 +701,29 @@ controls:
 
         Different cameras may report identical devices.
 
+  - ExposureDelay:
+      type: uint8_t
+      description: |
+        The number of frames delay between an Exposure value being configured in
+        the sensor's registers and taking effect in the output data.
+
+  - GainDelay:
+      type: uint8_t
+      description: |
+        The number of frames delay between a Gain value being configured in
+        the sensor's registers and taking effect in the output data.
+
+  - VerticalBlankingDelay:
+      type: uint8_t
+      description: |
+        The number of frames delay between a Horizontal Blanking value being
+        configured in the sensor's registers and taking effect in the output
+        data.
+
+  - HorizontalBlankingDelay:
+      type: uint8_t
+      description: |
+        The number of frames delay between a Vertical Blanking value being
+        configured in the sensor's registers and taking effect in the output
+        data.
 ...
