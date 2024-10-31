@@ -17,6 +17,7 @@
 
 #include <libcamera/ipa/core_ipa_interface.h>
 
+#include "libipa/helpers.h"
 #include "libipa/histogram.h"
 
 /**
@@ -185,9 +186,9 @@ double Agc::estimateLuminance(double gain) const
 		blueSum += std::min(std::get<2>(rgbTriples_[i]) * gain, 255.0);
 	}
 
-	double ySum = redSum * rGain_ * 0.299
-		    + greenSum * gGain_ * 0.587
-		    + blueSum * bGain_ * 0.114;
+	double ySum = ipa::rec601LuminanceFromRGB(redSum * rGain_,
+						  greenSum * gGain_,
+						  blueSum * bGain_);
 
 	return ySum / (bdsGrid_.height * bdsGrid_.width) / 255;
 }
