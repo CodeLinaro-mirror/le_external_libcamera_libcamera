@@ -212,6 +212,7 @@ int GstLibcameraSrcState::queueRequest()
 	}
 
 	GST_TRACE_OBJECT(src_, "Requesting buffers");
+	wrap->request_.get()->controls().merge(initControls_, ControlList::MergePolicy::KeepExisting);
 	cam_->queueRequest(wrap->request_.get());
 
 	{
