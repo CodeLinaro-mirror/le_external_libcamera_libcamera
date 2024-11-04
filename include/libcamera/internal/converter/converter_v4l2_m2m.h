@@ -47,6 +47,11 @@ public:
 	std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &pixelFormat, const Size &size);
 
+	Size adjustInputSize(const PixelFormat &pixFmt,
+			     const Size &size, Alignments align = Alignment::Down) override;
+	Size adjustOutputSize(const PixelFormat &pixFmt,
+			      const Size &size, Alignments align = Alignment::Down) override;
+
 	int configure(const StreamConfiguration &inputCfg,
 		      const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfg);
 	int exportBuffers(const Stream *stream, unsigned int count,
@@ -54,6 +59,9 @@ public:
 
 	int start();
 	void stop();
+
+	int validateOutput(StreamConfiguration *cfg, bool *adjusted,
+			   Alignments align = Alignment::Down) override;
 
 	int queueBuffers(FrameBuffer *input,
 			 const std::map<const Stream *, FrameBuffer *> &outputs);
@@ -100,6 +108,9 @@ private:
 
 		std::pair<Rectangle, Rectangle> inputCropBounds_;
 	};
+
+	Size adjustSizes(const Size &size, const std::vector<SizeRange> &ranges,
+			 Alignments align);
 
 	std::unique_ptr<V4L2M2MDevice> m2m_;
 
