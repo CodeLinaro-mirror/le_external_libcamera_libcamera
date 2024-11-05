@@ -744,6 +744,7 @@ V4L2SubdeviceFormat CameraSensor::getFormat(const std::vector<unsigned int> &mbu
 		.code = bestCode,
 		.size = *bestSize,
 		.colorSpace = ColorSpace::Raw,
+		.subdevFmt = {},
 	};
 
 	return format;

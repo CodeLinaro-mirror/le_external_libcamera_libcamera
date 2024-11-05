@@ -809,6 +809,14 @@ const MediaBusFormatInfo &MediaBusFormatInfo::info(uint32_t code)
  */
 
 /**
+ * \var V4L2SubdeviceFormat::subdevFmt
+ * \brief The whole v4l2_subdev_format after calling setFormat()/getFormat()
+ *
+ * It's used in some pipeline handlers that need extra information apart from
+ * the existing fields.
+ */
+
+/**
  * \brief Assemble and return a string describing the format
  * \return A string describing the V4L2SubdeviceFormat
  */
@@ -1266,6 +1274,7 @@ int V4L2Subdevice::getFormat(const Stream &stream, V4L2SubdeviceFormat *format,
 	format->size.height = subdevFmt.format.height;
 	format->code = subdevFmt.format.code;
 	format->colorSpace = toColorSpace(subdevFmt.format);
+	format->subdevFmt = subdevFmt;
 
 	return 0;
 }
@@ -1324,6 +1333,7 @@ int V4L2Subdevice::setFormat(const Stream &stream, V4L2SubdeviceFormat *format,
 	format->size.height = subdevFmt.format.height;
 	format->code = subdevFmt.format.code;
 	format->colorSpace = toColorSpace(subdevFmt.format);
+	format->subdevFmt = subdevFmt;
 
 	return 0;
 }

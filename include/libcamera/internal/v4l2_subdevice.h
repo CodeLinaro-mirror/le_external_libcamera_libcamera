@@ -66,6 +66,8 @@ struct V4L2SubdeviceFormat {
 	std::optional<ColorSpace> colorSpace;
 
 	const std::string toString() const;
+
+	struct v4l2_subdev_format subdevFmt;
 };
 
 std::ostream &operator<<(std::ostream &out, const V4L2SubdeviceFormat &f);
