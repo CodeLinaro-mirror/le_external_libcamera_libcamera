@@ -8,6 +8,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 
 #include <chrono>
+#include <fstream>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
@@ -464,6 +465,8 @@ void PipelineHandler::doQueueRequest(Request *request)
 
 	request->_d()->sequence_ = data->requestSequence_++;
 
+	dumpRequest(request, DumpMode::Controls);
+
 	if (request->_d()->cancelled_) {
 		completeRequest(request);
 		return;
@@ -554,6 +557,8 @@ void PipelineHandler::completeRequest(Request *request)
 	Camera *camera = request->_d()->camera();
 
 	request->_d()->complete();
+
+	dumpRequest(request, DumpMode::Metadata);
 
 	Camera::Private *data = camera->_d();
 
@@ -757,6 +762,94 @@ void PipelineHandler::disconnect()
  * \context This function is \threadsafe.
  * \return The CameraManager for this pipeline handler
  */
+
+/**
+ * \brief Dump the camera configuration to YAML format
+ *
+ * Dump to the file path specified in the LIBCAMERA_DUMP_CAPTURE_SCRIPT
+ * environment variable, if any, the Camera configuration in YAML format.
+ */
+void PipelineHandler::dumpConfiguration(const std::set<const Stream *> &streams,
+					const Orientation &orientation)
+{
+	const char *file = utils::secure_getenv("LIBCAMERA_DUMP_CAPTURE_SCRIPT");
+	if (!file)
+		return;
+
+	std::string filePath(file);
+	LOG(Pipeline, Debug) << "Dumping controls in YAML format to: "
+			     << filePath;
+
+	/* Create the YAML roots for controls and metadata output files. */
+
+	controlsEmitter_ = YamlEmitter::root(filePath);
+	controlsDict_ = controlsEmitter_.dict();
+
+	/*
+	 * Metadata needs to go into a separate file because otherwise it'll
+	 * flood the capture script
+	 */
+	filePath += ".metadata";
+	LOG(Pipeline, Debug) << "Dumping metadata in YAML format to: "
+			     << filePath;
+	metadataEmitter_ = YamlEmitter::root(filePath);
+	metadataDict_ = metadataEmitter_.dict();
+	metadataList_ = metadataDict_.list("frames");
+
+	YamlDict configurationDict = controlsDict_.dict("configuration");
+	std::stringstream o;
+	o << orientation;
+	configurationDict["orientation"] = o.str();
+
+	/* \todo Dump Sensor configuration */
+
+	YamlList streamsList = configurationDict.list("streams");
+
+	for (const auto &stream : streams) {
+		const StreamConfiguration &streamConfig = stream->configuration();
+		YamlDict yamlStream = streamsList.dict();
+
+		yamlStream["pixelformat"] = streamConfig.pixelFormat.toString();
+		yamlStream["size"] = streamConfig.size.toString();
+		yamlStream["stride"] = std::to_string(streamConfig.stride);
+		yamlStream["frameSize"] = std::to_string(streamConfig.frameSize);
+		yamlStream["bufferCount"] = std::to_string(streamConfig.bufferCount);
+
+		if (streamConfig.colorSpace)
+			yamlStream["colorSpace"] =
+				streamConfig.colorSpace->toString();
+	}
+}
+
+void PipelineHandler::dumpRequest(Request *request, DumpMode mode)
+{
+	if (!controlsEmitter_.valid())
+		return;
+
+	ControlList &controls = mode == DumpMode::Controls ? request->controls()
+							   : request->metadata();
+	if (controls.empty())
+		return;
+
+	YamlDict yamlFrame;
+	if (mode == DumpMode::Controls) {
+		if (!controlsList_.valid())
+			controlsList_ = controlsDict_.list("frames");
+
+		yamlFrame = controlsList_.dict();
+	} else {
+		yamlFrame = metadataList_.dict();
+	}
+
+	YamlDict yamlCtrls = yamlFrame.dict(std::to_string(request->sequence()));
+
+	const ControlIdMap *idMap = controls.idMap();
+	for (const auto &pair : controls) {
+		const ControlId *ctrlId = idMap->at(pair.first);
+
+		yamlCtrls[ctrlId->name()] = pair.second.toString();
+	}
+}
 
 /**
  * \class PipelineHandlerFactoryBase
