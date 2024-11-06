@@ -7,6 +7,7 @@
 
 #include "libcamera/internal/ipc_pipe_unixsocket.h"
 
+#include <unistd.h>
 #include <vector>
 
 #include <libcamera/base/event_dispatcher.h>
@@ -41,6 +42,10 @@ IPCPipeUnixSocket::IPCPipeUnixSocket(const char *ipaModulePath,
 	socket_->readyRead.connect(this, &IPCPipeUnixSocket::readyRead);
 	args.push_back(std::to_string(fd.get()));
 	fds.push_back(fd.get());
+
+	/* Share stdout and stderr with the proxy for logging purpose */
+	fds.push_back(STDOUT_FILENO);
+	fds.push_back(STDERR_FILENO);
 
 	proc_ = std::make_unique<Process>();
 	int ret = proc_->start(ipaProxyWorkerPath, args, fds);
