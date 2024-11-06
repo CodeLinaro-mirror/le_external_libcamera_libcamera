@@ -56,6 +56,91 @@ LOG_DEFINE_CATEGORY(MediaDevice)
  */
 
 /**
+ * \class MediaDevice::Request
+ * \brief The request from a MediaDevice that supports request API
+ */
+
+/**
+ * \brief Construct a MediaDevice::Request
+ * \param[in] mediaDevice The MediaDevice instance that allocate this request
+ * \param[in] fd The request's fild descriptor
+ */
+MediaDevice::Request::Request(MediaDevice *mediaDevice, UniqueFD fd)
+	: mediaDevice_(mediaDevice), fd_(std::move(fd)),
+	  eventNotifier_(fd_.get(), EventNotifier::Type::Exception)
+{
+	eventNotifier_.activated.connect(this, &MediaDevice::Request::reinit);
+}
+
+std::string MediaDevice::Request::logPrefix() const
+{
+	return mediaDevice_->logPrefix() + " Request";
+}
+
+/**
+ * \brief Queue a request to the media device
+ *
+ * A request needs to be re-init'ed before being queued again. This class will
+ * notify the user with signal `recycled` when the request is re-init'ed.
+ *
+ * \sa reinit()
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaDevice::Request::queueRequest()
+{
+	int requestFd = fd_.get();
+	int ret = ioctl(requestFd, MEDIA_REQUEST_IOC_QUEUE, NULL);
+	if (ret) {
+		LOG(MediaDevice, Error) << "QueueRequest fd " << requestFd
+					<< "failed: " << strerror(-ret);
+		return ret;
+	}
+
+	eventNotifier_.setEnabled(true);
+
+	return ret;
+}
+
+/**
+ * \fn int MediaDevice::Request::fd()
+ * \return The request's file descriptor in int
+ */
+
+/**
+ * \var MediaDevice::Request::recycled_
+ * \brief The signal to notify the user when this request is recycled and ready
+ * to be queued again
+ *
+ * After this request is queued with `queueRequest()`, the user needs to wait
+ * for signal `recycled_` being emitted, before queueing this request again.
+ */
+
+/**
+ * \brief Re-init a request
+ *
+ * This function recycles a request that was queued before. It's triggered when
+ * `eventNotifier_` confirms the file descriptor is completed.
+ *
+ * \sa queueRequest()
+ */
+void MediaDevice::Request::reinit()
+{
+	eventNotifier_.setEnabled(false);
+
+	int requestFd = fd_.get();
+	int ret = ::ioctl(requestFd, MEDIA_REQUEST_IOC_REINIT, NULL);
+	if (ret) {
+		LOG(MediaDevice, Error) << "The request " << requestFd
+					<< " is queued but not yet completed: "
+					<< strerror(-ret);
+		return;
+	}
+
+	recycled_.emit(this);
+}
+
+/**
  * \brief Construct a MediaDevice
  * \param[in] deviceNode The media device node path
  *
@@ -826,6 +911,27 @@ int MediaDevice::setupLink(const MediaLink *link, unsigned int flags)
 	LOG(MediaDevice, Debug) << *link << ": " << flags;
 
 	return 0;
+}
+
+/**
+ * \brief Allocate a request from the media device
+ *
+ * This function returns a request containing a file descriptor if the
+ * MediaDevice supports request API.
+ *
+ * \return A request on success or nullptr otherwise
+ */
+std::unique_ptr<MediaDevice::Request> MediaDevice::allocateRequest()
+{
+	int fd;
+	int ret = ioctl(fd_.get(), MEDIA_IOC_REQUEST_ALLOC, &fd);
+	if (ret) {
+		LOG(MediaDevice, Error) << "Allocate request failed "
+					<< strerror(-ret);
+		return nullptr;
+	}
+
+	return std::make_unique<MediaDevice::Request>(this, UniqueFD(fd));
 }
 
 } /* namespace libcamera */

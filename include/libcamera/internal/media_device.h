@@ -13,6 +13,7 @@
 
 #include <linux/media.h>
 
+#include <libcamera/base/event_notifier.h>
 #include <libcamera/base/log.h>
 #include <libcamera/base/signal.h>
 #include <libcamera/base/unique_fd.h>
@@ -24,6 +25,29 @@ namespace libcamera {
 class MediaDevice : protected Loggable
 {
 public:
+	class Request : protected Loggable
+	{
+	public:
+		Request(MediaDevice *mediaDevice, UniqueFD fd);
+
+		int queueRequest();
+
+		int fd() const { return fd_.get(); }
+
+		Signal<Request *> recycled_;
+
+	protected:
+		std::string logPrefix() const override;
+
+	private:
+		void reinit();
+
+		MediaDevice *mediaDevice_;
+		UniqueFD fd_;
+
+		EventNotifier eventNotifier_;
+	};
+
 	MediaDevice(const std::string &deviceNode);
 	~MediaDevice();
 
@@ -52,6 +76,8 @@ public:
 			const MediaEntity *sink, unsigned int sinkIdx);
 	MediaLink *link(const MediaPad *source, const MediaPad *sink);
 	int disableLinks();
+
+	std::unique_ptr<Request> allocateRequest();
 
 	Signal<> disconnected;
 
