@@ -7,6 +7,7 @@
 
 #include "capture_script.h"
 
+#include <algorithm>
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -160,6 +161,10 @@ int CaptureScript::parseScript(FILE *script)
 				return ret;
 		} else if (section == "frames") {
 			ret = parseFrames();
+			if (ret)
+				return ret;
+		} else if (section == "configuration") {
+			ret = parseConfiguration();
 			if (ret)
 				return ret;
 		} else {
@@ -320,6 +325,165 @@ int CaptureScript::parseControl(EventPtr event, ControlList &controls)
 	controls.set(controlId->id(), val);
 
 	return 0;
+}
+
+int CaptureScript::parseOrientation(EventPtr event)
+{
+	static const std::map<std::string, libcamera::Orientation> orientations{
+		{ "Rotate0", libcamera::Orientation::Rotate0 },
+		{ "Rotate0Mirror", libcamera::Orientation::Rotate0Mirror },
+		{ "Rotate180", libcamera::Orientation::Rotate180 },
+		{ "Rotate180Mirror", libcamera::Orientation::Rotate180Mirror },
+		{ "Rotate90Mirror", libcamera::Orientation::Rotate90Mirror },
+		{ "Rotate270", libcamera::Orientation::Rotate270 },
+		{ "Rotate270Mirror", libcamera::Orientation::Rotate270Mirror },
+		{ "Rotate90", libcamera::Orientation::Rotate90 },
+	};
+
+	std::string orientation = eventScalarValue(event);
+
+	auto it = orientations.find(orientation);
+	if (it == orientations.end()) {
+		std::cerr << "Invalid orientation '" << orientation
+			  << "' in capture script" << std::endl;
+		return -EINVAL;
+	}
+
+	orientation_ = it->second;
+
+	return 0;
+}
+
+int CaptureScript::parseStream(EventPtr event, unsigned int index)
+{
+	if (!checkEvent(event, YAML_MAPPING_START_EVENT))
+		return -EINVAL;
+
+	StreamConfiguration config;
+	while (1) {
+		event = nextEvent();
+		if (!event)
+			return -EINVAL;
+		if (event->type == YAML_MAPPING_END_EVENT)
+			break;
+
+		std::string key = eventScalarValue(event);
+
+		event = nextEvent();
+		if (!event)
+			return -EINVAL;
+		if (event->type == YAML_MAPPING_END_EVENT)
+			break;
+
+		std::string value = eventScalarValue(event);
+
+		if (key == "pixelFormat") {
+			config.pixelFormat = libcamera::PixelFormat::fromString(value);
+		} else if (key == "size") {
+			unsigned int split = value.find("x");
+			if (split == std::string::npos) {
+				std::cerr << "Invalid size '" << value
+					  << "' in stream configuration "
+					  << index << std::endl;
+			}
+
+			std::string width = value.substr(0, split);
+			std::string height = value.substr(split + 1);
+			config.size = Size(std::stoi(width), std::stoi(height));
+		} else if (key == "stride") {
+			config.stride = std::stoi(value);
+		} else if (key == "frameSize") {
+			config.frameSize = std::stoi(value);
+		} else if (key == "bufferCount") {
+			config.bufferCount = std::stoi(value);
+		} else if (key == "colorSpace") {
+			config.colorSpace = libcamera::ColorSpace::fromString(value);
+		} else {
+			std::cerr << "Unknown key-value pair '"
+				  << key << "': '" << value
+				  << "' in stream configuration "
+				  << index << std::endl;
+			return -EINVAL;
+		}
+	}
+
+	streamConfigs_.push_back(config);
+
+	return 0;
+}
+
+int CaptureScript::parseStreams(EventPtr event)
+{
+	if (!checkEvent(event, YAML_SEQUENCE_START_EVENT))
+		return -EINVAL;
+
+	unsigned int index = 0;
+	while (1) {
+		event = nextEvent();
+		if (!event)
+			return -EINVAL;
+		if (event->type == YAML_SEQUENCE_END_EVENT)
+			return 0;
+
+		if (event->type == YAML_MAPPING_START_EVENT) {
+			parseStream(std::move(event), index++);
+			continue;
+		} else {
+			std::cerr << "UNKNOWN TYPE" << std::endl;
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
+int CaptureScript::parseConfiguration()
+{
+	int ret;
+
+	EventPtr event = nextEvent(YAML_MAPPING_START_EVENT);
+	if (!event)
+		return -EINVAL;
+
+	while (1) {
+		event = nextEvent();
+		if (!event)
+			return -EINVAL;
+		if (event->type == YAML_MAPPING_END_EVENT)
+			break;
+
+		std::string key = eventScalarValue(event);
+
+		event = nextEvent();
+		if (!event)
+			return -EINVAL;
+		if (event->type == YAML_MAPPING_END_EVENT)
+			break;
+
+		/* TODO Load sensor configuration */
+		if (key == "orientation") {
+			ret = parseOrientation(std::move(event));
+			if (ret)
+				return ret;
+		} else if (key == "streams") {
+			ret = parseStreams(std::move(event));
+			if (ret)
+				return ret;
+		}
+	}
+
+	return 0;
+}
+
+void CaptureScript::populateConfiguration(CameraConfiguration *configuration) const
+{
+	if (!configuration)
+		return;
+
+	configuration->orientation = orientation_;
+
+	for (unsigned int i = 0; i < streamConfigs_.size(); i++)
+		(*configuration)[i] = streamConfigs_[i];
 }
 
 std::string CaptureScript::parseScalar()
