@@ -833,6 +833,17 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 		Stream *stream = streamConfig.stream();
 		MaliC55Pipe *pipe = pipeFromStream(data, stream);
 
+		/*
+		 * Enable the media link between the pipe's resizer and the
+		 * capture video device
+		 */
+		const MediaEntity *rszEntity = pipe->resizer->entity();
+		ret = rszEntity->getPadByIndex(1)->links()[0]->setEnabled(true);
+		if (ret) {
+			LOG(MaliC55, Error) << "Couldn't enable resizer's link";
+			return ret;
+		}
+
 		if (isFormatRaw(streamConfig.pixelFormat))
 			ret = configureRawStream(data, streamConfig, subdevFormat);
 		else
