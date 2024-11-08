@@ -112,7 +112,14 @@ colorimetry_from_colorspace(const ColorSpace &colorSpace)
 		colorimetry.transfer = GST_VIDEO_TRANSFER_SRGB;
 		break;
 	case ColorSpace::TransferFunction::Rec709:
+#if GST_CHECK_VERSION(1, 18, 0)
+		if (colorSpace.primaries == ColorSpace::Primaries::Smpte170m)
+			colorimetry.transfer = GST_VIDEO_TRANSFER_BT601;
+		else
+			colorimetry.transfer = GST_VIDEO_TRANSFER_BT709;
+#else
 		colorimetry.transfer = GST_VIDEO_TRANSFER_BT709;
+#endif
 		break;
 	}
 
