@@ -21,7 +21,7 @@
 G_DECLARE_FINAL_TYPE(GstLibcameraPool, gst_libcamera_pool, GST_LIBCAMERA, POOL, GstBufferPool)
 
 GstLibcameraPool *gst_libcamera_pool_new(GstLibcameraAllocator *allocator,
-					 libcamera::Stream *stream);
+					 const libcamera::StreamConfiguration &stream_cfg, GstCaps *caps, gboolean add_video_meta);
 
 libcamera::Stream *gst_libcamera_pool_get_stream(GstLibcameraPool *self);
 

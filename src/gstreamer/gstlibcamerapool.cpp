@@ -135,16 +135,36 @@ gst_libcamera_pool_class_init(GstLibcameraPoolClass *klass)
 }
 
 GstLibcameraPool *
-gst_libcamera_pool_new(GstLibcameraAllocator *allocator, Stream *stream)
+gst_libcamera_pool_new(GstLibcameraAllocator *allocator, const StreamConfiguration &stream_cfg,
+		       GstCaps *caps, gboolean add_video_meta)
 {
 	auto *pool = GST_LIBCAMERA_POOL(g_object_new(GST_TYPE_LIBCAMERA_POOL, nullptr));
+	GstVideoInfo info;
 
 	pool->allocator = GST_LIBCAMERA_ALLOCATOR(g_object_ref(allocator));
-	pool->stream = stream;
+	pool->stream = stream_cfg.stream();
 
-	gsize pool_size = gst_libcamera_allocator_get_pool_size(allocator, stream);
+	if (caps && gst_video_info_from_caps(&info, caps)) {
+		guint k, stride;
+		gsize offset = 0;
+		for (k = 0; k < GST_VIDEO_INFO_N_PLANES(&info); k++) {
+			stride = gst_video_format_info_extrapolate_stride(info.finfo, k, stream_cfg.stride);
+			info.stride[k] = stride;
+			info.offset[k] = offset;
+			offset += stride * GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(info.finfo, k, GST_VIDEO_INFO_HEIGHT(&info));
+		}
+	} else
+		add_video_meta = false;
+
+	gsize pool_size = gst_libcamera_allocator_get_pool_size(allocator, stream_cfg.stream());
 	for (gsize i = 0; i < pool_size; i++) {
 		GstBuffer *buffer = gst_buffer_new();
+		if (add_video_meta) {
+			gst_buffer_add_video_meta_full(buffer, GST_VIDEO_FRAME_FLAG_NONE,
+						       GST_VIDEO_INFO_FORMAT(&info), GST_VIDEO_INFO_WIDTH(&info),
+						       GST_VIDEO_INFO_HEIGHT(&info), GST_VIDEO_INFO_N_PLANES(&info),
+						       info.offset, info.stride);
+		}
 		pool->queue->push_back(buffer);
 	}
 

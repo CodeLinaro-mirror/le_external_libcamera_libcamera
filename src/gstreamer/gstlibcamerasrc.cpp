@@ -497,9 +497,21 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 	for (gsize i = 0; i < state->srcpads_.size(); i++) {
 		GstPad *srcpad = state->srcpads_[i];
 		const StreamConfiguration &stream_cfg = state->config_->at(i);
+		GstQuery *query = NULL;
+		gboolean add_video_meta = false;
+
+		g_autoptr(GstCaps) caps = gst_libcamera_stream_configuration_to_caps(stream_cfg);
+		gst_libcamera_framerate_to_caps(caps, element_caps);
+
+		query = gst_query_new_allocation(caps, false);
+		if (!gst_pad_peer_query(srcpad, query))
+			GST_DEBUG_OBJECT(self, "didn't get downstream ALLOCATION hints");
+		else
+			add_video_meta = gst_query_find_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+		gst_query_unref(query);
 
 		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator,
-								stream_cfg.stream());
+								stream_cfg, caps, add_video_meta);
 		g_signal_connect_swapped(pool, "buffer-notify",
 					 G_CALLBACK(gst_task_resume), self->task);
 
