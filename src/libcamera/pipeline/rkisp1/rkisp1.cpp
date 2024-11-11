@@ -1492,6 +1492,14 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 								      maxCrop);
 		}
 
+		if (data->dewarpParams_.has_value()) {
+			if (dewarper_->supportsRequests())
+				controls[&controls::LensDewarpEnable] = ControlInfo(false, true, true);
+			else
+				LOG(RkISP1, Warning)
+					<< "dw100 kernel driver has no requests support."
+					   " No dynamic configuration possible.";
+		}
 	}
 
 	/* Add the IPA registered controls to list of camera controls. */
@@ -1765,7 +1773,14 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		availableDewarpRequests_.pop();
 	}
 
+	bool update = false;
 	auto &vertexMap = dewarper_->vertexMap(&data->mainPathStream_);
+
+	const auto &lensDewarpEnable = request->controls().get(controls::LensDewarpEnable);
+	if (lensDewarpEnable) {
+		vertexMap.setLensDewarpEnable(*lensDewarpEnable);
+		update = true;
+	}
 
 	/* Handle scaler crop control. */
 	const auto &crop = request->controls().get(controls::ScalerCrop);
@@ -1775,8 +1790,11 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 				<< "Dynamically setting ScalerCrop requires a "
 				   "dw100 driver with requests support";
 		vertexMap.setScalerCrop(*crop);
-		dewarper_->applyVertexMap(&data->mainPathStream_, dewarpRequest);
+		update = true;
 	}
+
+	if (update)
+		dewarper_->applyVertexMap(&data->mainPathStream_, dewarpRequest);
 
 	/*
 	 * Queue input and output buffers to the dewarper. The output
@@ -1809,7 +1827,11 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		}
 	}
 
-	request->metadata().set(controls::ScalerCrop, vertexMap.effectiveScalerCrop());
+	auto &meta = request->metadata();
+	meta.set(controls::ScalerCrop, vertexMap.effectiveScalerCrop());
+
+	if (vertexMap.dewarpParamsValid())
+		meta.set(controls::LensDewarpEnable, vertexMap.lensDewarpEnable());
 }
 
 void PipelineHandlerRkISP1::dewarpRequestReady(V4L2Request *request)
