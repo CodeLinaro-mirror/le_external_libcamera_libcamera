@@ -23,6 +23,19 @@ public:
 
 	using DmaBufAllocatorFlags = Flags<DmaBufAllocatorFlag>;
 
+	enum class SyncStep {
+		Start = 0,
+		End
+	};
+
+	enum class SyncType {
+		Read = 0,
+		Write,
+		ReadWrite,
+	};
+
+	static void sync(int fd, SyncStep step, SyncType type);
+
 	DmaBufAllocator(DmaBufAllocatorFlags flags = DmaBufAllocatorFlag::CmaHeap);
 	~DmaBufAllocator();
 	bool isValid() const { return providerHandle_.isValid(); }
@@ -33,6 +46,26 @@ private:
 	UniqueFD allocFromUDmaBuf(const char *name, std::size_t size);
 	UniqueFD providerHandle_;
 	DmaBufAllocatorFlag type_;
+};
+
+class DmaSyncer final
+{
+public:
+	explicit DmaSyncer(int fd,
+			   DmaBufAllocator::SyncType type = DmaBufAllocator::SyncType::ReadWrite)
+		: fd_(fd), type_(type)
+	{
+		DmaBufAllocator::sync(fd_, DmaBufAllocator::SyncStep::Start, type_);
+	}
+
+	~DmaSyncer()
+	{
+		DmaBufAllocator::sync(fd_, DmaBufAllocator::SyncStep::End, type_);
+	}
+
+private:
+	int fd_;
+	DmaBufAllocator::SyncType type_;
 };
 
 LIBCAMERA_FLAGS_ENABLE_OPERATORS(DmaBufAllocator::DmaBufAllocatorFlag)
