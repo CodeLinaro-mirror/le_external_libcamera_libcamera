@@ -165,8 +165,11 @@ namespace libcamera::ipa::rkisp1 {
  * \var IPAActiveState::agc.automatic.gain
  * \brief Automatic analogue gain multiplier
  *
- * \var IPAActiveState::agc.autoEnabled
- * \brief Manual/automatic AGC state as set by the AeEnable control
+ * \var IPAActiveState::agc.autoExposureEnabled
+ * \brief Manual/automatic AGC state (exposure) as set by the ExposureTimeMode control
+ *
+ * \var IPAActiveState::agc.autoGainEnabled
+ * \brief Manual/automatic AGC state (gain) as set by the AnalogueGainMode control
  *
  * \var IPAActiveState::agc.constraintMode
  * \brief Constraint mode as set by the AeConstraintMode control
@@ -307,8 +310,11 @@ namespace libcamera::ipa::rkisp1 {
  *
  * The gain should be adapted to the sensor specific gain code before applying.
  *
- * \var IPAFrameContext::agc.autoEnabled
- * \brief Manual/automatic AGC state as set by the AeEnable control
+ * \var IPAFrameContext::agc.autoExposureEnabled
+ * \brief Manual/automatic AGC state (exposure) as set by the ExposureTimeMode control
+ *
+ * \var IPAFrameContext::agc.autoGainEnabled
+ * \brief Manual/automatic AGC state (gain) as set by the AnalogueGainMode control
  *
  * \var IPAFrameContext::agc.constraintMode
  * \brief Constraint mode as set by the AeConstraintMode control

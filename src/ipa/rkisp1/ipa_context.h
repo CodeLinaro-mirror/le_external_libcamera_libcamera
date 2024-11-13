@@ -78,7 +78,8 @@ struct IPAActiveState {
 			double gain;
 		} automatic;
 
-		bool autoEnabled;
+		bool autoExposureEnabled;
+		bool autoGainEnabled;
 		controls::AeConstraintModeEnum constraintMode;
 		controls::AeExposureModeEnum exposureMode;
 		controls::AeMeteringModeEnum meteringMode;
@@ -131,7 +132,8 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		uint32_t exposure;
 		double gain;
-		bool autoEnabled;
+		bool autoExposureEnabled;
+		bool autoGainEnabled;
 		controls::AeConstraintModeEnum constraintMode;
 		controls::AeExposureModeEnum exposureMode;
 		controls::AeMeteringModeEnum meteringMode;
