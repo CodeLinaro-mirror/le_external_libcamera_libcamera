@@ -74,22 +74,62 @@ int Agc::checkChannel(unsigned int channelIndex) const
 	return 0;
 }
 
-void Agc::disableAuto()
+void Agc::disableAutoShutter()
 {
-	LOG(RPiAgc, Debug) << "disableAuto";
+	LOG(RPiAgc, Debug) << "disableAutoShutter";
 
 	/* All channels are enabled/disabled together. */
 	for (auto &data : channelData_)
-		data.channel.disableAuto();
+		data.channel.disableAutoShutter();
 }
 
-void Agc::enableAuto()
+void Agc::enableAutoShutter()
 {
-	LOG(RPiAgc, Debug) << "enableAuto";
+	LOG(RPiAgc, Debug) << "enableAutoShutter";
 
 	/* All channels are enabled/disabled together. */
 	for (auto &data : channelData_)
-		data.channel.enableAuto();
+		data.channel.enableAutoShutter();
+}
+
+bool Agc::autoShutterEnabled() const
+{
+	LOG(RPiAgc, Debug) << "autoShutterEnabled";
+
+	/*
+	 * We always have at least one channel, and since all channels are
+	 * enabled and disabled together we can simply check the first one.
+	 */
+	return channelData_[0].channel.autoShutterEnabled();
+}
+
+void Agc::disableAutoGain()
+{
+	LOG(RPiAgc, Debug) << "disableAutoGain";
+
+	/* All channels are enabled/disabled together. */
+	for (auto &data : channelData_)
+		data.channel.disableAutoGain();
+}
+
+void Agc::enableAutoGain()
+{
+	LOG(RPiAgc, Debug) << "enableAutoGain";
+
+	/* All channels are enabled/disabled together. */
+	for (auto &data : channelData_)
+		data.channel.enableAutoGain();
+}
+
+bool Agc::autoGainEnabled() const
+{
+	LOG(RPiAgc, Debug) << "autoGainEnabled";
+
+	/*
+	 * We always have at least one channel, and since all channels are
+	 * enabled and disabled together we can simply check the first one.
+	 */
+	return channelData_[0].channel.autoGainEnabled();
 }
 
 unsigned int Agc::getConvergenceFrames() const
