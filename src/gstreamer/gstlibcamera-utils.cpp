@@ -489,8 +489,16 @@ gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
 
 	/* Configure colorimetry */
 	if (gst_structure_has_field(s, "colorimetry")) {
-		const gchar *colorimetry_str = gst_structure_get_string(s, "colorimetry");
+		const GValue *value;
+		const gchar *colorimetry_str = NULL;
 		GstVideoColorimetry colorimetry;
+
+		value = gst_structure_get_value(s, "colorimetry");
+
+		if (GST_VALUE_HOLDS_LIST(value))
+			value = gst_value_list_get_value(value, 0);
+		if (G_VALUE_HOLDS_STRING(value))
+			colorimetry_str = g_value_get_string(value);
 
 		if (!gst_video_colorimetry_from_string(&colorimetry, colorimetry_str))
 			g_critical("Invalid colorimetry %s", colorimetry_str);
