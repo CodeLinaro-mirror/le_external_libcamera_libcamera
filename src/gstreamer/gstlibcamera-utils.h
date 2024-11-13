@@ -2,6 +2,9 @@
 /*
  * Copyright (C) 2020, Collabora Ltd.
  *     Author: Nicolas Dufresne <nicolas.dufresne@collabora.com>
+ * Copyright (C) <1999> Erik Walthinsen <omega@cse.ogi.edu>
+ * Library       <2002> Ronald Bultje <rbultje@ronald.bitfreak.net>
+ * Copyright (C) <2007> David A. Schleef <ds@schleef.org>
  *
  * GStreamer libcamera Utility Functions
  */
@@ -34,6 +37,10 @@ static inline void gst_clear_event(GstEvent **event_ptr)
 
 #if !GST_CHECK_VERSION(1, 17, 1)
 gboolean gst_task_resume(GstTask *task);
+#endif
+
+#if !GST_CHECK_VERSION(1, 22, 0)
+gint gst_libcamera_extrapolate_stride(const GstVideoFormatInfo *finfo, gint plane, gint stride);
 #endif
 std::shared_ptr<libcamera::CameraManager> gst_libcamera_get_camera_manager(int &ret);
 
