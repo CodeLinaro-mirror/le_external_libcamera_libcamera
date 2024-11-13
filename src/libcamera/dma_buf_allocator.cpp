@@ -79,6 +79,81 @@ LOG_DEFINE_CATEGORY(DmaBufAllocator)
  */
 
 /**
+ * \enum DmaBufAllocator::SyncStep
+ * \brief Either start or end of the synchronization
+ * \var DmaBufAllocator::Start
+ * \brief Indicates the start of a map access session
+ * \var DmaBufAllocator::End
+ * \brief Indicates the end of a map access session
+ */
+
+/**
+ * \enum DmaBufAllocator::SyncType
+ * \brief Read and/or write access via the CPU map
+ * \var DmaBufAllocator::Read
+ * \brief Indicates that the mapped dma-buf will be read by the client via the
+ * CPU map
+ * \var DmaBufAllocator::Write
+ * \brief Indicates that the mapped dm-buf will be written by the client via the
+ * CPU map
+ * \var DmaBufAllocator::ReadWrite
+ * \brief Indicates that the mapped dma-buf will be read and written by the
+ * client via the CPU map
+ */
+
+/**
+ * \brief Synchronize CPU access and hardware access
+ * \param[in] fd The dma-buf's file descriptor to be synchronized
+ * \param[in] step Either start or end of the synchronization
+ * \param[in] type Read and/or write access during CPU mmap
+ *
+ * The client is expected to call this function with
+ * DmaBufAllocator::SyncStep::Start and DmaBufAllocator::SyncStep::End at the
+ * start and end of buffer access respectively.
+ */
+void DmaBufAllocator::sync(int fd, DmaBufAllocator::SyncStep step, DmaBufAllocator::SyncType type)
+{
+	uint64_t flags = 0;
+	switch (step) {
+	case DmaBufAllocator::SyncStep::Start:
+		flags = DMA_BUF_SYNC_START;
+		break;
+	case DmaBufAllocator::SyncStep::End:
+		flags = DMA_BUF_SYNC_END;
+		break;
+	}
+
+	switch (type) {
+	case DmaBufAllocator::SyncType::Read:
+		flags = flags | DMA_BUF_SYNC_READ;
+		break;
+	case DmaBufAllocator::SyncType::Write:
+		flags = flags | DMA_BUF_SYNC_WRITE;
+		break;
+	case DmaBufAllocator::SyncType::ReadWrite:
+		flags = flags | DMA_BUF_SYNC_RW;
+		break;
+	}
+
+	struct dma_buf_sync sync = {
+		.flags = flags
+	};
+
+	int ret;
+	do {
+		ret = ioctl(fd, DMA_BUF_IOCTL_SYNC, &sync);
+	} while (ret && (errno == EINTR || errno == EAGAIN));
+
+	if (ret) {
+		ret = errno;
+		LOG(DmaBufAllocator, Error) << "Unable to sync dma fd: " << fd
+					    << ", err: " << strerror(ret)
+					    << ", step: " << static_cast<int>(step)
+					    << ", type: " << static_cast<int>(type);
+	}
+}
+
+/**
  * \brief Construct a DmaBufAllocator of a given type
  * \param[in] type The type(s) of the dma-buf providers to allocate from
  *
@@ -204,5 +279,20 @@ UniqueFD DmaBufAllocator::alloc(const char *name, std::size_t size)
 	else
 		return allocFromHeap(name, size);
 }
+
+/**
+ * \class DmaSyncer
+ * \brief Helper class for dma-buf's synchronization
+ *
+ * This class wraps a userspace dma-buf's synchronization process with an
+ * object's lifetime.
+ */
+
+/**
+ * \fn DmaSyncer::DmaSyncer(int fd, DmaBufAllocator::SyncType type = DmaBufAllocator::SyncType::ReadWrite)
+ * \brief Construct a DmaSyncer with a dma-buf's fd and the access type
+ * \param[in] fd The dma-buf's file descriptor to synchronize
+ * \param[in] type Read and/or write access via the CPU map
+ */
 
 } /* namespace libcamera */
