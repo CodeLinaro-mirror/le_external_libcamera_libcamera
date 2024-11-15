@@ -95,6 +95,8 @@ public:
 	const std::vector<controls::draft::TestPatternModeEnum> &
 	testPatternModes() const override { return testPatternModes_; }
 	int setTestPatternMode(controls::draft::TestPatternModeEnum mode) override;
+	void getSensorDelays(uint8_t &exposureDelay, uint8_t &gainDelay,
+			     uint8_t &vblankDelay, uint8_t &hblankDelay) override;
 
 protected:
 	std::string logPrefix() const override;
@@ -480,6 +482,37 @@ void CameraSensorLegacy::initStaticProperties()
 	properties_.set(properties::UnitCellSize, staticProps_->unitCellSize);
 
 	initTestPatternModes();
+}
+
+void CameraSensorLegacy::getSensorDelays(uint8_t &exposureDelay, uint8_t &gainDelay,
+					 uint8_t &vblankDelay, uint8_t &hblankDelay)
+{
+
+	/*
+	 * These defaults are applicable to many sensors, however more specific
+	 * values can be added to the CameraSensorProperties for a sensor if
+	 * required.
+	 */
+	if (!staticProps_ ||
+	    (!staticProps_->sensorDelays.exposureDelay &&
+	     !staticProps_->sensorDelays.gainDelay &&
+	     !staticProps_->sensorDelays.vblankDelay &&
+	     !staticProps_->sensorDelays.hblankDelay)) {
+		LOG(CameraSensor, Warning)
+			<< "No sensor delays found in static properties. "
+			   "Assuming unverified defaults.";
+
+		exposureDelay = 2;
+		gainDelay = 1;
+		vblankDelay = 2;
+		hblankDelay = 2;
+		return;
+	}
+
+	exposureDelay = staticProps_->sensorDelays.exposureDelay;
+	gainDelay = staticProps_->sensorDelays.gainDelay;
+	vblankDelay = staticProps_->sensorDelays.vblankDelay;
+	hblankDelay = staticProps_->sensorDelays.hblankDelay;
 }
 
 void CameraSensorLegacy::initTestPatternModes()

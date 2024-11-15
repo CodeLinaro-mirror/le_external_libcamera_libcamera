@@ -73,6 +73,8 @@ public:
 	virtual const std::vector<controls::draft::TestPatternModeEnum> &
 	testPatternModes() const = 0;
 	virtual int setTestPatternMode(controls::draft::TestPatternModeEnum mode) = 0;
+	virtual void getSensorDelays(uint8_t &exposureDelay, uint8_t &gainDelay,
+				     uint8_t &vblankDelay, uint8_t &hblankDelay) = 0;
 };
 
 class CameraSensorFactoryBase

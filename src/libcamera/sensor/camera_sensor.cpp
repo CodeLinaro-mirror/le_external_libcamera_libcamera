@@ -337,6 +337,19 @@ CameraSensor::~CameraSensor() = default;
  */
 
 /**
+ * \fn CameraSensor::getSensorDelays()
+ * \brief Fetch the sensor delay values
+ * \param[out] exposureDelay The exposure delay
+ * \param[out] gainDelay The analogue gain delay
+ * \param[out] vblankDelay The vblank delay
+ * \param[out] hblankDelay The hblank delay
+ *
+ * This function fills in sensor control delays for pipeline handlers to use to
+ * inform the DelayedControls. If no static properties are available it fills in
+ * some widely applicable default values.
+ */
+
+/**
  * \class CameraSensorFactoryBase
  * \brief Base class for camera sensor factories
  *

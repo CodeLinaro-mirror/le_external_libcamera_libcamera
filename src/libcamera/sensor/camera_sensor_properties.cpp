@@ -41,6 +41,13 @@ LOG_DEFINE_CATEGORY(CameraSensorProperties)
  * \brief Map that associates the TestPattern control value with the indexes of
  * the corresponding sensor test pattern modes as returned by
  * V4L2_CID_TEST_PATTERN.
+ *
+ * \var CameraSensorProperties::sensorDelays
+ * \brief Holds the delays, expressed in number of frames, between the time a
+ * control is applied to the sensor and the time it actually takes effect.
+ * Delays are recorded for the exposure time, analogue gain, vertical and
+ * horizontal blanking. These values may be defined as empty, in which case the
+ * CameraSensor derivative should provide default values.
  */
 
 /**
@@ -60,6 +67,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeColorBars, 2 },
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "ar0521", {
 			.unitCellSize = { 2200, 2200 },
@@ -69,6 +77,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeColorBars, 2 },
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "hi846", {
 			.unitCellSize = { 1120, 1120 },
@@ -87,6 +96,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * 9: "Resolution Pattern"
 				 */
 			},
+			.sensorDelays = { },
 		} },
 		{ "imx214", {
 			.unitCellSize = { 1120, 1120 },
@@ -97,6 +107,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 				{ controls::draft::TestPatternModePn9, 4 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "imx219", {
 			.unitCellSize = { 1120, 1120 },
@@ -106,6 +117,12 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeSolidColor, 2 },
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 				{ controls::draft::TestPatternModePn9, 4 },
+			},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 1,
+				.vblankDelay = 2,
+				.hblankDelay = 2
 			},
 		} },
 		{ "imx258", {
@@ -117,34 +134,62 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 				{ controls::draft::TestPatternModePn9, 4 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "imx283", {
 			.unitCellSize = { 2400, 2400 },
 			.testPatternModes = {},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
 		} },
 		{ "imx290", {
 			.unitCellSize = { 2900, 2900 },
 			.testPatternModes = {},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
 		} },
 		{ "imx296", {
 			.unitCellSize = { 3450, 3450 },
 			.testPatternModes = {},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
 		} },
 		{ "imx327", {
 			.unitCellSize = { 2900, 2900 },
 			.testPatternModes = {},
+			.sensorDelays = { },
 		} },
 		{ "imx335", {
 			.unitCellSize = { 2000, 2000 },
 			.testPatternModes = {},
+			.sensorDelays = { },
 		} },
 		{ "imx415", {
 			.unitCellSize = { 1450, 1450 },
 			.testPatternModes = {},
+			.sensorDelays = { },
 		} },
 		{ "imx477", {
 			.unitCellSize = { 1550, 1550 },
 			.testPatternModes = {},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 3,
+				.hblankDelay = 3
+			},
 		} },
 		{ "imx519", {
 			.unitCellSize = { 1220, 1220 },
@@ -157,6 +202,12 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * these two patterns do not comply with MIPI CCS v1.1 (Section 10.1).
 				 */
 			},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 3,
+				.hblankDelay = 3
+			},
 		} },
 		{ "imx708", {
 			.unitCellSize = { 1400, 1400 },
@@ -166,6 +217,12 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeSolidColor, 2 },
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 				{ controls::draft::TestPatternModePn9, 4 },
+			},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 3,
+				.hblankDelay = 3
 			},
 		} },
 		{ "ov2685", {
@@ -181,6 +238,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * 5: "Color Square"
 				 */
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov2740", {
 			.unitCellSize = { 1400, 1400 },
@@ -188,6 +246,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeOff, 0 },
 				{ controls::draft::TestPatternModeColorBars, 1},
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov4689", {
 			.unitCellSize = { 2000, 2000 },
@@ -201,6 +260,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * colorBarType2 and colorBarType3.
 				 */
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov5640", {
 			.unitCellSize = { 1400, 1400 },
@@ -208,10 +268,17 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeOff, 0 },
 				{ controls::draft::TestPatternModeColorBars, 1 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov5647", {
 			.unitCellSize = { 1400, 1400 },
 			.testPatternModes = {},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
 		} },
 		{ "ov5670", {
 			.unitCellSize = { 1120, 1120 },
@@ -219,6 +286,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeOff, 0 },
 				{ controls::draft::TestPatternModeColorBars, 1 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov5675", {
 			.unitCellSize = { 1120, 1120 },
@@ -226,6 +294,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeOff, 0 },
 				{ controls::draft::TestPatternModeColorBars, 1 },
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov5693", {
 			.unitCellSize = { 1400, 1400 },
@@ -238,6 +307,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * Rolling Bar".
 				 */
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov64a40", {
 			.unitCellSize = { 1008, 1008 },
@@ -250,6 +320,12 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * 3: "Vertical Color Bar Type 3",
 				 * 4: "Vertical Color Bar Type 4"
 				 */
+			},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
 			},
 		} },
 		{ "ov8858", {
@@ -264,6 +340,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * 4: "Vertical Color Bar Type 4"
 				 */
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov8865", {
 			.unitCellSize = { 1400, 1400 },
@@ -278,6 +355,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 * 5: "Color squares with rolling bar"
 				 */
 			},
+			.sensorDelays = { },
 		} },
 		{ "ov13858", {
 			.unitCellSize = { 1120, 1120 },
@@ -285,6 +363,7 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeOff, 0 },
 				{ controls::draft::TestPatternModeColorBars, 1 },
 			},
+			.sensorDelays = { },
 		} },
 	};
 
