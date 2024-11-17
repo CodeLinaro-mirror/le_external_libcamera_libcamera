@@ -6,6 +6,7 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <optional>
@@ -39,6 +40,18 @@ public:
 	{
 		for (unsigned int i = 0; i < Rows; i++)
 			data_[i] = data[i];
+	}
+
+	Vector(const Vector &other)
+		: data_(other.data_)
+	{
+	}
+
+	Vector &operator=(const Vector &other)
+	{
+		data_ = other.data_;
+
+		return *this;
 	}
 
 	const T &operator[](size_t i) const
