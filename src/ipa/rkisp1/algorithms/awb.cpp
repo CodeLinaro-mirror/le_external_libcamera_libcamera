@@ -169,17 +169,21 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 
 uint32_t Awb::estimateCCT(const RGB<double> &rgb)
 {
-	/* Convert the RGB values to CIE tristimulus values (XYZ) */
-	double X = -0.14282 * rgb.r() + 1.54924 * rgb.g() - 0.95641 * rgb.b();
-	double Y = -0.32466 * rgb.r() + 1.57837 * rgb.g() - 0.73191 * rgb.b();
-	double Z = -0.68202 * rgb.r() + 0.77073 * rgb.g() + 0.56332 * rgb.b();
+	/*
+	 * Convert the RGB values to CIE tristimulus values (XYZ) and normalize
+	 * it (xyz).
+	 */
+	static const Matrix<double, 3, 3> rgb2xyz({
+		-0.14282, 1.54924, -0.95641,
+		-0.32466, 1.57837, -0.73191,
+		-0.68202, 0.77073,  0.56332
+	});
 
-	/* Calculate the normalized chromaticity values */
-	double x = X / (X + Y + Z);
-	double y = Y / (X + Y + Z);
+	Vector<double, 3> xyz = rgb2xyz * rgb;
+	xyz.normalize();
 
 	/* Calculate CCT */
-	double n = (x - 0.3320) / (0.1858 - y);
+	double n = (xyz.x() - 0.3320) / (0.1858 - xyz.y());
 	return 449 * n * n * n + 3525 * n * n + 6823.3 * n + 5520.33;
 }
 
@@ -215,9 +219,11 @@ void Awb::process(IPAContext &context,
 		rgbMeans.b() = awb->awb_mean[0].mean_cb_or_b;
 	} else {
 		/* Get the YCbCr mean values */
-		double yMean = awb->awb_mean[0].mean_y_or_g;
-		double cbMean = awb->awb_mean[0].mean_cb_or_b;
-		double crMean = awb->awb_mean[0].mean_cr_or_r;
+		Vector<double, 3> yuvMeans({
+			static_cast<double>(awb->awb_mean[0].mean_y_or_g),
+			static_cast<double>(awb->awb_mean[0].mean_cb_or_b),
+			static_cast<double>(awb->awb_mean[0].mean_cr_or_r)
+		});
 
 		/*
 		 * Convert from YCbCr to RGB.
@@ -231,12 +237,16 @@ void Awb::process(IPAContext &context,
 		 *  [1,1636, -0,4045, -0,7949]
 		 *  [1,1636,  1,9912, -0,0250]]
 		 */
-		yMean -= 16;
-		cbMean -= 128;
-		crMean -= 128;
-		rgbMeans.r() = 1.1636 * yMean - 0.0623 * cbMean + 1.6008 * crMean;
-		rgbMeans.g() = 1.1636 * yMean - 0.4045 * cbMean - 0.7949 * crMean;
-		rgbMeans.b() = 1.1636 * yMean + 1.9912 * cbMean - 0.0250 * crMean;
+		static const Matrix<double, 3, 3> yuv2rgbMatrix({
+			1.1636, -0.0623,  1.6008,
+			1.1636, -0.4045, -0.7949,
+			1.1636,  1.9912, -0.0250
+		});
+		static const Vector<double, 3> yuv2rgbOffset({
+			16, 128, 128
+		});
+
+		rgbMeans = yuv2rgbMatrix * (yuvMeans - yuv2rgbOffset);
 
 		/*
 		 * Due to hardware rounding errors in the YCbCr means, the
