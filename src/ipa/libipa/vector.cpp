@@ -47,6 +47,19 @@ namespace ipa {
  */
 
 /**
+ * \fn Vector::Vector(const Vector &other)
+ * \brief Construct a Vector by copying \a other
+ * \param[in] other The other Vector value
+ */
+
+/**
+ * \fn Vector &Vector::operator=(const Vector &other)
+ * \brief Replace the content of the Vector with a copy of the content of \a other
+ * \param[in] other The other Vector value
+ * \return This Vector value
+ */
+
+/**
  * \fn T Vector::operator[](size_t i) const
  * \brief Index to an element in the vector
  * \param i Index of element to retrieve

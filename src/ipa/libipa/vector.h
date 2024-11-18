@@ -46,6 +46,18 @@ public:
 			data_[i] = data[i];
 	}
 
+	constexpr Vector(const Vector &other)
+		: data_(other.data_)
+	{
+	}
+
+	Vector &operator=(const Vector &other)
+	{
+		data_ = other.data_;
+
+		return *this;
+	}
+
 	const T &operator[](size_t i) const
 	{
 		ASSERT(i < data_.size());
