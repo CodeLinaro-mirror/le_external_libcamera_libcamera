@@ -32,7 +32,7 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	uint32_t estimateCCT(double red, double green, double blue);
+	uint32_t estimateCCT(const RGB<double> &rgb);
 
 	bool rgbMode_;
 };

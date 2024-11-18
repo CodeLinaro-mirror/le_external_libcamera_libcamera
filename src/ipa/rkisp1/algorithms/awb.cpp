@@ -45,12 +45,8 @@ Awb::Awb()
 int Awb::configure(IPAContext &context,
 		   const IPACameraSensorInfo &configInfo)
 {
-	context.activeState.awb.gains.manual.red = 1.0;
-	context.activeState.awb.gains.manual.blue = 1.0;
-	context.activeState.awb.gains.manual.green = 1.0;
-	context.activeState.awb.gains.automatic.red = 1.0;
-	context.activeState.awb.gains.automatic.blue = 1.0;
-	context.activeState.awb.gains.automatic.green = 1.0;
+	context.activeState.awb.gains.manual = RGB<double>({ 1.0, 1.0, 1.0 });
+	context.activeState.awb.gains.automatic = RGB<double>({ 1.0, 1.0, 1.0 });
 	context.activeState.awb.autoEnabled = true;
 
 	/*
@@ -87,21 +83,17 @@ void Awb::queueRequest(IPAContext &context,
 
 	const auto &colourGains = controls.get(controls::ColourGains);
 	if (colourGains && !awb.autoEnabled) {
-		awb.gains.manual.red = (*colourGains)[0];
-		awb.gains.manual.blue = (*colourGains)[1];
+		awb.gains.manual.r() = (*colourGains)[0];
+		awb.gains.manual.b() = (*colourGains)[1];
 
 		LOG(RkISP1Awb, Debug)
-			<< "Set colour gains to red: " << awb.gains.manual.red
-			<< ", blue: " << awb.gains.manual.blue;
+			<< "Set colour gains to " << awb.gains.manual;
 	}
 
 	frameContext.awb.autoEnabled = awb.autoEnabled;
 
-	if (!awb.autoEnabled) {
-		frameContext.awb.gains.red = awb.gains.manual.red;
-		frameContext.awb.gains.green = 1.0;
-		frameContext.awb.gains.blue = awb.gains.manual.blue;
-	}
+	if (!awb.autoEnabled)
+		frameContext.awb.gains = awb.gains.manual;
 }
 
 /**
@@ -114,19 +106,16 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	 * This is the latest time we can read the active state. This is the
 	 * most up-to-date automatic values we can read.
 	 */
-	if (frameContext.awb.autoEnabled) {
-		frameContext.awb.gains.red = context.activeState.awb.gains.automatic.red;
-		frameContext.awb.gains.green = context.activeState.awb.gains.automatic.green;
-		frameContext.awb.gains.blue = context.activeState.awb.gains.automatic.blue;
-	}
+	if (frameContext.awb.autoEnabled)
+		frameContext.awb.gains = context.activeState.awb.gains.automatic;
 
 	auto gainConfig = params->block<BlockType::AwbGain>();
 	gainConfig.setEnabled(true);
 
-	gainConfig->gain_green_b = std::clamp<int>(256 * frameContext.awb.gains.green, 0, 0x3ff);
-	gainConfig->gain_blue = std::clamp<int>(256 * frameContext.awb.gains.blue, 0, 0x3ff);
-	gainConfig->gain_red = std::clamp<int>(256 * frameContext.awb.gains.red, 0, 0x3ff);
-	gainConfig->gain_green_r = std::clamp<int>(256 * frameContext.awb.gains.green, 0, 0x3ff);
+	gainConfig->gain_green_b = std::clamp<int>(256 * frameContext.awb.gains.g(), 0, 0x3ff);
+	gainConfig->gain_blue = std::clamp<int>(256 * frameContext.awb.gains.b(), 0, 0x3ff);
+	gainConfig->gain_red = std::clamp<int>(256 * frameContext.awb.gains.r(), 0, 0x3ff);
+	gainConfig->gain_green_r = std::clamp<int>(256 * frameContext.awb.gains.g(), 0, 0x3ff);
 
 	/* If we have already set the AWB measurement parameters, return. */
 	if (frame > 0)
@@ -178,12 +167,12 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	}
 }
 
-uint32_t Awb::estimateCCT(double red, double green, double blue)
+uint32_t Awb::estimateCCT(const RGB<double> &rgb)
 {
 	/* Convert the RGB values to CIE tristimulus values (XYZ) */
-	double X = (-0.14282) * (red) + (1.54924) * (green) + (-0.95641) * (blue);
-	double Y = (-0.32466) * (red) + (1.57837) * (green) + (-0.73191) * (blue);
-	double Z = (-0.68202) * (red) + (0.77073) * (green) + (0.56332) * (blue);
+	double X = -0.14282 * rgb.r() + 1.54924 * rgb.g() - 0.95641 * rgb.b();
+	double Y = -0.32466 * rgb.r() + 1.57837 * rgb.g() - 0.73191 * rgb.b();
+	double Z = -0.68202 * rgb.r() + 0.77073 * rgb.g() + 0.56332 * rgb.b();
 
 	/* Calculate the normalized chromaticity values */
 	double x = X / (X + Y + Z);
@@ -206,14 +195,12 @@ void Awb::process(IPAContext &context,
 	const rkisp1_cif_isp_stat *params = &stats->params;
 	const rkisp1_cif_isp_awb_stat *awb = &params->awb;
 	IPAActiveState &activeState = context.activeState;
-	double greenMean;
-	double redMean;
-	double blueMean;
+	RGB<double> rgbMeans;
 
 	metadata.set(controls::AwbEnable, frameContext.awb.autoEnabled);
 	metadata.set(controls::ColourGains, {
-			static_cast<float>(frameContext.awb.gains.red),
-			static_cast<float>(frameContext.awb.gains.blue)
+			static_cast<float>(frameContext.awb.gains.r()),
+			static_cast<float>(frameContext.awb.gains.b())
 		});
 	metadata.set(controls::ColourTemperature, activeState.awb.temperatureK);
 
@@ -223,9 +210,9 @@ void Awb::process(IPAContext &context,
 	}
 
 	if (rgbMode_) {
-		greenMean = awb->awb_mean[0].mean_y_or_g;
-		redMean = awb->awb_mean[0].mean_cr_or_r;
-		blueMean = awb->awb_mean[0].mean_cb_or_b;
+		rgbMeans.r() = awb->awb_mean[0].mean_cr_or_r;
+		rgbMeans.g() = awb->awb_mean[0].mean_y_or_g;
+		rgbMeans.b() = awb->awb_mean[0].mean_cb_or_b;
 	} else {
 		/* Get the YCbCr mean values */
 		double yMean = awb->awb_mean[0].mean_y_or_g;
@@ -247,9 +234,9 @@ void Awb::process(IPAContext &context,
 		yMean -= 16;
 		cbMean -= 128;
 		crMean -= 128;
-		redMean = 1.1636 * yMean - 0.0623 * cbMean + 1.6008 * crMean;
-		greenMean = 1.1636 * yMean - 0.4045 * cbMean - 0.7949 * crMean;
-		blueMean = 1.1636 * yMean + 1.9912 * cbMean - 0.0250 * crMean;
+		rgbMeans.r() = 1.1636 * yMean - 0.0623 * cbMean + 1.6008 * crMean;
+		rgbMeans.g() = 1.1636 * yMean - 0.4045 * cbMean - 0.7949 * crMean;
+		rgbMeans.b() = 1.1636 * yMean + 1.9912 * cbMean - 0.0250 * crMean;
 
 		/*
 		 * Due to hardware rounding errors in the YCbCr means, the
@@ -257,9 +244,7 @@ void Awb::process(IPAContext &context,
 		 * negative gains, messing up calculation. Prevent this by
 		 * clamping the means to positive values.
 		 */
-		redMean = std::max(redMean, 0.0);
-		greenMean = std::max(greenMean, 0.0);
-		blueMean = std::max(blueMean, 0.0);
+		rgbMeans = rgbMeans.max(0.0);
 	}
 
 	/*
@@ -267,19 +252,17 @@ void Awb::process(IPAContext &context,
 	 * divide by the gains that were used to get the raw means from the
 	 * sensor.
 	 */
-	redMean /= frameContext.awb.gains.red;
-	greenMean /= frameContext.awb.gains.green;
-	blueMean /= frameContext.awb.gains.blue;
+	rgbMeans /= frameContext.awb.gains;
 
 	/*
 	 * If the means are too small we don't have enough information to
 	 * meaningfully calculate gains. Freeze the algorithm in that case.
 	 */
-	if (redMean < kMeanMinThreshold && greenMean < kMeanMinThreshold &&
-	    blueMean < kMeanMinThreshold)
+	if (rgbMeans.r() < kMeanMinThreshold && rgbMeans.g() < kMeanMinThreshold &&
+	    rgbMeans.b() < kMeanMinThreshold)
 		return;
 
-	activeState.awb.temperatureK = estimateCCT(redMean, greenMean, blueMean);
+	activeState.awb.temperatureK = estimateCCT(rgbMeans);
 
 	/* Metadata shall contain the up to date measurement */
 	metadata.set(controls::ColourTemperature, activeState.awb.temperatureK);
@@ -289,8 +272,11 @@ void Awb::process(IPAContext &context,
 	 * gain is hardcoded to 1.0. Avoid divisions by zero by clamping the
 	 * divisor to a minimum value of 1.0.
 	 */
-	double redGain = greenMean / std::max(redMean, 1.0);
-	double blueGain = greenMean / std::max(blueMean, 1.0);
+	RGB<double> gains({
+		rgbMeans.g() / std::max(rgbMeans.r(), 1.0),
+		1.0,
+		rgbMeans.g() / std::max(rgbMeans.b(), 1.0)
+	});
 
 	/*
 	 * Clamp the gain values to the hardware, which expresses gains as Q2.8
@@ -298,24 +284,18 @@ void Awb::process(IPAContext &context,
 	 * divisions by zero when computing the raw means in subsequent
 	 * iterations.
 	 */
-	redGain = std::clamp(redGain, 1.0 / 256, 1023.0 / 256);
-	blueGain = std::clamp(blueGain, 1.0 / 256, 1023.0 / 256);
+	gains = gains.max(1.0 / 256).min(1023.0 / 256);
 
 	/* Filter the values to avoid oscillations. */
 	double speed = 0.2;
-	redGain = speed * redGain + (1 - speed) * activeState.awb.gains.automatic.red;
-	blueGain = speed * blueGain + (1 - speed) * activeState.awb.gains.automatic.blue;
+	gains = gains * speed + activeState.awb.gains.automatic * (1 - speed);
 
-	activeState.awb.gains.automatic.red = redGain;
-	activeState.awb.gains.automatic.blue = blueGain;
-	activeState.awb.gains.automatic.green = 1.0;
+	activeState.awb.gains.automatic = gains;
 
 	LOG(RkISP1Awb, Debug)
 		<< std::showpoint
-		<< "Means [" << redMean << ", " << greenMean << ", " << blueMean
-		<< "], gains [" << activeState.awb.gains.automatic.red << ", "
-		<< activeState.awb.gains.automatic.green << ", "
-		<< activeState.awb.gains.automatic.blue << "], temp "
+		<< "Means " << rgbMeans << ", gains "
+		<< activeState.awb.gains.automatic << ", temp "
 		<< activeState.awb.temperatureK << "K";
 }
 
