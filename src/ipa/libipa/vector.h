@@ -90,14 +90,6 @@ public:
 		return ret;
 	}
 
-	constexpr T operator*(const Vector<T, Rows> &other) const
-	{
-		T ret = 0;
-		for (unsigned int i = 0; i < Rows; i++)
-			ret += data_[i] * other[i];
-		return ret;
-	}
-
 	constexpr Vector<T, Rows> operator*(T factor) const
 	{
 		Vector<T, Rows> ret;
@@ -111,6 +103,14 @@ public:
 		Vector<T, Rows> ret;
 		for (unsigned int i = 0; i < Rows; i++)
 			ret[i] = data_[i] / factor;
+		return ret;
+	}
+
+	constexpr T dot(const Vector<T, Rows> &other) const
+	{
+		T ret = 0;
+		for (unsigned int i = 0; i < Rows; i++)
+			ret += data_[i] * other[i];
 		return ret;
 	}
 
