@@ -39,8 +39,9 @@ public:
 		std::copy(data.begin(), data.end(), data_.begin());
 	}
 
-	Matrix(const std::vector<T> &data)
+	Matrix(const Span<T> &data)
 	{
+		ASSERT(data.size() == Rows * Cols);
 		std::copy(data.begin(), data.end(), data_.begin());
 	}
 
