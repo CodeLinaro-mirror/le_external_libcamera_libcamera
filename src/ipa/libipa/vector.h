@@ -6,8 +6,10 @@
  */
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <cmath>
+#include <functional>
 #include <optional>
 #include <ostream>
 
@@ -78,36 +80,24 @@ public:
 		return ret;
 	}
 
-	constexpr Vector<T, Rows> operator-(const Vector<T, Rows> &other) const
+	constexpr Vector operator-(const Vector &other) const
 	{
-		Vector<T, Rows> ret;
-		for (unsigned int i = 0; i < Rows; i++)
-			ret[i] = data_[i] - other[i];
-		return ret;
+		return apply(*this, other, std::minus<>{});
 	}
 
-	constexpr Vector<T, Rows> operator+(const Vector<T, Rows> &other) const
+	constexpr Vector operator+(const Vector &other) const
 	{
-		Vector<T, Rows> ret;
-		for (unsigned int i = 0; i < Rows; i++)
-			ret[i] = data_[i] + other[i];
-		return ret;
+		return apply(*this, other, std::plus<>{});
 	}
 
-	constexpr Vector<T, Rows> operator*(T factor) const
+	constexpr Vector operator*(T factor) const
 	{
-		Vector<T, Rows> ret;
-		for (unsigned int i = 0; i < Rows; i++)
-			ret[i] = data_[i] * factor;
-		return ret;
+		return apply(*this, factor, std::multiplies<>{});
 	}
 
-	constexpr Vector<T, Rows> operator/(T factor) const
+	constexpr Vector operator/(T factor) const
 	{
-		Vector<T, Rows> ret;
-		for (unsigned int i = 0; i < Rows; i++)
-			ret[i] = data_[i] / factor;
-		return ret;
+		return apply(*this, factor, std::divides<>{});
 	}
 
 	constexpr T dot(const Vector<T, Rows> &other) const
@@ -182,6 +172,26 @@ public:
 	}
 
 private:
+	static constexpr Vector apply(const Vector &lhs, const Vector &rhs, std::function<T(T, T)> func)
+	{
+		Vector result;
+		std::transform(lhs.data_.begin(), lhs.data_.end(),
+			       rhs.data_.begin(), result.data_.begin(),
+			       func);
+
+		return result;
+	}
+
+	static constexpr Vector apply(const Vector &lhs, T rhs, std::function<T(T, T)> func)
+	{
+		Vector result;
+		std::transform(lhs.data_.begin(), lhs.data_.end(),
+			       result.data_.begin(),
+			       [&func, rhs](T v) { return func(v, rhs); });
+
+		return result;
+	}
+
 	std::array<T, Rows> data_;
 };
 
