@@ -114,6 +114,46 @@ public:
 		return apply(*this, scalar, [](T a, T b) { return a / b; });
 	}
 
+	Vector &operator+=(const Vector &other)
+	{
+		return apply(other, [](T a, T b) { return a + b; });
+	}
+
+	Vector &operator+=(T scalar)
+	{
+		return apply(scalar, [](T a, T b) { return a + b; });
+	}
+
+	Vector &operator-=(const Vector &other)
+	{
+		return apply(other, [](T a, T b) { return a - b; });
+	}
+
+	Vector &operator-=(T scalar)
+	{
+		return apply(scalar, [](T a, T b) { return a - b; });
+	}
+
+	Vector &operator*=(const Vector &other)
+	{
+		return apply(other, [](T a, T b) { return a * b; });
+	}
+
+	Vector &operator*=(T scalar)
+	{
+		return apply(scalar, [](T a, T b) { return a * b; });
+	}
+
+	Vector &operator/=(const Vector &other)
+	{
+		return apply(other, [](T a, T b) { return a / b; });
+	}
+
+	Vector &operator/=(T scalar)
+	{
+		return apply(scalar, [](T a, T b) { return a / b; });
+	}
+
 	constexpr T dot(const Vector<T, Rows> &other) const
 	{
 		T ret = 0;
@@ -204,6 +244,23 @@ private:
 			       [&func, rhs](T v) { return func(v, rhs); });
 
 		return result;
+	}
+
+	Vector &apply(const Vector &other, std::function<T(T, T)> func)
+	{
+		auto itOther = other.data_.begin();
+		std::for_each(data_.begin(), data_.end(),
+			      [&func, &itOther](T &v) { v = func(v, *itOther++); });
+
+		return *this;
+	}
+
+	Vector &apply(T scalar, std::function<T(T, T)> func)
+	{
+		std::for_each(data_.begin(), data_.end(),
+			      [&func, scalar](T &v) { v = func(v, scalar); });
+
+		return *this;
 	}
 
 	std::array<T, Rows> data_;
