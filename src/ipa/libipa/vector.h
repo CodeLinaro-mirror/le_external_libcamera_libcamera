@@ -74,24 +74,44 @@ public:
 		return ret;
 	}
 
-	constexpr Vector operator-(const Vector &other) const
-	{
-		return apply(*this, other, [](T a, T b) { return a - b; });
-	}
-
 	constexpr Vector operator+(const Vector &other) const
 	{
 		return apply(*this, other, [](T a, T b) { return a + b; });
 	}
 
-	constexpr Vector operator*(T factor) const
+	constexpr Vector operator+(T scalar) const
 	{
-		return apply(*this, factor, [](T a, T b) { return a * b; });
+		return apply(*this, scalar, [](T a, T b) { return a + b; });
 	}
 
-	constexpr Vector operator/(T factor) const
+	constexpr Vector operator-(const Vector &other) const
 	{
-		return apply(*this, factor, [](T a, T b) { return a / b; });
+		return apply(*this, other, [](T a, T b) { return a - b; });
+	}
+
+	constexpr Vector operator-(T scalar) const
+	{
+		return apply(*this, scalar, [](T a, T b) { return a - b; });
+	}
+
+	constexpr Vector operator*(const Vector &other) const
+	{
+		return apply(*this, other, [](T a, T b) { return a * b; });
+	}
+
+	constexpr Vector operator*(T scalar) const
+	{
+		return apply(*this, scalar, [](T a, T b) { return a * b; });
+	}
+
+	constexpr Vector operator/(const Vector &other) const
+	{
+		return apply(*this, other, [](T a, T b) { return a / b; });
+	}
+
+	constexpr Vector operator/(T scalar) const
+	{
+		return apply(*this, scalar, [](T a, T b) { return a / b; });
 	}
 
 	constexpr T dot(const Vector<T, Rows> &other) const
