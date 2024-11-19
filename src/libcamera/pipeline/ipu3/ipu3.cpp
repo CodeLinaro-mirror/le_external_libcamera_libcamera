@@ -1077,14 +1077,10 @@ int PipelineHandlerIPU3::registerCameras()
 		if (ret)
 			continue;
 
-		/*
-		 * \todo Read delay values from the sensor itself or from a
-		 * a sensor database. For now use generic values taken from
-		 * the Raspberry Pi and listed as 'generic values'.
-		 */
+		const CameraSensorProperties::SensorDelays &delays = cio2->sensor()->sensorDelays();
 		std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-			{ V4L2_CID_ANALOGUE_GAIN, { 1, false } },
-			{ V4L2_CID_EXPOSURE, { 2, false } },
+			{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
+			{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
 		};
 
 		data->delayedCtrls_ =
