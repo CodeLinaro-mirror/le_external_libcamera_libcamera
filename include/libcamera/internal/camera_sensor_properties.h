@@ -8,6 +8,7 @@
 #pragma once
 
 #include <map>
+#include <stdint.h>
 #include <string>
 
 #include <libcamera/control_ids.h>
@@ -20,6 +21,15 @@ struct CameraSensorProperties {
 
 	Size unitCellSize;
 	std::map<controls::draft::TestPatternModeEnum, int32_t> testPatternModes;
+
+	struct SensorDelays {
+		uint8_t exposureDelay;
+		uint8_t gainDelay;
+		uint8_t vblankDelay;
+		uint8_t hblankDelay;
+	} sensorDelays;
 };
+
+extern const CameraSensorProperties::SensorDelays defaultSensorDelays;
 
 } /* namespace libcamera */
