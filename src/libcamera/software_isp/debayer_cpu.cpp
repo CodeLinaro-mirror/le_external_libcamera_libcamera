@@ -11,6 +11,7 @@
 
 #include "debayer_cpu.h"
 
+#include <algorithm>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <time.h>
@@ -50,8 +51,12 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	enableInputMemcpy_ = true;
 
 	/* Initialize color lookup tables */
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++)
-		red_[i] = green_[i] = blue_[i] = i;
+	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
+		red_.simple[i] = green_.simple[i] = blue_.simple[i] = i;
+		red_.ccm[i].c1 = red_.ccm[i].c2 = red_.ccm[i].c3 = 0;
+		green_.ccm[i].c1 = green_.ccm[i].c2 = green_.ccm[i].c3 = 0;
+		blue_.ccm[i].c1 = blue_.ccm[i].c2 = blue_.ccm[i].c3 = 0;
+	}
 }
 
 DebayerCpu::~DebayerCpu() = default;
@@ -61,12 +66,24 @@ DebayerCpu::~DebayerCpu() = default;
 	const pixel_t *curr = (const pixel_t *)src[1] + xShift_; \
 	const pixel_t *next = (const pixel_t *)src[2] + xShift_;
 
-#define STORE_PIXEL(b, g, r)        \
-	*dst++ = blue_[r];          \
-	*dst++ = green_[g];         \
-	*dst++ = red_[b];           \
-	if constexpr (addAlphaByte) \
-		*dst++ = 255;       \
+#define GAMMA(value) \
+	*dst++ = gammaLut_[std::clamp(value, 0, 1023)]
+
+#define STORE_PIXEL(b, g, r)                                  \
+	if constexpr (ccmEnabled) {                           \
+		DebayerParams::CcmRow &red = red_.ccm[r];     \
+		DebayerParams::CcmRow &green = green_.ccm[g]; \
+		DebayerParams::CcmRow &blue = blue_.ccm[b];   \
+		GAMMA(red.c3 + green.c3 + blue.c3);           \
+		GAMMA(red.c2 + green.c2 + blue.c2);           \
+		GAMMA(red.c1 + green.c1 + blue.c1);           \
+	} else {                                              \
+		*dst++ = blue_.simple[b];                     \
+		*dst++ = green_.simple[g];                    \
+		*dst++ = red_.simple[r];                      \
+	}                                                     \
+	if constexpr (addAlphaByte)                           \
+		*dst++ = 255;                                 \
 	x++;
 
 /*
@@ -764,6 +781,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	green_ = params.green;
 	red_ = swapRedBlueGains_ ? params.blue : params.red;
 	blue_ = swapRedBlueGains_ ? params.red : params.blue;
+	gammaLut_ = params.gammaLut;
 
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();

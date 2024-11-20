@@ -18,11 +18,25 @@ namespace libcamera {
 struct DebayerParams {
 	static constexpr unsigned int kRGBLookupSize = 256;
 
-	using ColorLookupTable = std::array<uint8_t, kRGBLookupSize>;
+	struct CcmRow {
+		int16_t c1;
+		int16_t c2;
+		int16_t c3;
+	};
 
-	ColorLookupTable red;
-	ColorLookupTable green;
-	ColorLookupTable blue;
+	using ColorLookupTable = std::array<uint8_t, kRGBLookupSize>;
+	using CcmLookupTable = std::array<CcmRow, kRGBLookupSize>;
+	using GammaLookupTable = std::array<uint8_t, kRGBLookupSize>;
+
+	union LookupTable {
+		ColorLookupTable simple;
+		CcmLookupTable ccm;
+	};
+
+	LookupTable red;
+	LookupTable green;
+	LookupTable blue;
+	GammaLookupTable gammaLut;
 };
 
 } /* namespace libcamera */

@@ -24,8 +24,53 @@ namespace libcamera {
  */
 
 /**
+ * \struct DebayerParams::CcmRow
+ * \brief Type of a single row of a color correction matrix
+ */
+
+/**
+ * \var DebayerParams::CcmRow::c1
+ * \brief First column of a CCM row
+ */
+
+/**
+ * \var DebayerParams::CcmRow::c2
+ * \brief Second column of a CCM row
+ */
+
+/**
+ * \var DebayerParams::CcmRow::c3
+ * \brief Third column of a CCM row
+ */
+
+/**
  * \typedef DebayerParams::ColorLookupTable
+ * \brief Type of the simple lookup tables for red, green, blue values
+ */
+
+/**
+ * \typedef DebayerParams::CcmLookupTable
+ * \brief Type of the CCM lookup tables for red, green, blue values
+ */
+
+/**
+ * \typedef DebayerParams::GammaLookupTable
+ * \brief Type of the gamma lookup tables for CCM
+ */
+
+/**
+ * \union DebayerParams::LookupTable
  * \brief Type of the lookup tables for red, green, blue values
+ */
+
+/**
+ * \var DebayerParams::LookupTable::simple
+ * \brief Simple lookup table for red, green, blue values
+ */
+
+/**
+ * \var DebayerParams::LookupTable::ccm
+ * \brief CCM lookup table for red, green, blue values
  */
 
 /**
@@ -44,6 +89,11 @@ namespace libcamera {
  */
 
 /**
+ * \var DebayerParams::gammaLut
+ * \brief Gamma lookup table used with color correction matrix
+ */
+
+/**
  * \class Debayer
  * \brief Base debayering class
  *
@@ -57,10 +107,11 @@ Debayer::~Debayer()
 }
 
 /**
- * \fn int Debayer::configure(const StreamConfiguration &inputCfg, const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs)
+ * \fn int Debayer::configure(const StreamConfiguration &inputCfg, const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs, ccmEnabled)
  * \brief Configure the debayer object according to the passed in parameters
  * \param[in] inputCfg The input configuration
  * \param[in] outputCfgs The output configurations
+ * \param[in] ccmEnabled Whether a color correction matrix is applied
  *
  * \return 0 on success, a negative errno on failure
  */
