@@ -14,6 +14,7 @@
 #include "gstlibcameraallocator.h"
 
 #include <gst/gst.h>
+#include <gst/video/video.h>
 
 #include <libcamera/stream.h>
 
@@ -21,8 +22,10 @@
 G_DECLARE_FINAL_TYPE(GstLibcameraPool, gst_libcamera_pool, GST_LIBCAMERA, POOL, GstBufferPool)
 
 GstLibcameraPool *gst_libcamera_pool_new(GstLibcameraAllocator *allocator,
-					 libcamera::Stream *stream);
+					 libcamera::Stream *stream, GstVideoInfo *info, gboolean stride_mismatch, gboolean has_video_meta);
 
 libcamera::Stream *gst_libcamera_pool_get_stream(GstLibcameraPool *self);
 
 libcamera::FrameBuffer *gst_libcamera_buffer_get_frame_buffer(GstBuffer *buffer);
+
+GstBuffer *gst_libcamera_copy_buffer(GstLibcameraPool *self, GstBuffer *buffer, libcamera::FrameBuffer *fb, guint32 stride);

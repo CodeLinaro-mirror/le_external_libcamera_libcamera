@@ -29,6 +29,8 @@ struct _GstLibcameraPool {
 	std::deque<GstBuffer *> *queue;
 	GstLibcameraAllocator *allocator;
 	Stream *stream;
+	gboolean frame_copy;
+	GstVideoInfo info;
 };
 
 G_DEFINE_TYPE(GstLibcameraPool, gst_libcamera_pool, GST_TYPE_BUFFER_POOL)
@@ -135,16 +137,29 @@ gst_libcamera_pool_class_init(GstLibcameraPoolClass *klass)
 }
 
 GstLibcameraPool *
-gst_libcamera_pool_new(GstLibcameraAllocator *allocator, Stream *stream)
+gst_libcamera_pool_new(GstLibcameraAllocator *allocator, Stream *stream,
+		       GstVideoInfo *info, gboolean stride_mismatch, gboolean has_video_meta)
 {
 	auto *pool = GST_LIBCAMERA_POOL(g_object_new(GST_TYPE_LIBCAMERA_POOL, nullptr));
 
 	pool->allocator = GST_LIBCAMERA_ALLOCATOR(g_object_ref(allocator));
 	pool->stream = stream;
+	pool->info = *info;
+
+	if (stride_mismatch && !has_video_meta)
+		pool->frame_copy = true;
+	else
+		pool->frame_copy = false;
 
 	gsize pool_size = gst_libcamera_allocator_get_pool_size(allocator, stream);
 	for (gsize i = 0; i < pool_size; i++) {
 		GstBuffer *buffer = gst_buffer_new();
+		if (stride_mismatch && has_video_meta) {
+			gst_buffer_add_video_meta_full(buffer, GST_VIDEO_FRAME_FLAG_NONE,
+						       GST_VIDEO_INFO_FORMAT(info), GST_VIDEO_INFO_WIDTH(info),
+						       GST_VIDEO_INFO_HEIGHT(info), GST_VIDEO_INFO_N_PLANES(info),
+						       info->offset, info->stride);
+		}
 		pool->queue->push_back(buffer);
 	}
 
@@ -162,4 +177,44 @@ gst_libcamera_buffer_get_frame_buffer(GstBuffer *buffer)
 {
 	GstMemory *mem = gst_buffer_peek_memory(buffer, 0);
 	return gst_libcamera_memory_get_frame_buffer(mem);
+}
+
+GstBuffer *
+gst_libcamera_copy_buffer(GstLibcameraPool *self, GstBuffer *src, FrameBuffer *fb, guint32 stride)
+{
+	if (self->frame_copy) {
+		GstVideoInfo src_info = self->info;
+		gsize size = GST_VIDEO_INFO_SIZE(&self->info);
+		GstBuffer *dest = gst_buffer_new_allocate(NULL, size, NULL);
+		GstVideoFrame src_frame, dest_frame;
+		int i = 0;
+
+		for (const FrameBuffer::Plane &plane : fb->planes()) {
+			src_info.stride[i] = stride;
+			src_info.offset[i] = plane.offset;
+			i++;
+		}
+		src_info.size = gst_buffer_get_size(src);
+
+		if (!gst_video_frame_map(&src_frame, &src_info, src, GST_MAP_READ)) {
+			GST_WARNING("fail to map src_frame");
+			return src;
+		}
+
+		if (!gst_video_frame_map(&dest_frame, &self->info, dest, GST_MAP_WRITE)) {
+			gst_video_frame_unmap(&src_frame);
+			GST_WARNING("fail to map dest_frame");
+			return src;
+		}
+
+		gst_video_frame_copy(&dest_frame, &src_frame);
+
+		gst_video_frame_unmap(&src_frame);
+		gst_video_frame_unmap(&dest_frame);
+
+		gst_buffer_unref(src);
+		return dest;
+	}
+
+	return src;
 }

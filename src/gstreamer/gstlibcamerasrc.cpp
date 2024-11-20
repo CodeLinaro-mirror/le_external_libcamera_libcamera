@@ -292,11 +292,16 @@ int GstLibcameraSrcState::processRequest()
 	GstFlowReturn ret = GST_FLOW_OK;
 	gst_flow_combiner_reset(src_->flow_combiner);
 
-	for (GstPad *srcpad : srcpads_) {
+	for (gsize i = 0; i < src_->state->srcpads_.size(); i++) {
+		GstPad *srcpad = src_->state->srcpads_[i];
 		Stream *stream = gst_libcamera_pad_get_stream(srcpad);
 		GstBuffer *buffer = wrap->detachBuffer(stream);
+		const StreamConfiguration &stream_cfg = src_->state->config_->at(i);
+		GstLibcameraPool *pool = gst_libcamera_pad_get_pool(srcpad);
 
 		FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
+
+		buffer = gst_libcamera_copy_buffer(pool, buffer, fb, stream_cfg.stride);
 
 		if (GST_CLOCK_TIME_IS_VALID(wrap->pts_)) {
 			GST_BUFFER_PTS(buffer) = wrap->pts_;
@@ -497,9 +502,45 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 	for (gsize i = 0; i < state->srcpads_.size(); i++) {
 		GstPad *srcpad = state->srcpads_[i];
 		const StreamConfiguration &stream_cfg = state->config_->at(i);
+		gboolean stride_mismatch = false, has_video_meta = false;
+		GstVideoInfo info;
 
-		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator,
-								stream_cfg.stream());
+		g_autoptr(GstCaps) caps = gst_libcamera_stream_configuration_to_caps(stream_cfg);
+		gst_libcamera_framerate_to_caps(caps, element_caps);
+
+		gst_video_info_init(&info);
+		gst_video_info_from_caps(&info, caps);
+
+		/* stride mismatch between camera stride and that calculated by video-info */
+		if (static_cast<unsigned int>(info.stride[0]) != stream_cfg.stride &&
+		    GST_VIDEO_INFO_FORMAT(&info) != GST_VIDEO_FORMAT_ENCODED) {
+			GstQuery *query = NULL;
+			gboolean need_pool = false;
+			stride_mismatch = true;
+
+			query = gst_query_new_allocation(caps, need_pool);
+			if (!gst_pad_peer_query(srcpad, query))
+				GST_DEBUG_OBJECT(self, "didn't get downstream ALLOCATION hints");
+			else
+				has_video_meta = gst_query_find_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+			gst_query_unref(query);
+
+			if (has_video_meta) {
+				guint k, stride;
+				gsize offset = 0;
+
+				/* this should be updated if tiled formats get added in the future. */
+				for (k = 0; k < GST_VIDEO_INFO_N_PLANES(&info); k++) {
+					stride = gst_video_format_info_extrapolate_stride(info.finfo, k, stream_cfg.stride);
+					info.stride[k] = stride;
+					info.offset[k] = offset;
+					offset += stride * GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(info.finfo, k, GST_VIDEO_INFO_HEIGHT(&info));
+				}
+			}
+		}
+
+		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator, stream_cfg.stream(),
+								&info, stride_mismatch, has_video_meta);
 		g_signal_connect_swapped(pool, "buffer-notify",
 					 G_CALLBACK(gst_task_resume), self->task);
 
