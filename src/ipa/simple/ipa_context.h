@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include <libipa/fc_queue.h>
+#include <libipa/matrix.h>
 
 namespace libcamera {
 
@@ -52,9 +53,19 @@ struct IPAActiveState {
 		std::array<double, kGammaLookupSize> gammaTable;
 		uint8_t blackLevel;
 	} gamma;
+
+	struct {
+		Matrix<float, 3, 3> ccm;
+		bool enabled;
+		bool changed;
+	} ccm;
 };
 
 struct IPAFrameContext : public FrameContext {
+	struct {
+		Matrix<float, 3, 3> ccm;
+	} ccm;
+
 	struct {
 		uint32_t exposure;
 		double gain;
