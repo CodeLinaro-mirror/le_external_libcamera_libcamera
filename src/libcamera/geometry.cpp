@@ -838,6 +838,39 @@ Rectangle Rectangle::translatedBy(const Point &point) const
 }
 
 /**
+ * \brief Maps a Rectangle from one reference frame to another
+ * \param[in] source The source reference frame
+ * \param[in] destination The destination reference frame
+ *
+ * The params source and destinations specify two reference frames for the same
+ * data. The rectangle is translated from the source reference frame into the
+ * destination reference frame.
+ *
+ * For example, consider a sensor with a resolution of 2592x1458 pixels and a
+ * assume a rectangle of (0, 243)/2592x1458 (sensorFrame) in sensor coordinates
+ * is mapped to a rectangle (0,0)/(1920,1080) (displayFrame) in display
+ * coordinates. This function can be used to transform an arbitrary rectangle
+ * from display coordinates to sensor coordinates or vice versa:
+ *
+ * \code{.cpp}
+ * displayRect = sensorRect.mappedBetween(sensorFrame, displayFrame);
+ * \endcode
+ */
+Rectangle Rectangle::mappedBetween(const Rectangle &source,
+				   const Rectangle &destination) const
+{
+	Rectangle r;
+	double sx = static_cast<double>(destination.width) / source.width;
+	double sy = static_cast<double>(destination.height) / source.height;
+
+	r.x = static_cast<int>((x - source.x) * sx) + destination.x;
+	r.y = static_cast<int>((y - source.y) * sy) + destination.y;
+	r.width = static_cast<int>(width * sx);
+	r.height = static_cast<int>(height * sy);
+	return r;
+}
+
+/**
  * \brief Compare rectangles for equality
  * \return True if the two rectangles are equal, false otherwise
  */
