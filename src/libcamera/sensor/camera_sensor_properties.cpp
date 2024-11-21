@@ -70,6 +70,13 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeColorBarsFadeToGray, 3 },
 			},
 		} },
+		{ "gc05a2", {
+			.unitCellSize = { 1120, 1120 },
+			.testPatternModes = {
+				{ controls::draft::TestPatternModeOff, 0 },
+				{ controls::draft::TestPatternModeColorBars, 1 },
+			},
+		} },
 		{ "hi846", {
 			.unitCellSize = { 1120, 1120 },
 			.testPatternModes = {
