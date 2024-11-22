@@ -135,7 +135,8 @@ gst_libcamera_pool_class_init(GstLibcameraPoolClass *klass)
 }
 
 GstLibcameraPool *
-gst_libcamera_pool_new(GstLibcameraAllocator *allocator, Stream *stream)
+gst_libcamera_pool_new(GstLibcameraAllocator *allocator, Stream *stream,
+		       GstVideoInfo *info, gboolean add_video_meta)
 {
 	auto *pool = GST_LIBCAMERA_POOL(g_object_new(GST_TYPE_LIBCAMERA_POOL, nullptr));
 
@@ -145,6 +146,12 @@ gst_libcamera_pool_new(GstLibcameraAllocator *allocator, Stream *stream)
 	gsize pool_size = gst_libcamera_allocator_get_pool_size(allocator, stream);
 	for (gsize i = 0; i < pool_size; i++) {
 		GstBuffer *buffer = gst_buffer_new();
+		if (add_video_meta) {
+			gst_buffer_add_video_meta_full(buffer, GST_VIDEO_FRAME_FLAG_NONE,
+						       GST_VIDEO_INFO_FORMAT(info), GST_VIDEO_INFO_WIDTH(info),
+						       GST_VIDEO_INFO_HEIGHT(info), GST_VIDEO_INFO_N_PLANES(info),
+						       info->offset, info->stride);
+		}
 		pool->queue->push_back(buffer);
 	}
 

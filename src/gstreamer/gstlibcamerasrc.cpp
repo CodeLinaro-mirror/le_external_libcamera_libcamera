@@ -150,6 +150,10 @@ struct _GstLibcameraSrc {
 	GstLibcameraSrcState *state;
 	GstLibcameraAllocator *allocator;
 	GstFlowCombiner *flow_combiner;
+
+	gboolean frame_copy;
+	GstVideoInfo info;
+	GstBufferPool *pool;
 };
 
 enum {
@@ -268,6 +272,43 @@ GstLibcameraSrcState::requestCompleted(Request *request)
 	gst_task_resume(src_->task);
 }
 
+static GstFlowReturn
+gst_libcamera_video_frame_copy(GstLibcameraSrc *self, GstBuffer *src, GstBuffer *dest, guint32 stride)
+{
+	GstVideoInfo src_info = self->info;
+	GstVideoFrame src_frame, dest_frame;
+	gsize offset = 0;
+
+	for (guint i = 0; i < GST_VIDEO_INFO_N_PLANES(&src_info); i++) {
+		stride = gst_video_format_info_extrapolate_stride(src_info.finfo, i, stride);
+		src_info.stride[i] = stride;
+		src_info.offset[i] = offset;
+		offset += stride * GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(src_info.finfo, i,
+								      GST_VIDEO_INFO_HEIGHT(&src_info));
+	}
+	src_info.size = gst_buffer_get_size(src);
+
+	if (!gst_video_frame_map(&src_frame, &src_info, src, GST_MAP_READ))
+		goto invalid_buffer;
+
+	if (!gst_video_frame_map(&dest_frame, &self->info, dest, GST_MAP_WRITE)) {
+		gst_video_frame_unmap(&src_frame);
+		goto invalid_buffer;
+	}
+
+	gst_video_frame_copy(&dest_frame, &src_frame);
+
+	gst_video_frame_unmap(&src_frame);
+	gst_video_frame_unmap(&dest_frame);
+
+	return GST_FLOW_OK;
+
+invalid_buffer : {
+	GST_ERROR_OBJECT(self, "Could not map buffer");
+	return GST_FLOW_ERROR;
+}
+}
+
 /* Must be called with stream_lock held. */
 int GstLibcameraSrcState::processRequest()
 {
@@ -292,11 +333,33 @@ int GstLibcameraSrcState::processRequest()
 	GstFlowReturn ret = GST_FLOW_OK;
 	gst_flow_combiner_reset(src_->flow_combiner);
 
-	for (GstPad *srcpad : srcpads_) {
+	for (gsize i = 0; i < src_->state->srcpads_.size(); i++) {
+		GstPad *srcpad = src_->state->srcpads_[i];
 		Stream *stream = gst_libcamera_pad_get_stream(srcpad);
 		GstBuffer *buffer = wrap->detachBuffer(stream);
+		GstBuffer *tmp = NULL;
 
+		const StreamConfiguration &stream_cfg = src_->state->config_->at(i);
 		FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
+
+		if (src_->frame_copy) {
+			ret = gst_buffer_pool_acquire_buffer(src_->pool, &tmp, NULL);
+			if (ret != GST_FLOW_OK) {
+				GST_ERROR("Failed to acquire buffer");
+				gst_buffer_unref(buffer);
+				return -EPIPE;
+			}
+
+			ret = gst_libcamera_video_frame_copy(src_, buffer, tmp, stream_cfg.stride);
+			gst_buffer_unref(buffer);
+			if (ret != GST_FLOW_OK) {
+				GST_ERROR("Failed to copy buffer");
+				gst_buffer_unref(tmp);
+				return -EPIPE;
+			}
+
+			buffer = tmp;
+		}
 
 		if (GST_CLOCK_TIME_IS_VALID(wrap->pts_)) {
 			GST_BUFFER_PTS(buffer) = wrap->pts_;
@@ -497,9 +560,74 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 	for (gsize i = 0; i < state->srcpads_.size(); i++) {
 		GstPad *srcpad = state->srcpads_[i];
 		const StreamConfiguration &stream_cfg = state->config_->at(i);
+		gboolean add_video_meta = false;
+		GstVideoInfo info;
 
-		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator,
-								stream_cfg.stream());
+		g_autoptr(GstCaps) caps = gst_libcamera_stream_configuration_to_caps(stream_cfg);
+		gst_libcamera_framerate_to_caps(caps, element_caps);
+
+		gst_video_info_init(&info);
+		gst_video_info_from_caps(&info, caps);
+
+		/* stride mismatch between camera stride and that calculated by video-info */
+		if (static_cast<unsigned int>(info.stride[0]) != stream_cfg.stride &&
+		    GST_VIDEO_INFO_FORMAT(&info) != GST_VIDEO_FORMAT_ENCODED) {
+			GstQuery *query = NULL;
+			gboolean need_pool = true;
+
+			query = gst_query_new_allocation(caps, need_pool);
+			if (!gst_pad_peer_query(srcpad, query))
+				GST_DEBUG_OBJECT(self, "Didn't get downstream ALLOCATION hints");
+			else
+				add_video_meta = gst_query_find_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+
+			if (add_video_meta) {
+				guint k, stride;
+				gsize offset = 0;
+
+				/* this should be updated if tiled formats get added in the future. */
+				for (k = 0; k < GST_VIDEO_INFO_N_PLANES(&info); k++) {
+					stride = gst_video_format_info_extrapolate_stride(info.finfo, k, stream_cfg.stride);
+					info.stride[k] = stride;
+					info.offset[k] = offset;
+					offset += stride * GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(info.finfo, k,
+											      GST_VIDEO_INFO_HEIGHT(&info));
+				}
+			} else {
+				GstBufferPool *pool = NULL;
+				self->frame_copy = true;
+
+				if (gst_query_get_n_allocation_pools(query) > 0)
+					gst_query_parse_nth_allocation_pool(query, 0, &pool, NULL, NULL, NULL);
+
+				if (self->pool)
+					gst_object_unref(self->pool);
+
+				if (pool)
+					self->pool = pool;
+				else {
+					GstStructure *config;
+					guint min_buffers = 3;
+					self->pool = gst_video_buffer_pool_new();
+
+					config = gst_buffer_pool_get_config(self->pool);
+					gst_buffer_pool_config_set_params(config, caps, info.size, min_buffers, 0);
+					gst_buffer_pool_set_config(GST_BUFFER_POOL_CAST(self->pool), config);
+					GST_DEBUG_OBJECT(self, "Own pool config is %" GST_PTR_FORMAT, config);
+				}
+
+				if (!gst_buffer_pool_set_active(self->pool, true)) {
+					GST_ERROR_OBJECT(self, "Failed to active buffer pool");
+					gst_caps_unref(caps);
+					return false;
+				}
+			}
+			gst_query_unref(query);
+		}
+
+		self->info = info;
+		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator, stream_cfg.stream(),
+								&info, add_video_meta);
 		g_signal_connect_swapped(pool, "buffer-notify",
 					 G_CALLBACK(gst_task_resume), self->task);
 
@@ -842,6 +970,12 @@ gst_libcamera_src_finalize(GObject *object)
 	GObjectClass *klass = G_OBJECT_CLASS(gst_libcamera_src_parent_class);
 	GstLibcameraSrc *self = GST_LIBCAMERA_SRC(object);
 
+	if (self->pool) {
+		gst_buffer_pool_set_active(self->pool, false);
+		gst_object_unref(self->pool);
+		self->pool = NULL;
+	}
+
 	g_rec_mutex_clear(&self->stream_lock);
 	g_clear_object(&self->task);
 	g_mutex_clear(&self->state->lock_);
@@ -875,6 +1009,8 @@ gst_libcamera_src_init(GstLibcameraSrc *self)
 	/* C-style friend. */
 	state->src_ = self;
 	self->state = state;
+	self->frame_copy = false;
+	self->pool = NULL;
 }
 
 static GstPad *
