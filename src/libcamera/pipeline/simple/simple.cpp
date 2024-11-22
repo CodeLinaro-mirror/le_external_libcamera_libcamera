@@ -316,6 +316,7 @@ public:
 		Size captureSize;
 		std::vector<PixelFormat> outputFormats;
 		SizeRange outputSizes;
+		bool swisp;
 	};
 
 	std::vector<Stream> streams_;
@@ -341,6 +342,7 @@ public:
 	};
 	std::queue<RequestOutputs> conversionQueue_;
 	bool useConversion_;
+	bool isRaw_;
 
 	std::unique_ptr<Converter> converter_;
 	std::unique_ptr<SoftwareIsp> swIsp_;
@@ -709,19 +711,24 @@ void SimpleCameraData::tryPipeline(unsigned int code, const Size &size)
 		config.sensorSize = size;
 		config.captureFormat = pixelFormat;
 		config.captureSize = format.size;
+		config.swisp = false;
 
 		if (converter_) {
 			config.outputFormats = converter_->formats(pixelFormat);
 			config.outputSizes = converter_->sizes(format.size);
-		} else if (swIsp_) {
-			config.outputFormats = swIsp_->formats(pixelFormat);
-			config.outputSizes = swIsp_->sizes(pixelFormat, format.size);
-			if (config.outputFormats.empty()) {
-				/* Do not use swIsp for unsupported pixelFormat's. */
-				config.outputFormats = { pixelFormat };
-				config.outputSizes = config.captureSize;
-			}
 		} else {
+			if (swIsp_) {
+				Configuration swispConfig = config;
+				swispConfig.outputFormats = swIsp_->formats(pixelFormat);
+				swispConfig.outputSizes = swIsp_->sizes(pixelFormat, format.size);
+				if (swispConfig.outputFormats.empty()) {
+					/* Do not use swIsp for unsupported pixelFormat's. */
+					swispConfig.outputFormats = { pixelFormat };
+					swispConfig.outputSizes = swispConfig.captureSize;
+				}
+				swispConfig.swisp = true;
+				configs_.push_back(swispConfig);
+			}
 			config.outputFormats = { pixelFormat };
 			config.outputSizes = config.captureSize;
 		}
@@ -925,7 +932,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 
 		if (converter_)
 			converter_->queueBuffers(buffer, conversionQueue_.front().outputs);
-		else
+		else if (!isRaw_) {
 			/*
 			 * request->sequence() cannot be retrieved from `buffer' inside
 			 * queueBuffers because unique_ptr's make buffer->request() invalid
@@ -933,6 +940,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 			 */
 			swIsp_->queueBuffers(request->sequence(), buffer,
 					     conversionQueue_.front().outputs);
+		}
 
 		conversionQueue_.pop();
 		return;
@@ -1154,6 +1162,8 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	pipeConfig_ = nullptr;
 
 	for (const SimpleCameraData::Configuration *pipeConfig : *configs) {
+		if (pipeConfig->swisp == data_->isRaw_)
+			continue;
 		const Size &size = pipeConfig->captureSize;
 
 		if (size.width >= maxStreamSize.width &&
@@ -1204,6 +1214,13 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 		PixelFormat pixelFormat = *it;
 		if (cfg.pixelFormat != pixelFormat) {
+			if (data_->isRaw_) {
+				LOG(SimplePipeline, Error)
+					<< "Cannot convert pixel format with raw output (from "
+					<< cfg.pixelFormat << " to "
+					<< pixelFormat << ")";
+				return Invalid;
+			}
 			LOG(SimplePipeline, Debug) << "Adjusting pixel format";
 			cfg.pixelFormat = pixelFormat;
 			status = Adjusted;
@@ -1217,8 +1234,16 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 			 * not guaranteed to be a valid output size. In such cases, use
 			 * the smaller valid output size closest to the requested.
 			 */
-			if (!pipeConfig_->outputSizes.contains(adjustedSize))
+			if (!pipeConfig_->outputSizes.contains(adjustedSize)) {
+				if (data_->isRaw_) {
+					LOG(SimplePipeline, Error)
+						<< "Cannot adjust output size with raw output (from "
+						<< cfg.pixelFormat << " to "
+						<< pixelFormat << ")";
+					return Invalid;
+				}
 				adjustedSize = adjustSize(cfg.size, pipeConfig_->outputSizes);
+			}
 			LOG(SimplePipeline, Debug)
 				<< "Adjusting size from " << cfg.size
 				<< " to " << adjustedSize;
@@ -1279,12 +1304,29 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	if (roles.empty())
 		return config;
 
+	bool raw = false;
+	for (auto &role : roles) {
+		if (role == StreamRole::Raw) {
+			raw = true;
+			break;
+		}
+	}
+	if (raw && roles.size() > 1) {
+		LOG(SimplePipeline, Error)
+			<< "Can't capture multiple streams with a raw stream";
+		return nullptr;
+	}
+	data->isRaw_ = raw;
+	LOG(SimplePipeline, Debug) << "Raw stream requested: " << raw;
+
 	/* Create the formats map. */
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
 
 	for (const SimpleCameraData::Configuration &cfg : data->configs_) {
-		for (PixelFormat format : cfg.outputFormats)
-			formats[format].push_back(cfg.outputSizes);
+		if (raw != cfg.swisp) {
+			for (PixelFormat format : cfg.outputFormats)
+				formats[format].push_back(cfg.outputSizes);
+		}
 	}
 
 	/* Sort the sizes and merge any consecutive overlapping ranges. */
