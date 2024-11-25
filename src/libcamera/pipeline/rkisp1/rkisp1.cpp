@@ -204,6 +204,7 @@ private:
 	RkISP1SelfPath selfPath_;
 
 	std::unique_ptr<V4L2M2MConverter> dewarper_;
+	Rectangle dewarperSensorCrop_;
 	bool useDewarper_;
 
 	std::optional<Rectangle> activeCrop_;
@@ -863,6 +864,15 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 				outputCfgs.push_back(const_cast<StreamConfiguration &>(cfg));
 				ret = dewarper_->configure(cfg, outputCfgs);
 				useDewarper_ = ret ? false : true;
+
+				/*
+				 * Calculate the crop rectangle of the data
+				 * flowing into the dewarper in sensor
+				 * coordinates.
+				 */
+				dewarperSensorCrop_ =
+					outputCrop.transformedBetween(inputCrop,
+								      sensorInfo.analogCrop);
 			}
 		} else if (hasSelfPath_) {
 			ret = selfPath_.configure(cfg, format);
@@ -1225,10 +1235,19 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 		std::pair<Rectangle, Rectangle> cropLimits =
 			dewarper_->inputCropBounds(&data->mainPathStream_);
 
-		controls[&controls::ScalerCrop] = ControlInfo(cropLimits.first,
-							      cropLimits.second,
-							      cropLimits.second);
-		activeCrop_ = cropLimits.second;
+		/*
+		 * ScalerCrop is specified to be in Sensor coordinates.
+		 * So we need to transform the limits to sensor coordinates.
+		 * We can safely assume that the maximum crop limit contains the
+		 * full fov of the dewarper.
+		 */
+		Rectangle min = cropLimits.first.transformedBetween(cropLimits.second,
+								    dewarperSensorCrop_);
+		Rectangle max = cropLimits.second.transformedBetween(cropLimits.second,
+								     dewarperSensorCrop_);
+
+		controls[&controls::ScalerCrop] = ControlInfo(min, max, max);
+		activeCrop_ = max;
 	}
 
 	/* Add the IPA registered controls to list of camera controls. */
@@ -1255,6 +1274,8 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 
 	/* Initialize the camera properties. */
 	data->properties_ = data->sensor_->properties();
+
+	dewarperSensorCrop_ = Rectangle(data->sensor_->resolution());
 
 	/*
 	 * \todo Read delay values from the sensor itself or from a
@@ -1479,22 +1500,33 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 	/* Handle scaler crop control. */
 	const auto &crop = request->controls().get(controls::ScalerCrop);
 	if (crop) {
-		Rectangle appliedRect = crop.value();
+		Rectangle rect = crop.value();
 
+		/*
+		 * ScalerCrop is specified to be in Sensor coordinates.
+		 * So we need to transform it into dewarper coordinates.
+		 * We can safely assume that the maximum crop limit contains the
+		 * full fov of the dewarper.
+		 */
+		std::pair<Rectangle, Rectangle> cropLimits =
+			dewarper_->inputCropBounds(&data->mainPathStream_);
+
+		rect = rect.transformedBetween(dewarperSensorCrop_, cropLimits.second);
 		int ret = dewarper_->setInputCrop(&data->mainPathStream_,
-						  &appliedRect);
-		if (!ret && appliedRect != crop.value()) {
+						  &rect);
+		rect = rect.transformedBetween(cropLimits.second, dewarperSensorCrop_);
+		if (!ret && rect != crop.value()) {
 			/*
 			 * If the rectangle is changed by setInputCrop on the
 			 * dewarper, log a debug message and cache the actual
 			 * applied rectangle for metadata reporting.
 			 */
 			LOG(RkISP1, Debug)
-				<< "Applied rectangle " << appliedRect.toString()
+				<< "Applied rectangle " << rect.toString()
 				<< " differs from requested " << crop.value().toString();
 		}
 
-		activeCrop_ = appliedRect;
+		activeCrop_ = rect;
 	}
 
 	/*
