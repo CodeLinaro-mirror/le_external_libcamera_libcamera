@@ -79,9 +79,9 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor)
 	for (unsigned int i = 0; i < 256; i++)
 		gammaTable[i] = UINT8_MAX * std::pow(i / 256.0, 0.5);
 	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-		debayerParams_.red[i] = gammaTable[i];
-		debayerParams_.green[i] = gammaTable[i];
-		debayerParams_.blue[i] = gammaTable[i];
+		debayerParams_.red.simple[i] = gammaTable[i];
+		debayerParams_.green.simple[i] = gammaTable[i];
+		debayerParams_.blue.simple[i] = gammaTable[i];
 	}
 
 	if (!dmaHeap_.isValid()) {
