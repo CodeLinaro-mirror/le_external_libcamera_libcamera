@@ -58,7 +58,7 @@ void Lut::prepare(IPAContext &context,
 	if (context.activeState.gamma.blackLevel != context.activeState.blc.level)
 		updateGammaTable(context);
 
-	auto &gains = context.activeState.gains;
+	auto &gains = context.activeState.awb.gains;
 	auto &gammaTable = context.activeState.gamma.gammaTable;
 	const unsigned int gammaTableSize = gammaTable.size();
 

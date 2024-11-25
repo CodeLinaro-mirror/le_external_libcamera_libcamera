@@ -34,10 +34,13 @@ struct IPAActiveState {
 	} blc;
 
 	struct {
-		double red;
-		double green;
-		double blue;
-	} gains;
+		struct {
+			double red;
+			double green;
+			double blue;
+		} gains;
+		unsigned int temperatureK;
+	} awb;
 
 	struct {
 		int32_t exposure;
