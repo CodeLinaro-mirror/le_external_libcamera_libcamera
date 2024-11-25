@@ -25,26 +25,24 @@ unsigned int Ccm::kTemperatureThreshold = 100;
 int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
 {
 	int ret = ccm_.readYaml(tuningData["ccms"], "ct", "ccm");
-	if (ret < 0) {
+	if (ret < 0)
 		LOG(IPASoftCcm, Warning)
 			<< "Failed to parse 'ccm' "
 			<< "parameter from tuning file; falling back to unit matrix";
-		ccmEnabled_ = false;
-	} else {
-		ccmEnabled_ = true;
-	}
 
+	return 0;
+}
+
+int Ccm::configure(IPAContext &context,
+		   [[maybe_unused]] const IPAConfigInfo &configInfo)
+{
+	context.activeState.ccm.enabled = true;
 	return 0;
 }
 
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
 		  IPAFrameContext &frameContext, [[maybe_unused]] DebayerParams *params)
 {
-	context.activeState.ccm.enabled = ccmEnabled_;
-
-	if (!ccmEnabled_)
-		return;
-
 	unsigned int ct = context.activeState.awb.temperatureK;
 
 	/* Change CCM only on bigger temperature changes. */
