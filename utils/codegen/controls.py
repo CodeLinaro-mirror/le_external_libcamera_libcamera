@@ -60,6 +60,15 @@ class Control(object):
 
             self.__size = num_elems
 
+        direction = self.__data.get('direction')
+        if direction is not None:
+            valid_values = ['in', 'out', 'inout']
+            if direction not in valid_values:
+                raise RuntimeError(f'Control `{self.__name}` direction `{direction}` is invalid; must be one of `in`, `out`, or `inout`')
+            self.__direction = direction
+        else:
+            self.__direction = 'inout'
+
     @property
     def description(self):
         """The control description"""
@@ -110,6 +119,18 @@ class Control(object):
             return f"Span<const {typ}, {self.__size}>"
         else:
             return f"Span<const {typ}>"
+
+    @property
+    def direction(self):
+        in_flag = 'static_cast<ControlId::DirectionFlags>(ControlId::Direction::In)'
+        out_flag = 'static_cast<ControlId::DirectionFlags>(ControlId::Direction::Out)'
+
+        if self.__direction == 'inout':
+            return f'{in_flag} | {out_flag}'
+        if self.__direction == 'in':
+            return in_flag
+        if self.__direction == 'out':
+            return out_flag
 
     @property
     def element_type(self):
