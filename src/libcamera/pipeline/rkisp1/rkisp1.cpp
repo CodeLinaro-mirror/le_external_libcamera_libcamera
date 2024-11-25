@@ -24,6 +24,7 @@
 #include <libcamera/control_ids.h>
 #include <libcamera/formats.h>
 #include <libcamera/framebuffer.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 #include <libcamera/transform.h>
@@ -1247,6 +1248,7 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 								     dewarperSensorCrop_);
 
 		controls[&controls::ScalerCrop] = ControlInfo(min, max, max);
+		data->properties_.set(properties::ScalerCropMaximum, max);
 		activeCrop_ = max;
 	}
 
