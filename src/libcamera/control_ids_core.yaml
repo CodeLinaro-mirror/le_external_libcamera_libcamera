@@ -17,6 +17,7 @@ controls:
 
   - AeLocked:
       type: bool
+      direction: out
       description: |
         Report the lock status of a running AE algorithm.
 
@@ -236,6 +237,7 @@ controls:
 
   - AeFlickerDetected:
       type: int32_t
+      direction: out
       description: |
         Flicker period detected in microseconds.
 
@@ -274,6 +276,7 @@ controls:
 
   - Lux:
       type: float
+      direction: out
       description: |
         Report an estimate of the current illuminance level in lux.
 
@@ -324,6 +327,7 @@ controls:
 
   - AwbLocked:
       type: bool
+      direction: out
       description: |
         Report the lock status of a running AWB algorithm.
 
@@ -361,6 +365,7 @@ controls:
 
   - SensorBlackLevels:
       type: int32_t
+      direction: out
       description: |
         Reports the sensor black levels used for processing a frame.
 
@@ -385,6 +390,7 @@ controls:
 
   - FocusFoM:
       type: int32_t
+      direction: out
       description: |
         Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
 
@@ -442,6 +448,7 @@ controls:
 
   - FrameDuration:
       type: int64_t
+      direction: out
       description: |
         The instantaneous frame duration from start of frame exposure to start
         of next exposure, expressed in microseconds.
@@ -450,6 +457,7 @@ controls:
 
   - FrameDurationLimits:
       type: int64_t
+      direction: in
       description: |
         The minimum and maximum (in that order) frame duration, expressed in
         microseconds.
@@ -487,6 +495,7 @@ controls:
 
   - SensorTemperature:
       type: float
+      direction: out
       description: |
         Temperature measure from the camera sensor in Celsius.
 
@@ -499,6 +508,7 @@ controls:
 
   - SensorTimestamp:
       type: int64_t
+      direction: out
       description: |
         The time when the first row of the image sensor active array is exposed.
 
@@ -667,6 +677,7 @@ controls:
 
   - AfTrigger:
       type: int32_t
+      direction: in
       description: |
         Start an autofocus scan.
 
@@ -692,6 +703,7 @@ controls:
 
   - AfPause:
       type: int32_t
+      direction: in
       description: |
         Pause lens movements when in continuous autofocus mode.
 
