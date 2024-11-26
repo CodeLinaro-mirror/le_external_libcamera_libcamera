@@ -11,6 +11,8 @@
 #include <optional>
 #include <stdint.h>
 
+#include <libcamera/controls.h>
+
 #include <libipa/fc_queue.h>
 
 namespace libcamera {
@@ -48,7 +50,12 @@ struct IPAActiveState {
 	struct {
 		std::array<double, kGammaLookupSize> gammaTable;
 		uint8_t blackLevel;
+		double contrast;
 	} gamma;
+	struct {
+		/* 0..inf range, 1.0 = normal */
+		std::optional<double> contrast;
+	} knobs;
 };
 
 struct IPAFrameContext : public FrameContext {
