@@ -74,6 +74,7 @@ struct IPAContext {
 	IPASessionConfiguration configuration;
 	IPAActiveState activeState;
 	FCQueue<IPAFrameContext> frameContexts;
+	ControlInfoMap::Map ctrlMap;
 };
 
 } /* namespace ipa::soft */
