@@ -337,6 +337,20 @@ CameraSensor::~CameraSensor() = default;
  */
 
 /**
+ * \fn CameraSensor::sensorDelays()
+ * \brief Fetch the sensor delay values
+ *
+ * This function retreives the sensor control delays for pipeline handlers to
+ * use to inform the DelayedControls. If control delays are not specified in the
+ * static sensor propertie database, this function returns a reference to a set
+ * of default sensor delays provided as best-effort placeholders for the actual
+ * sensor specific delays.
+ *
+ * \return A reference to a struct CameraSensorProperties::SensorDelays holding
+ * the delay values
+ */
+
+/**
  * \class CameraSensorFactoryBase
  * \brief Base class for camera sensor factories
  *
