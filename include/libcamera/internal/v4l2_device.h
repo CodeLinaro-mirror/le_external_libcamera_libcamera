@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <vector>
 
 #include <linux/videodev2.h>
@@ -66,6 +67,9 @@ protected:
 
 	template<typename T>
 	static int fromColorSpace(const std::optional<ColorSpace> &colorSpace, T &v4l2Format);
+
+	std::queue<std::pair<uint64_t, uint64_t>> wallClockQueue_;
+	bool frameStartEnabled() const { return frameStartEnabled_; }
 
 private:
 	static ControlType v4l2CtrlType(uint32_t ctrlType);

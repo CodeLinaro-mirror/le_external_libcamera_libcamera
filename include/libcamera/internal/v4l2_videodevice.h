@@ -31,6 +31,7 @@
 #include <libcamera/geometry.h>
 #include <libcamera/pixel_format.h>
 
+#include "libcamera/internal/clock_recovery.h"
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/v4l2_device.h"
 #include "libcamera/internal/v4l2_pixelformat.h"
@@ -290,6 +291,8 @@ private:
 
 	Timer watchdog_;
 	utils::Duration watchdogDuration_;
+
+	ClockRecovery wallClockRecovery_;
 };
 
 class V4L2M2MDevice

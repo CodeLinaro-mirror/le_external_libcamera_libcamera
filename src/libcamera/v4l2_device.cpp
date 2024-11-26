@@ -475,6 +475,11 @@ int V4L2Device::ioctl(unsigned long request, void *argp)
  */
 
 /**
+ * \fn V4L2Device::frameStartEnabled()
+ * \return True if frame start notifications are enabled, otherwise false
+ */
+
+/**
  * \brief Retrieve the libcamera control type associated with the V4L2 control
  * \param[in] ctrlType The V4L2 control type
  * \return The ControlType associated to \a ctrlType
@@ -760,6 +765,23 @@ void V4L2Device::eventAvailable()
 		fdEventNotifier_->setEnabled(false);
 		return;
 	}
+
+	/*
+	 * Record this frame (by its sequence number) and its corresponding wallclock value.
+	 * Use a queue as these two events may not interleave perfectly.
+	 */
+	auto now = std::chrono::system_clock::now();
+	uint64_t wallClock = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+
+	wallClockQueue_.emplace(event.u.frame_sync.frame_sequence, wallClock);
+
+	/*
+	 * Also avoid growing the queue indefiniteily. It seems highly unlikely that you could
+	 * get more than a few "frame starts" being processed without a "frame end", so the value
+	 * 5, while arbitrary, appears to be more than enough in practice.
+	 */
+	while (wallClockQueue_.size() > 5)
+		wallClockQueue_.pop();
 
 	frameStart.emit(event.u.frame_sync.frame_sequence);
 }

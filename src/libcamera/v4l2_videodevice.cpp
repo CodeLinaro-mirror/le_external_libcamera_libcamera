@@ -1865,6 +1865,33 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 	metadata.timestamp = buf.timestamp.tv_sec * 1000000000ULL
 			   + buf.timestamp.tv_usec * 1000ULL;
 
+	if (frameStartEnabled()) {
+		/*
+		 * Find the wallclock that should have been recorded for this frame, discarding any
+		 * stale frames on the way.
+		 */
+		while (!wallClockQueue_.empty() && wallClockQueue_.front().first < buf.sequence)
+			wallClockQueue_.pop();
+
+		if (!wallClockQueue_.empty() && wallClockQueue_.front().first == buf.sequence) {
+			metadata.wallClockRaw = wallClockQueue_.front().second;
+			wallClockQueue_.pop();
+		} else {
+			/*
+			 * At higher framerates it can happen that this gets handled before the frame
+			 * start event, meaning there's no wallclock time in the queue. So the best we
+			 * can do is sample the wallclock now. (The frame start will subsequently add
+			 * another wallclock timestamp, but this will get safely discarded.)
+			 */
+			auto now = std::chrono::system_clock::now();
+			metadata.wallClockRaw = std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count();
+		}
+
+		/* Now recover a de-jittered wallclock value. Everything must be in microseconds. */
+		wallClockRecovery_.addSample(metadata.timestamp / 1000, metadata.wallClockRaw);
+		metadata.wallClock = wallClockRecovery_.getOutput(metadata.timestamp / 1000);
+	}
+
 	if (V4L2_TYPE_IS_OUTPUT(buf.type))
 		return buffer;
 
@@ -1957,6 +1984,8 @@ int V4L2VideoDevice::streamOn()
 	int ret;
 
 	firstFrame_.reset();
+
+	wallClockQueue_ = {};
 
 	ret = ioctl(VIDIOC_STREAMON, &bufferType_);
 	if (ret < 0) {
