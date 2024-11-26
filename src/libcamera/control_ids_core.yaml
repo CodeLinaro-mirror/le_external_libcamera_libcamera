@@ -973,4 +973,33 @@ controls:
       description: |
         Enable or disable the debug metadata.
 
+  - FrameWallClockRaw:
+      type: int64_t
+      description: |
+        The time in microseconds since the system clock's epoch.
+
+        This is a direct measurement of the number of microseconds since the
+        system clock's epoch. Because of the way it is sampled, this value is
+        likely to be subject to significant amounts of system and system
+        load-dependent jitter, typically of many milliseconds in duration.
+
+        For a smoothed version of this timestamp, use the FramwWallClock
+        control.
+
+        \sa FrameWallClock
+
+        The FrameWallClockRaw control can only be returned in metadata.
+
+  - FrameWallClock:
+      type: int64_t
+      description: |
+        The time in microseconds since the system clock's epoch.
+
+        This is a smoothed version of the FrameWallClockRaw timestamp, which
+        should show much reduced amounts of jitter.
+
+        \sa FrameWallClockRaw
+
+        The FrameWallClock control can only be returned in metadata.
+
 ...
