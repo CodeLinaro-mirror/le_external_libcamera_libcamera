@@ -868,6 +868,8 @@ void CameraDevice::abortRequest(Camera3RequestDescriptor *descriptor) const
 		buffer.status = StreamBuffer::Status::Error;
 
 	descriptor->status_ = Camera3RequestDescriptor::Status::Error;
+
+	sendCaptureResult(descriptor);
 }
 
 bool CameraDevice::isValidRequest(camera3_capture_request_t *camera3Request) const
@@ -1136,14 +1138,7 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	MutexLocker stateLock(stateMutex_);
 
 	if (state_ == State::Flushing) {
-		Camera3RequestDescriptor *rawDescriptor = descriptor.get();
-		{
-			MutexLocker descriptorsLock(descriptorsMutex_);
-			descriptors_.push(std::move(descriptor));
-		}
-		abortRequest(rawDescriptor);
-		completeDescriptor(rawDescriptor);
-
+		abortRequest(descriptor.get());
 		return 0;
 	}
 
@@ -1211,10 +1206,7 @@ void CameraDevice::requestComplete(Request *request)
 				<< " not successfully completed: "
 				<< request->status();
 
-		abortRequest(descriptor);
-		completeDescriptor(descriptor);
-
-		return;
+		descriptor->status_ = Camera3RequestDescriptor::Status::Error;
 	}
 
 	/*
@@ -1239,7 +1231,7 @@ void CameraDevice::requestComplete(Request *request)
 	 */
 	descriptor->resultMetadata_ = getResultMetadata(*descriptor);
 	if (!descriptor->resultMetadata_) {
-		notifyError(descriptor->frameNumber_, nullptr, CAMERA3_MSG_ERROR_RESULT);
+		descriptor->status_ = Camera3RequestDescriptor::Status::Error;
 
 		/*
 		 * The camera framework expects an empty metadata pack on error.
@@ -1325,6 +1317,16 @@ void CameraDevice::sendCaptureResults()
 		descriptors_.pop();
 
 		sendCaptureResult(descriptor.get());
+
+		/*
+		 * Call notify with CAMERA3_MSG_ERROR_RESULT to indicate some
+		 * of the expected result metadata might not be available
+		 * because the capture is cancelled by the camera. Only notify
+		 * it when the final result is sent, since Android will ignore
+		 * the following metadata.
+		 */
+		if (descriptor->status_ == Camera3RequestDescriptor::Status::Error)
+			notifyError(descriptor->frameNumber_, nullptr, CAMERA3_MSG_ERROR_RESULT);
 	}
 }
 
