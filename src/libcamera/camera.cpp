@@ -901,6 +901,12 @@ const std::string &Camera::id() const
  */
 
 /**
+ * \var Camera::metadataAvailable
+ * \brief Signal emitted when some metadata for a request is available as a
+ * partial result
+ */
+
+/**
  * \var Camera::requestCompleted
  * \brief Signal emitted when a request queued to the camera has completed
  */

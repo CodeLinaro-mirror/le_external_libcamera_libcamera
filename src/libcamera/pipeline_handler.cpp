@@ -532,6 +532,32 @@ bool PipelineHandler::completeBuffer(Request *request, FrameBuffer *buffer)
 }
 
 /**
+ * \brief Complete part of metadata for a request
+ * \param[in] request The request the metadata belongs to
+ * \param[in] metadata The partial metadata that has completed
+ *
+ * This function could be called by pipeline handlers to signal availability of
+ * \a metadata before \a request completes. Early metadata completion allows to
+ * notify applications about the availability of a partial metadata buffer
+ * before the associated Request has completed.
+ *
+ * A metadata key is expected to be completed at most once. If it's completed
+ * more than once, the key will be dropped since the second time.
+ *
+ * \context This function shall be called from the CameraManager thread.
+ */
+void PipelineHandler::completeMetadata(Request *request, const ControlList &metadata)
+{
+	const ControlList validMetadata = request->_d()->addCompletedMetadata(metadata);
+	if (!validMetadata.empty()) {
+		request->metadata().merge(validMetadata);
+
+		Camera *camera = request->_d()->camera();
+		camera->metadataAvailable.emit(request, validMetadata);
+	}
+}
+
+/**
  * \brief Signal request completion
  * \param[in] request The request that has completed
  *
@@ -552,6 +578,21 @@ void PipelineHandler::completeRequest(Request *request)
 	request->_d()->complete();
 
 	Camera::Private *data = camera->_d();
+
+	/*
+	 * Collect metadata which is not yet completed by the Camera, and
+	 * create one partial result to cover the missing metadata before
+	 * completing the whole request. This guarantees the aggregation of
+	 * metadata in completed partial results equals to the global metadata
+	 * in the request.
+	 *
+	 * \todo: Forbid merging metadata into request.metadata() directly and
+	 * force calling completeMetadata() to report metadata.
+	 */
+	const ControlList validMetadata = request->_d()->addCompletedMetadata(
+		request->metadata());
+	if (!validMetadata.empty())
+		camera->metadataAvailable.emit(request, validMetadata);
 
 	while (!data->queuedRequests_.empty()) {
 		Request *req = data->queuedRequests_.front();

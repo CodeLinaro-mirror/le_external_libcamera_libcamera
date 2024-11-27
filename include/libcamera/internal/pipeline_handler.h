@@ -58,6 +58,7 @@ public:
 	void registerRequest(Request *request);
 	void queueRequest(Request *request);
 
+	void completeMetadata(Request *request, const ControlList &metadata);
 	bool completeBuffer(Request *request, FrameBuffer *buffer);
 	void completeRequest(Request *request);
 	void cancelRequest(Request *request);
