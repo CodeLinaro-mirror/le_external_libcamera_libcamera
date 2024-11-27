@@ -360,6 +360,16 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				.hblankDelay = 2
 			},
 		} },
+		{ "ov7251", {
+			.unitCellSize = { 3000, 3000 },
+			.testPatternModes =  { },
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
+		} },
 		{ "ov8858", {
 			.unitCellSize = { 1120, 1120 },
 			.testPatternModes = {
@@ -388,6 +398,16 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				 */
 			},
 			.sensorDelays = { },
+		} },
+		{ "ov9281", {
+			.unitCellSize = { 3000, 3000 },
+			.testPatternModes =  { },
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
 		} },
 		{ "ov13858", {
 			.unitCellSize = { 1120, 1120 },
