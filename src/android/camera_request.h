@@ -49,7 +49,6 @@ public:
 	std::unique_ptr<HALFrameBuffer> frameBuffer;
 	libcamera::UniqueFD fence;
 	Status status = Status::Success;
-	libcamera::FrameBuffer *internalBuffer = nullptr;
 	const libcamera::FrameBuffer *srcBuffer = nullptr;
 	std::unique_ptr<CameraBuffer> dstBuffer;
 	Camera3RequestDescriptor *request;
@@ -84,6 +83,8 @@ public:
 	CameraMetadata settings_;
 	std::unique_ptr<libcamera::Request> request_;
 	std::unique_ptr<CameraMetadata> resultMetadata_;
+
+	std::map<CameraStream *, libcamera::FrameBuffer *> internalBuffers_;
 
 	bool complete_ = false;
 	Status status_ = Status::Success;

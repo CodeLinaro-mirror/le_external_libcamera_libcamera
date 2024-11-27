@@ -967,9 +967,10 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	 * to a libcamera stream. Streams of type Mapped will be handled later.
 	 *
 	 * Collect the CameraStream associated to each requested capture stream.
-	 * Since requestedStreams is an std:map<>, no duplications can happen.
+	 * Since requestedDirectBuffers is an std:map<>, no duplications can
+	 * happen.
 	 */
-	std::map<CameraStream *, libcamera::FrameBuffer *> requestedBuffers;
+	std::map<CameraStream *, libcamera::FrameBuffer *> requestedDirectBuffers;
 	for (const auto &[i, buffer] : utils::enumerate(descriptor->buffers_)) {
 		CameraStream *cameraStream = buffer.stream;
 		camera3_stream_t *camera3Stream = cameraStream->camera3Stream();
@@ -1009,7 +1010,7 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 			frameBuffer = buffer.frameBuffer.get();
 			acquireFence = std::move(buffer.fence);
 
-			requestedBuffers[cameraStream] = frameBuffer;
+			requestedDirectBuffers[cameraStream] = frameBuffer;
 			LOG(HAL, Debug) << ss.str() << " (direct)";
 			break;
 
@@ -1018,14 +1019,17 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 			 * Get the frame buffer from the CameraStream internal
 			 * buffer pool.
 			 *
-			 * The buffer has to be returned to the CameraStream
-			 * once it has been processed.
+			 * The buffer will be returned to the CameraStream when
+			 * the request is destructed.
 			 */
 			frameBuffer = cameraStream->getBuffer();
-			buffer.internalBuffer = frameBuffer;
 			buffer.srcBuffer = frameBuffer;
 
-			requestedBuffers[cameraStream] = frameBuffer;
+			/*
+			 * Track the allocated internal buffers, which will be
+			 * recycled when the descriptor destroyed.
+			 * */
+			descriptor->internalBuffers_[cameraStream] = frameBuffer;
 			LOG(HAL, Debug) << ss.str() << " (internal)";
 
 			descriptor->pendingStreamsToProcess_.insert(
@@ -1079,24 +1083,41 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		 * post-processing. No need to recycle the buffer since it's
 		 * owned by Android.
 		 */
-		auto iterDirectBuffer = requestedBuffers.find(sourceStream);
-		if (iterDirectBuffer != requestedBuffers.end()) {
+		auto iterDirectBuffer = requestedDirectBuffers.find(sourceStream);
+		if (iterDirectBuffer != requestedDirectBuffers.end()) {
 			buffer.srcBuffer = iterDirectBuffer->second;
 			continue;
 		}
 
 		/*
-		 * If that's not the case, we need to add a buffer to the request
-		 * for this stream.
+		 * If that's not the case, we use an internal buffer allocated
+		 * from the source stream.
+		 *
+		 * If an internal buffer has been requested for the source
+		 * stream before, we should reuse it.
 		 */
-		FrameBuffer *frameBuffer = cameraStream->getBuffer();
-		buffer.internalBuffer = frameBuffer;
+		auto iterInternalBuffer = descriptor->internalBuffers_.find(sourceStream);
+		if (iterInternalBuffer != descriptor->internalBuffers_.end()) {
+			buffer.srcBuffer = iterInternalBuffer->second;
+			continue;
+		}
+
+		/*
+		 * Otherwise, we need to create an internal buffer to the
+		 * request for the source stream. Get the frame buffer from the
+		 * source stream's internal buffer pool.
+		 *
+		 * The buffer will be returned to the CameraStream when the
+		 * request is destructed.
+		 */
+		FrameBuffer *frameBuffer = sourceStream->getBuffer();
 		buffer.srcBuffer = frameBuffer;
 
 		descriptor->request_->addBuffer(sourceStream->stream(),
 						frameBuffer, nullptr);
 
-		requestedBuffers[sourceStream] = frameBuffer;
+		/* Track the allocated internal buffer. */
+		descriptor->internalBuffers_[sourceStream] = frameBuffer;
 	}
 
 	/*
@@ -1256,13 +1277,6 @@ void CameraDevice::requestComplete(Request *request)
 		if (ret) {
 			setBufferStatus(*buffer, StreamBuffer::Status::Error);
 			descriptor->pendingStreamsToProcess_.erase(stream);
-
-			/*
-			 * If the framebuffer is internal to CameraStream return
-			 * it back now that we're done processing it.
-			 */
-			if (buffer->internalBuffer)
-				stream->putBuffer(buffer->internalBuffer);
 		}
 	}
 
@@ -1380,13 +1394,6 @@ void CameraDevice::streamProcessingComplete(StreamBuffer *streamBuffer,
 					    StreamBuffer::Status status)
 {
 	setBufferStatus(*streamBuffer, status);
-
-	/*
-	 * If the framebuffer is internal to CameraStream return it back now
-	 * that we're done processing it.
-	 */
-	if (streamBuffer->internalBuffer)
-		streamBuffer->stream->putBuffer(streamBuffer->internalBuffer);
 
 	Camera3RequestDescriptor *request = streamBuffer->request;
 

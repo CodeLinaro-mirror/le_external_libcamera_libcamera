@@ -10,6 +10,7 @@
 #include <libcamera/base/span.h>
 
 #include "camera_buffer.h"
+#include "camera_stream.h"
 
 using namespace libcamera;
 
@@ -138,7 +139,14 @@ Camera3RequestDescriptor::Camera3RequestDescriptor(
 	request_ = camera->createRequest(reinterpret_cast<uint64_t>(this));
 }
 
-Camera3RequestDescriptor::~Camera3RequestDescriptor() = default;
+Camera3RequestDescriptor::~Camera3RequestDescriptor()
+{
+	/*
+	 * Recycle the allocated internal buffer back to its source stream.
+	 */
+	for (auto &[sourceStream, frameBuffer] : internalBuffers_)
+		sourceStream->putBuffer(frameBuffer);
+}
 
 /**
  * \class StreamBuffer
@@ -165,9 +173,6 @@ Camera3RequestDescriptor::~Camera3RequestDescriptor() = default;
  *
  * \var StreamBuffer::status
  * \brief Track the status of the buffer
- *
- * \var StreamBuffer::internalBuffer
- * \brief Pointer to a buffer internally handled by CameraStream (if any)
  *
  * \var StreamBuffer::srcBuffer
  * \brief Pointer to the source frame buffer used for post-processing
