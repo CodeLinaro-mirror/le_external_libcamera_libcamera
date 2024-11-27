@@ -223,6 +223,14 @@ std::vector<U> setMetadata(CameraMetadata *metadata, uint32_t tag,
 
 } /* namespace */
 
+/**
+ * \var CameraCapabilities::kMaxMetadataPackIndex
+ *
+ * It defines how many sub-components a result will be composed of. This enables
+ * partial results. It's currently identical to
+ * ANDROID_REQUEST_PARTIAL_RESULT_COUNT.
+ */
+
 bool CameraCapabilities::validateManualSensorCapability()
 {
 	const char *noMode = "Manual sensor capability unavailable: ";
@@ -1416,9 +1424,8 @@ int CameraCapabilities::initializeStaticMetadata()
 	staticMetadata_->addEntry(ANDROID_SCALER_CROPPING_TYPE, croppingType);
 
 	/* Request static metadata. */
-	int32_t partialResultCount = 1;
 	staticMetadata_->addEntry(ANDROID_REQUEST_PARTIAL_RESULT_COUNT,
-				  partialResultCount);
+				  kMaxMetadataPackIndex);
 
 	{
 		/* Default the value to 2 if not reported by the camera. */

@@ -64,11 +64,13 @@ public:
 	const camera_metadata_t *constructDefaultRequestSettings(int type);
 	int configureStreams(camera3_stream_configuration_t *stream_list);
 	int processCaptureRequest(camera3_capture_request_t *request);
+	void bufferComplete(libcamera::Request *request,
+			    libcamera::FrameBuffer *buffer);
+	void metadataAvailable(libcamera::Request *request,
+			       const libcamera::ControlList &metadata);
 	void requestComplete(libcamera::Request *request);
 	void streamProcessingCompleteDelegate(StreamBuffer *bufferStream,
 					      StreamBuffer::Status status);
-	void streamProcessingComplete(StreamBuffer *bufferStream,
-				      StreamBuffer::Status status);
 
 protected:
 	std::string logPrefix() const override;
@@ -96,16 +98,26 @@ private:
 	void notifyError(uint32_t frameNumber, camera3_stream_t *stream,
 			 camera3_error_msg_code code) const;
 	int processControls(Camera3RequestDescriptor *descriptor);
-	void completeDescriptor(Camera3RequestDescriptor *descriptor)
-		LIBCAMERA_TSA_EXCLUDES(descriptorsMutex_);
-	void sendCaptureResults() LIBCAMERA_TSA_REQUIRES(descriptorsMutex_);
-	void sendCaptureResult(Camera3RequestDescriptor *request) const;
+
+	void checkAndCompleteReadyPartialResults(Camera3ResultDescriptor *result);
+	void completePartialResultDescriptor(Camera3ResultDescriptor *result);
+	void completeRequestDescriptor(Camera3RequestDescriptor *descriptor);
+
+	void streamProcessingComplete(StreamBuffer *bufferStream,
+				      StreamBuffer::Status status);
+
+	void sendCaptureResults();
+	void sendCaptureResult(Camera3ResultDescriptor *result) const;
 	void setBufferStatus(StreamBuffer &buffer,
 			     StreamBuffer::Status status);
 	void generateJpegExifMetadata(Camera3RequestDescriptor *request,
 				      StreamBuffer *buffer) const;
-	std::unique_ptr<CameraMetadata> getResultMetadata(
-		const Camera3RequestDescriptor &descriptor) const;
+
+	std::unique_ptr<CameraMetadata> getJpegPartialResultMetadata() const;
+	std::unique_ptr<CameraMetadata> getPartialResultMetadata(
+		const libcamera::ControlList &metadata) const;
+	std::unique_ptr<CameraMetadata> getFinalResultMetadata(
+		const CameraMetadata &settings) const;
 
 	unsigned int id_;
 	camera3_device_t camera3Device_;
@@ -122,9 +134,14 @@ private:
 
 	std::vector<CameraStream> streams_;
 
-	libcamera::Mutex descriptorsMutex_ LIBCAMERA_TSA_ACQUIRED_AFTER(stateMutex_);
-	std::queue<std::unique_ptr<Camera3RequestDescriptor>> descriptors_
-		LIBCAMERA_TSA_GUARDED_BY(descriptorsMutex_);
+	/* Protects access to the pending requests and stream buffers. */
+	libcamera::Mutex pendingRequestMutex_;
+	std::queue<std::unique_ptr<Camera3RequestDescriptor>> pendingRequests_
+		LIBCAMERA_TSA_GUARDED_BY(pendingRequestMutex_);
+	std::map<CameraStream *, std::list<StreamBuffer *>> pendingStreamBuffers_
+		LIBCAMERA_TSA_GUARDED_BY(pendingRequestMutex_);
+
+	std::list<Camera3ResultDescriptor *> pendingPartialResults_;
 
 	std::string maker_;
 	std::string model_;
