@@ -12,6 +12,7 @@
 
 #include <libcamera/base/log.h>
 
+#include "libipa/bitdepth.h"
 #include "simple/ipa_context.h"
 
 namespace libcamera {
@@ -36,7 +37,7 @@ void Awb::process(IPAContext &context,
 		  [[maybe_unused]] ControlList &metadata)
 {
 	const SwIspStats::Histogram &histogram = stats->yHistogram;
-	const uint8_t blackLevel = context.activeState.blc.level;
+	const BitDepthValue<8> blackLevel = context.activeState.blc.level;
 
 	/*
 	 * Black level must be subtracted to get the correct AWB ratios, they

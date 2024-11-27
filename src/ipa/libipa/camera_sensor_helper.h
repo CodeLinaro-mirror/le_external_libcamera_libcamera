@@ -14,6 +14,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include "bitdepth.h"
 
 namespace libcamera {
 
@@ -25,7 +26,7 @@ public:
 	CameraSensorHelper() = default;
 	virtual ~CameraSensorHelper() = default;
 
-	std::optional<int16_t> blackLevel() const { return blackLevel_; }
+	std::optional<BitDepthValue<16>> blackLevel() const { return blackLevel_; }
 	virtual uint32_t gainCode(double gain) const;
 	virtual double gain(uint32_t gainCode) const;
 
@@ -52,7 +53,7 @@ protected:
 		AnalogueGainExpConstants exp;
 	};
 
-	std::optional<int16_t> blackLevel_;
+	std::optional<BitDepthValue<16>> blackLevel_;
 	AnalogueGainType gainType_;
 	AnalogueGainConstants gainConstants_;
 

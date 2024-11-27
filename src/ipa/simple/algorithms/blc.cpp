@@ -10,6 +10,7 @@
 #include <numeric>
 
 #include <libcamera/base/log.h>
+#include "libipa/bitdepth.h"
 
 namespace libcamera {
 
@@ -29,7 +30,7 @@ int BlackLevel::init(IPAContext &context, const YamlObject &tuningData)
 		 * Convert 16 bit values from the tuning file to 8 bit black
 		 * level for the SoftISP.
 		 */
-		context.configuration.black.level = blackLevel.value() >> 8;
+		context.configuration.black.level->convert<8>();
 	}
 	return 0;
 }
@@ -38,7 +39,7 @@ int BlackLevel::configure(IPAContext &context,
 			  [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
 	context.activeState.blc.level =
-		context.configuration.black.level.value_or(255);
+		context.configuration.black.level.value_or(255_8bit);
 	return 0;
 }
 
@@ -68,14 +69,15 @@ void BlackLevel::process(IPAContext &context,
 	const unsigned int pixelThreshold = ignoredPercentage * total;
 	const unsigned int histogramRatio = 256 / SwIspStats::kYHistogramSize;
 	const unsigned int currentBlackIdx =
-		context.activeState.blc.level / histogramRatio;
+		context.activeState.blc.level.value() / histogramRatio;
 
 	for (unsigned int i = 0, seen = 0;
 	     i < currentBlackIdx && i < SwIspStats::kYHistogramSize;
 	     i++) {
 		seen += histogram[i];
 		if (seen >= pixelThreshold) {
-			context.activeState.blc.level = i * histogramRatio;
+			context.activeState.blc.level =
+				BitDepthValue<8>(i * histogramRatio);
 			exposure_ = frameContext.sensor.exposure;
 			gain_ = frameContext.sensor.gain;
 			LOG(IPASoftBL, Debug)

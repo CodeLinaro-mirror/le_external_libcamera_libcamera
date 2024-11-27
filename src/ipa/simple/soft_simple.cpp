@@ -211,11 +211,10 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 			/*
 			 * The black level from camHelper_ is a 16 bit value, software ISP
 			 * works with 8 bit pixel values, both regardless of the actual
-			 * sensor pixel width. Hence we obtain the pixel-based black value
-			 * by dividing the value from the helper by 256.
+			 * sensor pixel width.
 			 */
 			context_.configuration.black.level =
-				camHelper_->blackLevel().value() / 256;
+				camHelper_->blackLevel();
 		}
 	} else {
 		/*

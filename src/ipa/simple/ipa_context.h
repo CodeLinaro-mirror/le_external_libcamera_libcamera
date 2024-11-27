@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include <libipa/fc_queue.h>
+#include "libipa/bitdepth.h"
 
 namespace libcamera {
 
@@ -24,13 +25,13 @@ struct IPASessionConfiguration {
 		double againMin, againMax, againMinStep;
 	} agc;
 	struct {
-		std::optional<uint8_t> level;
+		std::optional<BitDepthValue<8>> level;
 	} black;
 };
 
 struct IPAActiveState {
 	struct {
-		uint8_t level;
+		BitDepthValue<8> level;
 	} blc;
 
 	struct {

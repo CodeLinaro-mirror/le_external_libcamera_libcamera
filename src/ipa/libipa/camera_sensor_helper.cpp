@@ -407,7 +407,7 @@ public:
 	CameraSensorHelperAr0144()
 	{
 		/* Power-on default value: 168 at 12bits. */
-		blackLevel_ = 2688;
+		blackLevel_ = 168_12bit;
 	}
 
 	uint32_t gainCode(double gain) const override
@@ -525,7 +525,7 @@ public:
 	CameraSensorHelperImx214()
 	{
 		/* From datasheet: 64 at 10bits. */
-		blackLevel_ = 4096;
+		blackLevel_ = 64_10bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 0, 512, -1, 512 };
 	}
@@ -538,7 +538,7 @@ public:
 	CameraSensorHelperImx219()
 	{
 		/* From datasheet: 64 at 10bits. */
-		blackLevel_ = 4096;
+		blackLevel_ = 64_10bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 0, 256, -1, 256 };
 	}
@@ -551,7 +551,7 @@ public:
 	CameraSensorHelperImx258()
 	{
 		/* From datasheet: 0x40 at 10bits. */
-		blackLevel_ = 4096;
+		blackLevel_ = 0x40_10bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 0, 512, -1, 512 };
 	}
@@ -564,7 +564,7 @@ public:
 	CameraSensorHelperImx283()
 	{
 		/* From datasheet: 0x32 at 10bits. */
-		blackLevel_ = 3200;
+		blackLevel_ = 0x32_10bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 0, 2048, -1, 2048 };
 	}
@@ -606,7 +606,7 @@ public:
 	CameraSensorHelperImx335()
 	{
 		/* From datasheet: 0x32 at 10bits. */
-		blackLevel_ = 3200;
+		blackLevel_ = 0x32_10bit;
 		gainType_ = AnalogueGainExponential;
 		gainConstants_.exp = { 1.0, expGainDb(0.3) };
 	}
@@ -672,7 +672,7 @@ public:
 	CameraSensorHelperOv4689()
 	{
 		/* From datasheet: 0x40 at 12bits. */
-		blackLevel_ = 1024;
+		blackLevel_ = 0x40_12bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 1, 0, 0, 128 };
 	}
@@ -685,7 +685,7 @@ public:
 	CameraSensorHelperOv5640()
 	{
 		/* From datasheet: 0x10 at 10bits. */
-		blackLevel_ = 1024;
+		blackLevel_ = 0x10_10bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 1, 0, 0, 16 };
 	}
@@ -720,7 +720,7 @@ public:
 	CameraSensorHelperOv5675()
 	{
 		/* From Linux kernel driver: 0x40 at 10bits. */
-		blackLevel_ = 4096;
+		blackLevel_ = 0x40_10bit;
 		gainType_ = AnalogueGainLinear;
 		gainConstants_.linear = { 1, 0, 0, 128 };
 	}
