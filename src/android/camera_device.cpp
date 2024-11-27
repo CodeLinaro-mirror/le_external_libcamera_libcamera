@@ -967,9 +967,9 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	 * to a libcamera stream. Streams of type Mapped will be handled later.
 	 *
 	 * Collect the CameraStream associated to each requested capture stream.
-	 * Since requestedStreams is an std:set<>, no duplications can happen.
+	 * Since requestedStreams is an std:map<>, no duplications can happen.
 	 */
-	std::set<CameraStream *> requestedStreams;
+	std::map<CameraStream *, libcamera::FrameBuffer *> requestedBuffers;
 	for (const auto &[i, buffer] : utils::enumerate(descriptor->buffers_)) {
 		CameraStream *cameraStream = buffer.stream;
 		camera3_stream_t *camera3Stream = cameraStream->camera3Stream();
@@ -1008,6 +1008,8 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 						  cameraStream->configuration().size);
 			frameBuffer = buffer.frameBuffer.get();
 			acquireFence = std::move(buffer.fence);
+
+			requestedBuffers[cameraStream] = frameBuffer;
 			LOG(HAL, Debug) << ss.str() << " (direct)";
 			break;
 
@@ -1021,6 +1023,9 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 			 */
 			frameBuffer = cameraStream->getBuffer();
 			buffer.internalBuffer = frameBuffer;
+			buffer.srcBuffer = frameBuffer;
+
+			requestedBuffers[cameraStream] = frameBuffer;
 			LOG(HAL, Debug) << ss.str() << " (internal)";
 
 			descriptor->pendingStreamsToProcess_.insert(
@@ -1036,8 +1041,6 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		auto fence = std::make_unique<Fence>(std::move(acquireFence));
 		descriptor->request_->addBuffer(cameraStream->stream(),
 						frameBuffer, std::move(fence));
-
-		requestedStreams.insert(cameraStream);
 	}
 
 	/*
@@ -1068,8 +1071,19 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		 */
 		CameraStream *sourceStream = cameraStream->sourceStream();
 		ASSERT(sourceStream);
-		if (requestedStreams.find(sourceStream) != requestedStreams.end())
+		ASSERT(sourceStream->type() == CameraStream::Type::Direct);
+
+		/*
+		 * If the buffer for the source stream has been requested as
+		 * Direct, use its framebuffer as the source buffer for
+		 * post-processing. No need to recycle the buffer since it's
+		 * owned by Android.
+		 */
+		auto iterDirectBuffer = requestedBuffers.find(sourceStream);
+		if (iterDirectBuffer != requestedBuffers.end()) {
+			buffer.srcBuffer = iterDirectBuffer->second;
 			continue;
+		}
 
 		/*
 		 * If that's not the case, we need to add a buffer to the request
@@ -1077,11 +1091,12 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		 */
 		FrameBuffer *frameBuffer = cameraStream->getBuffer();
 		buffer.internalBuffer = frameBuffer;
+		buffer.srcBuffer = frameBuffer;
 
 		descriptor->request_->addBuffer(sourceStream->stream(),
 						frameBuffer, nullptr);
 
-		requestedStreams.insert(sourceStream);
+		requestedBuffers[sourceStream] = frameBuffer;
 	}
 
 	/*
@@ -1235,8 +1250,6 @@ void CameraDevice::requestComplete(Request *request)
 			iter = descriptor->pendingStreamsToProcess_.erase(iter);
 			continue;
 		}
-
-		buffer->srcBuffer = src;
 
 		++iter;
 		int ret = stream->process(buffer);
