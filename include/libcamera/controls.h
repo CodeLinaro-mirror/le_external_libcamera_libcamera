@@ -17,6 +17,7 @@
 #include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/flags.h>
 #include <libcamera/base/span.h>
 
 #include <libcamera/geometry.h>
@@ -235,8 +236,18 @@ private:
 class ControlId
 {
 public:
+	enum class Direction {
+		In = (1 << 0),
+		Out = (1 << 1),
+	};
+
+	using DirectionFlags = Flags<Direction>;
+
 	ControlId(unsigned int id, const std::string &name, const std::string &vendor,
 		  ControlType type, std::size_t size = 0,
+		  DirectionFlags direction =
+			  static_cast<DirectionFlags>(Direction::In) |
+			  static_cast<DirectionFlags>(Direction::Out),
 		  const std::map<std::string, int32_t> &enumStrMap = {});
 
 	unsigned int id() const { return id_; }
@@ -245,6 +256,8 @@ public:
 	ControlType type() const { return type_; }
 	bool isArray() const { return size_ > 0; }
 	std::size_t size() const { return size_; }
+	bool isInput() const { return !!(direction_ & Direction::In); }
+	bool isOutput() const { return !!(direction_ & Direction::Out); }
 	const std::map<int32_t, std::string> &enumerators() const { return reverseMap_; }
 
 private:
@@ -255,9 +268,12 @@ private:
 	std::string vendor_;
 	ControlType type_;
 	std::size_t size_;
+	DirectionFlags direction_;
 	std::map<std::string, int32_t> enumStrMap_;
 	std::map<int32_t, std::string> reverseMap_;
 };
+
+LIBCAMERA_FLAGS_ENABLE_OPERATORS(ControlId::Direction)
 
 static inline bool operator==(unsigned int lhs, const ControlId &rhs)
 {
@@ -286,9 +302,11 @@ public:
 	using type = T;
 
 	Control(unsigned int id, const char *name, const char *vendor,
+		ControlId::DirectionFlags direction = ControlId::Direction::In
+						    | ControlId::Direction::Out,
 		const std::map<std::string, int32_t> &enumStrMap = {})
 		: ControlId(id, name, vendor, details::control_type<std::remove_cv_t<T>>::value,
-			    details::control_type<std::remove_cv_t<T>>::size, enumStrMap)
+			    details::control_type<std::remove_cv_t<T>>::size, direction, enumStrMap)
 	{
 	}
 
