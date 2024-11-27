@@ -102,6 +102,8 @@ private:
 	void sendCaptureResult(Camera3RequestDescriptor *request) const;
 	void setBufferStatus(StreamBuffer &buffer,
 			     StreamBuffer::Status status);
+	void generateJpegExifMetadata(Camera3RequestDescriptor *request,
+				      StreamBuffer *buffer) const;
 	std::unique_ptr<CameraMetadata> getResultMetadata(
 		const Camera3RequestDescriptor &descriptor) const;
 
