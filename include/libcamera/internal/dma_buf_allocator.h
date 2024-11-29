@@ -60,9 +60,14 @@ public:
 
 	explicit DmaSyncer(SharedFD fd, SyncType type = SyncType::ReadWrite);
 
+	DmaSyncer(DmaSyncer &&) = default;
+	DmaSyncer &operator=(DmaSyncer &&) = default;
+
 	~DmaSyncer();
 
 private:
+	LIBCAMERA_DISABLE_COPY(DmaSyncer)
+
 	void sync(uint64_t step);
 
 	SharedFD fd_;
