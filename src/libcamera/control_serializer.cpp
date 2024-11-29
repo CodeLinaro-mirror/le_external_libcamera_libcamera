@@ -281,6 +281,9 @@ int ControlSerializer::serialize(const ControlInfoMap &infoMap,
 		entry.id = id->id();
 		entry.type = id->type();
 		entry.offset = values.offset();
+		entry.direction =
+			(id->isInput() ? static_cast<uint8_t>(ControlId::Direction::In) : 0) |
+			(id->isOutput() ? static_cast<uint8_t>(ControlId::Direction::Out) : 0);
 		entries.write(&entry);
 
 		store(info, values);
@@ -493,12 +496,18 @@ ControlInfoMap ControlSerializer::deserialize<ControlInfoMap>(ByteStreamBuffer &
 
 		/* If we're using a local id map, populate it. */
 		if (localIdMap) {
+			ControlId::DirectionFlags flags;
+			if (entry->direction & static_cast<uint8_t>(ControlId::Direction::In))
+				flags |= ControlId::Direction::In;
+			if (entry->direction & static_cast<uint8_t>(ControlId::Direction::Out))
+				flags |= ControlId::Direction::Out;
 			/**
 			 * \todo Find a way to preserve the control name for
 			 * debugging purpose.
 			 */
 			controlIds_.emplace_back(std::make_unique<ControlId>(entry->id,
-									     "", "local", type));
+									     "", "local", type,
+									     flags));
 			(*localIdMap)[entry->id] = controlIds_.back().get();
 		}
 
