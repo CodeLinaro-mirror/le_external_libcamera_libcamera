@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <queue>
+#include <set>
 #include <string>
 #include <sys/types.h>
 #include <vector>
@@ -18,7 +19,11 @@
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
 
+#include "libcamera/internal/yaml_emitter.h"
+
 namespace libcamera {
+
+enum class Orientation;
 
 class Camera;
 class CameraConfiguration;
@@ -69,6 +74,9 @@ public:
 
 	CameraManager *cameraManager() const { return manager_; }
 
+	void dumpConfiguration(const std::set<const Stream *> &streams,
+			       const Orientation &orientation);
+
 protected:
 	void registerCamera(std::shared_ptr<Camera> camera);
 	void hotplugMediaDevice(MediaDevice *media);
@@ -82,6 +90,11 @@ protected:
 	CameraManager *manager_;
 
 private:
+	enum DumpMode {
+		Controls,
+		Metadata,
+	};
+
 	void unlockMediaDevices();
 
 	void mediaDeviceDisconnected(MediaDevice *media);
@@ -90,6 +103,8 @@ private:
 	void doQueueRequest(Request *request);
 	void doQueueRequests();
 
+	void dumpRequest(Request *request, DumpMode mode);
+
 	std::vector<std::shared_ptr<MediaDevice>> mediaDevices_;
 	std::vector<std::weak_ptr<Camera>> cameras_;
 
@@ -97,6 +112,14 @@ private:
 
 	const char *name_;
 	unsigned int useCount_;
+
+	YamlRoot controlsEmitter_;
+	YamlDict controlsDict_;
+	YamlList controlsList_;
+
+	YamlRoot metadataEmitter_;
+	YamlDict metadataDict_;
+	YamlList metadataList_;
 
 	friend class PipelineHandlerFactoryBase;
 };
