@@ -818,6 +818,7 @@ void PipelineHandler::dumpConfiguration(const std::set<const Stream *> &streams,
 	/* \todo Dump Sensor configuration */
 
 	YamlList streamsList = configurationDict.list("streams");
+	YamlList thatsanono = configurationDict.list("shouldntbehere");
 
 	for (const auto &stream : streams) {
 		const StreamConfiguration &streamConfig = stream->configuration();

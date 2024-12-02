@@ -561,12 +561,7 @@ YamlList::~YamlList()
  */
 YamlList YamlList::list()
 {
-	if (!parent_) {
-		LOG(YamlEmitter, Error)
-			<< "Invalid usage of the YamlEmitter API. "
-			<< " The YAML output might not be correct.";
-		return {};
-	}
+	ASSERT(parent_);
 
 	int ret = emitSequenceStart();
 	if (ret)
@@ -580,12 +575,7 @@ YamlList YamlList::list()
  */
 YamlDict YamlList::dict()
 {
-	if (!parent_) {
-		LOG(YamlEmitter, Error)
-			<< "Invalid usage of the YamlEmitter API. "
-			<< " The YAML output might not be correct.";
-		return {};
-	}
+	ASSERT(parent_);
 
 	int ret = emitMappingStart();
 	if (ret)
@@ -600,12 +590,7 @@ YamlDict YamlList::dict()
  */
 void YamlList::scalar(std::string_view scalar)
 {
-	if (!parent_) {
-		LOG(YamlEmitter, Error)
-			<< "Invalid usage of the YamlEmitter API. "
-			<< " The YAML output might not be correct.";
-		return;
-	}
+	ASSERT(parent_);
 
 	emitScalar(scalar);
 }
@@ -652,12 +637,7 @@ YamlDict::~YamlDict()
  */
 YamlList YamlDict::list(std::string_view key)
 {
-	if (!parent_) {
-		LOG(YamlEmitter, Error)
-			<< "Invalid usage of the YamlEmitter API. "
-			<< " The YAML output might not be correct.";
-		return {};
-	}
+	ASSERT(parent_);
 
 	int ret = emitScalar(key);
 	if (ret)
@@ -677,12 +657,7 @@ YamlList YamlDict::list(std::string_view key)
  */
 YamlDict YamlDict::dict(std::string_view key)
 {
-	if (!parent_) {
-		LOG(YamlEmitter, Error)
-			<< "Invalid usage of the YamlEmitter API. "
-			<< " The YAML output might not be correct.";
-		return {};
-	}
+	ASSERT(parent_);
 
 	int ret = emitScalar(key);
 	if (ret)
@@ -702,12 +677,7 @@ YamlDict YamlDict::dict(std::string_view key)
  */
 void YamlDict::scalar(std::string_view key, std::string_view scalar)
 {
-	if (!parent_) {
-		LOG(YamlEmitter, Error)
-			<< "Invalid usage of the YamlEmitter API. "
-			<< " The YAML output might not be correct.";
-		return;
-	}
+	ASSERT(parent_);
 
 	int ret = emitScalar(key);
 	if (ret)
