@@ -205,6 +205,10 @@ public:
 		iterator &operator++();
 		std::string operator*() const;
 		bool operator!=(const iterator &other) const;
+		bool operator==(const iterator &other) const
+		{
+			return !(*this != other);
+		}
 
 	private:
 		const StringSplitter *ss_;
