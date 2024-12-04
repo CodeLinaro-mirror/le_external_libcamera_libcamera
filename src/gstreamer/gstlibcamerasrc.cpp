@@ -268,6 +268,52 @@ GstLibcameraSrcState::requestCompleted(Request *request)
 	gst_task_resume(src_->task);
 }
 
+static void
+gst_libcamera_extrapolate_info(GstVideoInfo *info, guint32 stride)
+{
+	guint i, estride;
+	gsize offset = 0;
+
+	/* this should be updated if tiled formats get added in the future. */
+	for (i = 0; i < GST_VIDEO_INFO_N_PLANES(info); i++) {
+		estride = gst_video_format_info_extrapolate_stride(info->finfo, i, stride);
+		info->stride[i] = estride;
+		info->offset[i] = offset;
+		offset += estride * GST_VIDEO_FORMAT_INFO_SCALE_HEIGHT(info->finfo, i,
+								       GST_VIDEO_INFO_HEIGHT(info));
+	}
+}
+
+static GstFlowReturn
+gst_libcamera_video_frame_copy(GstBuffer *src, GstBuffer *dest, GstVideoInfo dest_info, guint32 stride)
+{
+	GstVideoInfo src_info = dest_info;
+	GstVideoFrame src_frame, dest_frame;
+
+	gst_libcamera_extrapolate_info(&src_info, stride);
+	src_info.size = gst_buffer_get_size(src);
+
+	if (!gst_video_frame_map(&src_frame, &src_info, src, GST_MAP_READ))
+		goto invalid_buffer;
+
+	if (!gst_video_frame_map(&dest_frame, &dest_info, dest, GST_MAP_WRITE)) {
+		gst_video_frame_unmap(&src_frame);
+		goto invalid_buffer;
+	}
+
+	gst_video_frame_copy(&dest_frame, &src_frame);
+
+	gst_video_frame_unmap(&src_frame);
+	gst_video_frame_unmap(&dest_frame);
+
+	return GST_FLOW_OK;
+
+invalid_buffer : {
+	GST_ERROR("Could not map buffer");
+	return GST_FLOW_ERROR;
+}
+}
+
 /* Must be called with stream_lock held. */
 int GstLibcameraSrcState::processRequest()
 {
@@ -292,11 +338,36 @@ int GstLibcameraSrcState::processRequest()
 	GstFlowReturn ret = GST_FLOW_OK;
 	gst_flow_combiner_reset(src_->flow_combiner);
 
-	for (GstPad *srcpad : srcpads_) {
+	for (gsize i = 0; i < src_->state->srcpads_.size(); i++) {
+		GstPad *srcpad = src_->state->srcpads_[i];
 		Stream *stream = gst_libcamera_pad_get_stream(srcpad);
 		GstBuffer *buffer = wrap->detachBuffer(stream);
 
 		FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
+		const StreamConfiguration &stream_cfg = src_->state->config_->at(i);
+		GstBufferPool *video_pool = gst_libcamera_pad_get_video_pool(srcpad);
+
+		if (video_pool) {
+			GstBuffer *copy = NULL;
+			GstVideoInfo info = gst_libcamera_pad_get_video_info(srcpad);
+
+			ret = gst_buffer_pool_acquire_buffer(video_pool, &copy, NULL);
+			if (ret != GST_FLOW_OK) {
+				GST_ERROR("Failed to acquire buffer");
+				gst_buffer_unref(buffer);
+				return -EPIPE;
+			}
+
+			ret = gst_libcamera_video_frame_copy(buffer, copy, info, stream_cfg.stride);
+			gst_buffer_unref(buffer);
+			if (ret != GST_FLOW_OK) {
+				GST_ERROR("Failed to copy buffer");
+				gst_buffer_unref(copy);
+				return -EPIPE;
+			}
+
+			buffer = copy;
+		}
 
 		if (GST_CLOCK_TIME_IS_VALID(wrap->pts_)) {
 			GST_BUFFER_PTS(buffer) = wrap->pts_;
@@ -497,13 +568,65 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 	for (gsize i = 0; i < state->srcpads_.size(); i++) {
 		GstPad *srcpad = state->srcpads_[i];
 		const StreamConfiguration &stream_cfg = state->config_->at(i);
+		GstBufferPool *video_pool = NULL;
+		GstVideoInfo info;
+
+		g_autoptr(GstCaps) caps = gst_libcamera_stream_configuration_to_caps(stream_cfg);
+
+		gst_video_info_init(&info);
+		gst_video_info_from_caps(&info, caps);
+		gst_libcamera_pad_set_video_info(srcpad, info);
+
+		/* stride mismatch between camera stride and that calculated by video-info */
+		if (static_cast<unsigned int>(info.stride[0]) != stream_cfg.stride &&
+		    GST_VIDEO_INFO_FORMAT(&info) != GST_VIDEO_FORMAT_ENCODED) {
+			GstQuery *query = NULL;
+			gboolean need_pool = true;
+			gboolean has_video_meta = false;
+
+			gst_libcamera_extrapolate_info(&info, stream_cfg.stride);
+
+			query = gst_query_new_allocation(caps, need_pool);
+			if (!gst_pad_peer_query(srcpad, query))
+				GST_DEBUG_OBJECT(self, "Didn't get downstream ALLOCATION hints");
+			else
+				has_video_meta = gst_query_find_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+
+			if (!has_video_meta) {
+				GstBufferPool *pool = NULL;
+
+				if (gst_query_get_n_allocation_pools(query) > 0)
+					gst_query_parse_nth_allocation_pool(query, 0, &pool, NULL, NULL, NULL);
+
+				if (pool)
+					video_pool = pool;
+				else {
+					GstStructure *config;
+					guint min_buffers = 3;
+					video_pool = gst_video_buffer_pool_new();
+
+					config = gst_buffer_pool_get_config(video_pool);
+					gst_buffer_pool_config_set_params(config, caps, info.size, min_buffers, 0);
+					gst_buffer_pool_set_config(GST_BUFFER_POOL_CAST(video_pool), config);
+					GST_DEBUG_OBJECT(self, "Own pool config is %" GST_PTR_FORMAT, config);
+				}
+
+				if (!gst_buffer_pool_set_active(video_pool, true)) {
+					GST_ERROR_OBJECT(self, "Failed to active buffer pool");
+					gst_caps_unref(caps);
+					return false;
+				}
+			}
+			gst_query_unref(query);
+		}
 
 		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator,
-								stream_cfg.stream());
+								stream_cfg.stream(), &info);
 		g_signal_connect_swapped(pool, "buffer-notify",
 					 G_CALLBACK(gst_task_resume), self->task);
 
 		gst_libcamera_pad_set_pool(srcpad, pool);
+		gst_libcamera_pad_set_video_pool(srcpad, video_pool);
 
 		/* Clear all reconfigure flags. */
 		gst_pad_check_reconfigure(srcpad);
@@ -919,6 +1042,12 @@ gst_libcamera_src_release_pad(GstElement *element, GstPad *pad)
 		auto begin_iterator = pads.begin();
 		auto end_iterator = pads.end();
 		auto pad_iterator = std::find(begin_iterator, end_iterator, pad);
+
+		GstBufferPool *video_pool = gst_libcamera_pad_get_video_pool(pad);
+		if (video_pool) {
+			gst_buffer_pool_set_active(video_pool, false);
+			gst_object_unref(video_pool);
+		}
 
 		if (pad_iterator != end_iterator) {
 			g_object_unref(*pad_iterator);
