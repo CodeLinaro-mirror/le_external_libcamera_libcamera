@@ -1324,42 +1324,45 @@ void CameraDevice::sendCaptureResults()
 		auto descriptor = std::move(descriptors_.front());
 		descriptors_.pop();
 
-		camera3_capture_result_t captureResult = {};
-
-		captureResult.frame_number = descriptor->frameNumber_;
-
-		if (descriptor->resultMetadata_)
-			captureResult.result =
-				descriptor->resultMetadata_->getMetadata();
-
-		std::vector<camera3_stream_buffer_t> resultBuffers;
-		resultBuffers.reserve(descriptor->buffers_.size());
-
-		for (auto &buffer : descriptor->buffers_) {
-			camera3_buffer_status status = CAMERA3_BUFFER_STATUS_ERROR;
-
-			if (buffer.status == StreamBuffer::Status::Success)
-				status = CAMERA3_BUFFER_STATUS_OK;
-
-			/*
-			 * Pass the buffer fence back to the camera framework as
-			 * a release fence. This instructs the framework to wait
-			 * on the acquire fence in case we haven't done so
-			 * ourselves for any reason.
-			 */
-			resultBuffers.push_back({ buffer.stream->camera3Stream(),
-						  buffer.camera3Buffer, status,
-						  -1, buffer.fence.release() });
-		}
-
-		captureResult.num_output_buffers = resultBuffers.size();
-		captureResult.output_buffers = resultBuffers.data();
-
-		if (descriptor->status_ == Camera3RequestDescriptor::Status::Success)
-			captureResult.partial_result = 1;
-
-		callbacks_->process_capture_result(callbacks_, &captureResult);
+		sendCaptureResult(descriptor.get());
 	}
+}
+
+void CameraDevice::sendCaptureResult(Camera3RequestDescriptor *request) const
+{
+	std::vector<camera3_stream_buffer_t> resultBuffers;
+	resultBuffers.reserve(request->buffers_.size());
+
+	for (auto &buffer : request->buffers_) {
+		camera3_buffer_status status = CAMERA3_BUFFER_STATUS_ERROR;
+
+		if (buffer.status == StreamBuffer::Status::Success)
+			status = CAMERA3_BUFFER_STATUS_OK;
+
+		/*
+		 * Pass the buffer fence back to the camera framework as
+		 * a release fence. This instructs the framework to wait
+		 * on the acquire fence in case we haven't done so
+		 * ourselves for any reason.
+		 */
+		resultBuffers.push_back({ buffer.stream->camera3Stream(),
+					  buffer.camera3Buffer, status,
+					  -1, buffer.fence.release() });
+	}
+
+	camera3_capture_result_t captureResult = {};
+
+	captureResult.frame_number = request->frameNumber_;
+	captureResult.num_output_buffers = resultBuffers.size();
+	captureResult.output_buffers = resultBuffers.data();
+
+	if (request->status_ == Camera3RequestDescriptor::Status::Success)
+		captureResult.partial_result = 1;
+
+	if (request->resultMetadata_)
+		captureResult.result = request->resultMetadata_->getMetadata();
+
+	callbacks_->process_capture_result(callbacks_, &captureResult);
 }
 
 void CameraDevice::setBufferStatus(StreamBuffer &streamBuffer,
