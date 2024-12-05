@@ -369,10 +369,6 @@ const YamlObject &YamlObject::operator[](std::size_t index) const
  *
  * \return True if an element exists, false otherwise
  */
-bool YamlObject::contains(std::string_view key) const
-{
-	return dictionary_.find(key) != dictionary_.end();
-}
 
 /**
  * \fn YamlObject::operator[](std::string_view key) const
@@ -387,14 +383,8 @@ bool YamlObject::contains(std::string_view key) const
  */
 const YamlObject &YamlObject::operator[](std::string_view key) const
 {
-	if (type_ != Type::Dictionary)
-		return empty;
-
-	auto iter = dictionary_.find(key);
-	if (iter == dictionary_.end())
-		return empty;
-
-	return *iter->second;
+	auto *child = find(key);
+	return child ? *child : empty;
 }
 
 /**

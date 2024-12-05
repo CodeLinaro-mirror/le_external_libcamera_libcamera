@@ -207,7 +207,11 @@ public:
 
 	const YamlObject &operator[](std::size_t index) const;
 
-	bool contains(std::string_view key) const;
+	bool contains(std::string_view key) const
+	{
+		return find(key);
+	}
+
 	const YamlObject &operator[](std::string_view key) const;
 	const YamlObject *find(std::string_view key) const;
 
