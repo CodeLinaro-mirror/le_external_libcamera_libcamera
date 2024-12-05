@@ -27,9 +27,10 @@ void HdrConfig::read(const libcamera::YamlObject &params, const std::string &mod
 {
 	name = modeName;
 
-	if (!params.contains("cadence"))
+	auto *c = params.find("cadence");
+	if (!c)
 		LOG(RPiHdr, Fatal) << "No cadence for HDR mode " << name;
-	cadence = params["cadence"].getList<unsigned int>().value();
+	cadence = c->getList<unsigned int>().value();
 	if (cadence.empty())
 		LOG(RPiHdr, Fatal) << "Empty cadence in HDR mode " << name;
 
@@ -41,10 +42,10 @@ void HdrConfig::read(const libcamera::YamlObject &params, const std::string &mod
 		channelMap[v.get<unsigned int>().value()] = k;
 
 	/* Lens shading related parameters. */
-	if (params.contains("spatial_gain_curve")) {
-		spatialGainCurve = params["spatial_gain_curve"].get<ipa::Pwl>(ipa::Pwl{});
-	} else if (params.contains("spatial_gain")) {
-		double spatialGain = params["spatial_gain"].get<double>(2.0);
+	if (auto *sgc = params.find("spatial_gain_curve")) {
+		spatialGainCurve = sgc->get<ipa::Pwl>(ipa::Pwl{});
+	} else if (auto *sg = params.find("spatial_gain")) {
+		double spatialGain = sg->get<double>(2.0);
 		spatialGainCurve.append(0.0, spatialGain);
 		spatialGainCurve.append(0.01, spatialGain);
 		spatialGainCurve.append(0.06, 1.0); /* maybe make this programmable? */
@@ -68,24 +69,24 @@ void HdrConfig::read(const libcamera::YamlObject &params, const std::string &mod
 	if (tonemapEnable)
 		tonemap = params["tonemap"].get<ipa::Pwl>(ipa::Pwl{});
 	speed = params["speed"].get<double>(1.0);
-	if (params.contains("hi_quantile_targets")) {
-		hiQuantileTargets = params["hi_quantile_targets"].getList<double>().value();
+	if (auto *hqt = params.find("hi_quantile_targets")) {
+		hiQuantileTargets = hqt->getList<double>().value();
 		if (hiQuantileTargets.empty() || hiQuantileTargets.size() % 2)
 			LOG(RPiHdr, Fatal) << "hi_quantile_targets much be even and non-empty";
 	} else
 		hiQuantileTargets = { 0.95, 0.65, 0.5, 0.28, 0.3, 0.25 };
 	hiQuantileMaxGain = params["hi_quantile_max_gain"].get<double>(1.6);
-	if (params.contains("quantile_targets")) {
-		quantileTargets = params["quantile_targets"].getList<double>().value();
+	if (auto *qt = params.find("quantile_targets")) {
+		quantileTargets = qt->getList<double>().value();
 		if (quantileTargets.empty() || quantileTargets.size() % 2)
 			LOG(RPiHdr, Fatal) << "quantile_targets much be even and non-empty";
 	} else
 		quantileTargets = { 0.2, 0.03, 1.0, 0.15 };
 	powerMin = params["power_min"].get<double>(0.65);
 	powerMax = params["power_max"].get<double>(1.0);
-	if (params.contains("contrast_adjustments")) {
-		contrastAdjustments = params["contrast_adjustments"].getList<double>().value();
-	} else
+	if (auto *ca = params.find("contrast_adjustments"))
+		contrastAdjustments = ca->getList<double>().value();
+	else
 		contrastAdjustments = { 0.5, 0.75 };
 
 	/* Read any stitch parameters. */

@@ -335,13 +335,14 @@ int IPAIPU3::init(const IPASettings &settings,
 		return -EINVAL;
 	}
 
-	if (!data->contains("algorithms")) {
+	auto *algos = data->find("algorithms");
+	if (!algos) {
 		LOG(IPAIPU3, Error)
 			<< "Tuning file doesn't contain any algorithm";
 		return -EINVAL;
 	}
 
-	int ret = createAlgorithms(context_, (*data)["algorithms"]);
+	int ret = createAlgorithms(context_, *algos);
 	if (ret)
 		return ret;
 

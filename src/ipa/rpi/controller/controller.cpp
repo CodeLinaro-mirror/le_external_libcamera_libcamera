@@ -111,14 +111,15 @@ int Controller::read(char const *filename)
 				return ret;
 		}
 	} else if (version < 3.0) {
-		if (!root->contains("algorithms")) {
+		auto *algos = root->find("algorithms");
+		if (!algos) {
 			LOG(RPiController, Error)
 				<< "Tuning file " << filename
 				<< " does not have an \"algorithms\" list!";
 			return -EINVAL;
 		}
 
-		for (auto const &rootAlgo : (*root)["algorithms"].asList())
+		for (auto const &rootAlgo : algos->asList())
 			for (auto const &[key, value] : rootAlgo.asDict()) {
 				int ret = createAlgorithm(key, value);
 				if (ret)

@@ -97,39 +97,35 @@ void Af::SpeedDependentParams::read(const libcamera::YamlObject &params)
 
 int Af::CfgParams::read(const libcamera::YamlObject &params)
 {
-	if (params.contains("ranges")) {
-		auto &rr = params["ranges"];
-
-		if (rr.contains("normal"))
-			ranges[AfRangeNormal].read(rr["normal"]);
+	if (auto *rs = params.find("ranges")) {
+		if (auto *normal = rs->find("normal"))
+			ranges[AfRangeNormal].read(*normal);
 		else
 			LOG(RPiAf, Warning) << "Missing range \"normal\"";
 
 		ranges[AfRangeMacro] = ranges[AfRangeNormal];
-		if (rr.contains("macro"))
-			ranges[AfRangeMacro].read(rr["macro"]);
+		if (auto *macro = rs->find("macro"))
+			ranges[AfRangeMacro].read(*macro);
 
 		ranges[AfRangeFull].focusMin = std::min(ranges[AfRangeNormal].focusMin,
 							ranges[AfRangeMacro].focusMin);
 		ranges[AfRangeFull].focusMax = std::max(ranges[AfRangeNormal].focusMax,
 							ranges[AfRangeMacro].focusMax);
 		ranges[AfRangeFull].focusDefault = ranges[AfRangeNormal].focusDefault;
-		if (rr.contains("full"))
-			ranges[AfRangeFull].read(rr["full"]);
+		if (auto *full = rs->find("full"))
+			ranges[AfRangeFull].read(*full);
 	} else
 		LOG(RPiAf, Warning) << "No ranges defined";
 
-	if (params.contains("speeds")) {
-		auto &ss = params["speeds"];
-
-		if (ss.contains("normal"))
-			speeds[AfSpeedNormal].read(ss["normal"]);
+	if (auto *ss = params.find("speeds")) {
+		if (auto *normal = ss->find("normal"))
+			speeds[AfSpeedNormal].read(*normal);
 		else
 			LOG(RPiAf, Warning) << "Missing speed \"normal\"";
 
 		speeds[AfSpeedFast] = speeds[AfSpeedNormal];
-		if (ss.contains("fast"))
-			speeds[AfSpeedFast].read(ss["fast"]);
+		if (auto *fast = ss->find("fast"))
+			speeds[AfSpeedFast].read(*fast);
 	} else
 		LOG(RPiAf, Warning) << "No speeds defined";
 
@@ -138,8 +134,8 @@ int Af::CfgParams::read(const libcamera::YamlObject &params)
 	readNumber<uint32_t>(confClip, params, "conf_clip");
 	readNumber<uint32_t>(skipFrames, params, "skip_frames");
 
-	if (params.contains("map"))
-		map = params["map"].get<ipa::Pwl>(ipa::Pwl{});
+	if (auto *m = params.find("map"))
+		map = m->get<ipa::Pwl>(ipa::Pwl{});
 	else
 		LOG(RPiAf, Warning) << "No map defined";
 

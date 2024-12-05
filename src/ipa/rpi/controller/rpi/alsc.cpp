@@ -104,9 +104,9 @@ static int readCalibrations(std::vector<AlscCalibration> &calibrations,
 			    const libcamera::YamlObject &params,
 			    std::string const &name, const Size &size)
 {
-	if (params.contains(name)) {
+	if (auto *param = params.find(name)) {
 		double lastCt = 0;
-		for (const auto &p : params[name].asList()) {
+		for (const auto &p : param->asList()) {
 			auto value = p["ct"].get<double>();
 			if (!value)
 				return -EINVAL;
@@ -163,10 +163,10 @@ int Alsc::read(const libcamera::YamlObject &params)
 	config_.luminanceLut.resize(config_.tableSize, 1.0);
 	int ret = 0;
 
-	if (params.contains("corner_strength"))
+	if (params.find("corner_strength"))
 		ret = generateLut(config_.luminanceLut, params);
-	else if (params.contains("luminance_lut"))
-		ret = readLut(config_.luminanceLut, params["luminance_lut"]);
+	else if (auto *ll = params.find("luminance_lut"))
+		ret = readLut(config_.luminanceLut, *ll);
 	else
 		LOG(RPiAlsc, Warning)
 			<< "no luminance table - assume unity everywhere";

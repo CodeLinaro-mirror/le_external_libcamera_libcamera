@@ -236,8 +236,8 @@ int AgcConfig::read(const libcamera::YamlObject &params)
 	if (ret)
 		return ret;
 
-	if (params.contains("channel_constraints")) {
-		ret = readChannelConstraints(channelConstraints, params["channel_constraints"]);
+	if (auto *cc = params.find("channel_constraints")) {
+		ret = readChannelConstraints(channelConstraints, *cc);
 		if (ret)
 			return ret;
 	}

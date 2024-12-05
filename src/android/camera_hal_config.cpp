@@ -73,15 +73,14 @@ int CameraHalConfig::Private::parseConfigFile(File &file,
 		return -EINVAL;
 
 	/* Parse property "cameras" */
-	if (!root->contains("cameras"))
+	auto *yamlObjectCameras = root->find("cameras");
+	if (!yamlObjectCameras)
 		return -EINVAL;
 
-	const YamlObject &yamlObjectCameras = (*root)["cameras"];
-
-	if (!yamlObjectCameras.isDictionary())
+	if (!yamlObjectCameras->isDictionary())
 		return -EINVAL;
 
-	for (const auto &[cameraId, configData] : yamlObjectCameras.asDict()) {
+	for (const auto &[cameraId, configData] : yamlObjectCameras->asDict()) {
 		if (parseCameraConfigData(cameraId, configData))
 			return -EINVAL;
 	}
@@ -112,10 +111,11 @@ int CameraHalConfig::Private::parseCameraConfigData(const std::string &cameraId,
 int CameraHalConfig::Private::parseLocation(const YamlObject &cameraObject,
 					    CameraConfigData &cameraConfigData)
 {
-	if (!cameraObject.contains("location"))
+	auto *loc = cameraObject.find("location");
+	if (!loc)
 		return -EINVAL;
 
-	std::string location = cameraObject["location"].get<std::string>("");
+	std::string location = loc->get<std::string>("");
 
 	if (location == "front")
 		cameraConfigData.facing = CAMERA_FACING_FRONT;
@@ -130,10 +130,11 @@ int CameraHalConfig::Private::parseLocation(const YamlObject &cameraObject,
 int CameraHalConfig::Private::parseRotation(const YamlObject &cameraObject,
 					    CameraConfigData &cameraConfigData)
 {
-	if (!cameraObject.contains("rotation"))
+	auto *rot = cameraObject.find("rotation");
+	if (!rot)
 		return -EINVAL;
 
-	int32_t rotation = cameraObject["rotation"].get<int32_t>(-1);
+	int32_t rotation = rot->get<int32_t>(-1);
 
 	if (rotation < 0 || rotation >= 360) {
 		LOG(HALConfig, Error)

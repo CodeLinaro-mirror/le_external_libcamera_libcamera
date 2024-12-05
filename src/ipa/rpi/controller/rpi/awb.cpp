@@ -102,8 +102,8 @@ int AwbConfig::read(const libcamera::YamlObject &params)
 	convergenceFrames = params["convergence_frames"].get<unsigned int>(3);
 	speed = params["speed"].get<double>(0.05);
 
-	if (params.contains("ct_curve")) {
-		ret = readCtCurve(ctR, ctB, params["ct_curve"]);
+	if (auto *ct_curve = params.find("ct_curve")) {
+		ret = readCtCurve(ctR, ctB, *ct_curve);
 		if (ret)
 			return ret;
 		/* We will want the inverse functions of these too. */
@@ -111,8 +111,8 @@ int AwbConfig::read(const libcamera::YamlObject &params)
 		ctBInverse = ctB.inverse().first;
 	}
 
-	if (params.contains("priors")) {
-		for (const auto &p : params["priors"].asList()) {
+	if (auto *ps = params.find("priors")) {
+		for (const auto &p : ps->asList()) {
 			AwbPrior prior;
 			ret = prior.read(p);
 			if (ret)
@@ -128,8 +128,8 @@ int AwbConfig::read(const libcamera::YamlObject &params)
 			return -EINVAL;
 		}
 	}
-	if (params.contains("modes")) {
-		for (const auto &[key, value] : params["modes"].asDict()) {
+	if (auto *ms = params.find("modes")) {
+		for (const auto &[key, value] : ms->asDict()) {
 			ret = modes[key].read(value);
 			if (ret)
 				return ret;

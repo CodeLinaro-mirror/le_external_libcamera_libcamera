@@ -80,39 +80,39 @@ int DefectPixelClusterCorrection::init([[maybe_unused]] IPAContext &context,
 		/* PG Method */
 		const YamlObject &pgObject = set["pg-factor"];
 
-		if (pgObject.contains("green")) {
+		if (auto *green = pgObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_PG_GREEN_ENABLE;
 
-			value = pgObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			method.pg_fac |= RKISP1_CIF_ISP_DPCC_PG_FAC_G(value);
 		}
 
-		if (pgObject.contains("red-blue")) {
+		if (auto *redBlue = pgObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_PG_RED_BLUE_ENABLE;
 
-			value = pgObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			method.pg_fac |= RKISP1_CIF_ISP_DPCC_PG_FAC_RB(value);
 		}
 
 		/* RO Method */
 		const YamlObject &roObject = set["ro-limits"];
 
-		if (roObject.contains("green")) {
+		if (auto *green = roObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RO_GREEN_ENABLE;
 
-			value = roObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			config_.ro_limits |=
 				RKISP1_CIF_ISP_DPCC_RO_LIMITS_n_G(i, value);
 		}
 
-		if (roObject.contains("red-blue")) {
+		if (auto *redBlue = roObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RO_RED_BLUE_ENABLE;
 
-			value = roObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			config_.ro_limits |=
 				RKISP1_CIF_ISP_DPCC_RO_LIMITS_n_RB(i, value);
 		}
@@ -121,39 +121,39 @@ int DefectPixelClusterCorrection::init([[maybe_unused]] IPAContext &context,
 		const YamlObject &rgObject = set["rg-factor"];
 		method.rg_fac = 0;
 
-		if (rgObject.contains("green")) {
+		if (auto *green = rgObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RG_GREEN_ENABLE;
 
-			value = rgObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			method.rg_fac |= RKISP1_CIF_ISP_DPCC_RG_FAC_G(value);
 		}
 
-		if (rgObject.contains("red-blue")) {
+		if (auto *redBlue = rgObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RG_RED_BLUE_ENABLE;
 
-			value = rgObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			method.rg_fac |= RKISP1_CIF_ISP_DPCC_RG_FAC_RB(value);
 		}
 
 		/* RND Method */
 		const YamlObject &rndOffsetsObject = set["rnd-offsets"];
 
-		if (rndOffsetsObject.contains("green")) {
+		if (auto *green = rndOffsetsObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RND_GREEN_ENABLE;
 
-			value = rndOffsetsObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			config_.rnd_offs |=
 				RKISP1_CIF_ISP_DPCC_RND_OFFS_n_G(i, value);
 		}
 
-		if (rndOffsetsObject.contains("red-blue")) {
+		if (auto *redBlue = rndOffsetsObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RND_RED_BLUE_ENABLE;
 
-			value = rndOffsetsObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			config_.rnd_offs |=
 				RKISP1_CIF_ISP_DPCC_RND_OFFS_n_RB(i, value);
 		}
@@ -161,20 +161,20 @@ int DefectPixelClusterCorrection::init([[maybe_unused]] IPAContext &context,
 		const YamlObject &rndThresholdObject = set["rnd-threshold"];
 		method.rnd_thresh = 0;
 
-		if (rndThresholdObject.contains("green")) {
+		if (auto *green = rndThresholdObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RND_GREEN_ENABLE;
 
-			value = rndThresholdObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			method.rnd_thresh |=
 				RKISP1_CIF_ISP_DPCC_RND_THRESH_G(value);
 		}
 
-		if (rndThresholdObject.contains("red-blue")) {
+		if (auto *redBlue = rndThresholdObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_RND_RED_BLUE_ENABLE;
 
-			value = rndThresholdObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			method.rnd_thresh |=
 				RKISP1_CIF_ISP_DPCC_RND_THRESH_RB(value);
 		}
@@ -183,20 +183,20 @@ int DefectPixelClusterCorrection::init([[maybe_unused]] IPAContext &context,
 		const YamlObject &lcThresholdObject = set["line-threshold"];
 		method.line_thresh = 0;
 
-		if (lcThresholdObject.contains("green")) {
+		if (auto *green = lcThresholdObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_LC_GREEN_ENABLE;
 
-			value = lcThresholdObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			method.line_thresh |=
 				RKISP1_CIF_ISP_DPCC_LINE_THRESH_G(value);
 		}
 
-		if (lcThresholdObject.contains("red-blue")) {
+		if (auto *redBlue = lcThresholdObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_LC_RED_BLUE_ENABLE;
 
-			value = lcThresholdObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			method.line_thresh |=
 				RKISP1_CIF_ISP_DPCC_LINE_THRESH_RB(value);
 		}
@@ -204,20 +204,20 @@ int DefectPixelClusterCorrection::init([[maybe_unused]] IPAContext &context,
 		const YamlObject &lcTMadFactorObject = set["line-mad-factor"];
 		method.line_mad_fac = 0;
 
-		if (lcTMadFactorObject.contains("green")) {
+		if (auto *green = lcTMadFactorObject.find("green")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_LC_GREEN_ENABLE;
 
-			value = lcTMadFactorObject["green"].get<uint16_t>(0);
+			value = green->get<uint16_t>(0);
 			method.line_mad_fac |=
 				RKISP1_CIF_ISP_DPCC_LINE_MAD_FAC_G(value);
 		}
 
-		if (lcTMadFactorObject.contains("red-blue")) {
+		if (auto *redBlue = lcTMadFactorObject.find("red-blue")) {
 			method.method |=
 				RKISP1_CIF_ISP_DPCC_METHODS_SET_LC_RED_BLUE_ENABLE;
 
-			value = lcTMadFactorObject["red-blue"].get<uint16_t>(0);
+			value = redBlue->get<uint16_t>(0);
 			method.line_mad_fac |=
 				RKISP1_CIF_ISP_DPCC_LINE_MAD_FAC_RB(value);
 		}

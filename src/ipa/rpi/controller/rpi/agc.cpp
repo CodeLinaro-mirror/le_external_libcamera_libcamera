@@ -37,18 +37,18 @@ int Agc::read(const libcamera::YamlObject &params)
 	 * When there is only a single channel we can read the old style syntax.
 	 * Otherwise we expect a "channels" keyword followed by a list of configurations.
 	 */
-	if (!params.contains("channels")) {
+	auto *channels = params.find("channels");
+	if (!channels) {
 		LOG(RPiAgc, Debug) << "Single channel only";
 		channelTotalExposures_.resize(1, 0s);
 		channelData_.emplace_back();
 		return channelData_.back().channel.read(params, getHardwareConfig());
 	}
 
-	const auto &channels = params["channels"].asList();
-	for (auto ch = channels.begin(); ch != channels.end(); ch++) {
+	for (const auto &ch : channels->asList()) {
 		LOG(RPiAgc, Debug) << "Read AGC channel";
 		channelData_.emplace_back();
-		int ret = channelData_.back().channel.read(*ch, getHardwareConfig());
+		int ret = channelData_.back().channel.read(ch, getHardwareConfig());
 		if (ret)
 			return ret;
 	}

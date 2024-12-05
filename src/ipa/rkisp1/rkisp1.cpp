@@ -191,13 +191,14 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 		return -EINVAL;
 	}
 
-	if (!data->contains("algorithms")) {
+	auto *algos = data->find("algorithms");
+	if (!algos) {
 		LOG(IPARkISP1, Error)
 			<< "Tuning file doesn't contain any algorithm";
 		return -EINVAL;
 	}
 
-	int ret = createAlgorithms(context_, (*data)["algorithms"]);
+	int ret = createAlgorithms(context_, *algos);
 	if (ret)
 		return ret;
 

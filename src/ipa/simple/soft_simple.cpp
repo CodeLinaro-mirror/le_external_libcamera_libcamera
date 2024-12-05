@@ -125,12 +125,13 @@ int IPASoftSimple::init(const IPASettings &settings,
 	unsigned int version = (*data)["version"].get<uint32_t>(0);
 	LOG(IPASoft, Debug) << "Tuning file version " << version;
 
-	if (!data->contains("algorithms")) {
+	auto *algos = data->find("algorithms");
+	if (!algos) {
 		LOG(IPASoft, Error) << "Tuning file doesn't contain algorithms";
 		return -EINVAL;
 	}
 
-	int ret = createAlgorithms(context_, (*data)["algorithms"]);
+	int ret = createAlgorithms(context_, *algos);
 	if (ret)
 		return ret;
 
