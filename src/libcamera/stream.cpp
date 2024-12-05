@@ -396,6 +396,19 @@ std::string StreamConfiguration::toString() const
 }
 
 /**
+ * \brief Insert a text representation of a StreamConfiguration into an output
+ * stream
+ * \param[in] out The output stream
+ * \param[in] cfg The StreamConfiguration
+ * \return The output stream \a out
+ */
+std::ostream &operator<<(std::ostream &out, StreamConfiguration cfg)
+{
+	out << cfg.toString();
+	return out;
+}
+
+/**
  * \enum StreamRole
  * \brief Identify the role a stream is intended to play
  *
