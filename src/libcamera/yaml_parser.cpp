@@ -397,6 +397,29 @@ const YamlObject &YamlObject::operator[](std::string_view key) const
 	return *iter->second;
 }
 
+/**
+ * \fn YamlObject::find(std::string_view key) const
+ * \brief Retrieve a member by name from the dictionary
+ *
+ * This function retrieves a member of a YamlObject by name. Only YamlObject
+ * instances of Dictionary type associate elements with names, calling this
+ * function on other types of instances or with a nonexistent key results in
+ * \a nullptr being returned.
+ *
+ * \return The YamlObject corresponding to the \a key member
+ */
+const YamlObject *YamlObject::find(std::string_view key) const
+{
+	if (type_ != Type::Dictionary)
+		return nullptr;
+
+	auto iter = dictionary_.find(key);
+	if (iter == dictionary_.end())
+		return nullptr;
+
+	return iter->second;
+}
+
 #ifndef __DOXYGEN__
 
 class YamlParserContext

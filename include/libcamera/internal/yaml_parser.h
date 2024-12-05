@@ -209,6 +209,7 @@ public:
 
 	bool contains(std::string_view key) const;
 	const YamlObject &operator[](std::string_view key) const;
+	const YamlObject *find(std::string_view key) const;
 
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(YamlObject)
