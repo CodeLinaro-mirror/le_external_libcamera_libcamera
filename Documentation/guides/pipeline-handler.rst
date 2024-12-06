@@ -1431,18 +1431,28 @@ classes documentation.
 .. _libcamera Signal and Slot: https://libcamera.org/api-html/classlibcamera_1_1Signal.html#details
 
 In order to notify applications about the availability of new frames and data,
-the ``Camera`` device exposes two ``Signals`` to which applications can connect
-to be notified of frame completion events. The ``bufferComplete`` signal serves
-to report to applications the completion event of a single ``Stream`` part of a
-``Request``, while the ``requestComplete`` signal notifies the completion of all
-the ``Streams`` and data submitted as part of a request. This mechanism allows
+the ``Camera`` device exposes three ``Signals`` to which applications can
+connect to be notified of frame completion and metadata availability events.
+
+The ``metadataAvailable`` signal serves to notify about the availability of
+metadata and accumulates metadata results in the list of metadata associated
+with a ``Request``.  The ``bufferComplete`` signal serves to report to
+applications the completion event of a single ``Stream`` part of a ``Request``,
+while the ``requestComplete`` signal notifies the completion of all the
+``Streams`` and data submitted as part of a request. This mechanism allows
 implementation of partial request completion, which allows an application to
 inspect completed buffers associated with the single streams without waiting for
 all of them to be ready.
 
-The ``bufferComplete`` and ``requestComplete`` signals are emitted by the
-``Camera`` device upon notifications received from the pipeline handler, which
-tracks the buffers and request completion status.
+The ``metadataAvailable``, ``bufferComplete`` and ``requestComplete`` signals
+are emitted by the ``Camera`` device upon notifications received from the
+pipeline handler, which tracks the metadata, buffers and request completion
+status.
+
+Metadata availability is signalled by the pipeline handlers by calling the
+PipelineHandler base class ``metadataAvailable`` function. This function
+notifies applications about metadata availability and accumulates metadata
+results in the ``Request::metadata()`` list.
 
 The single buffer completion notification is implemented by pipeline handlers by
 `connecting`_ the ``bufferReady`` signal of the capture devices they have queued
