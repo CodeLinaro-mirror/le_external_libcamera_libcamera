@@ -431,7 +431,7 @@ void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &meta
 	if (!info)
 		return;
 
-	info->request->metadata().merge(metadata);
+	pipe()->metadataAvailable(info->request, metadata);
 	info->metadataProcessed = true;
 
 	pipe()->tryCompleteRequest(info);
@@ -1414,8 +1414,8 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		 * \todo The sensor timestamp should be better estimated by connecting
 		 * to the V4L2Device::frameStart signal.
 		 */
-		request->metadata().set(controls::SensorTimestamp,
-					metadata.timestamp);
+		metadataAvailable(request, controls::SensorTimestamp,
+				  static_cast<int64_t>(metadata.timestamp));
 
 		if (isRaw_) {
 			const ControlList &ctrls =
@@ -1487,7 +1487,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		LOG(RkISP1, Error) << "Cannot queue buffers to dewarper: "
 				   << strerror(-ret);
 
-	request->metadata().set(controls::ScalerCrop, activeCrop_.value());
+	metadataAvailable(request, controls::ScalerCrop, activeCrop_.value());
 }
 
 void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
