@@ -36,6 +36,7 @@
 
 namespace libcamera {
 
+class ClockRecovery;
 class EventNotifier;
 class MediaDevice;
 class MediaEntity;
@@ -231,6 +232,8 @@ public:
 
 	V4L2PixelFormat toV4L2PixelFormat(const PixelFormat &pixelFormat) const;
 
+	void enableWallClock(ClockRecovery *wallClockRecovery);
+
 protected:
 	std::string logPrefix() const override;
 
@@ -289,6 +292,8 @@ private:
 
 	Timer watchdog_;
 	utils::Duration watchdogDuration_;
+
+	ClockRecovery *wallClockRecovery_;
 };
 
 class V4L2M2MDevice

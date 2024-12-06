@@ -35,6 +35,7 @@ struct FrameMetadata {
 	Status status;
 	unsigned int sequence;
 	uint64_t timestamp;
+	uint64_t wallClock;
 
 	Span<Plane> planes() { return planes_; }
 	Span<const Plane> planes() const { return planes_; }

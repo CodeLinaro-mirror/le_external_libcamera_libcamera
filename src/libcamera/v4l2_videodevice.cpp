@@ -26,6 +26,7 @@
 #include <libcamera/base/unique_fd.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/clock_recovery.h"
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
@@ -534,7 +535,7 @@ std::ostream &operator<<(std::ostream &out, const V4L2DeviceFormat &f)
 V4L2VideoDevice::V4L2VideoDevice(const std::string &deviceNode)
 	: V4L2Device(deviceNode), formatInfo_(nullptr), cache_(nullptr),
 	  fdBufferNotifier_(nullptr), state_(State::Stopped),
-	  watchdogDuration_(0.0)
+	  watchdogDuration_(0.0), wallClockRecovery_(nullptr)
 {
 	/*
 	 * We default to an MMAP based CAPTURE video device, however this will
@@ -1889,6 +1890,17 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 	metadata.timestamp = buf.timestamp.tv_sec * 1000000000ULL
 			   + buf.timestamp.tv_usec * 1000ULL;
 
+	metadata.wallClock = 0;
+	if (wallClockRecovery_) {
+		/*
+		 * Sample the internal (CLOCK_BOOTTIME) and realtime (CLOCK_REALTIME) clocks and
+		 * update the clock recovery model. Then derive the wallclock estimate for the
+		 * frame timestamp.
+		 */
+		wallClockRecovery_->addSample();
+		metadata.wallClock = wallClockRecovery_->getOutput(metadata.timestamp / 1000);
+	}
+
 	if (V4L2_TYPE_IS_OUTPUT(buf.type))
 		return buffer;
 
@@ -1987,6 +1999,11 @@ int V4L2VideoDevice::streamOn()
 		LOG(V4L2, Error)
 			<< "Failed to start streaming: " << strerror(-ret);
 		return ret;
+	}
+
+	if (wallClockRecovery_) {
+		/* A good moment to sample the clocks to improve the clock recovery model. */
+		wallClockRecovery_->addSample();
 	}
 
 	state_ = State::Streaming;
@@ -2142,6 +2159,23 @@ V4L2PixelFormat V4L2VideoDevice::toV4L2PixelFormat(const PixelFormat &pixelForma
 	}
 
 	return {};
+}
+
+/**
+ * \brief Enable wall clock timestamps for this device
+ * \param[in] wallClockRecovery an appropriately configured ClockRecovery, or
+ * nullptr to disable wall clocks
+ *
+ * When buffers are dequeued, wall clock timestamps will be generated that
+ * correspond to the frame's timestamp, as returned by V4l2.
+ */
+void V4L2VideoDevice::enableWallClock(ClockRecovery *wallClockRecovery)
+{
+	wallClockRecovery_ = wallClockRecovery;
+
+	/* Also a reasonable moment to sample the two clocks. */
+	if (wallClockRecovery_)
+		wallClockRecovery_->addSample();
 }
 
 /**
