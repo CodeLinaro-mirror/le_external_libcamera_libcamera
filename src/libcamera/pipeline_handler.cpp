@@ -548,7 +548,7 @@ void PipelineHandler::metadataAvailable(Request *request, const ControlList &met
 	if (ids.empty())
 		return;
 
-	request->metadata().merge(metadata);
+	request->_d()->metadata().merge(metadata);
 
 	Camera *camera = request->_d()->camera();
 	camera->metadataAvailable.emit(request, ids);

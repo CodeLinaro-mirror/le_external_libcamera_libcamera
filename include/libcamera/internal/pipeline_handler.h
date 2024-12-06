@@ -74,7 +74,7 @@ public:
 		std::unordered_set<const ControlId *> ids;
 		ids.insert(&ctrl);
 
-		request->metadata().set<T, T>(ctrl, value);
+		request->_d()->metadata().set<T, T>(ctrl, value);
 
 		Camera *camera = request->_d()->camera();
 		camera->metadataAvailable.emit(request, ids);
@@ -92,7 +92,7 @@ public:
 		std::unordered_set<const ControlId *> ids;
 		ids.insert(&ctrl);
 
-		request->metadata().set(ctrl, value);
+		request->_d()->metadata().set(ctrl, value);
 
 		Camera *camera = request->_d()->camera();
 		camera->metadataAvailable.emit(request, ids);

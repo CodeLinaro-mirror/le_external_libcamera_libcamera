@@ -42,7 +42,8 @@ public:
 
 	void resetMetadata()
 	{
-		_o<Request>()->metadata().clear();
+		ControlList &data = metadata();
+		data.clear();
 	}
 
 	void prepare(std::chrono::milliseconds timeout = 0ms);
@@ -51,6 +52,8 @@ public:
 private:
 	friend class PipelineHandler;
 	friend std::ostream &operator<<(std::ostream &out, const Request &r);
+
+	ControlList &metadata() { return _o<Request>()->metadataRW(); }
 
 	void doCancelRequest();
 	void emitPrepareCompleted();
