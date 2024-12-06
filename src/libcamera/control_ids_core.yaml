@@ -283,7 +283,19 @@ controls:
       description: |
         Enable or disable the AWB.
 
+        When AWB is enabled, the algorithm estimates the colour temperature of
+        the scene, and computes colour gains and the colour correction matrix
+        automatically. The computed colour temperate, gains and correction
+        matrix are reported in metadata. The corresponding controls are ignored
+        if set in a request.
+
+        When AWB is disabled, the colour temperature, gains and correction
+        matrix are not updated automatically and can be set manually in
+        requests.
+
+        \sa ColourCorrectionMatrix
         \sa ColourGains
+        \sa ColourTemperature
 
   # AwbMode needs further attention:
   # - Auto-generate max enum value.
@@ -341,14 +353,25 @@ controls:
         ColourGains can only be applied in a Request when the AWB is disabled.
 
         \sa AwbEnable
+        \sa ColourTemperature
       size: [2]
 
   - ColourTemperature:
       type: int32_t
       description: |
-        Report the estimate of the colour temperature for the frame, in kelvin.
+        Report the current estimate of the colour temperature, in kelvin, for
+        this frame. An implementation may allow this control to be set when AWB
+        is disabled. In that case ColourGains and the ColourCorrectionMatrix get
+        set accordingly. If ColourGains and ColourTemperature are specified at
+        the same time, ColourGains takes precedence. The same applies to
+        ColourCorrectionMatrix.
 
-        The ColourTemperature control can only be returned in metadata.
+        The metadata will only report measured colour temperature values when
+        available, even if set manually.
+
+        \sa AwbEnable
+        \sa ColourCorrectionMatrix
+        \sa ColourGains
 
   - Saturation:
       type: float
@@ -405,6 +428,8 @@ controls:
         stored in conventional reading order in an array of 9 floating point
         values.
 
+        \sa AwbEnable
+        \sa ColourTemperature
       size: [3,3]
 
   - ScalerCrop:
