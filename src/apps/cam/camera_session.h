@@ -53,6 +53,8 @@ private:
 	int startCapture();
 
 	int queueRequest(libcamera::Request *request);
+	void metadataAvailable(libcamera::Request *request,
+			       std::unordered_set<const libcamera::ControlId *> ids);
 	void requestComplete(libcamera::Request *request);
 	void processRequest(libcamera::Request *request);
 	void sinkRelease(libcamera::Request *request);

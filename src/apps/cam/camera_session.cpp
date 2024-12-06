@@ -246,6 +246,7 @@ int CameraSession::start()
 					   + "-stream" + std::to_string(index);
 	}
 
+	camera_->metadataAvailable.connect(this, &CameraSession::metadataAvailable);
 	camera_->requestCompleted.connect(this, &CameraSession::requestComplete);
 
 #ifdef HAVE_KMS
@@ -405,6 +406,22 @@ int CameraSession::queueRequest(Request *request)
 	queueCount_++;
 
 	return camera_->queueRequest(request);
+}
+
+void CameraSession::metadataAvailable(Request *request,
+				      std::unordered_set<const ControlId *> ids)
+{
+	const ControlList &metadata = request->metadata();
+
+	std::cerr << "EARLY METADATA COMPLETION FOR REQUEST: "
+		  << request->sequence() << std::endl;
+
+	for (const auto id : ids) {
+		const ControlValue &value = metadata.get(id->id());
+
+		std::cout << "\t" << id->name() << " = "
+			  << value.toString() << std::endl;
+	}
 }
 
 void CameraSession::requestComplete(Request *request)
