@@ -41,6 +41,13 @@ public:
 
 	using Features = Flags<Feature>;
 
+	enum class Alignment {
+		Down = 0,
+		Up = (1 << 0),
+	};
+
+	using Alignments = Flags<Alignment>;
+
 	Converter(MediaDevice *media, Features features = Feature::None);
 	virtual ~Converter();
 
@@ -51,8 +58,18 @@ public:
 	virtual std::vector<PixelFormat> formats(PixelFormat input) = 0;
 	virtual SizeRange sizes(const Size &input) = 0;
 
+	virtual Size adjustInputSize(const PixelFormat &pixFmt,
+				     const Size &size,
+				     Alignments align = Alignment::Down) = 0;
+	virtual Size adjustOutputSize(const PixelFormat &pixFmt,
+				      const Size &size,
+				      Alignments align = Alignment::Down) = 0;
+
 	virtual std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &pixelFormat, const Size &size) = 0;
+
+	virtual int validateOutput(StreamConfiguration *cfg, bool *adjusted,
+				   Alignments align = Alignment::Down) = 0;
 
 	virtual int configure(const StreamConfiguration &inputCfg,
 			      const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs) = 0;
