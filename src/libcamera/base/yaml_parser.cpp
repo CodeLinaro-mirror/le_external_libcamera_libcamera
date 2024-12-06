@@ -149,13 +149,12 @@ YamlObject::Getter<bool>::get(const YamlObject &obj) const
 
 template<typename T>
 struct YamlObject::Getter<T, std::enable_if_t<
-	std::is_same_v<int8_t, T> ||
-	std::is_same_v<uint8_t, T> ||
-	std::is_same_v<int16_t, T> ||
-	std::is_same_v<uint16_t, T> ||
-	std::is_same_v<int32_t, T> ||
-	std::is_same_v<uint32_t, T>>>
-{
+				     std::is_same_v<int8_t, T> ||
+				     std::is_same_v<uint8_t, T> ||
+				     std::is_same_v<int16_t, T> ||
+				     std::is_same_v<uint16_t, T> ||
+				     std::is_same_v<int32_t, T> ||
+				     std::is_same_v<uint32_t, T>>> {
 	std::optional<T> get(const YamlObject &obj) const
 	{
 		if (obj.type_ != Type::Value)

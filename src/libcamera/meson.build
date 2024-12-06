@@ -53,7 +53,6 @@ libcamera_internal_sources = files([
     'v4l2_pixelformat.cpp',
     'v4l2_subdevice.cpp',
     'v4l2_videodevice.cpp',
-    'yaml_parser.cpp',
 ])
 
 includes = [
@@ -81,7 +80,6 @@ if not cc.has_function('dlopen')
     libdl = cc.find_library('dl')
 endif
 libudev = dependency('libudev', required : get_option('udev'))
-libyaml = dependency('yaml-0.1', required : false)
 
 # Use one of gnutls or libcrypto (provided by OpenSSL), trying gnutls first.
 libcrypto = dependency('gnutls', required : false)
@@ -115,17 +113,6 @@ if libudev.found()
     libcamera_internal_sources += files([
         'device_enumerator_udev.cpp',
     ])
-endif
-
-# Fallback to a subproject if libyaml isn't found, as it's not packaged in AOSP.
-if not libyaml.found()
-    cmake = import('cmake')
-
-    libyaml_vars = cmake.subproject_options()
-    libyaml_vars.add_cmake_defines({'CMAKE_POSITION_INDEPENDENT_CODE': 'ON'})
-    libyaml_vars.append_compile_args('c', '-Wno-unused-value')
-    libyaml_wrap = cmake.subproject('libyaml', options : libyaml_vars)
-    libyaml = libyaml_wrap.dependency('yaml')
 endif
 
 control_sources = []
@@ -187,7 +174,6 @@ libcamera_deps += [
     libdl,
     liblttng,
     libudev,
-    libyaml,
 ]
 
 # We add '/' to the build_rpath as a 'safe' path to act as a boolean flag.
