@@ -19,6 +19,11 @@ order:
 - LIBCAMERA_SYSCONF_DIR/configuration.yaml
 - /etc/libcamera/configuration.yaml
 
+If LIBCAMERA_CONFIG_DIR environment variable is non-empty then it
+specifies additional directories where to look for the configuration
+file, before looking at the standard locations. It can be a single
+directory or multiple directories separated by colons.
+
 The default name of the configuration file, configuration.yaml, can be
 overridden in LIBCAMERA_CONFIG_NAME environment variable. The variable
 can specify just an alternative configuration file name to be looked up
