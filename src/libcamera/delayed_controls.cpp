@@ -202,7 +202,7 @@ bool DelayedControls::push(const ControlList &controls)
  */
 ControlList DelayedControls::get(uint32_t sequence)
 {
-	unsigned int index = std::max<int>(0, sequence - maxDelay_);
+	unsigned int index = std::clamp<int>(sequence - maxDelay_, 0, queueCount_ - 1);
 
 	ControlList out(device_->controls());
 	for (const auto &ctrl : values_) {
