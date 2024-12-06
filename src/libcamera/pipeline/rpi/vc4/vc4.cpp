@@ -945,7 +945,7 @@ void Vc4CameraData::tryRunPipeline()
 	 * related controls. We clear it first because the request metadata
 	 * may have been populated if we have dropped the previous frame.
 	 */
-	request->metadata().clear();
+	request->_d()->resetMetadata();
 	fillRequestMetadata(bayerFrame.controls, request);
 
 	/* Set our state to say the pipeline is active. */

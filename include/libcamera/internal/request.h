@@ -40,6 +40,11 @@ public:
 	void cancel();
 	void reset();
 
+	void resetMetadata()
+	{
+		_o<Request>()->metadata().clear();
+	}
+
 	void prepare(std::chrono::milliseconds timeout = 0ms);
 	Signal<> prepared;
 
