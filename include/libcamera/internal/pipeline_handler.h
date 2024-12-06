@@ -11,12 +11,16 @@
 #include <queue>
 #include <string>
 #include <sys/types.h>
+#include <unordered_set>
 #include <vector>
 
 #include <libcamera/base/object.h>
 
+#include <libcamera/camera.h>
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
+
+#include "libcamera/internal/request.h"
 
 namespace libcamera {
 
@@ -57,6 +61,43 @@ public:
 
 	void registerRequest(Request *request);
 	void queueRequest(Request *request);
+
+	void metadataAvailable(Request *request, const ControlList &metadata);
+
+	template<typename T>
+	void metadataAvailable(Request *request, const Control<T> &ctrl,
+			       const T &value)
+	{
+		if (request->metadata().contains(ctrl.id()))
+			return;
+
+		std::unordered_set<const ControlId *> ids;
+		ids.insert(&ctrl);
+
+		request->metadata().set<T, T>(ctrl, value);
+
+		Camera *camera = request->_d()->camera();
+		camera->metadataAvailable.emit(request, ids);
+	}
+
+#ifndef __DOXYGEN__
+	template<typename T, std::size_t Size>
+	void metadataAvailable(Request *request,
+			       const Control<Span<const T, Size>> &ctrl,
+			       const Span<const T, Size> &value)
+	{
+		if (request->metadata().contains(ctrl.id()))
+			return;
+
+		std::unordered_set<const ControlId *> ids;
+		ids.insert(&ctrl);
+
+		request->metadata().set(ctrl, value);
+
+		Camera *camera = request->_d()->camera();
+		camera->metadataAvailable.emit(request, ids);
+	}
+#endif
 
 	bool completeBuffer(Request *request, FrameBuffer *buffer);
 	void completeRequest(Request *request);
