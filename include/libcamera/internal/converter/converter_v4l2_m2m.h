@@ -105,6 +105,7 @@ private:
 
 	std::map<const Stream *, std::unique_ptr<V4L2M2MStream>> streams_;
 	std::map<FrameBuffer *, unsigned int> queue_;
+	std::pair<Rectangle, Rectangle> inputCropBounds_;
 };
 
 } /* namespace libcamera */

@@ -195,6 +195,9 @@ Converter::~Converter()
  * this function should be called after the \a stream has been configured using
  * configure().
  *
+ * When called with an invalid \a stream, the function returns the default crop
+ * bounds of the converter.
+ *
  * \return A pair containing the minimum and maximum crop bound in that order
  */
 
