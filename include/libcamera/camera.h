@@ -13,6 +13,7 @@
 #include <set>
 #include <stdint.h>
 #include <string>
+#include <unordered_set>
 
 #include <libcamera/base/class.h>
 #include <libcamera/base/flags.h>
@@ -122,6 +123,7 @@ public:
 
 	const std::string &id() const;
 
+	Signal<Request *, std::unordered_set<const ControlId *>> metadataAvailable;
 	Signal<Request *, FrameBuffer *> bufferCompleted;
 	Signal<Request *> requestCompleted;
 	Signal<> disconnected;

@@ -887,6 +887,48 @@ const std::string &Camera::id() const
 }
 
 /**
+ * \var Camera::metadataAvailable
+ * \brief Signal emitted when metadata for a request are available
+ *
+ * The metadataAvailable signal notifies applications about the availability
+ * of metadata for a request before the request completes.
+ *
+ * As metadata results could be large in size, the signal transports the ids
+ * of the metadata that have just been made available, but the actual control
+ * values are stored in the Camera::metadata() list.
+ *
+ * Applications can access the value of the newly available metadata results
+ * with:
+ *
+ * \code
+
+	void metadataAvailableHandler(Request *request,
+				      std::unordered_set<const ControlId *> ids)
+	{
+		const ControlList &metadata = request->metadata();
+
+		for (const auto id : ids) {
+			ControlValue &value = metadata.get(id->id());
+
+			....
+		}
+	}
+   \endcode
+ *
+ * This signal is emitted multiple times for the same request, it is in facts
+ * emitted by the framework every time a new metadata list is made available
+ * by the Camera to the application.
+ *
+ * The sum of all metadata lists reported through this signal is equal to
+ * Request::metadata() list when the Request completes.
+ *
+ * Application can opt-in to handle this signal to receive fast notifications
+ * of metadata availability or can equally access the full metadata list
+ * at Request complete time through Request::metadata() if they have no interest
+ * in early metadata notification.
+ */
+
+/**
  * \var Camera::bufferCompleted
  * \brief Signal emitted when a buffer for a request queued to the camera has
  * completed
