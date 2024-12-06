@@ -20,6 +20,7 @@
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_sensor.h"
+#include "libcamera/internal/clock_recovery.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/media_object.h"
@@ -236,6 +237,8 @@ protected:
 
 	virtual int platformRegister(std::unique_ptr<CameraData> &cameraData,
 				     MediaDevice *unicam, MediaDevice *isp) = 0;
+
+	ClockRecovery wallClockRecoery_;
 
 private:
 	CameraData *cameraData(Camera *camera)
