@@ -55,6 +55,7 @@ file structure:
         - CAMERA-ID:
           tuning-file: # full path
       simple:
+        copy_input_buffer: # true/false
         supported_devices:
         - driver: # driver name, e.g. `mxc-isi`
           software_isp: # true/false
@@ -93,6 +94,7 @@ Configuration file example
        rpi:
          config_file: /usr/local/share/libcamera/pipeline/rpi/vc4/minimal_mem.yaml
        simple:
+         copy_input_buffer: false
          supported_devices:
          - driver: mxc-isi
            software_isp: true
