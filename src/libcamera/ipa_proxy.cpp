@@ -14,6 +14,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_module.h"
 
 /**
@@ -107,18 +108,18 @@ std::string IPAProxy::configurationFile(const std::string &name,
 	 */
 	std::string ipaName = ipam_->info().name;
 
-	/* Check the environment variable first. */
-	const char *confPaths = utils::secure_getenv("LIBCAMERA_IPA_CONFIG_PATH");
-	if (confPaths) {
-		for (const auto &dir : utils::split(confPaths, ":")) {
-			if (dir.empty())
-				continue;
+	/* Check the configuration first. */
+	auto confPaths =
+		GlobalConfiguration::envListOption(
+			"LIBCAMERA_IPA_CONFIG_PATH", "ipa.config_paths");
+	for (const auto &dir : confPaths) {
+		if (dir.empty())
+			continue;
 
-			std::string confPath = dir + "/" + ipaName + "/" + name;
-			ret = stat(confPath.c_str(), &statbuf);
-			if (ret == 0 && (statbuf.st_mode & S_IFMT) == S_IFREG)
-				return confPath;
-		}
+		std::string confPath = dir + "/" + ipaName + "/" + name;
+		ret = stat(confPath.c_str(), &statbuf);
+		if (ret == 0 && (statbuf.st_mode & S_IFMT) == S_IFREG)
+			return confPath;
 	}
 
 	std::string root = utils::libcameraSourcePath();
@@ -182,18 +183,18 @@ std::string IPAProxy::resolvePath(const std::string &file) const
 {
 	std::string proxyFile = "/" + file;
 
-	/* Check env variable first. */
-	const char *execPaths = utils::secure_getenv("LIBCAMERA_IPA_PROXY_PATH");
-	if (execPaths) {
-		for (const auto &dir : utils::split(execPaths, ":")) {
-			if (dir.empty())
-				continue;
+	/* Check the configuration first. */
+	const auto execPaths =
+		GlobalConfiguration::envListOption(
+			"LIBCAMERA_IPA_PROXY_PATH", "ipa.proxy_paths");
+	for (const auto &dir : execPaths) {
+		if (dir.empty())
+			continue;
 
-			std::string proxyPath = dir;
-			proxyPath += proxyFile;
-			if (!access(proxyPath.c_str(), X_OK))
-				return proxyPath;
-		}
+		std::string proxyPath = dir;
+		proxyPath += proxyFile;
+		if (!access(proxyPath.c_str(), X_OK))
+			return proxyPath;
 	}
 
 	/*

@@ -48,8 +48,12 @@ std::optional<T> option(const std::string &confPath)
 	return c->get<T>();
 }
 
+std::vector<std::string> listOption(const std::string &confPath);
 std::optional<std::string> envOption(const char *const envVariable,
 				     const std::string &confPath);
+std::vector<std::string> envListOption(
+	const char *const envVariable,
+	const std::string &confPath);
 
 } /* namespace GlobalConfiguration */
 

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <dirent.h>
+#include <numeric>
 #include <string.h>
 #include <sys/types.h>
 
@@ -114,18 +115,25 @@ IPAManager::IPAManager()
 	unsigned int ipaCount = 0;
 
 	/* User-specified paths take precedence. */
-	const char *modulePaths = utils::secure_getenv("LIBCAMERA_IPA_MODULE_PATH");
-	if (modulePaths) {
-		for (const auto &dir : utils::split(modulePaths, ":")) {
-			if (dir.empty())
-				continue;
+	const auto modulePaths =
+		GlobalConfiguration::envListOption(
+			"LIBCAMERA_IPA_MODULE_PATH", "ipa.module_paths");
+	for (const auto &dir : modulePaths) {
+		if (dir.empty())
+			continue;
 
-			ipaCount += addDir(dir.c_str());
+		ipaCount += addDir(dir.c_str());
+	}
+
+	if (!ipaCount) {
+		std::string paths;
+		if (!modulePaths.empty()) {
+			paths = std::accumulate(std::next(modulePaths.begin()),
+						modulePaths.end(),
+						modulePaths[0],
+						[](std::string s1, std::string s2) { return s1 + ":" + s2; });
 		}
-
-		if (!ipaCount)
-			LOG(IPAManager, Warning)
-				<< "No IPA found in '" << modulePaths << "'";
+		LOG(IPAManager, Warning) << "No IPA found in '" << paths << "'";
 	}
 
 	/*
@@ -289,7 +297,9 @@ bool IPAManager::isSignatureValid([[maybe_unused]] IPAModule *ipa) const
 {
 #if HAVE_IPA_PUBKEY
 	char *force = utils::secure_getenv("LIBCAMERA_IPA_FORCE_ISOLATION");
-	if (force && force[0] != '\0') {
+	if ((force && force[0] != '\0') ||
+	    (!force && GlobalConfiguration::option<bool>("ipa.force_isolation")
+			       .value_or(false))) {
 		LOG(IPAManager, Debug)
 			<< "Isolation of IPA module " << ipa->path()
 			<< " forced through environment variable";
