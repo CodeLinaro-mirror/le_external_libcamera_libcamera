@@ -398,6 +398,9 @@ int PipelineHandlerVc4::platformRegister(std::unique_ptr<RPi::CameraData> &camer
 		Camera::create(std::move(cameraData), id, streams);
 	PipelineHandler::registerCamera(std::move(camera));
 
+	/* Enable wall clock timestamps for the unicam output. */
+	data->unicam_[Unicam::Image].dev()->enableWallClock(&wallClockRecoery_);
+
 	LOG(RPI, Info) << "Registered camera " << id
 		       << " to Unicam device " << unicam->deviceNode()
 		       << " and ISP device " << isp->deviceNode();
@@ -784,6 +787,7 @@ void Vc4CameraData::unicamBufferDequeue(FrameBuffer *buffer)
 		 * as it does not receive the FrameBuffer object.
 		 */
 		ctrl.set(controls::SensorTimestamp, buffer->metadata().timestamp);
+		ctrl.set(controls::FrameWallClock, buffer->metadata().wallClock);
 		bayerQueue_.push({ buffer, std::move(ctrl), delayContext });
 	} else {
 		embeddedQueue_.push(buffer);
