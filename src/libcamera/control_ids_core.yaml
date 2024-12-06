@@ -1268,4 +1268,18 @@ controls:
       description: |
         Enable or disable the debug metadata.
 
+  - FrameWallClock:
+      type: int64_t
+      description: |
+        This timestamp corresponds to the same moment in time as the
+        SensorTimestamp, but is represented as a wall clock time as measured by
+        the Linux-specific CLOCK_REALTIME clock id.
+
+        Being a wall clock measurement, it can be used to synchronise timing
+        across different devices.
+
+        \sa SensorTimestamp
+
+        The FrameWallClock control can only be returned in metadata.
+
 ...
