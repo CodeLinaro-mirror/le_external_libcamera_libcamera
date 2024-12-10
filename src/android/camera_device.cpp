@@ -865,7 +865,7 @@ void CameraDevice::abortRequest(Camera3RequestDescriptor *descriptor) const
 	notifyError(descriptor->frameNumber_, nullptr, CAMERA3_MSG_ERROR_REQUEST);
 
 	for (auto &buffer : descriptor->buffers_)
-		buffer.status = Camera3RequestDescriptor::Status::Error;
+		buffer.status = StreamBuffer::Status::Error;
 
 	descriptor->status_ = Camera3RequestDescriptor::Status::Error;
 }
@@ -1163,7 +1163,7 @@ void CameraDevice::requestComplete(Request *request)
 			if (fence)
 				buffer.fence = fence->release();
 		}
-		buffer.status = Camera3RequestDescriptor::Status::Success;
+		buffer.status = StreamBuffer::Status::Success;
 	}
 
 	/*
@@ -1226,12 +1226,12 @@ void CameraDevice::requestComplete(Request *request)
 	auto iter = descriptor->pendingStreamsToProcess_.begin();
 	while (iter != descriptor->pendingStreamsToProcess_.end()) {
 		CameraStream *stream = iter->first;
-		Camera3RequestDescriptor::StreamBuffer *buffer = iter->second;
+		StreamBuffer *buffer = iter->second;
 
 		FrameBuffer *src = request->findBuffer(stream->stream());
 		if (!src) {
 			LOG(HAL, Error) << "Failed to find a source stream buffer";
-			setBufferStatus(*buffer, Camera3RequestDescriptor::Status::Error);
+			setBufferStatus(*buffer, StreamBuffer::Status::Error);
 			iter = descriptor->pendingStreamsToProcess_.erase(iter);
 			continue;
 		}
@@ -1241,7 +1241,7 @@ void CameraDevice::requestComplete(Request *request)
 		++iter;
 		int ret = stream->process(buffer);
 		if (ret) {
-			setBufferStatus(*buffer, Camera3RequestDescriptor::Status::Error);
+			setBufferStatus(*buffer, StreamBuffer::Status::Error);
 			descriptor->pendingStreamsToProcess_.erase(stream);
 
 			/*
@@ -1311,7 +1311,7 @@ void CameraDevice::sendCaptureResults()
 		for (auto &buffer : descriptor->buffers_) {
 			camera3_buffer_status status = CAMERA3_BUFFER_STATUS_ERROR;
 
-			if (buffer.status == Camera3RequestDescriptor::Status::Success)
+			if (buffer.status == StreamBuffer::Status::Success)
 				status = CAMERA3_BUFFER_STATUS_OK;
 
 			/*
@@ -1335,11 +1335,11 @@ void CameraDevice::sendCaptureResults()
 	}
 }
 
-void CameraDevice::setBufferStatus(Camera3RequestDescriptor::StreamBuffer &streamBuffer,
-				   Camera3RequestDescriptor::Status status)
+void CameraDevice::setBufferStatus(StreamBuffer &streamBuffer,
+				   StreamBuffer::Status status)
 {
 	streamBuffer.status = status;
-	if (status != Camera3RequestDescriptor::Status::Success) {
+	if (status != StreamBuffer::Status::Success) {
 		notifyError(streamBuffer.request->frameNumber_,
 			    streamBuffer.stream->camera3Stream(),
 			    CAMERA3_MSG_ERROR_BUFFER);
@@ -1363,8 +1363,8 @@ void CameraDevice::setBufferStatus(Camera3RequestDescriptor::StreamBuffer &strea
  * be generated from post-processing have been completed. Mark the descriptor as
  * complete using completeDescriptor() in that case.
  */
-void CameraDevice::streamProcessingComplete(Camera3RequestDescriptor::StreamBuffer *streamBuffer,
-					    Camera3RequestDescriptor::Status status)
+void CameraDevice::streamProcessingComplete(StreamBuffer *streamBuffer,
+					    StreamBuffer::Status status)
 {
 	setBufferStatus(*streamBuffer, status);
 
