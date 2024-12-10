@@ -52,7 +52,7 @@ public:
 		 const SharedFD &fdParams,
 		 const ControlInfoMap &sensorInfoMap,
 		 ControlInfoMap *ipaControls) override;
-	int configure(const IPAConfigInfo &configInfo) override;
+	int configure(const IPAConfigInfo &configInfo, bool *ccmEnabled) override;
 
 	int start() override;
 	void stop() override;
@@ -182,7 +182,7 @@ int IPASoftSimple::init(const IPASettings &settings,
 	return 0;
 }
 
-int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
+int IPASoftSimple::configure(const IPAConfigInfo &configInfo, bool *ccmEnabled)
 {
 	sensorInfoMap_ = configInfo.sensorControls;
 
@@ -242,11 +242,15 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 		context_.configuration.agc.againMinStep = 1.0;
 	}
 
+	context_.activeState.ccm.enabled = false;
+
 	for (auto const &algo : algorithms()) {
 		int ret = algo->configure(context_, configInfo);
 		if (ret)
 			return ret;
 	}
+
+	*ccmEnabled = context_.activeState.ccm.enabled;
 
 	LOG(IPASoft, Info)
 		<< "Exposure " << context_.configuration.agc.exposureMin << "-"

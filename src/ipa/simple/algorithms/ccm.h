@@ -24,6 +24,7 @@ public:
 	~Ccm() = default;
 
 	int init(IPAContext &context, const YamlObject &tuningData) override;
+	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
 	void prepare(IPAContext &context,
 		     const uint32_t frame,
 		     IPAFrameContext &frameContext,
