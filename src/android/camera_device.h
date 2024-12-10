@@ -97,6 +97,7 @@ private:
 	void completeDescriptor(Camera3RequestDescriptor *descriptor)
 		LIBCAMERA_TSA_EXCLUDES(descriptorsMutex_);
 	void sendCaptureResults() LIBCAMERA_TSA_REQUIRES(descriptorsMutex_);
+	void sendCaptureResult(Camera3RequestDescriptor *request) const;
 	void setBufferStatus(StreamBuffer &buffer,
 			     StreamBuffer::Status status);
 	std::unique_ptr<CameraMetadata> getResultMetadata(
