@@ -867,6 +867,8 @@ void CameraDevice::abortRequest(Camera3RequestDescriptor *descriptor) const
 		buffer.status = StreamBuffer::Status::Error;
 
 	descriptor->status_ = Camera3RequestDescriptor::Status::Error;
+
+	sendCaptureResult(descriptor);
 }
 
 bool CameraDevice::isValidRequest(camera3_capture_request_t *camera3Request) const
@@ -1135,14 +1137,7 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	MutexLocker stateLock(stateMutex_);
 
 	if (state_ == State::Flushing) {
-		Camera3RequestDescriptor *rawDescriptor = descriptor.get();
-		{
-			MutexLocker descriptorsLock(descriptorsMutex_);
-			descriptors_.push(std::move(descriptor));
-		}
-		abortRequest(rawDescriptor);
-		completeDescriptor(rawDescriptor);
-
+		abortRequest(descriptor.get());
 		return 0;
 	}
 
