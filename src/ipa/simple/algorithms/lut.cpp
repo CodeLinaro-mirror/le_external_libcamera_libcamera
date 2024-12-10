@@ -80,6 +80,11 @@ void Lut::updateGammaTable(IPAContext &context)
 	context.activeState.gamma.contrast = contrast;
 }
 
+int16_t Lut::ccmValue(unsigned int i, float ccm) const
+{
+	return std::round(i * ccm);
+}
+
 void Lut::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  [[maybe_unused]] IPAFrameContext &frameContext,
@@ -91,28 +96,52 @@ void Lut::prepare(IPAContext &context,
 	 * observed, it's not permanently prone to minor fluctuations or
 	 * rounding errors.
 	 */
-	if (context.activeState.gamma.blackLevel != context.activeState.blc.level ||
-	    context.activeState.gamma.contrast != context.activeState.knobs.contrast)
+	const bool gammaUpdateNeeded =
+		context.activeState.gamma.blackLevel != context.activeState.blc.level ||
+		context.activeState.gamma.contrast != context.activeState.knobs.contrast;
+	if (gammaUpdateNeeded)
 		updateGammaTable(context);
 
 	auto &gains = context.activeState.awb.gains;
 	auto &gammaTable = context.activeState.gamma.gammaTable;
 	const unsigned int gammaTableSize = gammaTable.size();
+	const double div = static_cast<double>(DebayerParams::kRGBLookupSize) /
+			   gammaTableSize;
 
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-		const double div = static_cast<double>(DebayerParams::kRGBLookupSize) /
-				   gammaTableSize;
-		/* Apply gamma after gain! */
-		unsigned int idx;
-		idx = std::min({ static_cast<unsigned int>(i * gains.red / div),
-				 gammaTableSize - 1 });
-		params->red[i] = gammaTable[idx];
-		idx = std::min({ static_cast<unsigned int>(i * gains.green / div),
-				 gammaTableSize - 1 });
-		params->green[i] = gammaTable[idx];
-		idx = std::min({ static_cast<unsigned int>(i * gains.blue / div),
-				 gammaTableSize - 1 });
-		params->blue[i] = gammaTable[idx];
+	if (!context.activeState.ccm.enabled) {
+		for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
+			/* Apply gamma after gain! */
+			unsigned int idx;
+			idx = std::min({ static_cast<unsigned int>(i * gains.red / div),
+					 gammaTableSize - 1 });
+			params->red.simple[i] = gammaTable[idx];
+			idx = std::min({ static_cast<unsigned int>(i * gains.green / div),
+					 gammaTableSize - 1 });
+			params->green.simple[i] = gammaTable[idx];
+			idx = std::min({ static_cast<unsigned int>(i * gains.blue / div),
+					 gammaTableSize - 1 });
+			params->blue.simple[i] = gammaTable[idx];
+		}
+	} else if (context.activeState.ccm.changed || gammaUpdateNeeded) {
+		Matrix<double, 3, 3> gainCcm = { { gains.red, 0, 0,
+						   0, gains.green, 0,
+						   0, 0, gains.blue } };
+		auto ccm = gainCcm * context.activeState.ccm.ccm;
+		auto &red = params->red.ccm;
+		auto &green = params->green.ccm;
+		auto &blue = params->blue.ccm;
+		for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
+			red[i].r = ccmValue(i, ccm[0][0]);
+			red[i].g = ccmValue(i, ccm[1][0]);
+			red[i].b = ccmValue(i, ccm[2][0]);
+			green[i].r = ccmValue(i, ccm[0][1]);
+			green[i].g = ccmValue(i, ccm[1][1]);
+			green[i].b = ccmValue(i, ccm[2][1]);
+			blue[i].r = ccmValue(i, ccm[0][2]);
+			blue[i].g = ccmValue(i, ccm[1][2]);
+			blue[i].b = ccmValue(i, ccm[2][2]);
+			params->gammaLut[i] = gammaTable[i / div];
+		}
 	}
 }
 
