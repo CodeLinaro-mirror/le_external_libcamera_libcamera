@@ -1182,6 +1182,18 @@ void CameraDevice::requestComplete(Request *request)
 	 * post-processing/compression fails.
 	 */
 	for (auto &buffer : descriptor->buffers_) {
+		for (auto &[_, frameBuffer] : request->buffers()) {
+			if (buffer.srcBuffer != frameBuffer &&
+			    buffer.frameBuffer.get() != frameBuffer)
+				continue;
+
+			StreamBuffer::Status status = StreamBuffer::Status::Success;
+			if (frameBuffer->metadata().status != FrameMetadata::FrameSuccess) {
+				status = StreamBuffer::Status::Error;
+			}
+			setBufferStatus(buffer, status);
+		}
+
 		CameraStream *stream = buffer.stream;
 
 		/*
@@ -1198,22 +1210,18 @@ void CameraDevice::requestComplete(Request *request)
 			if (fence)
 				buffer.fence = fence->release();
 		}
-		buffer.status = StreamBuffer::Status::Success;
 	}
 
 	/*
-	 * If the Request has failed, abort the request by notifying the error
-	 * and complete the request with all buffers in error state.
+	 * If the Request has failed, complete the request with all buffers in
+	 * error state and notify an error result.
 	 */
 	if (request->status() != Request::RequestComplete) {
 		LOG(HAL, Error) << "Request " << request->cookie()
 				<< " not successfully completed: "
 				<< request->status();
 
-		abortRequest(descriptor);
-		completeDescriptor(descriptor);
-
-		return;
+		descriptor->status_ = Camera3RequestDescriptor::Status::Error;
 	}
 
 	/*
@@ -1238,7 +1246,7 @@ void CameraDevice::requestComplete(Request *request)
 	 */
 	descriptor->resultMetadata_ = getResultMetadata(*descriptor);
 	if (!descriptor->resultMetadata_) {
-		notifyError(descriptor->frameNumber_, nullptr, CAMERA3_MSG_ERROR_RESULT);
+		descriptor->status_ = Camera3RequestDescriptor::Status::Error;
 
 		/*
 		 * The camera framework expects an empty metadata pack on error.
@@ -1271,7 +1279,13 @@ void CameraDevice::requestComplete(Request *request)
 			continue;
 		}
 
+		if (buffer->status == StreamBuffer::Status::Error) {
+			iter = descriptor->pendingStreamsToProcess_.erase(iter);
+			continue;
+		}
+
 		++iter;
+
 		int ret = stream->process(buffer);
 		if (ret) {
 			setBufferStatus(*buffer, StreamBuffer::Status::Error);
@@ -1324,6 +1338,16 @@ void CameraDevice::sendCaptureResults()
 		descriptors_.pop();
 
 		sendCaptureResult(descriptor.get());
+
+		/*
+		 * Call notify with CAMERA3_MSG_ERROR_RESULT to indicate some
+		 * of the expected result metadata might not be available
+		 * because the capture is cancelled by the camera. Only notify
+		 * it when the final result is sent, since Android will ignore
+		 * the following metadata.
+		 */
+		if (descriptor->status_ == Camera3RequestDescriptor::Status::Error)
+			notifyError(descriptor->frameNumber_, nullptr, CAMERA3_MSG_ERROR_RESULT);
 	}
 }
 
