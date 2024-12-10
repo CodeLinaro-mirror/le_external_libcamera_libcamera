@@ -989,8 +989,6 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		FrameBuffer *frameBuffer = nullptr;
 		UniqueFD acquireFence;
 
-		MutexLocker lock(descriptor->streamsProcessMutex_);
-
 		switch (cameraStream->type()) {
 		case CameraStream::Type::Mapped:
 			/* Mapped streams will be handled in the next loop. */
@@ -1066,7 +1064,6 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 				<< cameraStream->configuration().pixelFormat << "]"
 				<< " (mapped)";
 
-		MutexLocker lock(descriptor->streamsProcessMutex_);
 		descriptor->pendingStreamsToProcess_.insert({ cameraStream, &buffer });
 
 		/*
@@ -1252,9 +1249,6 @@ void CameraDevice::requestComplete(Request *request)
 		descriptor->resultMetadata_ = std::make_unique<CameraMetadata>(0, 0);
 	}
 
-	/* Handle post-processing. */
-	MutexLocker locker(descriptor->streamsProcessMutex_);
-
 	/*
 	 * Queue all the post-processing streams request at once. The completion
 	 * slot streamProcessingComplete() can only execute when we are out
@@ -1288,10 +1282,8 @@ void CameraDevice::requestComplete(Request *request)
 		}
 	}
 
-	if (descriptor->pendingStreamsToProcess_.empty()) {
-		locker.unlock();
+	if (descriptor->pendingStreamsToProcess_.empty())
 		completeDescriptor(descriptor);
-	}
 }
 
 /**
@@ -1398,6 +1390,19 @@ void CameraDevice::setBufferStatus(StreamBuffer &streamBuffer,
 	}
 }
 
+void CameraDevice::streamProcessingCompleteDelegate(StreamBuffer *streamBuffer,
+						    StreamBuffer::Status status)
+{
+	/*
+	 * Delegate the callback to the camera manager thread to simplify race condition.
+	 */
+	auto *method = new BoundMethodMember{
+		this, camera_.get(), &CameraDevice::streamProcessingComplete, ConnectionTypeQueued
+	};
+
+	method->activate(streamBuffer, status);
+}
+
 /**
  * \brief Handle post-processing completion of a stream in a capture request
  * \param[in] streamBuffer The StreamBuffer for which processing is complete
@@ -1418,13 +1423,9 @@ void CameraDevice::streamProcessingComplete(StreamBuffer *streamBuffer,
 
 	Camera3RequestDescriptor *request = streamBuffer->request;
 
-	{
-		MutexLocker locker(request->streamsProcessMutex_);
-
-		request->pendingStreamsToProcess_.erase(streamBuffer->stream);
-		if (!request->pendingStreamsToProcess_.empty())
-			return;
-	}
+	request->pendingStreamsToProcess_.erase(streamBuffer->stream);
+	if (!request->pendingStreamsToProcess_.empty())
+		return;
 
 	completeDescriptor(streamBuffer->request);
 }
