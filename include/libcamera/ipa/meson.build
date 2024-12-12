@@ -63,12 +63,14 @@ libcamera_ipa_headers += custom_target('core_ipa_serializer_h',
 
 # Mapping from pipeline handler name to mojom file
 pipeline_ipa_mojom_mapping = {
+    'c3-isp': 'c3isp.mojom',
     'ipu3': 'ipu3.mojom',
     'rkisp1': 'rkisp1.mojom',
     'rpi/vc4': 'raspberrypi.mojom',
     'simple': 'soft.mojom',
     'vimc': 'vimc.mojom',
 }
+
 
 #
 # Generate headers from templates.
