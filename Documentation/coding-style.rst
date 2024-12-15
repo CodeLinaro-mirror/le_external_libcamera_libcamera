@@ -269,6 +269,104 @@ the compiler select the right function. This avoids potential errors such as
 calling abs(int) with a float argument, performing an unwanted implicit integer
 conversion. For this reason, cmath is preferred over math.h.
 
+Strings
+~~~~~~~
+
+This section focusses on strings as a sequence of characters represented by the
+`char` type, as those are the only strings used in libcamera. The principles
+are however equally applicable to other types of strings.
+
+C++ includes multiple standard ways to represent and handle strings. Each of
+them have pros and cons and different usage patterns.
+
+1. C-style strings
+
+   C-style strings are null-terminated arrays of characters of type `char`.
+   They are represented by a `char *` pointing to the first character. C string
+   literals (`"Hello world!"`) produce read-only global null-terminated arrays
+   of type `const char`.
+
+   Handling strings through `char *` relies on assumptions that are not
+   enforced at compile time: the memory must not be freed as long as the
+   pointer remains valid, and the string must be null-terminated. This causes a
+   risk of use-after-free or buffer out-of-bounds reads. Furthermore, as the
+   size of the underlying memory is not bundled with the pointer, handling
+   writable strings as a `char *` risks buffer out-of-bounds writes.
+
+2. `std::string` class
+
+   The `std::string` class is the main C++ data type to represent strings. The
+   class holds the string data as a null-terminated array of characters, as
+   well as the length of the array. `std::string` literals (`"Hello world!"s`)
+   converts the character array literal into a temporary `std::string` instance
+   whose lifetime ends with the statement.
+
+   Usage of `std::string` makes string handling safer and convenient thanks to
+   the integration with the rest of the C++ standard library. This comes at a
+   cost, as making copies of the class copies the underlying data, requiring
+   dynamic allocation of memory. This is partially offset by usage of move
+   constructors or assignment operators.
+
+3. `std::string_view` class
+
+   This newer addition to the C++ standard library is a non-owning reference to
+   a characters array. Like the `std::string` class, the `std::string_view`
+   stores a pointer to the array and a length, but unlike C-style strings and
+   the `std::string` class, the array is not guaranteed to be null-terminated.
+   `std::string_view` literals (`"Hello world!"sv`) create a temporary
+   `std::string_view` instance whose lifetime ends with the statement, but the
+   underlying character array has global static storage and lifetime.
+
+   String views are useful to represent in a single way strings with
+   heterogenous underlying storage, as they can be constructed from a `char *`
+   or a `std::string`. They reduce the risk of buffer out-of-bounds accesses as
+   they carry the array length, and they speed up handling of substrings as
+   they don't cause copies, unlike `std::string`. As the string views store a
+   borrowed reference to the underlying storage, they are prone to
+   use-after-free issues. The lack of a null terminator furthermore makes them
+   unsafe to handle strings that need to be passed to C functions that assume
+   null-terminated strings (such as most of the C standard library functions).
+
+   C++17 lacks many functions that make `std::string_view` usage convenient.
+   This includes `operator+()` to concatenate a `std::string` and a
+   `std::string_view`, as well as heterogenous lookup functions for containers
+   (https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2023/p2363r5.html).
+   libcamera works around the former by defining the missing operators, and the
+   latter by using the `find()` function instead of `at()` or `operator[]()`.
+   Those issues are properly addressed in C++26.
+
+With those pros, cons are caveats in mind, libcamera follows a set of rules
+that governs selection of appropriate string types for function arguments:
+
+* If the function is internal to a compilation unit, and all callers use the
+  same string type for the function argument, use that type (by reference or
+  value, as appropriate).
+* If the function needs to modify the string, make a copy, or convert it to a
+  `std::string` for any other reason, pass a `std::string` by value. Use
+  `std::move()` in the caller if the string is not needed after the function
+  call, as well as inside the function to move the string to a local copy if
+  needed. This minimizes the number of copies in all use cases.
+* If the function needs to pass the string to a C function that takes a
+  `const char *`, and the caller may reasonably use a C string literal, pass a
+  `const char *`. This avoids copies when the caller uses a `char *` pointer or
+  a C string literal, and avoids buffer out-of-bound reads that could occur with
+  a non null-terminated `std::string_view`.
+* If the function only needs to pass the string to other functions that take a
+  `const std::string &` reference, pass a `const std::string &`. This minimizes
+  the construction of `std::string` instances when the caller already holds an
+  instance.
+* If the function only reads from the string, doesn't rely on it being
+  null-terminated, and can reasonably be called with either C strings, C string
+  literals, or `std::string` instances, pass a `std::string_view` instance. This
+  improves safety of the code without impacting performance.
+* Do not use `std::string_view` in public API function parameters. Previous
+  rules showed that selection of the optimal string type for function
+  parameters depends on the internal implementation of the function, which
+  could change over time. This conflicts with the stability requirements of the
+  libcamera public API. Furthermore, as C++17 makes `std::string_view` usage
+  inconvenient in many cases, we don't want to force that inconvenience upon
+  libcamera users.
+
 
 Documentation
 -------------
