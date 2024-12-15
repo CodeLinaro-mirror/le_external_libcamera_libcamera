@@ -406,7 +406,6 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  */
 
 /**
- * \fn ControlId::ControlId(unsigned int id, const std::string &name, ControlType type)
  * \brief Construct a ControlId instance
  * \param[in] id The control numerical ID
  * \param[in] name The control name
@@ -415,10 +414,10 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  * \param[in] size The size of the array control, or 0 if scalar control
  * \param[in] enumStrMap The map from enum names to values (optional)
  */
-ControlId::ControlId(unsigned int id, const std::string &name,
-		     const std::string &vendor, ControlType type,
+ControlId::ControlId(unsigned int id, std::string_view name,
+		     std::string_view vendor, ControlType type,
 		     std::size_t size,
-		     const std::map<std::string, int32_t> &enumStrMap)
+		     const std::map<std::string_view, int32_t> &enumStrMap)
 	: id_(id), name_(name), vendor_(vendor), type_(type), size_(size),
 	  enumStrMap_(enumStrMap)
 {
@@ -433,15 +432,15 @@ ControlId::ControlId(unsigned int id, const std::string &name,
  */
 
 /**
- * \fn const char *ControlId::name() const
+ * \fn std::string_view ControlId::name() const
  * \brief Retrieve the control name
  * \return The control name
  */
 
 /**
- * \fn const std::string &ControlId::vendor() const
+ * \fn std::string_view ControlId::vendor() const
  * \brief Retrieve the vendor name
- * \return The vendor name, as a string
+ * \return The vendor name
  */
 
 /**
@@ -464,7 +463,7 @@ ControlId::ControlId(unsigned int id, const std::string &name,
  */
 
 /**
- * \fn const std::map<int32_t, std::string> &ControlId::enumerators() const
+ * \fn const std::map<int32_t, std::string_view> &ControlId::enumerators() const
  * \brief Retrieve the map of enum values to enum names
  * \return The map of enum values to enum names
  */

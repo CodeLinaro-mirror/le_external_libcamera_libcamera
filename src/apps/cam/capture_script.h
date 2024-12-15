@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include <libcamera/camera.h>
 #include <libcamera/controls.h>
@@ -36,7 +37,7 @@ private:
 	};
 	using EventPtr = std::unique_ptr<yaml_event_t, EventDeleter>;
 
-	std::map<std::string, const libcamera::ControlId *> controls_;
+	std::map<std::string_view, const libcamera::ControlId *> controls_;
 	std::map<unsigned int, libcamera::ControlList> frameControls_;
 	std::shared_ptr<libcamera::Camera> camera_;
 	yaml_parser_t parser_;

@@ -13,6 +13,7 @@
 #include <map>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 
 #include <libcamera/controls.h>
 
@@ -46,7 +47,7 @@ enum {{ctrl.name}}Enum {
 {%- endfor %}
 };
 extern const std::array<const ControlValue, {{ctrl.enum_values_count}}> {{ctrl.name}}Values;
-extern const std::map<std::string, {{ctrl.type}}> {{ctrl.name}}NameValueMap;
+extern const std::map<std::string_view, {{ctrl.type}}> {{ctrl.name}}NameValueMap;
 {% endif -%}
 extern const Control<{{ctrl.type}}> {{ctrl.name}};
 {% endfor -%}

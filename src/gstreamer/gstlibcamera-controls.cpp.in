@@ -154,9 +154,9 @@ bool GstCameraControls::getProperty(guint propId, GValue *value,
 				    [[maybe_unused]] GParamSpec *pspec)
 {
 	if (!controls_acc_.contains(propId)) {
-		GST_WARNING("Control '%s' is not available, default value will "
-			    "be returned",
-			    controls::controls.at(propId)->name().c_str());
+		const std::string_view name = controls::controls.at(propId)->name();
+		GST_WARNING("Control '%.*s' is not available, default value will be returned",
+			    static_cast<int>(name.size()), name.data());
 		return true;
 	}
 	const ControlValue &cv = controls_acc_.get(propId);
@@ -211,9 +211,10 @@ bool GstCameraControls::setProperty(guint propId, const GValue *value,
 		auto info = capabilities_.find(cid);
 
 		if (info == capabilities_.end()) {
-			GST_WARNING("Control '%s' is not supported by the "
+			const std::string_view name = cid->name();
+			GST_WARNING("Control '%.*s' is not supported by the "
 				    "camera and will be ignored",
-				    cid->name().c_str());
+				    static_cast<int>(name.size()), name.data());
 			return true;
 		}
 	}
@@ -307,12 +308,14 @@ void GstCameraControls::setCamera(const std::shared_ptr<libcamera::Camera> &cam)
 		auto info = capabilities_.find(cid);
 
 		/* Only add controls which are supported. */
-		if (info != capabilities_.end())
+		if (info != capabilities_.end()) {
 			new_controls.set(id, value);
-		else
-			GST_WARNING("Control '%s' is not supported by the "
+		} else {
+			const std::string_view name = cid->name();
+			GST_WARNING("Control '%.*s' is not supported by the "
 				    "camera and will be ignored",
-				    cid->name().c_str());
+				    static_cast<int>(name.size()), name.data());
+		}
 	}
 
 	controls_acc_ = new_controls;

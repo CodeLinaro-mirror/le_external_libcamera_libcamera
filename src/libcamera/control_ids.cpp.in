@@ -51,7 +51,7 @@ namespace {{vendor}} {
 
 /**
  * \var {{ctrl.name}}NameValueMap
- * \brief Map of all {{ctrl.name}} supported value names (in std::string format) to value
+ * \brief Map of all {{ctrl.name}} supported value names (in std::string_view format) to value
  */
 
 {% endif -%}
@@ -84,7 +84,7 @@ extern const std::array<const ControlValue, {{ctrl.enum_values_count}}> {{ctrl.n
 	static_cast<{{ctrl.type}}>({{enum.name}}),
 {%- endfor %}
 };
-extern const std::map<std::string, {{ctrl.type}}> {{ctrl.name}}NameValueMap = {
+extern const std::map<std::string_view, {{ctrl.type}}> {{ctrl.name}}NameValueMap = {
 {%- for enum in ctrl.enum_values %}
 	{ "{{enum.name}}", {{enum.name}} },
 {%- endfor %}

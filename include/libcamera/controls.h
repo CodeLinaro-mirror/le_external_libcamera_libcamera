@@ -13,6 +13,7 @@
 #include <set>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -249,28 +250,28 @@ private:
 class ControlId
 {
 public:
-	ControlId(unsigned int id, const std::string &name, const std::string &vendor,
+	ControlId(unsigned int id, std::string_view name, std::string_view vendor,
 		  ControlType type, std::size_t size = 0,
-		  const std::map<std::string, int32_t> &enumStrMap = {});
+		  const std::map<std::string_view, int32_t> &enumStrMap = {});
 
 	unsigned int id() const { return id_; }
-	const std::string &name() const { return name_; }
-	const std::string &vendor() const { return vendor_; }
+	std::string_view name() const { return name_; }
+	std::string_view vendor() const { return vendor_; }
 	ControlType type() const { return type_; }
 	bool isArray() const { return size_ > 0; }
 	std::size_t size() const { return size_; }
-	const std::map<int32_t, std::string> &enumerators() const { return reverseMap_; }
+	const std::map<int32_t, std::string_view> &enumerators() const { return reverseMap_; }
 
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(ControlId)
 
 	unsigned int id_;
-	std::string name_;
-	std::string vendor_;
+	std::string_view name_;
+	std::string_view vendor_;
 	ControlType type_;
 	std::size_t size_;
-	std::map<std::string, int32_t> enumStrMap_;
-	std::map<int32_t, std::string> reverseMap_;
+	std::map<std::string_view, int32_t> enumStrMap_;
+	std::map<int32_t, std::string_view> reverseMap_;
 };
 
 static inline bool operator==(unsigned int lhs, const ControlId &rhs)
@@ -300,7 +301,7 @@ public:
 	using type = T;
 
 	Control(unsigned int id, const char *name, const char *vendor,
-		const std::map<std::string, int32_t> &enumStrMap = {})
+		const std::map<std::string_view, int32_t> &enumStrMap = {})
 		: ControlId(id, name, vendor, details::control_type<std::remove_cv_t<T>>::value,
 			    details::control_type<std::remove_cv_t<T>>::size, enumStrMap)
 	{
