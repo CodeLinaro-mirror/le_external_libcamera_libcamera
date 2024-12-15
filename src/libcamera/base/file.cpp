@@ -83,8 +83,8 @@ LOG_DEFINE_CATEGORY(File)
  * Upon construction the File object is closed and shall be opened with open()
  * before performing I/O operations.
  */
-File::File(const std::string &name)
-	: name_(name), mode_(OpenModeFlag::NotOpen), error_(0)
+File::File(std::string name)
+	: name_(std::move(name)), mode_(OpenModeFlag::NotOpen), error_(0)
 {
 }
 
@@ -126,7 +126,7 @@ File::~File()
  *
  * Any memory mapping associated with the File is unmapped.
  */
-void File::setFileName(const std::string &name)
+void File::setFileName(std::string name)
 {
 	if (isOpen()) {
 		LOG(File, Error)
@@ -136,7 +136,7 @@ void File::setFileName(const std::string &name)
 
 	unmapAll();
 
-	name_ = name;
+	name_ = std::move(name);
 }
 
 /**
@@ -151,7 +151,7 @@ void File::setFileName(const std::string &name)
  */
 bool File::exists() const
 {
-	return exists(name_);
+	return exists(name_.c_str());
 }
 
 /**
@@ -464,10 +464,10 @@ void File::unmapAll()
  * \param[in] name The file name
  * \return True if the file exists, false otherwise
  */
-bool File::exists(const std::string &name)
+bool File::exists(const char *name)
 {
 	struct stat st;
-	int ret = stat(name.c_str(), &st);
+	int ret = stat(name, &st);
 	if (ret < 0)
 		return false;
 

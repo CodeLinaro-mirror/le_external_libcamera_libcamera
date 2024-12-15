@@ -92,7 +92,7 @@ std::string firmwareNodePath(const std::string &device)
 
 	/* Lookup for ACPI-based systems */
 	node = device + "/firmware_node/path";
-	if (File::exists(node)) {
+	if (File::exists(node.c_str())) {
 		std::ifstream file(node);
 		if (!file.is_open())
 			return {};

@@ -40,12 +40,12 @@ public:
 
 	using OpenMode = Flags<OpenModeFlag>;
 
-	File(const std::string &name);
+	File(std::string name);
 	File();
 	~File();
 
 	const std::string &fileName() const { return name_; }
-	void setFileName(const std::string &name);
+	void setFileName(std::string name);
 	bool exists() const;
 
 	bool open(OpenMode mode);
@@ -66,7 +66,7 @@ public:
 			  MapFlags flags = MapFlag::NoOption);
 	bool unmap(uint8_t *addr);
 
-	static bool exists(const std::string &name);
+	static bool exists(const char *name);
 
 private:
 	LIBCAMERA_DISABLE_COPY(File)

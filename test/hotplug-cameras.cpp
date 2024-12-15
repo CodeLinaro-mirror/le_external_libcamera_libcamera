@@ -73,7 +73,8 @@ protected:
 		dir = opendir(uvcDriverDir_.c_str());
 		/* Find a UVC device directory, which we can bind/unbind. */
 		while ((dirent = readdir(dir)) != nullptr) {
-			if (!File::exists(uvcDriverDir_ + dirent->d_name + "/video4linux"))
+			std::string fileName = uvcDriverDir_ + dirent->d_name + "/video4linux";
+			if (!File::exists(fileName.c_str()))
 				continue;
 
 			uvcDeviceDir = dirent->d_name;
