@@ -124,7 +124,7 @@ public:
 	class DictIterator : public Iterator<DictIterator>
 	{
 	public:
-		using value_type = std::pair<const std::string &, const YamlObject &>;
+		using value_type = std::pair<std::string_view, const YamlObject &>;
 		using pointer = value_type *;
 		using reference = value_type &;
 

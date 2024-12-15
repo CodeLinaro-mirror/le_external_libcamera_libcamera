@@ -312,7 +312,7 @@ template std::optional<std::vector<Size>> YamlObject::getList<Size>() const;
  * iteration order is not specified.
  *
  * The iterator's value_type is a
- * <em>std::pair<const std::string &, const \ref YamlObject &></em>.
+ * <em>std::pair<std::string_view, const \ref YamlObject &></em>.
  *
  * If the YamlObject is not of Dictionary type, the returned adapter operates
  * as an empty container.
