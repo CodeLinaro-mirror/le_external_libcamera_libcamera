@@ -15,6 +15,7 @@
 #include <sstream>
 #include <string.h>
 #include <string>
+#include <string_view>
 #include <sys/time.h>
 #include <type_traits>
 #include <utility>
@@ -38,7 +39,7 @@ namespace utils {
 const char *basename(const char *path);
 
 char *secure_getenv(const char *name);
-std::string dirname(const std::string &path);
+std::string dirname(std::string_view path);
 
 template<typename T>
 std::vector<typename T::key_type> map_keys(const T &map)
@@ -143,7 +144,7 @@ size_t strlcpy(char *dst, const char *src, size_t size);
 
 #ifndef __DOXYGEN__
 template<typename Container, typename UnaryOp>
-std::string join(const Container &items, const std::string &sep, UnaryOp op)
+std::string join(const Container &items, std::string_view sep, UnaryOp op)
 {
 	std::ostringstream ss;
 	bool first = true;
@@ -162,7 +163,7 @@ std::string join(const Container &items, const std::string &sep, UnaryOp op)
 }
 
 template<typename Container>
-std::string join(const Container &items, const std::string &sep)
+std::string join(const Container &items, std::string_view sep)
 {
 	std::ostringstream ss;
 	bool first = true;
@@ -181,7 +182,7 @@ std::string join(const Container &items, const std::string &sep)
 }
 #else
 template<typename Container, typename UnaryOp>
-std::string join(const Container &items, const std::string &sep, UnaryOp op = nullptr);
+std::string join(const Container &items, std::string_view sep, UnaryOp op = nullptr);
 #endif
 
 namespace details {
@@ -189,7 +190,7 @@ namespace details {
 class StringSplitter
 {
 public:
-	StringSplitter(const std::string &str, const std::string &delim);
+	StringSplitter(std::string_view str, std::string_view delim);
 
 	class iterator
 	{
@@ -238,9 +239,9 @@ private:
 
 } /* namespace details */
 
-details::StringSplitter split(const std::string &str, const std::string &delim);
+details::StringSplitter split(std::string_view str, std::string_view delim);
 
-std::string toAscii(const std::string &str);
+std::string toAscii(std::string_view str);
 
 std::string libcameraBuildPath();
 std::string libcameraSourcePath();

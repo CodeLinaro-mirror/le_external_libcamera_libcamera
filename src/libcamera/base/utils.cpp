@@ -80,7 +80,7 @@ char *secure_getenv(const char *name)
  *
  * \return A string of the directory component of the path
  */
-std::string dirname(const std::string &path)
+std::string dirname(std::string_view path)
 {
 	if (path.empty())
 		return ".";
@@ -116,7 +116,7 @@ std::string dirname(const std::string &path)
 		pos--;
 	}
 
-	return path.substr(0, pos + 1);
+	return std::string(path.substr(0, pos + 1));
 }
 
 /**
@@ -247,7 +247,7 @@ size_t strlcpy(char *dst, const char *src, size_t size)
 	return strlen(src);
 }
 
-details::StringSplitter::StringSplitter(const std::string &str, const std::string &delim)
+details::StringSplitter::StringSplitter(std::string_view str, std::string_view delim)
 	: str_(str), delim_(delim)
 {
 }
@@ -278,7 +278,7 @@ std::string details::StringSplitter::iterator::operator*() const
 
 /**
  * \fn template<typename Container, typename UnaryOp> \
- * std::string utils::join(const Container &items, const std::string &sep, UnaryOp op)
+ * std::string utils::join(const Container &items, std::string_view sep, UnaryOp op)
  * \brief Join elements of a container in a string with a separator
  * \param[in] items The container
  * \param[in] sep The separator to add between elements
@@ -293,7 +293,7 @@ std::string details::StringSplitter::iterator::operator*() const
  */
 
 /**
- * \fn split(const std::string &str, const std::string &delim)
+ * \fn split(std::string_view str, std::string_view delim)
  * \brief Split a string based on a delimiter
  * \param[in] str The string to split
  * \param[in] delim The delimiter string
@@ -305,7 +305,7 @@ std::string details::StringSplitter::iterator::operator*() const
  * \return An object that can be used in a range-based for loop to iterate over
  * the substrings
  */
-details::StringSplitter split(const std::string &str, const std::string &delim)
+details::StringSplitter split(std::string_view str, std::string_view delim)
 {
 	/** \todo Try to avoid copies of str and delim */
 	return details::StringSplitter(str, delim);
@@ -319,7 +319,7 @@ details::StringSplitter split(const std::string &str, const std::string &delim)
  *
  * \return A string equal to \a str stripped out of all non-ASCII characters
  */
-std::string toAscii(const std::string &str)
+std::string toAscii(std::string_view str)
 {
 	std::string ret;
 	for (const char &c : str)
