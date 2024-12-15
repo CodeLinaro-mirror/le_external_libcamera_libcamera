@@ -272,7 +272,7 @@ void DeviceEnumerator::addDevice(std::unique_ptr<MediaDevice> media)
  * enumerator with addDevice(). The media device's MediaDevice::disconnected
  * signal is emitted.
  */
-void DeviceEnumerator::removeDevice(const std::string &deviceNode)
+void DeviceEnumerator::removeDevice(std::string_view deviceNode)
 {
 	std::shared_ptr<MediaDevice> media;
 

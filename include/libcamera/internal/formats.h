@@ -8,6 +8,7 @@
 #pragma once
 
 #include <array>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/geometry.h>
@@ -35,7 +36,7 @@ public:
 
 	static const PixelFormatInfo &info(const PixelFormat &format);
 	static const PixelFormatInfo &info(const V4L2PixelFormat &format);
-	static const PixelFormatInfo &info(const std::string &name);
+	static const PixelFormatInfo &info(std::string_view name);
 
 	unsigned int stride(unsigned int width, unsigned int plane,
 			    unsigned int align = 1) const;

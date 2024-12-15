@@ -57,7 +57,7 @@ Object::~Object()
 {
 }
 
-const Property *Object::property(const std::string &name) const
+const Property *Object::property(std::string_view name) const
 {
 	for (const PropertyValue &pv : properties_) {
 		const Property *property = static_cast<const Property *>(dev_->object(pv.id()));
@@ -68,7 +68,7 @@ const Property *Object::property(const std::string &name) const
 	return nullptr;
 }
 
-const PropertyValue *Object::propertyValue(const std::string &name) const
+const PropertyValue *Object::propertyValue(std::string_view name) const
 {
 	for (const PropertyValue &pv : properties_) {
 		const Property *property = static_cast<const Property *>(dev_->object(pv.id()));
@@ -320,7 +320,7 @@ AtomicRequest::~AtomicRequest()
 		drmModeAtomicFree(request_);
 }
 
-int AtomicRequest::addProperty(const Object *object, const std::string &property,
+int AtomicRequest::addProperty(const Object *object, std::string_view property,
 			       uint64_t value)
 {
 	if (!valid_)
@@ -335,7 +335,7 @@ int AtomicRequest::addProperty(const Object *object, const std::string &property
 	return addProperty(object->id(), prop->id(), value);
 }
 
-int AtomicRequest::addProperty(const Object *object, const std::string &property,
+int AtomicRequest::addProperty(const Object *object, std::string_view property,
 			       std::unique_ptr<Blob> blob)
 {
 	if (!valid_)

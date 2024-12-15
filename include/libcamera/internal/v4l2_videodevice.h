@@ -13,6 +13,7 @@
 #include <ostream>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -227,7 +228,7 @@ public:
 	Signal<> dequeueTimeout;
 
 	static std::unique_ptr<V4L2VideoDevice>
-	fromEntityName(const MediaDevice *media, const std::string &entity);
+	fromEntityName(const MediaDevice *media, std::string_view entity);
 
 	V4L2PixelFormat toV4L2PixelFormat(const PixelFormat &pixelFormat) const;
 

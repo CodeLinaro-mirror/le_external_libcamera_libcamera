@@ -13,6 +13,7 @@
 #include <memory>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/base/signal.h>
@@ -57,8 +58,8 @@ public:
 	uint32_t id() const { return id_; }
 	Type type() const { return type_; }
 
-	const Property *property(const std::string &name) const;
-	const PropertyValue *propertyValue(const std::string &name) const;
+	const Property *property(std::string_view name) const;
+	const PropertyValue *propertyValue(std::string_view name) const;
 	const std::vector<PropertyValue> &properties() const { return properties_; }
 
 protected:
@@ -260,9 +261,9 @@ public:
 	Device *device() const { return dev_; }
 	bool isValid() const { return valid_; }
 
-	int addProperty(const Object *object, const std::string &property,
+	int addProperty(const Object *object, std::string_view property,
 			uint64_t value);
-	int addProperty(const Object *object, const std::string &property,
+	int addProperty(const Object *object, std::string_view property,
 			std::unique_ptr<Blob> blob);
 	int commit(unsigned int flags = 0);
 

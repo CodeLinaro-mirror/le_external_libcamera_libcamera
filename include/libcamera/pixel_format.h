@@ -10,6 +10,7 @@
 #include <ostream>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 
 namespace libcamera {
 
@@ -38,7 +39,7 @@ public:
 
 	std::string toString() const;
 
-	static PixelFormat fromString(const std::string &name);
+	static PixelFormat fromString(std::string_view name);
 
 private:
 	uint32_t fourcc_;

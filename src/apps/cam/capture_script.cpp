@@ -433,7 +433,7 @@ std::vector<std::string> CaptureScript::parseSingleArray()
 	}
 }
 
-void CaptureScript::unpackFailure(const ControlId *id, const std::string &repr)
+void CaptureScript::unpackFailure(const ControlId *id, std::string_view repr)
 {
 	static const std::map<unsigned int, const char *> typeNames = {
 		{ ControlTypeNone, "none" },

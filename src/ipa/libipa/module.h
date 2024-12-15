@@ -9,7 +9,7 @@
 
 #include <list>
 #include <memory>
-#include <string>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/base/log.h>
@@ -95,7 +95,7 @@ private:
 		return 0;
 	}
 
-	static std::unique_ptr<Algorithm<Module>> createAlgorithm(const std::string &name)
+	static std::unique_ptr<Algorithm<Module>> createAlgorithm(std::string_view name)
 	{
 		for (const AlgorithmFactoryBase<Module> *factory : factories()) {
 			if (factory->name() == name)

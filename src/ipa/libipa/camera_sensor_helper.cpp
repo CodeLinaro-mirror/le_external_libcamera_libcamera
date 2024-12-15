@@ -240,7 +240,7 @@ CameraSensorHelperFactoryBase::CameraSensorHelperFactoryBase(const std::string n
  * corresponding to the named factory or a null pointer if no such factory
  * exists
  */
-std::unique_ptr<CameraSensorHelper> CameraSensorHelperFactoryBase::create(const std::string &name)
+std::unique_ptr<CameraSensorHelper> CameraSensorHelperFactoryBase::create(std::string_view name)
 {
 	const std::vector<CameraSensorHelperFactoryBase *> &factories =
 		CameraSensorHelperFactoryBase::factories();

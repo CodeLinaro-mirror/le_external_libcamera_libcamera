@@ -12,6 +12,7 @@
 #include <ostream>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <linux/v4l2-subdev.h>
@@ -162,7 +163,7 @@ public:
 	const V4L2SubdeviceCapability &caps() const { return caps_; }
 
 	static std::unique_ptr<V4L2Subdevice>
-	fromEntityName(const MediaDevice *media, const std::string &entity);
+	fromEntityName(const MediaDevice *media, std::string_view entity);
 
 protected:
 	std::string logPrefix() const override;

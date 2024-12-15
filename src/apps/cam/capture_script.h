@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 
 #include <libcamera/camera.h>
 #include <libcamera/controls.h>
@@ -67,7 +68,7 @@ private:
 	std::vector<std::string> parseSingleArray();
 
 	void unpackFailure(const libcamera::ControlId *id,
-			   const std::string &repr);
+			   std::string_view repr);
 	libcamera::ControlValue unpackControl(const libcamera::ControlId *id);
 	libcamera::Rectangle unpackRectangle(const std::vector<std::string> &strVec);
 };

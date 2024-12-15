@@ -135,7 +135,7 @@ std::string PixelFormat::toString() const
  * \return The PixelFormat represented by the \a name if known, or an
  * invalid pixel format otherwise.
  */
-PixelFormat PixelFormat::fromString(const std::string &name)
+PixelFormat PixelFormat::fromString(std::string_view name)
 {
 	return PixelFormatInfo::info(name).format;
 }

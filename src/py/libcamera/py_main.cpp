@@ -510,7 +510,7 @@ PYBIND11_MODULE(_libcamera, m)
 	pyPixelFormat
 		.def(py::init<>())
 		.def(py::init<uint32_t, uint64_t>())
-		.def(py::init<>([](const std::string &str) {
+		.def(py::init<>([](std::string_view str) {
 			return PixelFormat::fromString(str);
 		}))
 		.def_property_readonly("fourcc", &PixelFormat::fourcc)

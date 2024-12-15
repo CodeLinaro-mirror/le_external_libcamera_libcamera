@@ -1757,7 +1757,7 @@ const std::string &V4L2Subdevice::model()
  */
 std::unique_ptr<V4L2Subdevice>
 V4L2Subdevice::fromEntityName(const MediaDevice *media,
-			      const std::string &entity)
+			      std::string_view entity)
 {
 	MediaEntity *mediaEntity = media->getEntityByName(entity);
 	if (!mediaEntity)

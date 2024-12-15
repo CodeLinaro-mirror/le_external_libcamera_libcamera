@@ -78,9 +78,9 @@ LOG_DEFINE_CATEGORY(CameraSensorProperties)
  * \return A pointer to the CameraSensorProperties instance associated with a sensor
  * or nullptr if the sensor is not supported
  */
-const CameraSensorProperties *CameraSensorProperties::get(const std::string &sensor)
+const CameraSensorProperties *CameraSensorProperties::get(std::string_view sensor)
 {
-	static const std::map<std::string, const CameraSensorProperties> sensorProps = {
+	static const std::map<std::string_view, const CameraSensorProperties> sensorProps = {
 		{ "ar0144", {
 			.unitCellSize = { 3000, 3000 },
 			.testPatternModes = {

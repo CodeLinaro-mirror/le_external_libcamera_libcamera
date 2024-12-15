@@ -9,6 +9,7 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/base/signal.h>
@@ -48,7 +49,7 @@ public:
 protected:
 	std::unique_ptr<MediaDevice> createDevice(const std::string &deviceNode);
 	void addDevice(std::unique_ptr<MediaDevice> media);
-	void removeDevice(const std::string &deviceNode);
+	void removeDevice(std::string_view deviceNode);
 
 private:
 	std::vector<std::shared_ptr<MediaDevice>> devices_;

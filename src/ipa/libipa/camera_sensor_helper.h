@@ -11,6 +11,7 @@
 #include <optional>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -56,7 +57,7 @@ public:
 	CameraSensorHelperFactoryBase(const std::string name);
 	virtual ~CameraSensorHelperFactoryBase() = default;
 
-	static std::unique_ptr<CameraSensorHelper> create(const std::string &name);
+	static std::unique_ptr<CameraSensorHelper> create(std::string_view name);
 
 	static std::vector<CameraSensorHelperFactoryBase *> &factories();
 

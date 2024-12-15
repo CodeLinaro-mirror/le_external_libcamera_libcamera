@@ -2101,7 +2101,7 @@ void V4L2VideoDevice::watchdogExpired()
  */
 std::unique_ptr<V4L2VideoDevice>
 V4L2VideoDevice::fromEntityName(const MediaDevice *media,
-				const std::string &entity)
+				std::string_view entity)
 {
 	MediaEntity *mediaEntity = media->getEntityByName(entity);
 	if (!mediaEntity)

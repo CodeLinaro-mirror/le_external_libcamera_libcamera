@@ -10,6 +10,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <vector>
 
@@ -113,7 +114,7 @@ public:
 	const std::string &name() const { return name_; }
 
 	static std::vector<PipelineHandlerFactoryBase *> &factories();
-	static const PipelineHandlerFactoryBase *getFactoryByName(const std::string &name);
+	static const PipelineHandlerFactoryBase *getFactoryByName(std::string_view name);
 
 private:
 	static void registerType(PipelineHandlerFactoryBase *factory);

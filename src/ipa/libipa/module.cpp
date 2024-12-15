@@ -107,7 +107,7 @@ namespace ipa {
  */
 
 /**
- * \fn Module::createAlgorithm(const std::string &name)
+ * \fn Module::createAlgorithm(std::string_view name)
  * \brief Create an instance of an Algorithm by name
  * \param[in] name The algorithm name
  *

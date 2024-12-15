@@ -351,7 +351,7 @@ void DeviceEnumeratorUdev::udevNotify()
 	} else if (action == "remove") {
 		const char *subsystem = udev_device_get_subsystem(dev);
 		if (subsystem && !strcmp(subsystem, "media"))
-			removeDevice(std::string(deviceNode));
+			removeDevice(deviceNode);
 	}
 
 	udev_device_unref(dev);
