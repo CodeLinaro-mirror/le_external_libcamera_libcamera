@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: CC0-1.0
 
-if not get_option('v4l2')
+if not get_option('v4l2').allowed()
     v4l2_enabled = false
     subdir_done()
 endif
