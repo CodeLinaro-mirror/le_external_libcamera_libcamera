@@ -8,11 +8,11 @@
 #include <libcamera/base/log.h>
 
 #include <array>
+#include <charconv>
 #include <fstream>
 #include <iostream>
 #include <list>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
@@ -112,11 +112,11 @@ public:
 
 	bool isValid() const;
 	void write(const LogMessage &msg);
-	void write(const std::string &msg);
+	void write(std::string_view msg);
 
 private:
-	void writeSyslog(LogSeverity severity, const std::string &msg);
-	void writeStream(const std::string &msg);
+	void writeSyslog(LogSeverity severity, std::string_view msg);
+	void writeStream(std::string_view msg);
 
 	std::ostream *stream_;
 	LoggingTarget target_;
@@ -260,7 +260,7 @@ void LogOutput::write(const LogMessage &msg)
  * \brief Write string to log output
  * \param[in] str String to write
  */
-void LogOutput::write(const std::string &str)
+void LogOutput::write(std::string_view str)
 {
 	switch (target_) {
 	case LoggingTargetSyslog:
@@ -275,14 +275,15 @@ void LogOutput::write(const std::string &str)
 	}
 }
 
-void LogOutput::writeSyslog(LogSeverity severity, const std::string &str)
+void LogOutput::writeSyslog(LogSeverity severity, std::string_view str)
 {
-	syslog(log_severity_to_syslog(severity), "%s", str.c_str());
+	syslog(log_severity_to_syslog(severity), "%.*s",
+	       static_cast<int>(str.size()), str.data());
 }
 
-void LogOutput::writeStream(const std::string &str)
+void LogOutput::writeStream(std::string_view str)
 {
-	stream_->write(str.c_str(), str.size());
+	stream_->write(str.data(), str.size());
 	stream_->flush();
 }
 
@@ -311,7 +312,7 @@ private:
 
 	void parseLogFile();
 	void parseLogLevels();
-	static LogSeverity parseLogLevel(const std::string &level);
+	static LogSeverity parseLogLevel(std::string_view level);
 
 	friend LogCategory;
 	void registerCategory(LogCategory *category);
@@ -675,7 +676,7 @@ void Logger::parseLogLevels()
  *
  * \return The log severity, or LogInvalid if the string is invalid
  */
-LogSeverity Logger::parseLogLevel(const std::string &level)
+LogSeverity Logger::parseLogLevel(std::string_view level)
 {
 	static const char *const names[] = {
 		"DEBUG",
@@ -688,9 +689,9 @@ LogSeverity Logger::parseLogLevel(const std::string &level)
 	int severity;
 
 	if (std::isdigit(level[0])) {
-		char *endptr;
-		severity = strtoul(level.c_str(), &endptr, 10);
-		if (*endptr != '\0' || severity > LogFatal)
+		std::from_chars_result res;
+		res = std::from_chars(level.begin(), level.end(), severity);
+		if (res.ptr != level.end() || severity > LogFatal)
 			severity = LogInvalid;
 	} else {
 		severity = LogInvalid;
@@ -874,7 +875,7 @@ const LogCategory &LogCategory::defaultCategory()
  */
 LogMessage::LogMessage(const char *fileName, unsigned int line,
 		       const LogCategory &category, LogSeverity severity,
-		       const std::string &prefix)
+		       std::string_view prefix)
 	: category_(category), severity_(severity), prefix_(prefix)
 {
 	init(fileName, line);
