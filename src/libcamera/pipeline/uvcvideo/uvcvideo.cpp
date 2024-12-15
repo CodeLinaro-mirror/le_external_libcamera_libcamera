@@ -12,6 +12,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/base/log.h>
@@ -571,7 +572,7 @@ bool UVCCameraData::generateId()
 
 	/* Create a controller ID from first device described in firmware. */
 	std::string controllerId;
-	std::string searchPath = path;
+	std::string_view searchPath{ path };
 	while (true) {
 		std::string::size_type pos = searchPath.rfind('/');
 		if (pos <= 1) {

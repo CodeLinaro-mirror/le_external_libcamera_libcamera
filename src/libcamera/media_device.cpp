@@ -62,7 +62,7 @@ LOG_DEFINE_CATEGORY(MediaDevice)
  * Once constructed the media device is invalid, and must be populated with
  * populate() before the media graph can be queried.
  */
-MediaDevice::MediaDevice(const std::string &deviceNode)
+MediaDevice::MediaDevice(std::string_view deviceNode)
 	: deviceNode_(deviceNode), valid_(false), acquired_(false)
 {
 }
@@ -331,7 +331,7 @@ done:
  * \param[in] name The entity name
  * \return The entity with \a name, or nullptr if no such entity is found
  */
-MediaEntity *MediaDevice::getEntityByName(const std::string &name) const
+MediaEntity *MediaDevice::getEntityByName(std::string_view name) const
 {
 	for (MediaEntity *e : entities_)
 		if (e->name() == name)
@@ -359,8 +359,8 @@ MediaEntity *MediaDevice::getEntityByName(const std::string &name) const
  * \return The link that connects the two pads, or nullptr if no such a link
  * exists
  */
-MediaLink *MediaDevice::link(const std::string &sourceName, unsigned int sourceIdx,
-			     const std::string &sinkName, unsigned int sinkIdx)
+MediaLink *MediaDevice::link(std::string_view sourceName, unsigned int sourceIdx,
+			     std::string_view sinkName, unsigned int sinkIdx)
 {
 	const MediaEntity *source = getEntityByName(sourceName);
 	const MediaEntity *sink = getEntityByName(sinkName);
@@ -382,8 +382,8 @@ MediaLink *MediaDevice::link(const std::string &sourceName, unsigned int sourceI
  * entity \a source, to the pad at index \a sinkIdx of the sink entity \a
  * sink, if any.
  *
- * \sa link(const std::string &sourceName, unsigned int sourceIdx,
- *          const std::string &sinkName, unsigned int sinkIdx)
+ * \sa link(std::string_view sourceName, unsigned int sourceIdx,
+ *          std::string_view sinkName, unsigned int sinkIdx)
  * \sa link(const MediaPad *source, const MediaPad *sink)
  *
  * \return The link that connects the two pads, or nullptr if no such a link
@@ -406,8 +406,8 @@ MediaLink *MediaDevice::link(const MediaEntity *source, unsigned int sourceIdx,
  * \param[in] source The source pad
  * \param[in] sink The sink pad
  *
- * \sa link(const std::string &sourceName, unsigned int sourceIdx,
- *          const std::string &sinkName, unsigned int sinkIdx)
+ * \sa link(std::string_view sourceName, unsigned int sourceIdx,
+ *          std::string_view sinkName, unsigned int sinkIdx)
  * \sa link(const MediaEntity *source, unsigned int sourceIdx,
  *          const MediaEntity *sink, unsigned int sinkIdx)
  *

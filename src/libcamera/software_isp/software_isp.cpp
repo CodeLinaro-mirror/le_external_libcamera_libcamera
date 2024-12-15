@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <stdint.h>
+#include <string>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -148,7 +149,7 @@ SoftwareIsp::~SoftwareIsp()
 }
 
 /**
- * \fn int SoftwareIsp::loadConfiguration([[maybe_unused]] const std::string &filename)
+ * \fn int SoftwareIsp::loadConfiguration([[maybe_unused]] std::string_view filename)
  * \brief Load a configuration from a file
  * \param[in] filename The file to load the configuration data from
  *

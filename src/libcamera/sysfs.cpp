@@ -15,6 +15,8 @@
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
 
+using namespace std::literals::string_literals;
+
 /**
  * \file sysfs.h
  * \brief Miscellaneous utility functions to access sysfs
@@ -67,13 +69,13 @@ std::string charDevPath(const std::string &deviceNode)
  *
  * \return The firmware node path on success or an empty string on failure
  */
-std::string firmwareNodePath(const std::string &device)
+std::string firmwareNodePath(std::string_view device)
 {
 	std::string fwPath, node;
 	struct stat st;
 
 	/* Lookup for DT-based systems */
-	node = device + "/of_node";
+	node = device + "/of_node"s;
 	if (!stat(node.c_str(), &st)) {
 		char *ofPath = realpath(node.c_str(), nullptr);
 		if (!ofPath)
@@ -91,7 +93,7 @@ std::string firmwareNodePath(const std::string &device)
 	}
 
 	/* Lookup for ACPI-based systems */
-	node = device + "/firmware_node/path";
+	node = device + "/firmware_node/path"s;
 	if (File::exists(node.c_str())) {
 		std::ifstream file(node);
 		if (!file.is_open())

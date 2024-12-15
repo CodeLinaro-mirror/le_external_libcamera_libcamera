@@ -13,6 +13,7 @@
 #include <map>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -44,7 +45,7 @@ public:
 	Converter(MediaDevice *media, Features features = Feature::None);
 	virtual ~Converter();
 
-	virtual int loadConfiguration(const std::string &filename) = 0;
+	virtual int loadConfiguration(std::string_view filename) = 0;
 
 	virtual bool isValid() const = 0;
 

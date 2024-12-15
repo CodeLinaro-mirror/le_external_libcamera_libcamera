@@ -56,7 +56,7 @@ LOG_DEFINE_CATEGORY(V4L2)
  * Initialize the file descriptor to -1 and store the \a deviceNode to be used
  * at open() time, and the \a logTag to prefix log messages with.
  */
-V4L2Device::V4L2Device(const std::string &deviceNode)
+V4L2Device::V4L2Device(std::string_view deviceNode)
 	: deviceNode_(deviceNode), fdEventNotifier_(nullptr),
 	  frameStartEnabled_(false)
 {

@@ -531,7 +531,7 @@ std::ostream &operator<<(std::ostream &out, const V4L2DeviceFormat &f)
  * \brief Construct a V4L2VideoDevice
  * \param[in] deviceNode The file-system path to the video device node
  */
-V4L2VideoDevice::V4L2VideoDevice(const std::string &deviceNode)
+V4L2VideoDevice::V4L2VideoDevice(std::string_view deviceNode)
 	: V4L2Device(deviceNode), formatInfo_(nullptr), cache_(nullptr),
 	  fdBufferNotifier_(nullptr), state_(State::Stopped),
 	  watchdogDuration_(0.0)
@@ -2076,8 +2076,7 @@ void V4L2VideoDevice::watchdogExpired()
  * \return A newly created V4L2VideoDevice on success, nullptr otherwise
  */
 std::unique_ptr<V4L2VideoDevice>
-V4L2VideoDevice::fromEntityName(const MediaDevice *media,
-				const std::string &entity)
+V4L2VideoDevice::fromEntityName(const MediaDevice *media, std::string_view entity)
 {
 	MediaEntity *mediaEntity = media->getEntityByName(entity);
 	if (!mediaEntity)
@@ -2160,7 +2159,7 @@ V4L2PixelFormat V4L2VideoDevice::toV4L2PixelFormat(const PixelFormat &pixelForma
  * \brief Create a new V4L2M2MDevice from the \a deviceNode
  * \param[in] deviceNode The file-system path to the video device node
  */
-V4L2M2MDevice::V4L2M2MDevice(const std::string &deviceNode)
+V4L2M2MDevice::V4L2M2MDevice(std::string_view deviceNode)
 	: deviceNode_(deviceNode)
 {
 	output_ = new V4L2VideoDevice(deviceNode);

@@ -595,8 +595,8 @@ void PipelineHandler::cancelRequest(Request *request)
  * \return The full path to the pipeline handler configuration file, or an empty
  * string if no configuration file can be found
  */
-std::string PipelineHandler::configurationFile(const std::string &subdir,
-					       const std::string &name) const
+std::string PipelineHandler::configurationFile(std::string_view subdir,
+					       std::string_view name) const
 {
 	std::string confPath;
 	struct stat statbuf;
@@ -852,7 +852,7 @@ std::vector<PipelineHandlerFactoryBase *> &PipelineHandlerFactoryBase::factories
  * \param[in] name The pipeline handler name
  * \return The factory of the pipeline with name \a name, or nullptr if not found
  */
-const PipelineHandlerFactoryBase *PipelineHandlerFactoryBase::getFactoryByName(const std::string &name)
+const PipelineHandlerFactoryBase *PipelineHandlerFactoryBase::getFactoryByName(std::string_view name)
 {
 	const std::vector<PipelineHandlerFactoryBase *> &factories =
 		PipelineHandlerFactoryBase::factories();

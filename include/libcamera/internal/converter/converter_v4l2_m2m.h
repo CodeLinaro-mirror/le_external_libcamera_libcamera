@@ -11,7 +11,6 @@
 #include <functional>
 #include <map>
 #include <memory>
-#include <string>
 #include <tuple>
 #include <vector>
 
@@ -38,7 +37,7 @@ class V4L2M2MConverter : public Converter
 public:
 	V4L2M2MConverter(MediaDevice *media);
 
-	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }
+	int loadConfiguration([[maybe_unused]] std::string_view filename) { return 0; }
 	bool isValid() const { return m2m_ != nullptr; }
 
 	std::vector<PixelFormat> formats(PixelFormat input);

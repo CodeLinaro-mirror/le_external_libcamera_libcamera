@@ -9,6 +9,7 @@
 
 #include <map>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <linux/media.h>
@@ -24,7 +25,7 @@ namespace libcamera {
 class MediaDevice : protected Loggable
 {
 public:
-	MediaDevice(const std::string &deviceNode);
+	MediaDevice(std::string_view deviceNode);
 	~MediaDevice();
 
 	bool acquire();
@@ -44,10 +45,10 @@ public:
 	unsigned int hwRevision() const { return hwRevision_; }
 
 	const std::vector<MediaEntity *> &entities() const { return entities_; }
-	MediaEntity *getEntityByName(const std::string &name) const;
+	MediaEntity *getEntityByName(std::string_view name) const;
 
-	MediaLink *link(const std::string &sourceName, unsigned int sourceIdx,
-			const std::string &sinkName, unsigned int sinkIdx);
+	MediaLink *link(std::string_view sourceName, unsigned int sourceIdx,
+			std::string_view sinkName, unsigned int sinkIdx);
 	MediaLink *link(const MediaEntity *source, unsigned int sourceIdx,
 			const MediaEntity *sink, unsigned int sinkIdx);
 	MediaLink *link(const MediaPad *source, const MediaPad *sink);

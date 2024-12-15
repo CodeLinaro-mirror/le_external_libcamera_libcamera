@@ -9,6 +9,7 @@
 
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/base/log.h>
@@ -23,7 +24,7 @@ namespace libcamera {
 class IPAModule : public Loggable
 {
 public:
-	explicit IPAModule(const std::string &libPath);
+	explicit IPAModule(std::string_view libPath);
 	~IPAModule();
 
 	bool isValid() const;

@@ -12,7 +12,7 @@
 #include <map>
 #include <memory>
 #include <stdint.h>
-#include <string>
+#include <string_view>
 #include <tuple>
 #include <vector>
 
@@ -50,7 +50,7 @@ public:
 		    ControlInfoMap *ipaControls);
 	~SoftwareIsp();
 
-	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }
+	int loadConfiguration([[maybe_unused]] std::string_view filename) { return 0; }
 
 	bool isValid() const;
 

@@ -1037,7 +1037,7 @@ const PixelFormatInfo &PixelFormatInfo::info(const V4L2PixelFormat &format)
  * \return The PixelFormatInfo describing the PixelFormat matching the
  * \a name if known, or an invalid PixelFormatInfo otherwise
  */
-const PixelFormatInfo &PixelFormatInfo::info(const std::string &name)
+const PixelFormatInfo &PixelFormatInfo::info(std::string_view name)
 {
 	for (const auto &info : pixelFormatInfo) {
 		if (info.second.name == name)

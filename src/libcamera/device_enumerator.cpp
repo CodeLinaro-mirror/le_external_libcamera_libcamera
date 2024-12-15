@@ -67,7 +67,7 @@ LOG_DEFINE_CATEGORY(DeviceEnumerator)
  * \brief Construct a media device search pattern
  * \param[in] driver The Linux device driver name that created the media device
  */
-DeviceMatch::DeviceMatch(const std::string &driver)
+DeviceMatch::DeviceMatch(std::string_view driver)
 	: driver_(driver)
 {
 }
@@ -76,9 +76,9 @@ DeviceMatch::DeviceMatch(const std::string &driver)
  * \brief Add a media entity name to the search pattern
  * \param[in] entity The name of the entity in the media graph
  */
-void DeviceMatch::add(const std::string &entity)
+void DeviceMatch::add(std::string_view entity)
 {
-	entities_.push_back(entity);
+	entities_.push_back(std::string(entity));
 }
 
 /**
@@ -215,7 +215,7 @@ DeviceEnumerator::~DeviceEnumerator()
  *
  * \return Created media device instance on success, or nullptr otherwise
  */
-std::unique_ptr<MediaDevice> DeviceEnumerator::createDevice(const std::string &deviceNode)
+std::unique_ptr<MediaDevice> DeviceEnumerator::createDevice(std::string_view deviceNode)
 {
 	std::unique_ptr<MediaDevice> media = std::make_unique<MediaDevice>(deviceNode);
 
@@ -272,7 +272,7 @@ void DeviceEnumerator::addDevice(std::unique_ptr<MediaDevice> media)
  * enumerator with addDevice(). The media device's MediaDevice::disconnected
  * signal is emitted.
  */
-void DeviceEnumerator::removeDevice(const std::string &deviceNode)
+void DeviceEnumerator::removeDevice(std::string_view deviceNode)
 {
 	std::shared_ptr<MediaDevice> media;
 

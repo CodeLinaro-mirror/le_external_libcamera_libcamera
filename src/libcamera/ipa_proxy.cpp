@@ -95,8 +95,8 @@ IPAProxy::~IPAProxy()
  * \return The full path to the IPA configuration file, or an empty string if
  * no configuration file can be found
  */
-std::string IPAProxy::configurationFile(const std::string &name,
-					const std::string &fallbackName) const
+std::string IPAProxy::configurationFile(std::string_view name,
+					std::string_view fallbackName) const
 {
 	struct stat statbuf;
 	int ret;
@@ -178,9 +178,9 @@ std::string IPAProxy::configurationFile(const std::string &name,
  * \return The full path to the proxy worker executable, or an empty string if
  * no valid executable path
  */
-std::string IPAProxy::resolvePath(const std::string &file) const
+std::string IPAProxy::resolvePath(std::string_view file) const
 {
-	std::string proxyFile = "/" + file;
+	std::string proxyFile = std::string("/") + file;
 
 	/* Check env variable first. */
 	const char *execPaths = utils::secure_getenv("LIBCAMERA_IPA_PROXY_PATH");

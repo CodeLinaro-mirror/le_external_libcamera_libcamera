@@ -1687,8 +1687,7 @@ const std::string &V4L2Subdevice::model()
  * \return A newly created V4L2Subdevice on success, nullptr otherwise
  */
 std::unique_ptr<V4L2Subdevice>
-V4L2Subdevice::fromEntityName(const MediaDevice *media,
-			      const std::string &entity)
+V4L2Subdevice::fromEntityName(const MediaDevice *media, std::string_view entity)
 {
 	MediaEntity *mediaEntity = media->getEntityByName(entity);
 	if (!mediaEntity)

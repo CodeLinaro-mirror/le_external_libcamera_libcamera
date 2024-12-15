@@ -9,7 +9,7 @@
 
 #include <map>
 #include <stdint.h>
-#include <string>
+#include <string_view>
 
 #include <libcamera/control_ids.h>
 #include <libcamera/geometry.h>
@@ -24,7 +24,7 @@ struct CameraSensorProperties {
 		uint8_t hblankDelay;
 	};
 
-	static const CameraSensorProperties *get(const std::string &sensor);
+	static const CameraSensorProperties *get(std::string_view sensor);
 
 	Size unitCellSize;
 	std::map<controls::draft::TestPatternModeEnum, int32_t> testPatternModes;

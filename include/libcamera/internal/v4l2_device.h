@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 #include <linux/videodev2.h>
@@ -50,7 +51,7 @@ public:
 	void updateControlInfo();
 
 protected:
-	V4L2Device(const std::string &deviceNode);
+	V4L2Device(std::string_view deviceNode);
 	~V4L2Device();
 
 	int open(unsigned int flags);

@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 #include <libcamera/ipa/ipa_interface.h>
 
@@ -29,11 +30,11 @@ public:
 
 	bool isValid() const { return valid_; }
 
-	std::string configurationFile(const std::string &name,
-				      const std::string &fallbackName = std::string()) const;
+	std::string configurationFile(std::string_view name,
+				      std::string_view fallbackName = {}) const;
 
 protected:
-	std::string resolvePath(const std::string &file) const;
+	std::string resolvePath(std::string_view file) const;
 
 	bool valid_;
 	ProxyState state_;

@@ -20,9 +20,9 @@ class MediaDevice;
 class DeviceMatch
 {
 public:
-	DeviceMatch(const std::string &driver);
+	DeviceMatch(std::string_view driver);
 
-	void add(const std::string &entity);
+	void add(std::string_view entity);
 
 	bool match(const MediaDevice *device) const;
 
@@ -46,9 +46,9 @@ public:
 	Signal<> devicesAdded;
 
 protected:
-	std::unique_ptr<MediaDevice> createDevice(const std::string &deviceNode);
+	std::unique_ptr<MediaDevice> createDevice(std::string_view deviceNode);
 	void addDevice(std::unique_ptr<MediaDevice> media);
-	void removeDevice(const std::string &deviceNode);
+	void removeDevice(std::string_view deviceNode);
 
 private:
 	std::vector<std::shared_ptr<MediaDevice>> devices_;

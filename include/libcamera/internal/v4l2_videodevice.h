@@ -14,6 +14,7 @@
 #include <ostream>
 #include <stdint.h>
 #include <string>
+#include <string_view>
 #include <unordered_set>
 #include <vector>
 
@@ -189,7 +190,7 @@ class V4L2VideoDevice : public V4L2Device
 public:
 	using Formats = std::map<V4L2PixelFormat, std::vector<SizeRange>>;
 
-	explicit V4L2VideoDevice(const std::string &deviceNode);
+	explicit V4L2VideoDevice(std::string_view deviceNode);
 	explicit V4L2VideoDevice(const MediaEntity *entity);
 	~V4L2VideoDevice();
 
@@ -228,7 +229,7 @@ public:
 	Signal<> dequeueTimeout;
 
 	static std::unique_ptr<V4L2VideoDevice>
-	fromEntityName(const MediaDevice *media, const std::string &entity);
+	fromEntityName(const MediaDevice *media, std::string_view entity);
 
 	V4L2PixelFormat toV4L2PixelFormat(const PixelFormat &pixelFormat) const;
 
@@ -295,7 +296,7 @@ private:
 class V4L2M2MDevice
 {
 public:
-	V4L2M2MDevice(const std::string &deviceNode);
+	V4L2M2MDevice(std::string_view deviceNode);
 	~V4L2M2MDevice();
 
 	int open();

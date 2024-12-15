@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <string_view>
 
 namespace libcamera {
 
@@ -15,7 +16,7 @@ namespace sysfs {
 
 std::string charDevPath(const std::string &deviceNode);
 
-std::string firmwareNodePath(const std::string &device);
+std::string firmwareNodePath(std::string_view device);
 
 } /* namespace sysfs */
 

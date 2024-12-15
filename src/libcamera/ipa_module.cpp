@@ -254,7 +254,7 @@ Span<const uint8_t> elfLoadSymbol(Span<const uint8_t> elf, const char *symbol)
  * The caller shall call the isValid() function after constructing an
  * IPAModule instance to verify the validity of the IPAModule.
  */
-IPAModule::IPAModule(const std::string &libPath)
+IPAModule::IPAModule(std::string_view libPath)
 	: libPath_(libPath), valid_(false), loaded_(false),
 	  dlHandle_(nullptr), ipaCreate_(nullptr)
 {

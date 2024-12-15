@@ -10,6 +10,7 @@
 #include <memory>
 #include <queue>
 #include <string>
+#include <string_view>
 #include <sys/types.h>
 #include <vector>
 
@@ -62,8 +63,8 @@ public:
 	void completeRequest(Request *request);
 	void cancelRequest(Request *request);
 
-	std::string configurationFile(const std::string &subdir,
-				      const std::string &name) const;
+	std::string configurationFile(std::string_view subdir,
+				      std::string_view name) const;
 
 	const char *name() const { return name_; }
 
@@ -112,7 +113,7 @@ public:
 	const std::string &name() const { return name_; }
 
 	static std::vector<PipelineHandlerFactoryBase *> &factories();
-	static const PipelineHandlerFactoryBase *getFactoryByName(const std::string &name);
+	static const PipelineHandlerFactoryBase *getFactoryByName(std::string_view name);
 
 private:
 	static void registerType(PipelineHandlerFactoryBase *factory);
