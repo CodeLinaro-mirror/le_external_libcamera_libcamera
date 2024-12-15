@@ -433,6 +433,53 @@ private:
 template<class CharT, class Traits>
 std::basic_ostream<CharT, Traits> &operator<<(std::basic_ostream<CharT, Traits> &os,
 					      const utils::Duration &d);
+
+#if not HAVE_STD_STRING_VIEW_OPERATOR_PLUS
+template<class CharT, class Traits, class Alloc>
+std::basic_string<CharT, Traits, Alloc>
+operator+(const std::basic_string<CharT, Traits, Alloc> &lhs,
+	  std::basic_string_view<CharT, Traits> rhs)
+{
+	std::basic_string<CharT, Traits, Alloc> str;
+
+	str.reserve(lhs.size() + rhs.size());
+	str.append(lhs);
+	str.append(rhs);
+
+	return str;
+}
+
+template<class CharT, class Traits, class Alloc>
+std::basic_string<CharT, Traits, Alloc>
+operator+(std::basic_string_view<CharT, Traits> lhs,
+	  const std::basic_string<CharT, Traits, Alloc> &rhs)
+{
+	std::basic_string<CharT, Traits, Alloc> str;
+
+	str.reserve(lhs.size() + rhs.size());
+	str.append(lhs);
+	str.append(rhs);
+
+	return str;
+}
+
+template<class CharT, class Traits, class Alloc>
+std::basic_string<CharT, Traits, Alloc>
+operator+(std::basic_string<CharT, Traits, Alloc> &&lhs,
+	  std::basic_string_view<CharT, Traits> rhs)
+{
+	return std::move(lhs.append(rhs));
+}
+
+template<class CharT, class Traits, class Alloc>
+std::basic_string<CharT, Traits, Alloc>
+operator+(std::basic_string_view<CharT, Traits> lhs,
+	  std::basic_string<CharT, Traits, Alloc> &&rhs)
+{
+	return std::move(rhs.insert(0, lhs));
+}
+#endif /* HAVE_STD_STRING_VIEW_OPERATOR_PLUS */
+
 #endif
 
 } /* namespace libcamera */

@@ -170,6 +170,36 @@ protected:
 		return TestPass;
 	}
 
+	int testStringView()
+	{
+		std::string s{ "Hello" };
+		std::string_view sv{ "World!" };
+
+		if (s + sv != "HelloWorld!") {
+			cerr << "operator+(const std::string &, std::string_view) test failed";
+			return TestFail;
+		}
+
+		if (sv + s != "World!Hello") {
+			cerr << "operator+(std::string_view, const std::string &) test failed";
+			return TestFail;
+		}
+
+		if (std::move(s) + sv != "HelloWorld!") {
+			cerr << "operator+(std::string &&, std::string_view) test failed";
+			return TestFail;
+		}
+
+		s = "Hello";
+
+		if (sv + std::move(s) != "World!Hello") {
+			cerr << "operator+(std::string_view, std::string &&) test failed";
+			return TestFail;
+		}
+
+		return TestPass;
+	}
+
 	int run()
 	{
 		/* utils::hex() test. */
@@ -305,6 +335,10 @@ protected:
 
 		/* utils::Duration test. */
 		if (testDuration() != TestPass)
+			return TestFail;
+
+		/* std::string_view operator+() test. */
+		if (testStringView() != TestPass)
 			return TestFail;
 
 		return TestPass;

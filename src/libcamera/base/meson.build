@@ -41,6 +41,18 @@ if libunwind.found()
     config_h.set('HAVE_UNWIND', 1)
 endif
 
+if cxx.compiles('''
+#include <string>
+#include <string_view>
+
+int main()
+{
+        std::string s = std::string() + std::string_view();
+        return s.size();
+}''', name : 'concatenation of std::string and std::string_view')
+    config_h.set('HAVE_STD_STRING_VIEW_OPERATOR_PLUS', 1)
+endif
+
 libcamera_base_deps = [
     libatomic,
     libdw,
