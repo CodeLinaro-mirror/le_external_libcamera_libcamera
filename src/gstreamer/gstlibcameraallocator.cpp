@@ -6,6 +6,8 @@
  * GStreamer Custom Allocator
  */
 
+#include <utility>
+
 #include "gstlibcameraallocator.h"
 
 #include <utility>
