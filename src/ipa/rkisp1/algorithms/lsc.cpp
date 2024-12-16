@@ -410,12 +410,20 @@ void LensShadingCorrection::prepare(IPAContext &context,
 				    RkISP1Params *params)
 {
 	uint32_t ct = context.activeState.awb.temperatureK;
-	if (std::abs(static_cast<int>(ct) - static_cast<int>(lastAppliedCt_)) <
+	/*
+	 * The ISP in the imx8mp using linux 6.12 has a high probability for a
+	 * stall when the lsc module isn't configured in the first frame.
+	 * Therefore ensure that a lsc table is written unconditionally at the
+	 * first frame.
+	*/
+	if (frame > 0 &&
+	    std::abs(static_cast<int>(ct) - static_cast<int>(lastAppliedCt_)) <
 	    kColourTemperatureChangeThreshhold)
 		return;
+
 	unsigned int quantizedCt;
 	const Components &set = sets_.getInterpolated(ct, &quantizedCt);
-	if (lastAppliedQuantizedCt_ == quantizedCt)
+	if (frame > 0 && lastAppliedQuantizedCt_ == quantizedCt)
 		return;
 
 	auto config = params->block<BlockType::Lsc>();
