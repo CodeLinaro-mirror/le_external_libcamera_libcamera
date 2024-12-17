@@ -382,6 +382,7 @@ private:
 	std::map<const MediaEntity *, EntityData> entities_;
 
 	MediaDevice *converter_;
+	V4L2Subdevice *eventEmitter_;
 	bool swIspEnabled_;
 };
 
@@ -1299,8 +1300,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	data->video_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
 
 	StreamConfiguration inputCfg;
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
@@ -1368,6 +1367,23 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 
 	video->bufferReady.connect(data, &SimpleCameraData::imageBufferReady);
 
+	/*
+	 * Enable frame start event on last device in the pipeline
+	 * that provides the events.
+	 */
+	for (auto it = data->entities_.rbegin(); it != data->entities_.rend(); ++it) {
+		V4L2Subdevice *sd = subdev(it->entity);
+		if (!sd)
+			continue;
+		if (sd->setFrameStartEnabled(true) < 0)
+			continue;
+
+		sd->frameStart.connect(data->delayedCtrls_.get(),
+				       &DelayedControls::applyControls);
+		eventEmitter_ = sd;
+		break;
+	}
+
 	ret = video->streamOn();
 	if (ret < 0) {
 		stop(camera);
@@ -1399,6 +1415,12 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 {
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
+
+	if (eventEmitter_) {
+		eventEmitter_->setFrameStartEnabled(false);
+		eventEmitter_->frameStart.disconnect(data->delayedCtrls_.get(),
+						     &DelayedControls::applyControls);
+	}
 
 	if (data->useConversion_) {
 		if (data->converter_)
