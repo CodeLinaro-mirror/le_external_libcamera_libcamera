@@ -277,6 +277,7 @@ public:
 	std::list<Entity> entities_;
 	std::unique_ptr<CameraSensor> sensor_;
 	V4L2VideoDevice *video_;
+	V4L2Subdevice *eventEmitter_;
 
 	std::vector<Configuration> configs_;
 	std::map<PixelFormat, std::vector<const Configuration *>> formats_;
@@ -911,8 +912,11 @@ void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
 void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
 {
 	delayedCtrls_->push(sensorControls);
-	ControlList ctrls(sensorControls);
-	sensor_->setControls(&ctrls);
+	/* Directly apply controls now if there is no frameStart signal */
+	if (!eventEmitter_) {
+		ControlList ctrls(sensorControls);
+		sensor_->setControls(&ctrls);
+	}
 }
 
 /* Retrieve all source pads connected to a sink pad through active routes. */
@@ -1299,8 +1303,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	data->video_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
 
 	StreamConfiguration inputCfg;
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
@@ -1368,6 +1370,28 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 
 	video->bufferReady.connect(data, &SimpleCameraData::imageBufferReady);
 
+	/*
+	 * Enable frame start event on last device in the pipeline
+	 * that provides the events.
+	 */
+	for (auto it = data->entities_.rbegin(); it != data->entities_.rend(); ++it) {
+		V4L2Subdevice *sd = subdev(it->entity);
+		if (!sd)
+			continue;
+		if (sd->setFrameStartEnabled(true) < 0)
+			continue;
+
+		LOG(SimplePipeline, Debug)
+			<< "Using " << it->entity->name() << " frameStart signal";
+
+		sd->frameStart.connect(data->delayedCtrls_.get(),
+				       &DelayedControls::applyControls);
+		data->eventEmitter_ = sd;
+		break;
+	}
+
+	data->delayedCtrls_->reset();
+
 	ret = video->streamOn();
 	if (ret < 0) {
 		stop(camera);
@@ -1399,6 +1423,13 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 {
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
+
+	if (data->eventEmitter_) {
+		data->eventEmitter_->setFrameStartEnabled(false);
+		data->eventEmitter_->frameStart.disconnect(data->delayedCtrls_.get(),
+							   &DelayedControls::applyControls);
+		data->eventEmitter_ = NULL;
+	}
 
 	if (data->useConversion_) {
 		if (data->converter_)
