@@ -365,7 +365,12 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				{ controls::draft::TestPatternModeOff, 0 },
 				{ controls::draft::TestPatternModeColorBars, 1 },
 			},
-			.sensorDelays = { },
+			.sensorDelays = {
+				.exposureDelay = 1,
+				.gainDelay = 1,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			    },
 		} },
 		{ "ov5693", {
 			.unitCellSize = { 1400, 1400 },
