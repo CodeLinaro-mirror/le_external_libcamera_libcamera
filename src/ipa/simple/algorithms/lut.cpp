@@ -116,6 +116,17 @@ void Lut::prepare(IPAContext &context,
 	}
 }
 
+void Lut::process(IPAContext &context,
+		  [[maybe_unused]] const uint32_t frame,
+		  [[maybe_unused]] IPAFrameContext &frameContext,
+		  [[maybe_unused]] const SwIspStats *stats,
+		  ControlList &metadata)
+{
+	const auto contrast = context.activeState.knobs.contrast;
+	if (contrast)
+		metadata.set(controls::Contrast, contrast.value());
+}
+
 REGISTER_IPA_ALGORITHM(Lut, "Lut")
 
 } /* namespace ipa::soft::algorithms */
