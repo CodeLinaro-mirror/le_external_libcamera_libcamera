@@ -548,12 +548,17 @@ int SimpleCameraData::init()
 			 * bound explicitly to the pipe, which is bound to the pipeline
 			 * handler thread. The function then simply forwards the call to
 			 * conversionInputDone().
+			 * Similarly for outputBufferReady and ispStatsReady signals.
 			 */
 			swIsp_->inputBufferReady.connect(pipe, [this](FrameBuffer *buffer) {
 				this->conversionInputDone(buffer);
 			});
-			swIsp_->outputBufferReady.connect(this, &SimpleCameraData::conversionOutputDone);
-			swIsp_->ispStatsReady.connect(this, &SimpleCameraData::ispStatsReady);
+			swIsp_->outputBufferReady.connect(this, [this](FrameBuffer *buffer) {
+				this->conversionOutputDone(buffer);
+			});
+			swIsp_->ispStatsReady.connect(this, [this](uint32_t frame, uint32_t bufferId) {
+				this->ispStatsReady(frame, bufferId);
+			});
 			swIsp_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
 		}
 	}
