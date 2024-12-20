@@ -97,7 +97,7 @@ for Python bindings: [optional]
         pybind11-dev
 
 for lc-compliance: [optional]
-        libevent-dev libgtest-dev
+        libgtest-dev
 
 for abi-compat.sh: [optional]
         abi-compliance-checker

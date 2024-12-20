@@ -12,7 +12,7 @@
 using namespace libcamera;
 
 Capture::Capture(std::shared_ptr<Camera> camera)
-	: loop_(nullptr), camera_(std::move(camera)),
+	: camera_(std::move(camera)),
 	  allocator_(camera_)
 {
 }
@@ -52,6 +52,8 @@ void Capture::start()
 
 	camera_->requestCompleted.connect(this, &Capture::requestComplete);
 
+	result_.reset();
+
 	ASSERT_EQ(camera_->start(), 0) << "Failed to start camera";
 }
 
@@ -61,6 +63,8 @@ void Capture::stop()
 		return;
 
 	camera_->stop();
+
+	result_.reset();
 
 	camera_->requestCompleted.disconnect(this);
 
@@ -108,11 +112,10 @@ void CaptureBalanced::capture(unsigned int numRequests)
 	}
 
 	/* Run capture session. */
-	loop_ = new EventLoop();
-	loop_->exec();
+	int status = result_.wait();
 	stop();
-	delete loop_;
 
+	ASSERT_EQ(status, 0);
 	ASSERT_EQ(captureCount_, captureLimit_);
 }
 
@@ -132,13 +135,13 @@ void CaptureBalanced::requestComplete(Request *request)
 
 	captureCount_++;
 	if (captureCount_ >= captureLimit_) {
-		loop_->exit(0);
+		result_.set(0);
 		return;
 	}
 
 	request->reuse(Request::ReuseBuffers);
 	if (queueRequest(request))
-		loop_->exit(-EINVAL);
+		result_.set(-EINVAL);
 }
 
 /* CaptureUnbalanced */
@@ -171,10 +174,8 @@ void CaptureUnbalanced::capture(unsigned int numRequests)
 	}
 
 	/* Run capture session. */
-	loop_ = new EventLoop();
-	int status = loop_->exec();
+	int status = result_.wait();
 	stop();
-	delete loop_;
 
 	ASSERT_EQ(status, 0);
 }
@@ -183,7 +184,7 @@ void CaptureUnbalanced::requestComplete(Request *request)
 {
 	captureCount_++;
 	if (captureCount_ >= captureLimit_) {
-		loop_->exit(0);
+		result_.set(0);
 		return;
 	}
 
@@ -192,5 +193,5 @@ void CaptureUnbalanced::requestComplete(Request *request)
 
 	request->reuse(Request::ReuseBuffers);
 	if (camera_->queueRequest(request))
-		loop_->exit(-EINVAL);
+		result_.set(-EINVAL);
 }

@@ -4,12 +4,10 @@ libgtest = dependency('gtest', version : '>=1.10.0',
                       required : get_option('lc-compliance'),
                       fallback : ['gtest', 'gtest_dep'])
 
-if opt_lc_compliance.disabled() or not libevent.found() or not libgtest.found()
-    lc_compliance_enabled = false
+lc_compliance_enabled = opt_lc_compliance.allowed() and libgtest.found()
+if not lc_compliance_enabled
     subdir_done()
 endif
-
-lc_compliance_enabled = true
 
 lc_compliance_sources = files([
     'environment.cpp',
@@ -29,7 +27,6 @@ lc_compliance  = executable('lc-compliance', lc_compliance_sources,
                             dependencies : [
                                 libatomic,
                                 libcamera_public,
-                                libevent,
                                 libgtest,
                             ],
                             include_directories : lc_compliance_includes,
