@@ -55,7 +55,7 @@ public:
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls) override;
-	int start() override;
+	void start(const ControlList &controls, StartResult *result) override;
 	void stop() override;
 
 	int configure(const IPAConfigInfo &ipaConfig,
@@ -209,12 +209,17 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 	return 0;
 }
 
-int IPARkISP1::start()
+void IPARkISP1::start(const ControlList &controls, StartResult *result)
 {
-	ControlList ctrls = getSensorControls(0);
-	setSensorControls.emit(0, ctrls);
+	/*
+	 * \todo: This feels a bit counter intuitive, as the queueRequest() for frame
+	 * 0 will be called again when the actual request for frame 0 get's
+	 * queued.
+	 */
+	queueRequest(0, controls);
 
-	return 0;
+	result->controls = getSensorControls(0);
+	result->code = 0;
 }
 
 void IPARkISP1::stop()
