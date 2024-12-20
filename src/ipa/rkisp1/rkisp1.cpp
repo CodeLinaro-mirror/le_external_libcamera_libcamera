@@ -386,10 +386,13 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 
 	/*
 	 * \todo: Here we should do a lookahead that takes the sensor delays
-	 * into account.
+	 * into account. A lookahead of 1 is the smallest lookahead possible to
+	 * ensure we don't try to send the controls for a frame that we already
+	 * received.
 	 */
-	ControlList ctrls = getSensorControls(frame);
-	setSensorControls.emit(frame, ctrls);
+	int lookahead = 1;
+	ControlList ctrls = getSensorControls(frame + lookahead);
+	setSensorControls.emit(frame + lookahead, ctrls);
 
 	context_.debugMetadata.moveEntries(metadata);
 	metadataReady.emit(frame, metadata);
