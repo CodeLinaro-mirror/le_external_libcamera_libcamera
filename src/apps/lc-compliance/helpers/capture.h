@@ -17,7 +17,7 @@
 class Capture
 {
 public:
-	void configure(libcamera::StreamRole role);
+	void configure(libcamera::Span<const libcamera::StreamRole> roles);
 
 protected:
 	Capture(std::shared_ptr<libcamera::Camera> camera);

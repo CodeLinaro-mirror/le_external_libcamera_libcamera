@@ -89,7 +89,7 @@ TEST_P(SingleStream, Capture)
 
 	CaptureBalanced capture(camera_);
 
-	capture.configure(role);
+	capture.configure(std::array{ role });
 
 	capture.capture(numRequests);
 }
@@ -108,7 +108,7 @@ TEST_P(SingleStream, CaptureStartStop)
 
 	CaptureBalanced capture(camera_);
 
-	capture.configure(role);
+	capture.configure(std::array{ role });
 
 	for (unsigned int starts = 0; starts < numRepeats; starts++)
 		capture.capture(numRequests);
@@ -127,7 +127,7 @@ TEST_P(SingleStream, UnbalancedStop)
 
 	CaptureUnbalanced capture(camera_);
 
-	capture.configure(role);
+	capture.configure(std::array{ role });
 
 	capture.capture(numRequests);
 }
