@@ -49,6 +49,7 @@ void Capture::start()
 
 	ASSERT_GE(count, 0) << "Failed to allocate buffers";
 	EXPECT_EQ(count, config_->at(0).bufferCount) << "Allocated less buffers than expected";
+	ASSERT_EQ(count, allocator_.buffers(stream).size()) << "Unexpected number of buffers in allocator";
 
 	camera_->requestCompleted.connect(this, &Capture::requestComplete);
 
