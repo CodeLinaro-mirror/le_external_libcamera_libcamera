@@ -608,12 +608,18 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
 	frameContext.autoExposureEnabled = state.autoExposureEnabled;
 	frameContext.autoGainEnabled = state.autoGainEnabled;
 
-	if (!frameContext.autoExposureEnabled)
+	if (frameContext.autoExposureEnabled)
+		frameContext.exposure = state.automatic.exposure;
+	else
 		frameContext.exposure = state.manual.exposure;
-	if (!frameContext.autoGainEnabled)
+	if (frameContext.autoGainEnabled)
+		frameContext.gain = state.automatic.gain;
+	else
 		frameContext.gain = state.manual.gain;
 
-	if (!frameContext.autoExposureEnabled && !frameContext.autoGainEnabled)
+	if (frameContext.autoExposureEnabled || frameContext.autoGainEnabled)
+		frameContext.quantizationGain = state.automatic.quantizationGain;
+	else
 		frameContext.quantizationGain = 1.0;
 
 	const auto &exposureMode = controls.get(controls::AeExposureMode);
