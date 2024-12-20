@@ -243,7 +243,10 @@ void Agc::queueRequest(IPAContext &context,
 
 	frameContext.agc.autoEnabled = agc.autoEnabled;
 
-	if (!frameContext.agc.autoEnabled) {
+	if (frameContext.agc.autoEnabled) {
+		frameContext.agc.exposure = context.activeState.agc.automatic.exposure;
+		frameContext.agc.gain = context.activeState.agc.automatic.gain;
+	} else {
 		frameContext.agc.exposure = agc.manual.exposure;
 		frameContext.agc.gain = agc.manual.gain;
 	}
@@ -283,11 +286,6 @@ void Agc::queueRequest(IPAContext &context,
 void Agc::prepare(IPAContext &context, const uint32_t frame,
 		  IPAFrameContext &frameContext, RkISP1Params *params)
 {
-	if (frameContext.agc.autoEnabled) {
-		frameContext.agc.exposure = context.activeState.agc.automatic.exposure;
-		frameContext.agc.gain = context.activeState.agc.automatic.gain;
-	}
-
 	if (frame > 0 && !frameContext.agc.updateMetering)
 		return;
 
