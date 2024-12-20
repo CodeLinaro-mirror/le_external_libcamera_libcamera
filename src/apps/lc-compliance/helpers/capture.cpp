@@ -7,6 +7,8 @@
 
 #include "capture.h"
 
+#include <assert.h>
+
 #include <gtest/gtest.h>
 
 using namespace libcamera;
@@ -74,6 +76,32 @@ void Capture::stop()
 	allocator_.free(stream);
 }
 
+void Capture::prepareRequests(unsigned int plannedRequests)
+{
+	assert(config_);
+	assert(requests_.empty());
+
+	Stream *stream = config_->at(0).stream();
+	const std::vector<std::unique_ptr<FrameBuffer>> &buffers = allocator_.buffers(stream);
+
+	/* No point in testing less requests then the camera depth. */
+	if (plannedRequests < buffers.size()) {
+		std::cout << "Camera needs " << buffers.size()
+			  << " requests, can't test only "
+			  << plannedRequests << std::endl;
+		GTEST_SKIP();
+	}
+
+	for (const std::unique_ptr<FrameBuffer> &buffer : buffers) {
+		std::unique_ptr<Request> request = camera_->createRequest();
+		ASSERT_TRUE(request) << "Can't create request";
+
+		ASSERT_EQ(request->addBuffer(stream, buffer.get()), 0) << "Can't set buffer for request";
+
+		requests_.push_back(std::move(request));
+	}
+}
+
 /* CaptureBalanced */
 
 CaptureBalanced::CaptureBalanced(std::shared_ptr<Camera> camera)
@@ -85,32 +113,14 @@ void CaptureBalanced::capture(unsigned int numRequests)
 {
 	start();
 
-	Stream *stream = config_->at(0).stream();
-	const std::vector<std::unique_ptr<FrameBuffer>> &buffers = allocator_.buffers(stream);
-
-	/* No point in testing less requests then the camera depth. */
-	if (buffers.size() > numRequests) {
-		std::cout << "Camera needs " + std::to_string(buffers.size())
-			+ " requests, can't test only "
-			+ std::to_string(numRequests) << std::endl;
-		GTEST_SKIP();
-	}
-
 	queueCount_ = 0;
 	captureCount_ = 0;
 	captureLimit_ = numRequests;
 
-	/* Queue the recommended number of requests. */
-	for (const std::unique_ptr<FrameBuffer> &buffer : buffers) {
-		std::unique_ptr<Request> request = camera_->createRequest();
-		ASSERT_TRUE(request) << "Can't create request";
+	prepareRequests(numRequests);
 
-		ASSERT_EQ(request->addBuffer(stream, buffer.get()), 0) << "Can't set buffer for request";
-
-		ASSERT_EQ(queueRequest(request.get()), 0) << "Failed to queue request";
-
-		requests_.push_back(std::move(request));
-	}
+	for (const auto &request : requests_)
+		queueRequest(request.get());
 
 	/* Run capture session. */
 	int status = result_.wait();
@@ -156,23 +166,13 @@ void CaptureUnbalanced::capture(unsigned int numRequests)
 {
 	start();
 
-	Stream *stream = config_->at(0).stream();
-	const std::vector<std::unique_ptr<FrameBuffer>> &buffers = allocator_.buffers(stream);
-
 	captureCount_ = 0;
 	captureLimit_ = numRequests;
 
-	/* Queue the recommended number of requests. */
-	for (const std::unique_ptr<FrameBuffer> &buffer : buffers) {
-		std::unique_ptr<Request> request = camera_->createRequest();
-		ASSERT_TRUE(request) << "Can't create request";
+	prepareRequests(numRequests);
 
-		ASSERT_EQ(request->addBuffer(stream, buffer.get()), 0) << "Can't set buffer for request";
-
-		ASSERT_EQ(camera_->queueRequest(request.get()), 0) << "Failed to queue request";
-
-		requests_.push_back(std::move(request));
-	}
+	for (const auto &request : requests_)
+		camera_->queueRequest(request.get());
 
 	/* Run capture session. */
 	int status = result_.wait();

@@ -26,6 +26,8 @@ protected:
 	void start();
 	void stop();
 
+	void prepareRequests(unsigned int plannedRequests);
+
 	virtual void requestComplete(libcamera::Request *request) = 0;
 
 	std::shared_ptr<libcamera::Camera> camera_;
