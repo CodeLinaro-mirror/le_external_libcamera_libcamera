@@ -7,8 +7,10 @@
 
 #pragma once
 
+#ifndef __nodiscard
 #if __cplusplus >= 201703L
 #define __nodiscard		[[nodiscard]]
 #else
 #define __nodiscard
+#endif
 #endif
