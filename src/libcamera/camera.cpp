@@ -19,6 +19,7 @@
 #include <libcamera/base/thread.h>
 
 #include <libcamera/color_space.h>
+#include <libcamera/control_ids.h>
 #include <libcamera/framebuffer_allocator.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
@@ -1322,6 +1323,23 @@ int Camera::queueRequest(Request *request)
 		if (d->activeStreams_.find(stream) == d->activeStreams_.end()) {
 			LOG(Camera, Error) << "Invalid request";
 			return -EINVAL;
+		}
+	}
+
+	/* Pre-process AeEnable */
+	ControlList &controls = request->controls();
+	const auto &aeEnable = controls.get(controls::AeEnable);
+	if (aeEnable) {
+		if (!controls.contains(controls::AnalogueGainMode.id())) {
+			controls.set(controls::AnalogueGainMode,
+				     *aeEnable ? controls::AnalogueGainModeAuto
+					       : controls::AnalogueGainModeManual);
+		}
+
+		if (!controls.contains(controls::ExposureTimeMode.id())) {
+			controls.set(controls::ExposureTimeMode,
+				     *aeEnable ? controls::ExposureTimeModeAuto
+					       : controls::ExposureTimeModeManual);
 		}
 	}
 
