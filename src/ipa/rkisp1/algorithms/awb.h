@@ -9,6 +9,7 @@
 
 #include <optional>
 
+#include "libipa/awb.h"
 #include "libipa/interpolator.h"
 #include "libipa/vector.h"
 
@@ -41,7 +42,8 @@ private:
 	RGB<double> calculateRgbMeans(const IPAFrameContext &frameContext,
 				      const rkisp1_cif_isp_awb_stat *awb) const;
 
-	std::optional<Interpolator<Vector<double, 2>>> colourGainCurve_;
+	std::unique_ptr<AwbAlgorithm> awbAlgo_;
+
 	bool rgbMode_;
 };
 
