@@ -9,6 +9,8 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/control_ids.h>
+
 /**
  * \file awb.h
  * \brief Base classes for AWB algorithms
@@ -131,6 +133,104 @@ namespace ipa {
  * \var AwbAlgorithm::controls_
  * \brief Controls info map for the controls provided by the algorithm
  */
+
+/**
+ * \var AwbAlgorithm::modes_
+ * \brief Map of all configured modes
+ * \sa AwbAlgorithm::parseModeConfigs
+ */
+
+/**
+ * \class AwbAlgorithm::ModeConfig
+ * \brief Holds the configuration of a single AWB mode
+ *
+ * Awb modes limit the regulation of the AWB algorithm to a specific range of
+ * colour temperatures.
+ */
+
+/**
+ * \var AwbAlgorithm::ModeConfig::ctLo
+ * \brief The lowest valid colour temperature of that mode
+ */
+
+/**
+ * \var AwbAlgorithm::ModeConfig::ctHi
+ * \brief The highest valid colour temperature of that mode
+ */
+
+/**
+ * \brief Parse the mode configurations from the tuning data
+ * \param[in] tuningData the YamlObject representing the tuning data
+ *
+ * Utility function to parse the tuning data for a AwbMode entry and read all
+ * provided modes. It populetes AwbAlgorithm::controls_, AwbAlgorithm::modes_
+ * and sets the current mode to AwbAuto.
+ *
+ * \return Zero on success, negative error code otherwise
+ */
+int AwbAlgorithm::parseModeConfigs(const YamlObject &tuningData)
+{
+	std::vector<ControlValue> availableModes;
+
+	const YamlObject &yamlModes = tuningData[controls::AwbMode.name()];
+	if (!yamlModes.isDictionary()) {
+		LOG(Awb, Error)
+			<< "AwbModes must be a dictionary.";
+		return -EINVAL;
+	}
+
+	for (const auto &[modeName, modeDict] : yamlModes.asDict()) {
+		if (controls::AwbModeNameValueMap.find(modeName) ==
+		    controls::AwbModeNameValueMap.end()) {
+			LOG(Awb, Warning)
+				<< "Skipping unknown awb mode '"
+				<< modeName << "'";
+			continue;
+		}
+
+		if (!modeDict.isDictionary()) {
+			LOG(Awb, Error)
+				<< "Invalid awb mode '" << modeName << "'";
+			return -EINVAL;
+		}
+
+		const auto &modeValue = static_cast<controls::AwbModeEnum>(
+			controls::AwbModeNameValueMap.at(modeName));
+
+		auto &config = modes_[modeValue];
+		auto hi = modeDict["hi"].get<double>();
+		if (!hi) {
+			LOG(Awb, Error) << "Failed to read hi param of mode "
+					<< modeName;
+			return -EINVAL;
+		}
+		config.ctHi = *hi;
+
+		auto lo = modeDict["lo"].get<double>();
+		if (!lo) {
+			LOG(Awb, Error) << "Failed to read low param of mode "
+					<< modeName;
+			return -EINVAL;
+		}
+		config.ctLo = *lo;
+
+		availableModes.push_back(modeValue);
+	}
+
+	if (modes_.empty()) {
+		LOG(Awb, Error) << "No AWB modes configured";
+		return -EINVAL;
+	}
+
+	if (modes_.find(controls::AwbAuto) == modes_.end()) {
+		LOG(Awb, Error) << "AwbAuto mode is missing in the configuration.";
+		return -EINVAL;
+	}
+
+	controls_[&controls::AwbMode] = ControlInfo(availableModes);
+
+	return 0;
+}
 
 } /* namespace ipa */
 
