@@ -11,6 +11,8 @@
 
 #include <libcamera/base/log.h>
 
+#include "control_ids.h"
+
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(IPASoftExposure)
@@ -99,8 +101,11 @@ void Agc::process(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  [[maybe_unused]] IPAFrameContext &frameContext,
 		  const SwIspStats *stats,
-		  [[maybe_unused]] ControlList &metadata)
+		  ControlList &metadata)
 {
+	metadata.set(controls::ExposureTime, frameContext.sensor.exposure);
+	metadata.set(controls::AnalogueGain, frameContext.sensor.gain);
+
 	/*
 	 * Calculate Mean Sample Value (MSV) according to formula from:
 	 * https://www.araa.asn.au/acra/acra2007/papers/paper84final.pdf
