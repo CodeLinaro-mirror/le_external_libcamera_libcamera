@@ -11,6 +11,7 @@
 
 #include "debayer_cpu.h"
 
+#include <algorithm>
 #include <stdlib.h>
 #include <sys/ioctl.h>
 #include <time.h>
@@ -51,8 +52,12 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats)
 	enableInputMemcpy_ = true;
 
 	/* Initialize color lookup tables */
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++)
-		red_[i] = green_[i] = blue_[i] = i;
+	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
+		red_.simple[i] = green_.simple[i] = blue_.simple[i] = i;
+		red_.ccm[i].r = red_.ccm[i].g = red_.ccm[i].b = 0;
+		green_.ccm[i].r = green_.ccm[i].g = green_.ccm[i].b = 0;
+		blue_.ccm[i].r = blue_.ccm[i].g = blue_.ccm[i].b = 0;
+	}
 }
 
 DebayerCpu::~DebayerCpu() = default;
@@ -62,12 +67,24 @@ DebayerCpu::~DebayerCpu() = default;
 	const pixel_t *curr = (const pixel_t *)src[1] + xShift_; \
 	const pixel_t *next = (const pixel_t *)src[2] + xShift_;
 
-#define STORE_PIXEL(b, g, r)        \
-	*dst++ = blue_[b];          \
-	*dst++ = green_[g];         \
-	*dst++ = red_[r];           \
-	if constexpr (addAlphaByte) \
-		*dst++ = 255;       \
+#define GAMMA(value) \
+	*dst++ = gammaLut_[std::clamp(value, 0, static_cast<int>(gammaLut_.size()) - 1)]
+
+#define STORE_PIXEL(b_, g_, r_)                                   \
+	if constexpr (ccmEnabled) {                               \
+		DebayerParams::CcmColumn &blue = blue_.ccm[b_];   \
+		DebayerParams::CcmColumn &green = green_.ccm[g_]; \
+		DebayerParams::CcmColumn &red = red_.ccm[r_];     \
+		GAMMA(blue.r + blue.g + blue.b);                  \
+		GAMMA(green.r + green.g + green.b);               \
+		GAMMA(red.r + red.g + red.b);                     \
+	} else {                                                  \
+		*dst++ = blue_.simple[b_];                        \
+		*dst++ = green_.simple[g_];                       \
+		*dst++ = red_.simple[r_];                         \
+	}                                                         \
+	if constexpr (addAlphaByte)                               \
+		*dst++ = 255;                                     \
 	x++;
 
 /*
@@ -752,6 +769,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	green_ = params.green;
 	red_ = swapRedBlueGains_ ? params.blue : params.red;
 	blue_ = swapRedBlueGains_ ? params.red : params.blue;
+	gammaLut_ = params.gammaLut;
 
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();
