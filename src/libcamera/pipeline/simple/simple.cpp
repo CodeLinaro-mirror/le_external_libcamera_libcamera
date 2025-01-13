@@ -184,6 +184,7 @@ class SimplePipelineHandler;
 struct SimpleFrameInfo {
 	uint32_t frame;
 	Request *request;
+	bool metadataProcessed;
 };
 
 class SimpleFrames
@@ -207,6 +208,7 @@ void SimpleFrames::create(Request *request)
 	ASSERT(inserted);
 	it->second.frame = frame;
 	it->second.request = request;
+	it->second.metadataProcessed = false;
 }
 
 void SimpleFrames::destroy(uint32_t frame)
@@ -357,11 +359,12 @@ private:
 	void tryPipeline(unsigned int code, const Size &size);
 	static std::vector<const MediaPad *> routedSourcePads(MediaPad *sink);
 
-	void completeRequest(Request *request);
+	void completeRequest(Request *request, bool checkCompleted);
 	void conversionInputDone(FrameBuffer *buffer);
 	void conversionOutputDone(FrameBuffer *buffer);
 
 	void ispStatsReady(uint32_t frame, uint32_t bufferId);
+	void metadataReady(uint32_t frame, const ControlList &metadata);
 	void setSensorControls(const ControlList &sensorControls);
 };
 
@@ -614,6 +617,7 @@ int SimpleCameraData::init()
 			});
 			swIsp_->outputBufferReady.connect(this, &SimpleCameraData::conversionOutputDone);
 			swIsp_->ispStatsReady.connect(this, &SimpleCameraData::ispStatsReady);
+			swIsp_->metadataReady.connect(this, &SimpleCameraData::metadataReady);
 			swIsp_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
 		}
 	}
@@ -859,7 +863,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 			/* No conversion, just complete the request. */
 			Request *request = buffer->request();
 			pipe->completeBuffer(request, buffer);
-			completeRequest(request);
+			completeRequest(request, false);
 			return;
 		}
 
@@ -877,7 +881,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		const RequestOutputs &outputs = conversionQueue_.front();
 		for (auto &[stream, buf] : outputs.outputs)
 			pipe->completeBuffer(outputs.request, buf);
-		completeRequest(outputs.request);
+		completeRequest(outputs.request, false);
 		conversionQueue_.pop();
 
 		return;
@@ -935,7 +939,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 
 	/* Otherwise simply complete the request. */
 	pipe->completeBuffer(request, buffer);
-	completeRequest(request);
+	completeRequest(request, false);
 }
 
 void SimpleCameraData::clearIncompleteRequests()
@@ -946,11 +950,17 @@ void SimpleCameraData::clearIncompleteRequests()
 	}
 }
 
-void SimpleCameraData::completeRequest(Request *request)
+void SimpleCameraData::completeRequest(Request *request, bool checkCompleted)
 {
+	if (checkCompleted && request->hasPendingBuffers())
+		return;
+
 	SimpleFrameInfo *info = frameInfo_.find(request);
-	if (info)
+	if (info) {
+		if (checkCompleted && !info->metadataProcessed)
+			return;
 		frameInfo_.destroy(info->frame);
+	}
 	pipe()->completeRequest(request);
 }
 
@@ -967,13 +977,24 @@ void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
 	/* Complete the buffer and the request. */
 	Request *request = buffer->request();
 	if (pipe->completeBuffer(request, buffer))
-		completeRequest(request);
+		completeRequest(request, true);
 }
 
 void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
 {
 	swIsp_->processStats(frame, bufferId,
 			     delayedCtrls_->get(frame));
+}
+
+void SimpleCameraData::metadataReady(uint32_t frame, const ControlList &metadata)
+{
+	SimpleFrameInfo *info = frameInfo_.find(frame);
+	if (!info)
+		return;
+
+	info->request->metadata().merge(metadata);
+	info->metadataProcessed = true;
+	completeRequest(info->request, true);
 }
 
 void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
