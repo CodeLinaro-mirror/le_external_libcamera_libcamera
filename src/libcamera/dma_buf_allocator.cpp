@@ -335,6 +335,11 @@ DmaSyncer::~DmaSyncer()
 
 void DmaSyncer::sync(uint64_t step)
 {
+	// DmaSyncer might be moved and left an empty SharedFD.
+	// Avoid syncing with an invalid file descriptor in this case.
+	if (!fd_.isValid())
+		return;
+
 	struct dma_buf_sync sync = {
 		.flags = flags_ | step
 	};
