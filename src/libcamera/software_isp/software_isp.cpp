@@ -236,11 +236,12 @@ int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 {
 	ASSERT(ipa_ && debayer_);
 
-	int ret = ipa_->configure(configInfo);
+	bool ccmEnabled;
+	int ret = ipa_->configure(configInfo, &ccmEnabled);
 	if (ret < 0)
 		return ret;
 
-	return debayer_->configure(inputCfg, outputCfgs);
+	return debayer_->configure(inputCfg, outputCfgs, ccmEnabled);
 }
 
 /**

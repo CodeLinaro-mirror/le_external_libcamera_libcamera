@@ -38,12 +38,17 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
 	return 0;
 }
 
+int Ccm::configure(IPAContext &context,
+		   [[maybe_unused]] const IPAConfigInfo &configInfo)
+{
+	context.activeState.ccm.enabled = ccmEnabled_;
+	return 0;
+}
+
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
 		  IPAFrameContext &frameContext, [[maybe_unused]] DebayerParams *params)
 {
-	context.activeState.ccm.enabled = ccmEnabled_;
-
-	if (!ccmEnabled_)
+	if (!context.activeState.ccm.enabled)
 		return;
 
 	unsigned int ct = context.activeState.awb.temperatureK;
