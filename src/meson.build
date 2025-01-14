@@ -27,10 +27,15 @@ else
     ipa_sign_module = false
 endif
 
-# libyuv, used by the Android adaptation layer and the virtual pipeline handler.
-# Fallback to a subproject if libyuv isn't found, as it's typically not provided
-# by distributions.
+# libyuv, used by the Android adaptation layer and the virtual pipeline
+# handler. Fallback to a subproject if libyuv isn't found, as it's typically
+# not provided by distributions. Where libyuv is provided by a distribution, it
+# may not always supply a pkg-config implementation, requiring cc.find_library()
+# to search for it.
 libyuv_dep = dependency('libyuv', required : false)
+if not libyuv_dep.found()
+    libyuv_dep = cc.find_library('yuv', required: false)
+endif
 
 if (pipelines.contains('virtual') or get_option('android').allowed()) and \
    not libyuv_dep.found()
