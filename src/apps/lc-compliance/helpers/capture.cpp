@@ -24,12 +24,30 @@ Capture::~Capture()
 	stop();
 }
 
-void Capture::configure(StreamRole role)
+void Capture::configure(libcamera::Span<const libcamera::StreamRole> roles)
 {
-	config_ = camera_->generateConfiguration({ role });
+	assert(!roles.empty());
+
+	config_ = camera_->generateConfiguration(roles);
 
 	if (!config_)
 		GTEST_SKIP() << "Role not supported by camera";
+
+	ASSERT_EQ(config_->size(), roles.size()) << "Unexpected number of streams in configuration";
+
+	/*
+	 * Set the buffers count to the largest value across all streams.
+	 * \todo: Should all streams from a Camera have the same buffer count ?
+	 */
+	auto largest =
+		std::max_element(config_->begin(), config_->end(),
+				 [](const StreamConfiguration &l, const StreamConfiguration &r)
+				 { return l.bufferCount < r.bufferCount; });
+
+	assert(largest != config_->end());
+
+	for (auto &cfg : *config_)
+		cfg.bufferCount = largest->bufferCount;
 
 	if (config_->validate() != CameraConfiguration::Valid) {
 		config_.reset();
@@ -76,20 +94,36 @@ void Capture::prepareRequests(std::optional<unsigned int> queueLimit)
 	assert(config_);
 	assert(requests_.empty());
 
-	Stream *stream = config_->at(0).stream();
-	const std::vector<std::unique_ptr<FrameBuffer>> &buffers = allocator_.buffers(stream);
+	std::size_t maxBuffers = 0;
+
+	for (const auto &cfg : *config_) {
+		const auto &buffers = allocator_.buffers(cfg.stream());
+		ASSERT_FALSE(buffers.empty()) << "Zero buffers allocated for stream";
+
+		maxBuffers = std::max(maxBuffers, buffers.size());
+	}
 
 	/* No point in testing less requests then the camera depth. */
-	if (queueLimit && *queueLimit < buffers.size()) {
-		GTEST_SKIP() << "Camera needs " << buffers.size()
+	if (queueLimit && *queueLimit < maxBuffers) {
+		GTEST_SKIP() << "Camera needs " << maxBuffers
 			     << " requests, can't test only " << *queueLimit;
 	}
 
-	for (const std::unique_ptr<FrameBuffer> &buffer : buffers) {
-		std::unique_ptr<Request> request = camera_->createRequest();
+	for (std::size_t i = 0; i < maxBuffers; i++) {
+		std::unique_ptr<Request> request = camera_->createRequest(i);
 		ASSERT_TRUE(request) << "Can't create request";
 
-		ASSERT_EQ(request->addBuffer(stream, buffer.get()), 0) << "Can't set buffer for request";
+		for (const auto &cfg : *config_) {
+			Stream *stream = cfg.stream();
+			const auto &buffers = allocator_.buffers(stream);
+			assert(!buffers.empty());
+
+			if (i >= buffers.size())
+				continue;
+
+			ASSERT_EQ(request->addBuffer(stream, buffers[i].get()), 0)
+				<< "Can't add buffer to request";
+		}
 
 		requests_.push_back(std::move(request));
 	}
@@ -125,11 +159,19 @@ void Capture::requestComplete(Request *request)
 
 void Capture::start()
 {
-	Stream *stream = config_->at(0).stream();
-	int count = allocator_.allocate(stream);
+	assert(config_);
+	assert(!config_->empty());
+	assert(!allocator_.allocated());
 
-	ASSERT_GE(count, 0) << "Failed to allocate buffers";
-	EXPECT_EQ(count, config_->at(0).bufferCount) << "Allocated less buffers than expected";
+	for (const auto &cfg : *config_) {
+		Stream *stream = cfg.stream();
+		int count = allocator_.allocate(stream);
+
+		ASSERT_GE(count, 0) << "Failed to allocate buffers";
+		EXPECT_EQ(count, cfg.bufferCount) << "Allocated less buffers than expected";
+	}
+
+	ASSERT_TRUE(allocator_.allocated());
 
 	camera_->requestCompleted.connect(this, &Capture::requestComplete);
 
@@ -145,7 +187,12 @@ void Capture::stop()
 
 	camera_->requestCompleted.disconnect(this);
 
-	Stream *stream = config_->at(0).stream();
 	requests_.clear();
-	allocator_.free(stream);
+
+	for (const auto &cfg : *config_) {
+		int ret = allocator_.free(cfg.stream());
+		EXPECT_EQ(ret, 0) << "Failed to free buffers associated with stream";
+	}
+
+	EXPECT_FALSE(allocator_.allocated());
 }
