@@ -30,7 +30,7 @@ private:
 	void stop();
 
 	void prepareRequests(std::optional<unsigned int> queueLimit = {});
-	int queueRequest(libcamera::Request *request);
+	void queueRequest(libcamera::Request *request);
 	void requestComplete(libcamera::Request *request);
 
 	std::shared_ptr<libcamera::Camera> camera_;

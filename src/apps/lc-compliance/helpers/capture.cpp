@@ -129,16 +129,13 @@ void Capture::prepareRequests(std::optional<unsigned int> queueLimit)
 	}
 }
 
-int Capture::queueRequest(libcamera::Request *request)
+void Capture::queueRequest(libcamera::Request *request)
 {
 	if (queueLimit_ && queueCount_ >= *queueLimit_)
-		return 0;
+		return;
 
-	if (int ret = camera_->queueRequest(request); ret < 0)
-		return ret;
-
+	ASSERT_EQ(camera_->queueRequest(request), 0);
 	queueCount_ += 1;
-	return 0;
 }
 
 void Capture::requestComplete(Request *request)
@@ -153,8 +150,7 @@ void Capture::requestComplete(Request *request)
 		<< "Request didn't complete successfully";
 
 	request->reuse(Request::ReuseBuffers);
-	if (queueRequest(request))
-		loop_->exit(-EINVAL);
+	queueRequest(request);
 }
 
 void Capture::start()
@@ -173,7 +169,14 @@ void Capture::start()
 
 	ASSERT_TRUE(allocator_.allocated());
 
-	camera_->requestCompleted.connect(this, &Capture::requestComplete);
+	camera_->requestCompleted.connect(this, [this](libcamera::Request *request) {
+		/* Runs in the CameraManager thread. */
+
+		loop_->callLater([this, request] {
+			/* Run handler in the context of the event loop. */
+			requestComplete(request);
+		});
+	});
 
 	ASSERT_EQ(camera_->start(), 0) << "Failed to start camera";
 }
