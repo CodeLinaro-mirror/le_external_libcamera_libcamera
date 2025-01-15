@@ -302,13 +302,18 @@ void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 
-	RkISP1Params params(context_.configuration.paramFormat,
-			    mappedBuffers_.at(bufferId).planes()[0]);
+	if (bufferId != 0) {
+		RkISP1Params params(context_.configuration.paramFormat,
+				    mappedBuffers_.at(bufferId).planes()[0]);
 
-	for (const auto &algo : algorithms())
-		algo->prepare(context_, frame, frameContext, &params);
+		for (const auto &algo : algorithms())
+			algo->prepare(context_, frame, frameContext, &params);
 
-	paramsComputed.emit(frame, params.bytesused());
+		paramsComputed.emit(frame, params.bytesused());
+	}
+
+	ControlList ctrls = getSensorControls(frameContext);
+	setSensorControls.emit(frame, ctrls);
 }
 
 void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
@@ -336,13 +341,6 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 			continue;
 		algo->process(context_, frame, frameContext, stats, metadata);
 	}
-
-	/*
-	 * \todo: Here we should do a lookahead that takes the sensor delays
-	 * into account.
-	 */
-	ControlList ctrls = getSensorControls(frameContext);
-	setSensorControls.emit(frame, ctrls);
 
 	context_.debugMetadata.moveEntries(metadata);
 	metadataReady.emit(frame, metadata);
