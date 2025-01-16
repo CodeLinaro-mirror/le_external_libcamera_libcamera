@@ -272,6 +272,14 @@ void DelayedControls::applyControls(uint32_t sequence)
 {
 	LOG(DelayedControls, Debug) << "frame " << sequence << " started";
 
+	while (queueCount_ - 1 < sequence) {
+		LOG(DelayedControls, Warning)
+			<< "Queue is empty, auto queue no-op." << queueCount_;
+		push(queueCount_, {});
+	}
+
+	writeCount_ = sequence;
+
 	/*
 	 * Create control list peeking ahead in the value queue to ensure
 	 * values are set in time to satisfy the sensor delay.
@@ -311,12 +319,6 @@ void DelayedControls::applyControls(uint32_t sequence)
 	}
 
 	writeCount_ = sequence + 1;
-
-	while (writeCount_ > queueCount_) {
-		LOG(DelayedControls, Warning)
-			<< "Queue is empty, auto queue no-op.";
-		push(queueCount_, {});
-	}
 
 	device_->setControls(&out);
 }
