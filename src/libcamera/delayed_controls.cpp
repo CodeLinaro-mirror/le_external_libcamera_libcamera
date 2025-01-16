@@ -176,6 +176,8 @@ bool DelayedControls::push(uint32_t sequence, const ControlList &controls)
 		LOG(DelayedControls, Warning)
 			<< "Double push for sequence " << sequence
 			<< " current queue index: " << queueCount_;
+		LOG(DelayedControls, Warning) << "ignore silently";
+		return true;
 	}
 
 	while (sequence > queueCount_) {
@@ -277,7 +279,11 @@ ControlList DelayedControls::get(uint32_t sequence)
  */
 void DelayedControls::applyControls(uint32_t sequence)
 {
-	LOG(DelayedControls, Debug) << "frame " << sequence << " started";
+	LOG(DelayedControls, Debug)
+		<< "Apply controls for: " << sequence
+		<< " expected: " << writeCount_
+		<< " (instant controls for frame "
+		<< (sequence - maxDelay_) << ")";
 
 	while (queueCount_ - 1 < sequence) {
 		LOG(DelayedControls, Warning)
