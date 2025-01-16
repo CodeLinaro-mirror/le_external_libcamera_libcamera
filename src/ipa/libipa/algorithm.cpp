@@ -76,11 +76,12 @@ namespace ipa {
  *
  * This function is called for each request queued to the camera. It provides
  * the controls stored in the request to the algorithm. The \a frame number
- * is the Request sequence number and identifies the desired corresponding
+ * is the sensor sequence number and identifies the desired corresponding
  * frame to target for the controls to take effect.
  *
  * Algorithms shall read the applicable controls and store their value for later
- * use during frame processing.
+ * use during frame processing. All values that are already known shall be
+ * updated in \a frameContext.
  */
 
 /**
@@ -98,14 +99,18 @@ namespace ipa {
  * Algorithms shall fill in the parameter structure fields appropriately to
  * configure the ISP processing blocks that they are responsible for. This
  * includes setting fields and flags that enable those processing blocks.
+ *
+ * Additionally \a frameContext shall be updated with the most up to date values
+ * from active state.
  */
 
 /**
  * \fn Algorithm::process()
  * \brief Process ISP statistics, and run algorithm operations
  * \param[in] context The shared IPA context
- * \param[in] frame The frame context sequence number
- * \param[in] frameContext The current frame's context
+ * \param[in] frame The frame sequence number that produces the stats
+ * \param[in] frameContext The frame context for the frame that produced the
+ * stats
  * \param[in] stats The IPA statistics and ISP results
  * \param[out] metadata Metadata for the frame, to be filled by the algorithm
  *
@@ -118,19 +123,14 @@ namespace ipa {
  * computationally expensive calculations or operations must be handled
  * asynchronously in a separate thread.
  *
- * Algorithms can store state in their respective IPAFrameContext structures,
- * and reference state from the IPAFrameContext of other algorithms.
- *
- * \todo Historical data may be required as part of the processing.
- * Either the previous frame, or the IPAFrameContext state of the frame
- * that generated the statistics for this operation may be required for
- * some advanced algorithms to prevent oscillations or support control
- * loops correctly. Only a single IPAFrameContext is available currently,
- * and so any data stored may represent the results of the previously
- * completed operations.
+ * Algorithms shall update the active state. The frameContext shall *not* be
+ * updated as that frame was already produced.
  *
  * Care shall be taken to ensure the ordering of access to the information
  * such that the algorithms use up to date state as required.
+ *
+ * The \a stats parameter can be null in which case ony the frame metadata shall
+ * be filled.
  */
 
 /**
