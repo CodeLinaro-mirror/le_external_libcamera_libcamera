@@ -6,6 +6,8 @@
  */
 
 #include <algorithm>
+#include <deque>
+#include <iterator>
 #include <map>
 #include <memory>
 #include <numeric>
@@ -61,44 +63,14 @@ LOG_DEFINE_CATEGORY(RkISP1Schedule)
 class PipelineHandlerRkISP1;
 class RkISP1CameraData;
 
-struct RkISP1FrameInfo {
-	unsigned int frame;
-	Request *request;
 
-	FrameBuffer *paramBuffer;
-	FrameBuffer *statBuffer;
-	FrameBuffer *mainPathBuffer;
-	FrameBuffer *selfPathBuffer;
-
-	bool paramDequeued;
-	bool metadataProcessed;
-};
-
-class RkISP1Frames
-{
-public:
-	RkISP1Frames(PipelineHandler *pipe);
-
-	RkISP1FrameInfo *create(const RkISP1CameraData *data, Request *request,
-				bool isRaw);
-	int destroy(unsigned int frame);
-	void clear();
-
-	RkISP1FrameInfo *find(unsigned int frame);
-	RkISP1FrameInfo *find(FrameBuffer *buffer);
-	RkISP1FrameInfo *find(Request *request);
-
-private:
-	PipelineHandlerRkISP1 *pipe_;
-	std::map<unsigned int, RkISP1FrameInfo> frameInfo_;
-};
 
 class RkISP1CameraData : public Camera::Private
 {
 public:
 	RkISP1CameraData(PipelineHandler *pipe, RkISP1MainPath *mainPath,
 			 RkISP1SelfPath *selfPath)
-		: Camera::Private(pipe), frame_(0), frameInfo_(pipe),
+		: Camera::Private(pipe), frame_(0),
 		  mainPath_(mainPath), selfPath_(selfPath)
 	{
 	}
@@ -111,9 +83,12 @@ public:
 	Stream selfPathStream_;
 	std::unique_ptr<CameraSensor> sensor_;
 	std::unique_ptr<DelayedControls> delayedCtrls_;
+	/*
+	 * The sensor frame sequence of the last request queued to the pipeline
+	 * handler.
+	 */
 	unsigned int frame_;
 	std::vector<IPABuffer> ipaBuffers_;
-	RkISP1Frames frameInfo_;
 
 	RkISP1MainPath *mainPath_;
 	RkISP1SelfPath *selfPath_;
@@ -169,21 +144,54 @@ private:
 	Transform combinedTransform_;
 };
 
+struct SensorFrameInfo {
+	Request *request = nullptr;
+	FrameBuffer *statsBuffer = nullptr;
+	ControlList metadata;
+	bool metadataProcessed = false;
+};
+
+struct RequestInfo {
+	Request *request = nullptr;
+	/*
+	 * The estimated sensor sequence for this request. Only reliable when
+	 * sequenceValid is true
+	 */
+	size_t sequence = 0;
+	bool sequenceValid = false;
+};
+
+struct ParamBufferInfo {
+	FrameBuffer *buffer = nullptr;
+	size_t expectedSequence = 0;
+};
+
+struct DewarpBufferInfo {
+	FrameBuffer *inputBuffer;
+	FrameBuffer *outputBuffer;
+};
+
 namespace {
 
 /*
- * Maximum number of requests that shall be queued into the pipeline to keep
- * the regulation fast.
- * \todo This needs revisiting as soon as buffers got decoupled from requests
- * and/or a fast path for controls was implemented.
+ * This many buffers ensures that the pipeline runs smoothly, without frame
+ * drops.
  */
-static constexpr unsigned int kRkISP1MaxQueuedRequests = 4;
+static constexpr unsigned int kRkISP1MinBufferCount = 6;
 
 /*
- * This many internal buffers (or rather parameter and statistics buffer
- * pairs) ensures that the pipeline runs smoothly, without frame drops.
+ * This many internal buffers (params and stats) are needed for smooth operation
+ * \todo In high framerate or high cpu load situations it might be necessary to
+ * increase this number. \todo: This also relates to max sensor delay and must
+ * always be >= maxSensor delay
  */
-static constexpr unsigned int kRkISP1MinBufferCount = 4;
+static constexpr unsigned int kRkISP1InternalBufferCount = 4;
+
+/*
+ * This many internal image buffers between ISP and dewarper are needed for
+ * smooth operation.
+ */
+static constexpr unsigned int kRkISP1DewarpImageBufferCount = 4;
 
 /*
  * This flag allows to use dynamic dewarp maps to support pan, zoom, rotate when
@@ -223,18 +231,20 @@ private:
 
 	friend RkISP1CameraData;
 	friend RkISP1CameraConfiguration;
-	friend RkISP1Frames;
 
 	int initLinks(Camera *camera, const RkISP1CameraConfiguration &config);
 	int createCamera(MediaEntity *sensor);
-	void tryCompleteRequest(RkISP1FrameInfo *info);
-	void cancelDewarpRequest(RkISP1FrameInfo *info);
+	void tryCompleteRequests();
+	void cancelDewarpRequest(Request *request);
 	void imageBufferReady(FrameBuffer *buffer);
 	void paramBufferReady(FrameBuffer *buffer);
 	void statBufferReady(FrameBuffer *buffer);
 	void dewarpRequestReady(V4L2Request *request);
 	void dewarpBufferReady(FrameBuffer *buffer);
 	void frameStart(uint32_t sequence);
+
+	void queueInternalBuffers();
+	void computeParamBuffers(uint32_t maxSequence);
 
 	int allocateBuffers(Camera *camera);
 	int freeBuffers(Camera *camera);
@@ -261,139 +271,32 @@ private:
 	std::vector<std::unique_ptr<V4L2Request>> dewarpRequests_;
 	std::queue<V4L2Request *> availableDewarpRequests_;
 
+	bool running_ = false;
+
 	std::vector<std::unique_ptr<FrameBuffer>> paramBuffers_;
 	std::vector<std::unique_ptr<FrameBuffer>> statBuffers_;
 	std::queue<FrameBuffer *> availableParamBuffers_;
 	std::queue<FrameBuffer *> availableStatBuffers_;
 
+	std::deque<RequestInfo> queuedRequests_;
+
+	std::map<unsigned int, SensorFrameInfo> sensorFrameInfos_;
+
+	std::deque<DewarpBufferInfo> queuedDewarpBuffers_;
+	SequenceSyncHelper paramsSyncHelper_;
+	SequenceSyncHelper imageSyncHelper_;
+
+	std::queue<ParamBufferInfo> computingParamBuffers_;
+	std::queue<ParamBufferInfo> queuedParamBuffers_;
+
+
+	uint32_t nextParamsSequence_;
+	uint32_t nextStatsToProcess_;
+
 	Camera *activeCamera_;
 };
 
-RkISP1Frames::RkISP1Frames(PipelineHandler *pipe)
-	: pipe_(static_cast<PipelineHandlerRkISP1 *>(pipe))
-{
-}
 
-RkISP1FrameInfo *RkISP1Frames::create(const RkISP1CameraData *data, Request *request,
-				      bool isRaw)
-{
-	unsigned int frame = data->frame_;
-
-	FrameBuffer *paramBuffer = nullptr;
-	FrameBuffer *statBuffer = nullptr;
-	FrameBuffer *mainPathBuffer = nullptr;
-	FrameBuffer *selfPathBuffer = nullptr;
-
-	if (!isRaw) {
-		if (pipe_->availableParamBuffers_.empty()) {
-			LOG(RkISP1, Error) << "Parameters buffer underrun";
-			return nullptr;
-		}
-
-		if (pipe_->availableStatBuffers_.empty()) {
-			LOG(RkISP1, Error) << "Statistic buffer underrun";
-			return nullptr;
-		}
-
-		paramBuffer = pipe_->availableParamBuffers_.front();
-		pipe_->availableParamBuffers_.pop();
-
-		statBuffer = pipe_->availableStatBuffers_.front();
-		pipe_->availableStatBuffers_.pop();
-
-		if (data->usesDewarper_) {
-			mainPathBuffer = pipe_->availableMainPathBuffers_.front();
-			pipe_->availableMainPathBuffers_.pop();
-		}
-	}
-
-	if (!mainPathBuffer)
-		mainPathBuffer = request->findBuffer(&data->mainPathStream_);
-	selfPathBuffer = request->findBuffer(&data->selfPathStream_);
-
-	auto [it, inserted] = frameInfo_.try_emplace(frame);
-	ASSERT(inserted);
-
-	auto &info = it->second;
-
-	info.frame = frame;
-	info.request = request;
-	info.paramBuffer = paramBuffer;
-	info.mainPathBuffer = mainPathBuffer;
-	info.selfPathBuffer = selfPathBuffer;
-	info.statBuffer = statBuffer;
-	info.paramDequeued = false;
-	info.metadataProcessed = false;
-
-	return &info;
-}
-
-int RkISP1Frames::destroy(unsigned int frame)
-{
-	auto it = frameInfo_.find(frame);
-	if (it == frameInfo_.end())
-		return -ENOENT;
-
-	auto &info = it->second;
-
-	pipe_->availableParamBuffers_.push(info.paramBuffer);
-	pipe_->availableStatBuffers_.push(info.statBuffer);
-	pipe_->availableMainPathBuffers_.push(info.mainPathBuffer);
-
-	frameInfo_.erase(it);
-
-	return 0;
-}
-
-void RkISP1Frames::clear()
-{
-	for (const auto &[frame, info] : frameInfo_) {
-		pipe_->availableParamBuffers_.push(info.paramBuffer);
-		pipe_->availableStatBuffers_.push(info.statBuffer);
-		pipe_->availableMainPathBuffers_.push(info.mainPathBuffer);
-	}
-
-	frameInfo_.clear();
-}
-
-RkISP1FrameInfo *RkISP1Frames::find(unsigned int frame)
-{
-	auto itInfo = frameInfo_.find(frame);
-
-	if (itInfo != frameInfo_.end())
-		return &itInfo->second;
-
-	LOG(RkISP1, Fatal) << "Can't locate info from frame";
-
-	return nullptr;
-}
-
-RkISP1FrameInfo *RkISP1Frames::find(FrameBuffer *buffer)
-{
-	for (auto &[frame, info] : frameInfo_) {
-		if (info.paramBuffer == buffer ||
-		    info.statBuffer == buffer ||
-		    info.mainPathBuffer == buffer ||
-		    info.selfPathBuffer == buffer)
-			return &info;
-	}
-
-	LOG(RkISP1, Fatal) << "Can't locate info from buffer";
-
-	return nullptr;
-}
-
-RkISP1FrameInfo *RkISP1Frames::find(Request *request)
-{
-	for (auto &[frame, info] : frameInfo_) {
-		if (info.request == request)
-			return &info;
-	}
-
-	LOG(RkISP1, Fatal) << "Can't locate info from request";
-
-	return nullptr;
-}
 
 PipelineHandlerRkISP1 *RkISP1CameraData::pipe()
 {
@@ -504,44 +407,95 @@ int RkISP1CameraData::loadTuningFile(const std::string &path)
 void RkISP1CameraData::paramsComputed(unsigned int frame, unsigned int bytesused)
 {
 	PipelineHandlerRkISP1 *pipe = RkISP1CameraData::pipe();
-	RkISP1FrameInfo *info = frameInfo_.find(frame);
-	if (!info)
-		return;
+	ParamBufferInfo &pInfo = pipe->computingParamBuffers_.front();
+	pipe->computingParamBuffers_.pop();
 
-	info->paramBuffer->_d()->metadata().planes()[0].bytesused = bytesused;
+	ASSERT(pInfo.expectedSequence == frame);
+	FrameBuffer *buffer = pInfo.buffer;
 
-	int ret = pipe->param_->queueBuffer(info->paramBuffer);
+	LOG(RkISP1Schedule, Debug) << "Queue params for " << frame << " " << buffer;
+
+	buffer->_d()->metadata().planes()[0].bytesused = bytesused;
+	int ret = pipe->param_->queueBuffer(buffer);
 	if (ret < 0) {
 		LOG(RkISP1, Error) << "Failed to queue parameter buffer: "
 				   << strerror(-ret);
+		pipe->availableParamBuffers_.push(buffer);
 		return;
 	}
 
-	pipe->stat_->queueBuffer(info->statBuffer);
-
-	if (info->mainPathBuffer)
-		mainPath_->queueBuffer(info->mainPathBuffer);
-
-	if (selfPath_ && info->selfPathBuffer)
-		selfPath_->queueBuffer(info->selfPathBuffer);
+	pipe->queuedParamBuffers_.push({ buffer, frame });
 }
 
 void RkISP1CameraData::setSensorControls(unsigned int frame,
 					 const ControlList &sensorControls)
 {
+	/* We know delayed controls is prewarmed for frame 0 */
+	if (frame == 0)
+		return;
+
+	LOG(RkISP1Schedule, Debug) << "DelayedControls push " << frame;
 	delayedCtrls_->push(frame, sensorControls);
 }
 
 void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &metadata)
 {
-	RkISP1FrameInfo *info = frameInfo_.find(frame);
-	if (!info)
-		return;
+	PipelineHandlerRkISP1 *pipe = RkISP1CameraData::pipe();
 
-	info->request->metadata().merge(metadata);
-	info->metadataProcessed = true;
+	LOG(RkISP1Schedule, Debug) << " metadataReady " << frame;
 
-	pipe()->tryCompleteRequest(info);
+	auto &info = pipe->sensorFrameInfos_[frame];
+
+	/*
+	 * We don't necessarily know the request for that sequence number,
+	 * as the dequeue of the image buffer might not have happened yet.
+	 * So we check all known requests and store the metadata otherwise.
+	 */
+	for (auto &reqInfo : pipe->queuedRequests_) {
+		if (!reqInfo.sequenceValid) {
+			LOG(RkISP1Schedule, Debug)
+				<< "Need to store metadata for later " << frame;
+			info.metadata = metadata;
+			break;
+		}
+
+		if (frame > reqInfo.sequence) {
+			/*
+			 * We will never get stats for that request. Log an
+			 * error and return it.
+			 */
+			LOG(RkISP1, Warning)
+				<< "Stats for frame " << reqInfo.sequence
+				<< " got lost";
+			auto &info2 = pipe->sensorFrameInfos_[reqInfo.sequence];
+			info2.metadataProcessed = true;
+			ASSERT(info2.statsBuffer == nullptr);
+			continue;
+		}
+
+		if (frame == reqInfo.sequence) {
+			reqInfo.request->metadata().merge(metadata);
+			break;
+		}
+
+		/* We should never end up here */
+		LOG(RkISP1, Error) << "Request for sequence " << frame
+				   << " is already handled. Metadata was too late";
+
+		break;
+	}
+
+	info.metadataProcessed = true;
+	/*
+	 * info.statsBuffer can be null, if ipa->processStats() was called
+	 * without a buffer to just fill the metadata.
+	 */
+	if (info.statsBuffer)
+		pipe->availableStatBuffers_.push(info.statsBuffer);
+	info.statsBuffer = nullptr;
+
+	pipe->tryCompleteRequests();
+	pipe->queueInternalBuffers();
 }
 
 /* -----------------------------------------------------------------------------
@@ -810,7 +764,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
  */
 
 PipelineHandlerRkISP1::PipelineHandlerRkISP1(CameraManager *manager)
-	: PipelineHandler(manager, kRkISP1MaxQueuedRequests), hasSelfPath_(true)
+	: PipelineHandler(manager), hasSelfPath_(true)
 {
 }
 
@@ -1189,18 +1143,19 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 	} };
 
 	if (!isRaw_) {
-		ret = param_->allocateBuffers(kRkISP1MinBufferCount, &paramBuffers_);
+		ret = param_->allocateBuffers(kRkISP1InternalBufferCount, &paramBuffers_);
 		if (ret < 0)
 			return ret;
 
-		ret = stat_->allocateBuffers(kRkISP1MinBufferCount, &statBuffers_);
+		ret = stat_->allocateBuffers(kRkISP1InternalBufferCount, &statBuffers_);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* If the dewarper is being used, allocate internal buffers for ISP. */
 	if (data->usesDewarper_) {
-		ret = mainPath_.exportBuffers(kRkISP1MinBufferCount, &mainPathBuffers_);
+		ret = mainPath_.exportBuffers(kRkISP1DewarpImageBufferCount,
+					      &mainPathBuffers_);
 		if (ret < 0)
 			return ret;
 
@@ -1208,7 +1163,7 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 			availableMainPathBuffers_.push(buffer.get());
 
 		if (dewarper_->supportsRequests()) {
-			ret = dewarper_->allocateRequests(kRkISP1MinBufferCount,
+			ret = dewarper_->allocateRequests(kRkISP1DewarpImageBufferCount + 1,
 							  &dewarpRequests_);
 			if (ret < 0)
 				LOG(RkISP1, Error) << "Failed to allocate requests.";
@@ -1308,6 +1263,10 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	data->delayedCtrls_->reset();
 
 	data->frame_ = 0;
+	nextParamsSequence_ = 0;
+	nextStatsToProcess_ = 0;
+	paramsSyncHelper_.reset();
+	imageSyncHelper_.reset();
 
 	if (!isRaw_) {
 		ret = param_->streamOn();
@@ -1364,6 +1323,9 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	isp_->setFrameStartEnabled(true);
 
 	activeCamera_ = camera;
+	running_ = true;
+
+	queueInternalBuffers();
 
 	actions.release();
 	return 0;
@@ -1373,6 +1335,9 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 {
 	RkISP1CameraData *data = cameraData(camera);
 	int ret;
+	running_ = false;
+
+	LOG(RkISP1Schedule, Debug) << "Stop device";
 
 	isp_->setFrameStartEnabled(false);
 
@@ -1393,39 +1358,152 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 			LOG(RkISP1, Warning)
 				<< "Failed to stop parameters for " << camera->id();
 
+		/*
+		 * The param buffers are not returned in order, so the queue
+		 * becomes useless.
+		 */
+		queuedParamBuffers_ = {};
+
 		if (data->usesDewarper_)
 			dewarper_->stop();
 	}
 
-	ASSERT(data->queuedRequests_.empty());
-	data->frameInfo_.clear();
+	tryCompleteRequests();
+
+	/* There can still be requests that are either waiting for metadata
+	   or that contain buffers which were not yet queued at all. */
+	while (!queuedRequests_.empty()) {
+		RequestInfo &reqInfo = queuedRequests_.front();
+		cancelRequest(reqInfo.request);
+		queuedRequests_.pop_front();
+	}
+	sensorFrameInfos_.clear();
+
+	ASSERT(queuedDewarpBuffers_.empty());
+	ASSERT(queuedParamBuffers_.empty());
+	ASSERT(computingParamBuffers_.empty());
 
 	freeBuffers(camera);
 
 	activeCamera_ = nullptr;
 }
 
+void PipelineHandlerRkISP1::queueInternalBuffers()
+{
+	if (!running_)
+		return;
+
+	RkISP1CameraData *data = cameraData(activeCamera_);
+
+	while (!availableStatBuffers_.empty()) {
+		FrameBuffer *buf = availableStatBuffers_.front();
+		availableStatBuffers_.pop();
+		data->pipe()->stat_->queueBuffer(buf);
+	}
+
+	/*
+	 * In case of the dewarper, there is a seperate buffer loop for the main
+	 * path
+	 */
+	while (!availableMainPathBuffers_.empty()) {
+		FrameBuffer *buf = availableMainPathBuffers_.front();
+		availableMainPathBuffers_.pop();
+
+		LOG(RkISP1Schedule, Debug) << "Queue mainPath " << buf;
+		data->mainPath_->queueBuffer(buf);
+	}
+}
+
+void PipelineHandlerRkISP1::computeParamBuffers(uint32_t maxSequence)
+{
+	RkISP1CameraData *data = cameraData(activeCamera_);
+	if (isRaw_) {
+		/*
+		 * Call computeParams with an empty param buffer to trigger
+		 * the setSensorControls signal.
+		 */
+		data->ipa_->computeParams(maxSequence, 0);
+		return;
+	}
+
+	while (nextParamsSequence_ <= maxSequence) {
+		if (availableParamBuffers_.empty()) {
+			LOG(RkISP1Schedule, Warning)
+				<< "Ran out of parameter buffers";
+			return;
+		}
+
+		int correction = paramsSyncHelper_.correction();
+		if (correction != 0)
+			LOG(RkISP1Schedule, Warning)
+				<< "Correcting params sequence "
+				<< correction;
+
+		uint32_t paramsSequence;
+		if (correction >= 0) {
+			nextParamsSequence_ += correction;
+			paramsSyncHelper_.pushCorrection(correction);
+			paramsSequence = nextParamsSequence_++;
+		} else {
+			/*
+			 * Inject the same sequence multiple times, to correct
+			 * for the offset.
+			 */
+			paramsSyncHelper_.pushCorrection(-1);
+			paramsSequence = nextParamsSequence_;
+		}
+
+		FrameBuffer *buf = availableParamBuffers_.front();
+		availableParamBuffers_.pop();
+		computingParamBuffers_.push({ buf, paramsSequence });
+		LOG(RkISP1Schedule, Debug) << "Request params for " << paramsSequence;
+		data->ipa_->computeParams(paramsSequence, buf->cookie());
+	}
+}
+
 int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
 {
 	RkISP1CameraData *data = cameraData(camera);
 
-	RkISP1FrameInfo *info = data->frameInfo_.create(data, request, isRaw_);
-	if (!info)
-		return -ENOENT;
+	RequestInfo info;
+	info.request = request;
 
-	data->ipa_->queueRequest(data->frame_, request->controls());
-	if (isRaw_) {
-		if (info->mainPathBuffer)
-			data->mainPath_->queueBuffer(info->mainPathBuffer);
+	int correction = imageSyncHelper_.correction();
+	if (correction != 0)
+		LOG(RkISP1Schedule, Debug)
+			<< "Correcting image sequence "
+			<< data->frame_ << " to " << data->frame_ + correction;
+	data->frame_ += correction;
+	imageSyncHelper_.pushCorrection(correction);
+	info.sequence = data->frame_;
+	data->frame_++;
 
-		if (data->selfPath_ && info->selfPathBuffer)
-			data->selfPath_->queueBuffer(info->selfPathBuffer);
-	} else {
-		data->ipa_->computeParams(data->frame_,
-					  info->paramBuffer->cookie());
+	LOG(RkISP1Schedule, Debug) << "Queue request. Request sequence: "
+				   << request->sequence()
+				   << " estimated sensor frame sequence: " << info.sequence
+				   << " queue size: " << (queuedRequests_.size() + 1);
+
+	data->ipa_->queueRequest(info.sequence, request->controls());
+
+	/*
+	 * When the dewarper is used, the request buffers will be queued in
+	 * imageBufferReady()
+	 */
+	if (!data->usesDewarper_) {
+		FrameBuffer *mainPathBuffer = request->findBuffer(&data->mainPathStream_);
+		FrameBuffer *selfPathBuffer = request->findBuffer(&data->selfPathStream_);
+		if (mainPathBuffer)
+			data->mainPath_->queueBuffer(mainPathBuffer);
+
+		if (data->selfPath_ && selfPathBuffer)
+			data->selfPath_->queueBuffer(selfPathBuffer);
 	}
 
-	data->frame_++;
+	queuedRequests_.push_back(info);
+
+	/* Kickstart computation of parameters. */
+	if (info.sequence < kRkISP1InternalBufferCount)
+		computeParamBuffers(info.sequence);
 
 	return 0;
 }
@@ -1626,12 +1704,11 @@ void PipelineHandlerRkISP1::frameStart(uint32_t sequence)
 		return;
 
 	RkISP1CameraData *data = cameraData(activeCamera_);
+	LOG(RkISP1Schedule, Debug) << "frameStart " << sequence;
 	uint32_t sequenceToApply = sequence + data->delayedCtrls_->maxDelay();
 	data->delayedCtrls_->applyControls(sequenceToApply);
 
-	if (isRaw_) {
-		data->ipa_->computeParams(sequenceToApply + 1, 0);
-	}
+	computeParamBuffers(sequenceToApply + 1);
 }
 
 bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
@@ -1724,29 +1801,51 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
  * Buffer Handling
  */
 
-void PipelineHandlerRkISP1::tryCompleteRequest(RkISP1FrameInfo *info)
+void PipelineHandlerRkISP1::tryCompleteRequests()
 {
-	RkISP1CameraData *data = cameraData(activeCamera_);
-	Request *request = info->request;
+	std::optional<size_t> lastDeletedSequence;
 
-	if (request->hasPendingBuffers())
+	/* Complete finished requests */
+	while (!queuedRequests_.empty()) {
+		RequestInfo info = queuedRequests_.front();
+
+		if (info.request->hasPendingBuffers())
+			break;
+
+		if (!info.sequenceValid)
+			break;
+
+		if (!sensorFrameInfos_[info.sequence].metadataProcessed)
+			break;
+
+		queuedRequests_.pop_front();
+
+		LOG(RkISP1Schedule, Debug) << "Complete request " << info.sequence;
+		completeRequest(info.request);
+
+		sensorFrameInfos_[info.sequence].request = nullptr;
+		lastDeletedSequence = info.sequence;
+	}
+
+	if (!lastDeletedSequence.has_value())
 		return;
 
-	if (!info->metadataProcessed)
-		return;
+	/* Drop all outdated sensor frame infos. */
+	while (!sensorFrameInfos_.empty()) {
+		auto iter = sensorFrameInfos_.begin();
+		if (iter->first > lastDeletedSequence.value())
+			break;
 
-	if (!isRaw_ && !info->paramDequeued)
-		return;
+		ASSERT(iter->second.request == nullptr);
+		ASSERT(iter->second.statsBuffer == nullptr);
 
-	data->frameInfo_.destroy(info->frame);
-
-	completeRequest(request);
+		sensorFrameInfos_.erase(iter);
+	}
 }
 
-void PipelineHandlerRkISP1::cancelDewarpRequest(RkISP1FrameInfo *info)
+void PipelineHandlerRkISP1::cancelDewarpRequest(Request *request)
 {
 	RkISP1CameraData *data = cameraData(activeCamera_);
-	Request *request = info->request;
 	/*
 	 * i.MX8MP is the only known platform with dewarper. It has
 	 * no self path. Hence, only main path buffer completion is
@@ -1765,51 +1864,109 @@ void PipelineHandlerRkISP1::cancelDewarpRequest(RkISP1FrameInfo *info)
 		}
 	}
 
-	tryCompleteRequest(info);
+	tryCompleteRequests();
 }
 
 void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 {
 	ASSERT(activeCamera_);
 	RkISP1CameraData *data = cameraData(activeCamera_);
-
-	RkISP1FrameInfo *info = data->frameInfo_.find(buffer);
-	if (!info)
-		return;
-
 	const FrameMetadata &metadata = buffer->metadata();
-	Request *request = info->request;
+	RequestInfo *reqInfo = nullptr;
+
+	/*
+	 * When the dewarper is used, the buffer is not yet tied to a request,
+	 * so find the first request without a valid sequence. Otherwise find
+	 * the request for that buffer. This is not necessarily the same,
+	 * because after streamoff the buffers are returned in arbitrary order.
+	 */
+	for (auto &info : queuedRequests_) {
+		if (data->usesDewarper_) {
+			if (!info.sequenceValid) {
+				reqInfo = &info;
+				break;
+			}
+		} else {
+			if (info.request == buffer->request()) {
+				reqInfo = &info;
+			}
+		}
+	}
+
+	if (!reqInfo) {
+		if (data->usesDewarper_) {
+			LOG(RkISP1Schedule, Info)
+				<< "Image buffer ready, but no corresponding request";
+			availableMainPathBuffers_.push(buffer);
+			return;
+		}
+
+		LOG(RkISP1Schedule, Fatal)
+			<< "Image buffer ready, but no corresponding request";
+	}
+
+	Request *request = reqInfo->request;
+
+	LOG(RkISP1Schedule, Debug) << "Image buffer ready: " << buffer
+				   << " Expected sequence: " << reqInfo->sequence
+				   << " got: " << metadata.sequence;
+
+	uint32_t sequence = metadata.sequence;
+
+	/*
+	 * If the frame was cancelled, the metadata sequnce is usually wrong and
+	 * we assume that our guess was right.
+	 */
+	if (metadata.status == FrameMetadata::FrameCancelled)
+		sequence = reqInfo->sequence;
+
+	/* We now know the buffer sequence that belongs to this request */
+	int droppedFrames = imageSyncHelper_.gotFrame(reqInfo->sequence, sequence);
+	if (droppedFrames != 0)
+		LOG(RkISP1Schedule, Warning)
+			<< "Frame " << reqInfo->sequence << ": Dropped "
+			<< droppedFrames << " frames";
+
+	reqInfo->sequence = sequence;
+	reqInfo->sequenceValid = true;
+
+	if (sensorFrameInfos_[sequence].metadataProcessed) {
+		LOG(RkISP1Schedule, Debug)
+			<< "Apply stored metadata " << reqInfo->sequence;
+		request->metadata().merge(sensorFrameInfos_[sequence].metadata);
+	}
 
 	if (metadata.status != FrameMetadata::FrameCancelled) {
 		/*
 		 * Record the sensor's timestamp in the request metadata.
 		 *
-		 * \todo The sensor timestamp should be better estimated by connecting
-		 * to the V4L2Device::frameStart signal.
+		 * \todo The sensor timestamp should be better estimated by
+		 * connecting to the V4L2Device::frameStart signal.
 		 */
 		request->metadata().set(controls::SensorTimestamp,
 					metadata.timestamp);
 
+		/* In raw mode call processStats() to fill the metadata */
 		if (isRaw_) {
 			const ControlList &ctrls =
 				data->delayedCtrls_->get(metadata.sequence);
-			data->ipa_->processStats(info->frame, 0, ctrls);
+			data->ipa_->processStats(reqInfo->sequence, 0, ctrls);
 		}
 	} else {
-		if (isRaw_)
-			info->metadataProcessed = true;
+		/* No need to block waiting for metedata on that frame. */
+		sensorFrameInfos_[sequence].metadataProcessed = true;
 	}
 
 	if (!data->usesDewarper_) {
-		completeBuffer(request, buffer);
-		tryCompleteRequest(info);
+		completeBuffer(reqInfo->request, buffer);
+		tryCompleteRequests();
 
 		return;
 	}
 
-	/* Do not queue cancelled frames to dewarper. */
+	/* Do not queue cancelled frames to the dewarper. */
 	if (metadata.status == FrameMetadata::FrameCancelled) {
-		cancelDewarpRequest(info);
+		cancelDewarpRequest(reqInfo->request);
 		return;
 	}
 
@@ -1869,10 +2026,14 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		dewarper_->applyVertexMap(&data->mainPathStream_, dewarpRequest);
 
 	/*
-	 * Queue input and output buffers to the dewarper. The output
-	 * buffers for the dewarper are the buffers of the request, supplied
-	 * by the application.
+	 * Queue input and output buffers to the dewarper. The output buffers
+	 * for the dewarper are the buffers of the request, supplied by the
+	 * application.
 	 */
+	DewarpBufferInfo dewarpInfo{ buffer, reqInfo->request->findBuffer(&data->mainPathStream_) };
+	queuedDewarpBuffers_.push_back(dewarpInfo);
+	LOG(RkISP1Schedule, Debug) << "Queue dewarper " << dewarpInfo.inputBuffer
+				   << " " << dewarpInfo.outputBuffer;
 	int ret = dewarper_->queueBuffers(buffer, request->buffers(), dewarpRequest);
 	if (ret < 0) {
 		LOG(RkISP1, Error) << "Failed to queue buffers to dewarper: -"
@@ -1882,7 +2043,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		if (dewarpRequest)
 			dewarpRequestReady(dewarpRequest);
 
-		cancelDewarpRequest(info);
+		cancelDewarpRequest(reqInfo->request);
 
 		return;
 	}
@@ -1895,7 +2056,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 			/* Push it back into the queue. */
 			dewarpRequestReady(dewarpRequest);
 
-			cancelDewarpRequest(info);
+			cancelDewarpRequest(reqInfo->request);
 		}
 	}
 
@@ -1919,29 +2080,59 @@ void PipelineHandlerRkISP1::dewarpRequestReady(V4L2Request *request)
 
 void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
 {
-	ASSERT(activeCamera_);
-	RkISP1CameraData *data = cameraData(activeCamera_);
 	Request *request = buffer->request();
+	const FrameMetadata &metadata = buffer->metadata();
 
-	RkISP1FrameInfo *info = data->frameInfo_.find(buffer->request());
-	if (!info)
-		return;
+	/*
+	 * After stopping the dewarper, the buffers are returned out of order.
+	 * Search the list for the corresponding info and handle it. In regular
+	 * operation it will always be the first entry.
+	 */
+	for (DewarpBufferInfo &dwInfo : queuedDewarpBuffers_) {
+		if (dwInfo.outputBuffer != buffer)
+			continue;
 
-	completeBuffer(request, buffer);
-	tryCompleteRequest(info);
+		availableMainPathBuffers_.push(dwInfo.inputBuffer);
+		dwInfo.inputBuffer = nullptr;
+		dwInfo.outputBuffer = nullptr;
+
+		if (metadata.status == FrameMetadata::FrameCancelled)
+			buffer->_d()->cancel();
+
+		completeBuffer(request, buffer);
+	}
+
+	while (!queuedDewarpBuffers_.empty() &&
+	       queuedDewarpBuffers_.front().inputBuffer == nullptr)
+		queuedDewarpBuffers_.pop_front();
+
+	tryCompleteRequests();
+	queueInternalBuffers();
 }
 
 void PipelineHandlerRkISP1::paramBufferReady(FrameBuffer *buffer)
 {
-	ASSERT(activeCamera_);
-	RkISP1CameraData *data = cameraData(activeCamera_);
+	LOG(RkISP1Schedule, Debug) << "Param buffer ready " << buffer;
 
-	RkISP1FrameInfo *info = data->frameInfo_.find(buffer);
-	if (!info)
+	/* After stream off, the buffers are returned out of order, so
+	 * we don't care about the rest.
+	 */
+	if (!running_) {
+		availableParamBuffers_.push(buffer);
 		return;
+	}
 
-	info->paramDequeued = true;
-	tryCompleteRequest(info);
+	ParamBufferInfo pInfo = queuedParamBuffers_.front();
+	queuedParamBuffers_.pop();
+
+	ASSERT(pInfo.buffer == buffer);
+
+	size_t metaSequence = buffer->metadata().sequence;
+	LOG(RkISP1Schedule, Debug) << "Params buffer ready "
+				   << " Expected: " << pInfo.expectedSequence
+				   << " got: " << metaSequence;
+	paramsSyncHelper_.gotFrame(pInfo.expectedSequence, metaSequence);
+	availableParamBuffers_.push(buffer);
 }
 
 void PipelineHandlerRkISP1::statBufferReady(FrameBuffer *buffer)
@@ -1949,21 +2140,47 @@ void PipelineHandlerRkISP1::statBufferReady(FrameBuffer *buffer)
 	ASSERT(activeCamera_);
 	RkISP1CameraData *data = cameraData(activeCamera_);
 
-	RkISP1FrameInfo *info = data->frameInfo_.find(buffer);
-	if (!info)
-		return;
+	size_t sequence = buffer->metadata().sequence;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
-		info->metadataProcessed = true;
-		tryCompleteRequest(info);
+		LOG(RkISP1Schedule, Warning) << "Stats cancelled " << sequence;
+		/*
+		 * We can't assume that the sequence of the stat buffer is valid,
+		 * so there is nothing left to do.
+		 */
+		availableStatBuffers_.push(buffer);
 		return;
 	}
 
-	if (data->frame_ <= buffer->metadata().sequence)
-		data->frame_ = buffer->metadata().sequence + 1;
+	LOG(RkISP1Schedule, Debug) << "Stats ready " << sequence;
 
-	data->ipa_->processStats(info->frame, info->statBuffer->cookie(),
-				 data->delayedCtrls_->get(buffer->metadata().sequence));
+	if (nextStatsToProcess_ != sequence)
+		LOG(RkISP1Schedule, Warning) << "Stats sequence out of sync."
+					     << " Expected: " << nextStatsToProcess_
+					     << " got: " << sequence;
+
+	if (nextStatsToProcess_ > sequence) {
+		LOG(RkISP1Schedule, Warning) << "Stats were too late. Ignored";
+		availableStatBuffers_.push(buffer);
+		return;
+	}
+
+	/* Send empty stats to ensure metadata gets created*/
+	while (nextStatsToProcess_ < sequence) {
+		LOG(RkISP1Schedule, Warning) << "Send empty stats to fill metadata";
+		data->ipa_->processStats(nextStatsToProcess_, 0,
+					 data->delayedCtrls_->get(nextStatsToProcess_));
+
+		nextStatsToProcess_++;
+	}
+
+	nextStatsToProcess_++;
+
+	sensorFrameInfos_[sequence].statsBuffer = buffer;
+
+	LOG(RkISP1Schedule, Debug) << "Process stats " << sequence;
+	data->ipa_->processStats(sequence, buffer->cookie(),
+				 data->delayedCtrls_->get(sequence));
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerRkISP1, "rkisp1")
