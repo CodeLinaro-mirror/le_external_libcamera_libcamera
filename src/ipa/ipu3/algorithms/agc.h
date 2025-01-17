@@ -32,6 +32,9 @@ public:
 
 	int init(IPAContext &context, const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
+	void queueRequest(IPAContext &context, const uint32_t frame,
+			  IPAFrameContext &frameContext,
+			  const ControlList &controls) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const ipu3_uapi_stats_3a *stats,
