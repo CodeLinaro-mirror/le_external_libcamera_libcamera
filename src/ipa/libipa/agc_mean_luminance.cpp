@@ -8,6 +8,7 @@
 #include "agc_mean_luminance.h"
 
 #include <cmath>
+#include <optional>
 
 #include <libcamera/base/log.h>
 #include <libcamera/control_ids.h>
@@ -560,7 +561,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	newExposureValue = filterExposure(newExposureValue);
 
 	frameCount_++;
-	return exposureModeHelper->splitExposure(newExposureValue);
+	return exposureModeHelper->splitExposure(newExposureValue, std::nullopt);
 }
 
 /**

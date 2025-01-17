@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -28,7 +29,7 @@ public:
 		       double minGain, double maxGain);
 
 	std::tuple<utils::Duration, double, double>
-	splitExposure(utils::Duration exposure) const;
+	splitExposure(utils::Duration exposure, std::optional<utils::Duration> flickerPeriod) const;
 
 	utils::Duration minExposureTime() const { return minExposureTime_; }
 	utils::Duration maxExposureTime() const { return maxExposureTime_; }
@@ -38,6 +39,9 @@ public:
 private:
 	utils::Duration clampExposureTime(utils::Duration exposureTime) const;
 	double clampGain(double gain) const;
+	utils::Duration
+	calculateExposureTime(utils::Duration exposureTime, double stageGain,
+			      std::optional<utils::Duration> flickerPeriod) const;
 
 	std::vector<utils::Duration> exposureTimes_;
 	std::vector<double> gains_;
