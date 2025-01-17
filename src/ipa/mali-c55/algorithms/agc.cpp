@@ -238,6 +238,8 @@ void Agc::queueRequest(IPAContext &context, const uint32_t frame,
 			<< "Digital gain set to " << agc.manual.ispGain
 			<< " on request sequence " << frame;
 	}
+
+	parseControls(controls);
 }
 
 size_t Agc::fillGainParamBlock(IPAContext &context, IPAFrameContext &frameContext,

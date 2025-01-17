@@ -14,6 +14,7 @@
 
 #include <libcamera/base/utils.h>
 
+#include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
 
 #include "libcamera/internal/yaml_parser.h"
@@ -71,6 +72,8 @@ public:
 		frameCount_ = 0;
 	}
 
+	void parseControls(const ControlList &controls);
+
 private:
 	virtual double estimateLuminance(const double gain) const = 0;
 
@@ -87,6 +90,8 @@ private:
 	uint64_t frameCount_;
 	utils::Duration filteredExposure_;
 	double relativeLuminanceTarget_;
+	utils::Duration flickerPeriod_;
+	controls::AeFlickerModeEnum flickerMode_;
 
 	std::map<int32_t, std::vector<AgcConstraint>> constraintModes_;
 	std::map<int32_t, std::shared_ptr<ExposureModeHelper>> exposureModeHelpers_;

@@ -137,6 +137,10 @@ static constexpr double kDefaultRelativeLuminanceTarget = 0.16;
 AgcMeanLuminance::AgcMeanLuminance()
 	: frameCount_(0), filteredExposure_(0s), relativeLuminanceTarget_(0)
 {
+	controls_[&controls::AeFlickerMode] = ControlInfo({ { ControlValue(controls::FlickerOff),
+							      ControlValue(controls::FlickerManual) } },
+							  ControlValue(controls::FlickerOff));
+	controls_[&controls::AeFlickerPeriod] = ControlInfo(100, 1000000);
 }
 
 AgcMeanLuminance::~AgcMeanLuminance() = default;
@@ -481,6 +485,39 @@ double AgcMeanLuminance::constraintClampGain(uint32_t constraintModeIndex,
 }
 
 /**
+ * \brief Parse the controls passed to an algorithm for the ones we need
+ * \param[in] controls the ControlList passed to an algorithm by the IPA
+ *
+ * This function must be called by a derived class in its queueRequest()
+ * function so that we can extract the controls needed by this base class.
+ */
+void AgcMeanLuminance::parseControls(const ControlList &controls)
+{
+	const auto &flickerMode = controls.get(controls::AeFlickerMode);
+	if (flickerMode) {
+		switch (*flickerMode) {
+		case controls::AeFlickerModeEnum::FlickerOff:
+		case controls::AeFlickerModeEnum::FlickerManual:
+			flickerMode_ = static_cast<controls::AeFlickerModeEnum>(*flickerMode);
+			break;
+		default:
+			LOG(AgcMeanLuminance, Error)
+				<< "Flicker mode " << *flickerMode << " is not supported";
+			break;
+		}
+	}
+
+	const auto &flickerPeriod = controls.get(controls::AeFlickerPeriod);
+	if (flickerPeriod) {
+		/*
+		 * If at some future point we support automatic flicker
+		 * mitigation then this will need revision.
+		 */
+		flickerPeriod_ = *flickerPeriod * 1.0us;
+	}
+}
+
+/**
  * \brief Apply a filter on the exposure value to limit the speed of changes
  * \param[in] exposureValue The target exposure from the AGC algorithm
  *
@@ -561,7 +598,15 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	newExposureValue = filterExposure(newExposureValue);
 
 	frameCount_++;
-	return exposureModeHelper->splitExposure(newExposureValue, std::nullopt);
+
+	std::optional<utils::Duration> flickerPeriod;
+
+	if (flickerMode_ == controls::AeFlickerModeEnum::FlickerManual)
+		flickerPeriod = flickerPeriod_;
+	else
+		flickerPeriod = std::nullopt;
+
+	return exposureModeHelper->splitExposure(newExposureValue, flickerPeriod);
 }
 
 /**

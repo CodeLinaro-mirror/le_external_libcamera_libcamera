@@ -315,6 +315,8 @@ void Agc::queueRequest(IPAContext &context,
 		agc.maxFrameDuration = maxFrameDuration;
 	}
 	frameContext.agc.maxFrameDuration = agc.maxFrameDuration;
+
+	parseControls(controls);
 }
 
 /**
