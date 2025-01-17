@@ -320,6 +320,8 @@ void Agc::queueRequest(IPAContext &context,
 	}
 	frameContext.agc.minFrameDuration = agc.minFrameDuration;
 	frameContext.agc.maxFrameDuration = agc.maxFrameDuration;
+
+	parseControls(controls);
 }
 
 /**
