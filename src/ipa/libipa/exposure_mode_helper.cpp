@@ -121,6 +121,7 @@ double ExposureModeHelper::clampGain(double gain) const
 /**
  * \brief Split exposure into exposure time and gain
  * \param[in] exposure Exposure value
+ * \param[in] flickerPeriod The period of a flickering light source
  *
  * This function divides a given exposure into exposure time, analogue and
  * digital gain by iterating through stages of exposure time and gain limits.
@@ -147,10 +148,15 @@ double ExposureModeHelper::clampGain(double gain) const
  * required exposure, the helper falls-back to simply maximising the exposure
  * time first, followed by analogue gain, followed by digital gain.
  *
+ * Once the exposure time has been determined from the modes, an adjustment is
+ * made to compensate for a flickering light source by fixing the exposure time
+ * to an exact multiple of the flicker period. Any effective exposure value that
+ * is lost is added back via analogue and digital gain.
+ *
  * \return Tuple of exposure time, analogue gain, and digital gain
  */
 std::tuple<utils::Duration, double, double>
-ExposureModeHelper::splitExposure(utils::Duration exposure) const
+ExposureModeHelper::splitExposure(utils::Duration exposure, utils::Duration flickerPeriod) const
 {
 	ASSERT(maxExposureTime_);
 	ASSERT(maxGain_);
@@ -207,6 +213,18 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 	 * exposure time is maxed before gain is touched at all.
 	 */
 	exposureTime = clampExposureTime(exposure / clampGain(stageGain));
+
+	/*
+	 * Finally, if we have been given a flicker period we need to reduce the
+	 * exposure time to be a multiple of that period (if possible). The
+	 * effect of this should be to hide the flicker.
+	 */
+	if (flickerPeriod > 0us && flickerPeriod < exposureTime) {
+		unsigned int flickerPeriods = exposureTime / flickerPeriod;
+		if (flickerPeriods)
+			exposureTime = flickerPeriods * flickerPeriod;
+	}
+
 	gain = clampGain(exposure / exposureTime);
 
 	return { exposureTime, gain, exposure / (exposureTime * gain) };

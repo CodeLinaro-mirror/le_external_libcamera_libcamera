@@ -28,7 +28,7 @@ public:
 		       double minGain, double maxGain);
 
 	std::tuple<utils::Duration, double, double>
-	splitExposure(utils::Duration exposure) const;
+	splitExposure(utils::Duration exposure, utils::Duration flickerPeriod) const;
 
 	utils::Duration minExposureTime() const { return minExposureTime_; }
 	utils::Duration maxExposureTime() const { return maxExposureTime_; }

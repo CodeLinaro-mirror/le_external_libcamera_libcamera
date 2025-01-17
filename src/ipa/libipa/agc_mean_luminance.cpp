@@ -572,7 +572,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	newExposureValue = filterExposure(newExposureValue);
 
 	frameCount_++;
-	return exposureModeHelper->splitExposure(newExposureValue);
+	return exposureModeHelper->splitExposure(newExposureValue, 0us);
 }
 
 /**
