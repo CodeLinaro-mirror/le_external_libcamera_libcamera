@@ -718,11 +718,15 @@ void Logger::registerCategory(LogCategory *category)
 
 	const std::string &name = category->name();
 	for (const std::pair<std::string, LogSeverity> &level : levels_) {
+		unsigned int i;
+		bool wildcard = false;
 		bool match = true;
 
-		for (unsigned int i = 0; i < level.first.size(); ++i) {
-			if (level.first[i] == '*')
+		for (i = 0; i < level.first.size(); ++i) {
+			if (level.first[i] == '*') {
+				wildcard = true;
 				break;
+			}
 
 			if (i >= name.size() ||
 			    name[i] != level.first[i]) {
@@ -730,6 +734,10 @@ void Logger::registerCategory(LogCategory *category)
 				break;
 			}
 		}
+
+		/* Ensure the full name got matched */
+		if (!(wildcard || i == name.size()))
+			continue;
 
 		if (match) {
 			category->setSeverity(level.second);
