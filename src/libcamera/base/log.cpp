@@ -17,6 +17,7 @@
 #include <syslog.h>
 #include <time.h>
 #include <unordered_set>
+#include <utility>
 
 #include <libcamera/logging.h>
 
@@ -894,9 +895,10 @@ LogMessage::LogMessage(const char *fileName, unsigned int line,
  */
 LogMessage::LogMessage(LogMessage &&other)
 	: msgStream_(std::move(other.msgStream_)), category_(other.category_),
-	  severity_(other.severity_)
+	  severity_(std::exchange(other.severity_, LogInvalid)),
+	  timestamp_(other.timestamp_), fileInfo_(std::move(other.fileInfo_)),
+	  prefix_(std::move(other.prefix_))
 {
-	other.severity_ = LogInvalid;
 }
 
 void LogMessage::init(const char *fileName, unsigned int line)
