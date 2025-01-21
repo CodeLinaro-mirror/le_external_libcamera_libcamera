@@ -66,7 +66,9 @@
 
 namespace libcamera {
 
-static int log_severity_to_syslog(LogSeverity severity)
+namespace {
+
+int log_severity_to_syslog(LogSeverity severity)
 {
 	switch (severity) {
 	case LogDebug:
@@ -84,7 +86,7 @@ static int log_severity_to_syslog(LogSeverity severity)
 	}
 }
 
-static const char *log_severity_name(LogSeverity severity)
+const char *log_severity_name(LogSeverity severity)
 {
 	static const char *const names[] = {
 		"DEBUG",
@@ -99,6 +101,92 @@ static const char *log_severity_name(LogSeverity severity)
 	else
 		return "UNKWN";
 }
+
+/**
+ * \brief Parse a log level string into a LogSeverity
+ * \param[in] level The log level string
+ *
+ * Log levels can be specified as an integer value in the range from LogDebug to
+ * LogFatal, or as a string corresponding to the severity name in uppercase. Any
+ * other value is invalid.
+ *
+ * \return The log severity, or LogInvalid if the string is invalid
+ */
+LogSeverity parseLogLevel(std::string_view level)
+{
+	static const char *const names[] = {
+		"DEBUG",
+		"INFO",
+		"WARN",
+		"ERROR",
+		"FATAL",
+	};
+
+	unsigned int severity;
+
+	if (std::isdigit(level[0])) {
+		auto [end, ec] = std::from_chars(level.data(), level.data() + level.size(), severity, 10);
+		if (ec != std::errc() || *end != '\0' || severity > LogFatal)
+			severity = LogInvalid;
+	} else {
+		severity = LogInvalid;
+		for (unsigned int i = 0; i < std::size(names); ++i) {
+			if (names[i] == level) {
+				severity = i;
+				break;
+			}
+		}
+	}
+
+	return static_cast<LogSeverity>(severity);
+}
+
+/**
+ * \brief Parse the log levels from the environment
+ *
+ * The log levels are stored in the LIBCAMERA_LOG_LEVELS environment variable
+ * as a list of "category:level" pairs, separated by commas (','). Parse the
+ * variable and store the levels to configure all log categories.
+ */
+void parseLogLevels(const char *line, std::list<std::pair<std::string, LogSeverity>> &levels)
+{
+	for (const char *pair = line; *line != '\0'; pair = line) {
+		const char *comma = strchrnul(line, ',');
+		size_t len = comma - pair;
+
+		/* Skip over the comma. */
+		line = *comma == ',' ? comma + 1 : comma;
+
+		/* Skip to the next pair if the pair is empty. */
+		if (!len)
+			continue;
+
+		std::string_view category;
+		std::string_view level;
+
+		const char *colon = static_cast<const char *>(memchr(pair, ':', len));
+		if (!colon) {
+			/* 'x' is a shortcut for '*:x'. */
+			category = "*";
+			level = std::string_view(pair, len);
+		} else {
+			category = std::string_view(pair, colon - pair);
+			level = std::string_view(colon + 1, comma - colon - 1);
+		}
+
+		/* Both the category and the level must be specified. */
+		if (category.empty() || level.empty())
+			continue;
+
+		LogSeverity severity = parseLogLevel(level);
+		if (severity == LogInvalid)
+			continue;
+
+		levels.emplace_back(category, severity);
+	}
+}
+
+} /* namespace */
 
 /**
  * \brief Log output
@@ -313,15 +401,13 @@ private:
 	Logger();
 
 	void parseLogFile();
-	void parseLogLevels();
-	static LogSeverity parseLogLevel(std::string_view level);
 
 	friend LogCategory;
-	void registerCategory(LogCategory *category);
-	LogCategory *findCategory(std::string_view name) const;
+	LogCategory *findOrCreateCategory(std::string_view name);
 
 	static bool destroyed_;
 
+	Mutex mutex_;
 	std::vector<LogCategory *> categories_;
 	std::list<std::pair<std::string, LogSeverity>> levels_;
 
@@ -572,6 +658,8 @@ void Logger::logSetLevel(const char *category, const char *level)
 	if (severity == LogInvalid)
 		return;
 
+	MutexLocker locker(mutex_);
+
 	for (LogCategory *c : categories_) {
 		if (c->name() == category) {
 			c->setSeverity(severity);
@@ -593,7 +681,9 @@ Logger::Logger()
 	logSetStream(&std::cerr, color);
 
 	parseLogFile();
-	parseLogLevels();
+
+	if (const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS"))
+		parseLogLevels(debug, levels_);
 }
 
 /**
@@ -620,105 +710,21 @@ void Logger::parseLogFile()
 }
 
 /**
- * \brief Parse the log levels from the environment
- *
- * The log levels are stored in the LIBCAMERA_LOG_LEVELS environment variable
- * as a list of "category:level" pairs, separated by commas (','). Parse the
- * variable and store the levels to configure all log categories.
+ * \brief Find an existing log category with the given name or create one
+ * \param[in] name Name of the log category
+ * \return The pointer to the log category found or created
  */
-void Logger::parseLogLevels()
+LogCategory *Logger::findOrCreateCategory(std::string_view name)
 {
-	const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS");
-	if (!debug)
-		return;
+	MutexLocker locker(mutex_);
 
-	for (const char *pair = debug; *debug != '\0'; pair = debug) {
-		const char *comma = strchrnul(debug, ',');
-		size_t len = comma - pair;
-
-		/* Skip over the comma. */
-		debug = *comma == ',' ? comma + 1 : comma;
-
-		/* Skip to the next pair if the pair is empty. */
-		if (!len)
-			continue;
-
-		std::string_view category;
-		std::string_view level;
-
-		const char *colon = static_cast<const char *>(memchr(pair, ':', len));
-		if (!colon) {
-			/* 'x' is a shortcut for '*:x'. */
-			category = "*";
-			level = std::string_view(pair, len);
-		} else {
-			category = std::string_view(pair, colon - pair);
-			level = std::string_view(colon + 1, comma - colon - 1);
-		}
-
-		/* Both the category and the level must be specified. */
-		if (category.empty() || level.empty())
-			continue;
-
-		LogSeverity severity = parseLogLevel(level);
-		if (severity == LogInvalid)
-			continue;
-
-		levels_.emplace_back(category, severity);
-	}
-}
-
-/**
- * \brief Parse a log level string into a LogSeverity
- * \param[in] level The log level string
- *
- * Log levels can be specified as an integer value in the range from LogDebug to
- * LogFatal, or as a string corresponding to the severity name in uppercase. Any
- * other value is invalid.
- *
- * \return The log severity, or LogInvalid if the string is invalid
- */
-LogSeverity Logger::parseLogLevel(std::string_view level)
-{
-	static const char *const names[] = {
-		"DEBUG",
-		"INFO",
-		"WARN",
-		"ERROR",
-		"FATAL",
-	};
-
-	unsigned int severity;
-
-	if (std::isdigit(level[0])) {
-		auto [end, ec] = std::from_chars(level.data(), level.data() + level.size(), severity, 10);
-		if (ec != std::errc() || *end != '\0' || severity > LogFatal)
-			severity = LogInvalid;
-	} else {
-		severity = LogInvalid;
-		for (unsigned int i = 0; i < std::size(names); ++i) {
-			if (names[i] == level) {
-				severity = i;
-				break;
-			}
-		}
+	for (LogCategory *c : categories_) {
+		if (c->name() == name)
+			return c;
 	}
 
-	return static_cast<LogSeverity>(severity);
-}
+	LogCategory *c = categories_.emplace_back(new LogCategory(name));
 
-/**
- * \brief Register a log category with the logger
- * \param[in] category The log category
- *
- * Log categories must have unique names. It is invalid to call this function
- * if a log category with the same name already exists.
- */
-void Logger::registerCategory(LogCategory *category)
-{
-	categories_.push_back(category);
-
-	const std::string &name = category->name();
 	for (const std::pair<std::string, LogSeverity> &level : levels_) {
 		bool match = true;
 
@@ -734,26 +740,12 @@ void Logger::registerCategory(LogCategory *category)
 		}
 
 		if (match) {
-			category->setSeverity(level.second);
+			c->setSeverity(level.second);
 			break;
 		}
 	}
-}
 
-/**
- * \brief Find an existing log category with the given name
- * \param[in] name Name of the log category
- * \return The pointer to the found log category or nullptr if not found
- */
-LogCategory *Logger::findCategory(std::string_view name) const
-{
-	if (auto it = std::find_if(categories_.begin(), categories_.end(),
-				   [name](auto c) { return c->name() == name; });
-	    it != categories_.end()) {
-		return *it;
-	}
-
-	return nullptr;
+	return c;
 }
 
 /**
@@ -791,16 +783,7 @@ LogCategory *Logger::findCategory(std::string_view name) const
  */
 LogCategory *LogCategory::create(std::string_view name)
 {
-	static Mutex mutex_;
-	MutexLocker locker(mutex_);
-	LogCategory *category = Logger::instance()->findCategory(name);
-
-	if (!category) {
-		category = new LogCategory(name);
-		Logger::instance()->registerCategory(category);
-	}
-
-	return category;
+	return Logger::instance()->findOrCreateCategory(name);
 }
 
 /**
