@@ -876,9 +876,12 @@ const LogCategory &LogCategory::defaultCategory()
 LogMessage::LogMessage(const char *fileName, unsigned int line,
 		       const LogCategory &category, LogSeverity severity,
 		       const std::string &prefix)
-	: category_(category), severity_(severity), prefix_(prefix)
+	: category_(category), severity_(severity),
+	  timestamp_(utils::clock::now()), prefix_(prefix)
 {
-	init(fileName, line);
+	std::ostringstream ossFileInfo;
+	ossFileInfo << utils::basename(fileName) << ":" << line;
+	fileInfo_ = std::move(ossFileInfo).str();
 }
 
 /**
@@ -899,16 +902,6 @@ LogMessage::LogMessage(LogMessage &&other)
 	  timestamp_(other.timestamp_), fileInfo_(std::move(other.fileInfo_)),
 	  prefix_(std::move(other.prefix_))
 {
-}
-
-void LogMessage::init(const char *fileName, unsigned int line)
-{
-	/* Log the timestamp, severity and file information. */
-	timestamp_ = utils::clock::now();
-
-	std::ostringstream ossFileInfo;
-	ossFileInfo << utils::basename(fileName) << ":" << line;
-	fileInfo_ = ossFileInfo.str();
 }
 
 LogMessage::~LogMessage()
