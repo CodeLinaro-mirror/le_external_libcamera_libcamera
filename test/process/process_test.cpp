@@ -87,8 +87,6 @@ private:
 		exitCode_ = exitCode;
 	}
 
-	ProcessManager processManager_;
-
 	Process proc_;
 	enum Process::ExitStatus exitStatus_;
 	int exitCode_;
