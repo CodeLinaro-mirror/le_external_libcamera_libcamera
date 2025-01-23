@@ -16,6 +16,7 @@
 
 #include <libcamera/ipa/core_ipa_interface.h>
 
+#include "libipa/awb_bayes.h"
 #include "libipa/awb_grey.h"
 #include "libipa/colours.h"
 
@@ -45,13 +46,23 @@ class RkISP1AwbStats : public AwbStats
 {
 public:
 	RkISP1AwbStats(const RGB<double> &rgbMeans)
-		: rgbMeans_(rgbMeans) {}
-
-	double computeColourError([[maybe_unused]] const RGB<double> &gains) const override
+		: rgbMeans_(rgbMeans)
 	{
-		LOG(RkISP1Awb, Error)
-			<< "RkISP1AwbStats::computeColourError is not implemented";
-		return 0.0;
+		rg_ = rgbMeans_.r() / rgbMeans_.g();
+		bg_ = rgbMeans_.b() / rgbMeans_.g();
+	}
+
+	double computeColourError(const RGB<double> &gains) const override
+	{
+		/*
+		* Compute the sum of the squared colour error (non-greyness) as it
+		* appears in the log likelihood equation.
+		*/
+		double deltaR = gains.r() * rg_ - 1.0;
+		double deltaB = gains.b() * bg_ - 1.0;
+		double delta2 = deltaR * deltaR + deltaB * deltaB;
+
+		return delta2;
 	}
 
 	RGB<double> getRGBMeans() const override
@@ -61,6 +72,8 @@ public:
 
 private:
 	RGB<double> rgbMeans_;
+	double rg_;
+	double bg_;
 };
 
 Awb::Awb()
@@ -78,12 +91,29 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 							 kMaxColourTemperature,
 							 kDefaultColourTemperature);
 
-	awbAlgo_ = std::make_unique<AwbGrey>();
+	if (!tuningData.contains("algorithm"))
+		LOG(RkISP1Awb, Info) << "No awb algorithm specified."
+				     << " Default to grey world";
+
+	auto mode = tuningData["algorithm"].get<std::string>("grey");
+	if (mode == "grey") {
+		awbAlgo_ = std::make_unique<AwbGrey>();
+	} else if (mode == "bayes") {
+		awbAlgo_ = std::make_unique<AwbBayes>();
+	} else {
+		LOG(RkISP1Awb, Error) << "Unknown awb algorithm: " << mode;
+		return -EINVAL;
+	}
+	LOG(RkISP1Awb, Debug) << "Using awb algorithm: " << mode;
+
 	int ret = awbAlgo_->init(tuningData);
 	if (ret) {
 		LOG(RkISP1Awb, Error) << "Failed to init awb algorithm";
 		return ret;
 	}
+
+	const auto &src = awbAlgo_->controls();
+	cmap.insert(src.begin(), src.end());
 
 	return 0;
 }
@@ -130,6 +160,8 @@ void Awb::queueRequest(IPAContext &context,
 		LOG(RkISP1Awb, Debug)
 			<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
 	}
+
+	awbAlgo_->handleControls(controls);
 
 	frameContext.awb.autoEnabled = awb.autoEnabled;
 
@@ -271,14 +303,8 @@ void Awb::process(IPAContext &context,
 	    rgbMeans.b() < kMeanMinThreshold)
 		return;
 
-	/*
-	 * \Todo: Hardcode lux to a fixed value, until an estimation is
-	 * implemented.
-	 */
-	int lux = 1000;
-
 	RkISP1AwbStats awbStats{ rgbMeans };
-	AwbResult awbResult = awbAlgo_->calculateAwb(awbStats, lux);
+	AwbResult awbResult = awbAlgo_->calculateAwb(awbStats, frameContext.lux.lux);
 
 	activeState.awb.temperatureK = awbResult.colourTemperature;
 
