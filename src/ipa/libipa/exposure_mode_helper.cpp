@@ -7,6 +7,7 @@
 #include "exposure_mode_helper.h"
 
 #include <algorithm>
+#include <optional>
 
 #include <libcamera/base/log.h>
 
@@ -118,9 +119,31 @@ double ExposureModeHelper::clampGain(double gain) const
 	return std::clamp(gain, minGain_, maxGain_);
 }
 
+utils::Duration
+ExposureModeHelper::calculateExposureTime(utils::Duration exposure, double stageGain,
+					  std::optional<utils::Duration> flickerPeriod) const
+{
+	utils::Duration exposureTime;
+
+	exposureTime = clampExposureTime(exposure / stageGain);
+
+	/*
+	 * If we haven't been given a flicker period to adjust for or if it's
+	 * longer than the exposure time that we need to set then there's not
+	 * much we can do to compensate.
+	 */
+	if (!flickerPeriod.has_value() || flickerPeriod.value() >= exposureTime)
+		return exposureTime;
+
+	unsigned int flickerPeriods = exposureTime / flickerPeriod.value();
+
+	return clampExposureTime(flickerPeriods * flickerPeriod.value());
+}
+
 /**
  * \brief Split exposure into exposure time and gain
  * \param[in] exposure Exposure value
+ * \param[in] flickerPeriod The period of a flickering light source
  *
  * This function divides a given exposure into exposure time, analogue and
  * digital gain by iterating through stages of exposure time and gain limits.
@@ -147,10 +170,15 @@ double ExposureModeHelper::clampGain(double gain) const
  * required exposure, the helper falls-back to simply maximising the exposure
  * time first, followed by analogue gain, followed by digital gain.
  *
+ * Once the exposure time has been determined from the modes, an adjustment is
+ * made to compensate for a flickering light source by fixing the exposure time
+ * to an exact multiple of the flicker period. Any effective exposure value that
+ * is lost is added back via analogue and digital gain.
+ *
  * \return Tuple of exposure time, analogue gain, and digital gain
  */
 std::tuple<utils::Duration, double, double>
-ExposureModeHelper::splitExposure(utils::Duration exposure) const
+ExposureModeHelper::splitExposure(utils::Duration exposure, std::optional<utils::Duration> flickerPeriod) const
 {
 	ASSERT(maxExposureTime_);
 	ASSERT(maxGain_);
@@ -183,14 +211,14 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 		 */
 
 		if (stageExposureTime * lastStageGain >= exposure) {
-			exposureTime = clampExposureTime(exposure / clampGain(lastStageGain));
+			exposureTime = calculateExposureTime(exposure, clampGain(lastStageGain), flickerPeriod);
 			gain = clampGain(exposure / exposureTime);
 
 			return { exposureTime, gain, exposure / (exposureTime * gain) };
 		}
 
 		if (stageExposureTime * stageGain >= exposure) {
-			exposureTime = clampExposureTime(exposure / clampGain(stageGain));
+			exposureTime = calculateExposureTime(exposure, clampGain(stageGain), flickerPeriod);
 			gain = clampGain(exposure / exposureTime);
 
 			return { exposureTime, gain, exposure / (exposureTime * gain) };
@@ -204,7 +232,8 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 	 * stages to use then the default stageGain of 1.0 is used so that
 	 * exposure time is maxed before gain is touched at all.
 	 */
-	exposureTime = clampExposureTime(exposure / clampGain(stageGain));
+	exposureTime = calculateExposureTime(exposure, clampGain(stageGain), flickerPeriod);
+
 	gain = clampGain(exposure / exposureTime);
 
 	return { exposureTime, gain, exposure / (exposureTime * gain) };
