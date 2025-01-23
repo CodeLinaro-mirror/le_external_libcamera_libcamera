@@ -123,6 +123,16 @@ int Agc::configure(IPAContext &context,
 	return 0;
 }
 
+/**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void Agc::queueRequest([[maybe_unused]] typename Module::Context &context,
+		       [[maybe_unused]] const uint32_t frame,
+		       [[maybe_unused]] typename Module::FrameContext &frameContext,
+		       [[maybe_unused]] const ControlList &controls)
+{
+}
+
 Histogram Agc::parseStatistics(const ipu3_uapi_stats_3a *stats,
 			       const ipu3_uapi_grid_config &grid)
 {
