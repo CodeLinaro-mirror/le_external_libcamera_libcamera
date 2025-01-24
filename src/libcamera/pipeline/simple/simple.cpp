@@ -1215,7 +1215,7 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
 
 	for (const SimpleCameraData::Configuration &cfg : data->configs_)
-		if (static_cast<bool>(data->swIsp_) == cfg.swisp)
+		if (!data->swIsp_ || data->rawRequested_ != cfg.swisp)
 			for (PixelFormat format : cfg.outputFormats)
 				formats[format].push_back(cfg.outputSizes);
 
