@@ -1078,8 +1078,13 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	}
 
 	/* If no configuration was large enough, select the largest one. */
-	if (!pipeConfig_)
+	if (!pipeConfig_) {
+		if (!maxPipeConfig) {
+			LOG(SimplePipeline, Error) << "No valid configuration found";
+			return Invalid;
+		}
 		pipeConfig_ = maxPipeConfig;
+	}
 
 	LOG(SimplePipeline, Debug)
 		<< "Picked "
