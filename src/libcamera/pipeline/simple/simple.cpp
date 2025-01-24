@@ -1549,7 +1549,12 @@ int SimplePipelineHandler::resetRoutingTable(V4L2Subdevice *subdev)
 bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 {
 	const SimplePipelineInfo *info = nullptr;
-	unsigned int numStreams = 1;
+	/*
+	 * Let's allocate two streams, for processed + raw streams.
+	 * It's OK if there is only a single stream.
+	 * TODO: This should be more flexible.
+	 */
+	unsigned int numStreams = 2;
 	MediaDevice *media;
 
 	for (const SimplePipelineInfo &inf : supportedDevices) {
