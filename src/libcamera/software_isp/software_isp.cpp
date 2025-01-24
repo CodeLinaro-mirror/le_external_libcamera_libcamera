@@ -290,13 +290,12 @@ int SoftwareIsp::queueBuffers(uint32_t frame, FrameBuffer *input,
 	 */
 	if (outputs.empty())
 		return -EINVAL;
+	if (outputs.size() != 1) /* only single stream atm */
+		return -EINVAL;
 
-	for (auto [stream, buffer] : outputs) {
+	for (auto [stream, buffer] : outputs)
 		if (!buffer)
 			return -EINVAL;
-		if (outputs.size() != 1) /* only single stream atm */
-			return -EINVAL;
-	}
 
 	for (auto iter = outputs.begin(); iter != outputs.end(); iter++)
 		process(frame, input, iter->second);
