@@ -25,6 +25,7 @@
 #include <libcamera/base/log.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
 #include <libcamera/pixel_format.h>
 #include <libcamera/request.h>
@@ -1062,7 +1063,9 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	 * without upscaling.
 	 */
 	const SimpleCameraData::Configuration *maxPipeConfig = nullptr;
+	const SimpleCameraData::Configuration *maxPipeConfigRaw = nullptr;
 	pipeConfig_ = nullptr;
+	const SimpleCameraData::Configuration *pipeConfigRaw = nullptr;
 
 	for (const SimpleCameraData::Configuration *pipeConfig : *configs) {
 		const Size &size = pipeConfig->captureSize;
@@ -1075,6 +1078,17 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 		if (!maxPipeConfig || maxPipeConfig->captureSize < size)
 			maxPipeConfig = pipeConfig;
+
+		if (!pipeConfig->swisp) {
+			if (size.width >= maxStreamSize.width &&
+			    size.height >= maxStreamSize.height) {
+				if (!pipeConfigRaw || size < pipeConfigRaw->captureSize)
+					pipeConfigRaw = pipeConfig;
+			}
+
+			if (!maxPipeConfigRaw || maxPipeConfigRaw->captureSize < size)
+				maxPipeConfigRaw = pipeConfig;
+		}
 	}
 
 	/* If no configuration was large enough, select the largest one. */
@@ -1085,6 +1099,13 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		}
 		pipeConfig_ = maxPipeConfig;
 	}
+	if (data_->rawRequested_ && !pipeConfigRaw) {
+		if (!maxPipeConfigRaw) {
+			LOG(SimplePipeline, Error) << "No valid configuration for raw found";
+			return Invalid;
+		}
+		pipeConfigRaw = maxPipeConfigRaw;
+	}
 
 	LOG(SimplePipeline, Debug)
 		<< "Picked "
@@ -1092,6 +1113,14 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		<< " -> " << pipeConfig_->captureSize
 		<< "-" << pipeConfig_->captureFormat
 		<< " for max stream size " << maxStreamSize;
+	if (pipeConfigRaw) {
+		LOG(SimplePipeline, Info)
+			<< "Picked raw "
+			<< V4L2SubdeviceFormat{ pipeConfigRaw->code, pipeConfigRaw->sensorSize, {} }
+			<< " -> " << pipeConfigRaw->captureSize
+			<< "-" << pipeConfigRaw->captureFormat
+			<< " for max stream size " << maxStreamSize;
+	}
 
 	/*
 	 * Adjust the requested streams.
@@ -1110,31 +1139,50 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 	for (unsigned int i = 0; i < config_.size(); ++i) {
 		StreamConfiguration &cfg = config_[i];
+		const SimpleCameraData::Configuration *pipeConfig =
+			(cfg.colorSpace == ColorSpace::Raw ? pipeConfigRaw : pipeConfig_);
+		if (!pipeConfig)
+			continue;
 
 		/* Adjust the pixel format and size. */
-		auto it = std::find(pipeConfig_->outputFormats.begin(),
-				    pipeConfig_->outputFormats.end(),
+		auto it = std::find(pipeConfig->outputFormats.begin(),
+				    pipeConfig->outputFormats.end(),
 				    cfg.pixelFormat);
-		if (it == pipeConfig_->outputFormats.end())
-			it = pipeConfig_->outputFormats.begin();
+		if (it == pipeConfig->outputFormats.end())
+			it = pipeConfig->outputFormats.begin();
 
 		PixelFormat pixelFormat = *it;
 		if (cfg.pixelFormat != pixelFormat) {
+			if (isRawFormat(pixelFormat)) {
+				LOG(SimplePipeline, Error)
+					<< "Cannot convert pixel format with raw output (from "
+					<< cfg.pixelFormat << " to "
+					<< pixelFormat << ")";
+				return Invalid;
+			}
 			LOG(SimplePipeline, Debug) << "Adjusting pixel format";
 			cfg.pixelFormat = pixelFormat;
 			status = Adjusted;
 		}
 
-		if (!pipeConfig_->outputSizes.contains(cfg.size)) {
-			Size adjustedSize = pipeConfig_->captureSize;
+		if (!pipeConfig->outputSizes.contains(cfg.size)) {
+			Size adjustedSize = pipeConfig->captureSize;
 			/*
 			 * The converter (when present) may not be able to output
 			 * a size identical to its input size. The capture size is thus
 			 * not guaranteed to be a valid output size. In such cases, use
 			 * the smaller valid output size closest to the requested.
 			 */
-			if (!pipeConfig_->outputSizes.contains(adjustedSize))
-				adjustedSize = adjustSize(cfg.size, pipeConfig_->outputSizes);
+			if (!pipeConfig->outputSizes.contains(adjustedSize)) {
+				if (isRawFormat(pixelFormat)) {
+					LOG(SimplePipeline, Error)
+						<< "Cannot adjust output size with raw output (from "
+						<< cfg.pixelFormat << " to "
+						<< pixelFormat << ")";
+					return Invalid;
+				}
+				adjustedSize = adjustSize(cfg.size, pipeConfig->outputSizes);
+			}
 			LOG(SimplePipeline, Debug)
 				<< "Adjusting size from " << cfg.size
 				<< " to " << adjustedSize;
@@ -1143,8 +1191,8 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		}
 
 		/* \todo Create a libcamera core class to group format and size */
-		if (cfg.pixelFormat != pipeConfig_->captureFormat ||
-		    cfg.size != pipeConfig_->captureSize)
+		if (cfg.pixelFormat != pipeConfig->captureFormat ||
+		    cfg.size != pipeConfig->captureSize)
 			needConversion_ = true;
 
 		/* Set the stride, frameSize and bufferCount. */
@@ -1246,10 +1294,26 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	 *
 	 * \todo Implement a better way to pick the default format
 	 */
-	for ([[maybe_unused]] StreamRole role : roles) {
+	for (StreamRole role : roles) {
 		StreamConfiguration cfg{ StreamFormats{ formats } };
-		cfg.pixelFormat = formats.begin()->first;
-		cfg.size = formats.begin()->second[0].max;
+		if (role == StreamRole::Raw) {
+			bool found = false;
+			for (auto &[format, sizes] : formats)
+				if (isRawFormat(format)) {
+					cfg.pixelFormat = format;
+					cfg.size = sizes[0].max;
+					found = true;
+					break;
+				}
+			if (!found) {
+				LOG(SimplePipeline, Error) << "Raw stream requested but no raw format found ";
+				return nullptr;
+			}
+			cfg.colorSpace = ColorSpace::Raw;
+		} else {
+			cfg.pixelFormat = formats.begin()->first;
+			cfg.size = formats.begin()->second[0].max;
+		}
 
 		config->addConfiguration(cfg);
 	}
