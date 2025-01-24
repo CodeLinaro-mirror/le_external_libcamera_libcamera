@@ -7,6 +7,7 @@
 
 #include <array>
 #include <assert.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <iomanip>
 #include <iostream>
@@ -133,11 +134,16 @@ void FileSink::writeBuffer(const Stream *stream, FrameBuffer *buffer,
 	if (fileType_ == FileType::Ppm) {
 		ret = PPMWriter::write(filename.c_str(), stream->configuration(),
 				       image->data(0));
-		if (ret < 0)
-			std::cerr << "failed to write PPM file `" << filename
-				  << "'" << std::endl;
-
-		return;
+		if (ret == -EINVAL) {
+			filename += ".raw";
+			std::cerr << "cannot write file in PPM format, writing `"
+				  << filename << "' instead" << std::endl;
+		} else {
+			if (ret < 0)
+				std::cerr << "failed to write PPM file `" << filename
+					  << "'" << std::endl;
+			return;
+		}
 	}
 
 	fd = open(filename.c_str(), O_CREAT | O_WRONLY |
