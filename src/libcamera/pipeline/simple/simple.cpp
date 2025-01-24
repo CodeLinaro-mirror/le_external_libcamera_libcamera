@@ -273,6 +273,7 @@ public:
 		Size captureSize;
 		std::vector<PixelFormat> outputFormats;
 		SizeRange outputSizes;
+		bool swisp;
 	};
 
 	std::vector<Stream> streams_;
@@ -654,19 +655,24 @@ void SimpleCameraData::tryPipeline(unsigned int code, const Size &size)
 		config.sensorSize = size;
 		config.captureFormat = pixelFormat;
 		config.captureSize = format.size;
+		config.swisp = false;
 
 		if (converter_) {
 			config.outputFormats = converter_->formats(pixelFormat);
 			config.outputSizes = converter_->sizes(format.size);
-		} else if (swIsp_) {
-			config.outputFormats = swIsp_->formats(pixelFormat);
-			config.outputSizes = swIsp_->sizes(pixelFormat, format.size);
-			if (config.outputFormats.empty()) {
-				/* Do not use swIsp for unsupported pixelFormat's. */
-				config.outputFormats = { pixelFormat };
-				config.outputSizes = config.captureSize;
-			}
 		} else {
+			if (swIsp_) {
+				Configuration swispConfig = config;
+				swispConfig.outputFormats = swIsp_->formats(pixelFormat);
+				swispConfig.outputSizes = swIsp_->sizes(pixelFormat, format.size);
+				if (swispConfig.outputFormats.empty()) {
+					/* Do not use swIsp for unsupported pixelFormat's. */
+					swispConfig.outputFormats = { pixelFormat };
+					swispConfig.outputSizes = swispConfig.captureSize;
+				}
+				swispConfig.swisp = true;
+				configs_.push_back(swispConfig);
+			}
 			config.outputFormats = { pixelFormat };
 			config.outputSizes = config.captureSize;
 		}
@@ -1185,10 +1191,10 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	/* Create the formats map. */
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
 
-	for (const SimpleCameraData::Configuration &cfg : data->configs_) {
-		for (PixelFormat format : cfg.outputFormats)
-			formats[format].push_back(cfg.outputSizes);
-	}
+	for (const SimpleCameraData::Configuration &cfg : data->configs_)
+		if (static_cast<bool>(data->swIsp_) == cfg.swisp)
+			for (PixelFormat format : cfg.outputFormats)
+				formats[format].push_back(cfg.outputSizes);
 
 	/* Sort the sizes and merge any consecutive overlapping ranges. */
 	for (auto &[format, sizes] : formats) {
