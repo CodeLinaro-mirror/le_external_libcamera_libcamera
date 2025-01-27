@@ -53,6 +53,12 @@ LOG_DEFINE_CATEGORY(Matrix)
  */
 
 /**
+ * \fn Matrix::data()
+ * \brief Access the internal data as a linear array
+ * \return A span referencing the internal data as a linear array
+ */
+
+/**
  * \fn Span<const T, Cols> Matrix::operator[](size_t i) const
  * \brief Index to a row in the matrix
  * \param[in] i Index of row to retrieve
