@@ -580,6 +580,19 @@ ControlId::ControlId(unsigned int id, const std::string &name,
  * \brief The Control template type T
  */
 
+namespace {
+
+bool sameShape(const ControlValue &a, const ControlValue &b)
+{
+	/**
+	 * \todo This is a best effort approach. Without the `ControlId`
+	 * there is no way to check if the sizes of fixed size arrays match.
+	 */
+	return a.type() == b.type() && a.isArray() == b.isArray();
+}
+
+}
+
 /**
  * \class ControlInfo
  * \brief Describe the limits of valid values for a Control
@@ -601,6 +614,7 @@ ControlInfo::ControlInfo(const ControlValue &min,
 			 const ControlValue &def)
 	: min_(min), max_(max), def_(def)
 {
+	ASSERT(sameShape(min_, max_) && (def_.isNone() || sameShape(max_, def_)));
 }
 
 /**
@@ -616,13 +630,19 @@ ControlInfo::ControlInfo(const ControlValue &min,
 ControlInfo::ControlInfo(Span<const ControlValue> values,
 			 const ControlValue &def)
 {
+	ASSERT(!values.empty());
+
 	min_ = values.front();
 	max_ = values.back();
 	def_ = !def.isNone() ? def : values.front();
 
+	ASSERT(sameShape(min_, max_) && sameShape(max_, def_));
+
 	values_.reserve(values.size());
-	for (const ControlValue &value : values)
+	for (const ControlValue &value : values) {
+		ASSERT(sameShape(def_, value));
 		values_.push_back(value);
+	}
 }
 
 /**
