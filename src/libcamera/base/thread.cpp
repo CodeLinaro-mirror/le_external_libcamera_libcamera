@@ -518,11 +518,16 @@ pid_t Thread::currentId()
  */
 EventDispatcher *Thread::eventDispatcher()
 {
-	if (!data_->dispatcher_.load(std::memory_order_relaxed))
-		data_->dispatcher_.store(new EventDispatcherPoll(),
-					 std::memory_order_release);
+	if (EventDispatcher *dispatcher = data_->dispatcher_.load(std::memory_order_acquire))
+		return dispatcher;
 
-	return data_->dispatcher_.load(std::memory_order_relaxed);
+	auto dispatcher = std::make_unique<EventDispatcherPoll>();
+	EventDispatcher *expected = nullptr;
+
+	if (data_->dispatcher_.compare_exchange_strong(expected, dispatcher.get(), std::memory_order_acq_rel))
+		return dispatcher.release();
+
+	return expected;
 }
 
 /**
