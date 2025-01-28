@@ -6,6 +6,7 @@
  */
 
 #include <algorithm>
+#include <bitset>
 #include <cmath>
 #include <fstream>
 #include <map>
@@ -56,6 +57,13 @@ public:
 	Stream stream_;
 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
 
+	std::bitset<std::max({
+		V4L2_EXPOSURE_AUTO,
+		V4L2_EXPOSURE_MANUAL,
+		V4L2_EXPOSURE_APERTURE_PRIORITY,
+		V4L2_EXPOSURE_SHUTTER_PRIORITY,
+	}) + 1> availableExposureModes_;
+
 private:
 	bool generateId();
 
@@ -93,8 +101,8 @@ public:
 	bool match(DeviceEnumerator *enumerator) override;
 
 private:
-	int processControl(ControlList *controls, unsigned int id,
-			   const ControlValue &value);
+	int processControl(UVCCameraData *data, ControlList *controls,
+			   unsigned int id, const ControlValue &value);
 	int processControls(UVCCameraData *data, Request *request);
 
 	bool acquireDevice(Camera *camera) override;
@@ -287,8 +295,8 @@ void PipelineHandlerUVC::stopDevice(Camera *camera)
 	data->video_->releaseBuffers();
 }
 
-int PipelineHandlerUVC::processControl(ControlList *controls, unsigned int id,
-				       const ControlValue &value)
+int PipelineHandlerUVC::processControl(UVCCameraData *data, ControlList *controls,
+				       unsigned int id, const ControlValue &value)
 {
 	uint32_t cid;
 
@@ -332,10 +340,27 @@ int PipelineHandlerUVC::processControl(ControlList *controls, unsigned int id,
 	}
 
 	case V4L2_CID_EXPOSURE_AUTO: {
-		int32_t ivalue = value.get<bool>()
-			       ? V4L2_EXPOSURE_APERTURE_PRIORITY
-			       : V4L2_EXPOSURE_MANUAL;
-		controls->set(V4L2_CID_EXPOSURE_AUTO, ivalue);
+		switch (value.get<int32_t>()) {
+		case controls::ExposureTimeModeAuto:
+			if (data->availableExposureModes_[V4L2_EXPOSURE_AUTO])
+				controls->set(V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_AUTO);
+			else if (data->availableExposureModes_[V4L2_EXPOSURE_APERTURE_PRIORITY])
+				controls->set(V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_APERTURE_PRIORITY);
+			else
+				ASSERT(false);
+			break;
+		case controls::ExposureTimeModeManual:
+			if (data->availableExposureModes_[V4L2_EXPOSURE_MANUAL])
+				controls->set(V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL);
+			else if (data->availableExposureModes_[V4L2_EXPOSURE_SHUTTER_PRIORITY])
+				controls->set(V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_SHUTTER_PRIORITY);
+			else
+				ASSERT(false);
+			break;
+		default:
+			ASSERT(false);
+			break;
+		}
 		break;
 	}
 
@@ -373,7 +398,7 @@ int PipelineHandlerUVC::processControls(UVCCameraData *data, Request *request)
 	ControlList controls(data->video_->controls());
 
 	for (const auto &[id, value] : request->controls())
-		processControl(&controls, id, value);
+		processControl(data, &controls, id, value);
 
 	for (const auto &ctrl : controls)
 		LOG(UVC, Debug)
@@ -723,25 +748,25 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 		 * ExposureTimeModeManual = { V4L2_EXPOSURE_MANUAL,
 		 *			      V4L2_EXPOSURE_SHUTTER_PRIORITY }
 		 */
-		std::array<int32_t, 2> values{};
+		for (const ControlValue &value : v4l2Values) {
+			auto x = value.get<int32_t>();
+			if (0 <= x && size_t(x) < availableExposureModes_.size())
+				availableExposureModes_[x] = true;
+		}
 
-		auto it = std::find_if(v4l2Values.begin(), v4l2Values.end(),
-			[&](const ControlValue &val) {
-				return (val.get<int32_t>() == V4L2_EXPOSURE_APERTURE_PRIORITY ||
-					val.get<int32_t>() == V4L2_EXPOSURE_AUTO) ? true : false;
-			});
-		if (it != v4l2Values.end())
-			values.back() = static_cast<int32_t>(controls::ExposureTimeModeAuto);
+		std::array<ControlValue, 2> values;
+		std::size_t count = 0;
 
-		it = std::find_if(v4l2Values.begin(), v4l2Values.end(),
-			[&](const ControlValue &val) {
-				return (val.get<int32_t>() == V4L2_EXPOSURE_SHUTTER_PRIORITY ||
-					val.get<int32_t>() == V4L2_EXPOSURE_MANUAL) ? true : false;
-			});
-		if (it != v4l2Values.end())
-			values.back() = static_cast<int32_t>(controls::ExposureTimeModeManual);
+		if (availableExposureModes_[V4L2_EXPOSURE_AUTO] || availableExposureModes_[V4L2_EXPOSURE_APERTURE_PRIORITY])
+			values[count++] = controls::ExposureTimeModeAuto;
 
-		info = ControlInfo{Span<int32_t>{values}, values[0]};
+		if (availableExposureModes_[V4L2_EXPOSURE_MANUAL] || availableExposureModes_[V4L2_EXPOSURE_SHUTTER_PRIORITY])
+			values[count++] = controls::ExposureTimeModeManual;
+
+		if (count == 0)
+			return;
+
+		info = ControlInfo{Span<const ControlValue>{ values.data(), count }, values[0]};
 		break;
 	}
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
