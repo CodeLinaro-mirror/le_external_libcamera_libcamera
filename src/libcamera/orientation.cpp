@@ -59,20 +59,14 @@ namespace libcamera {
  * \brief Return the orientation representing a rotation of the given angle
  * clockwise
  * \param[in] angle The angle of rotation in a clockwise sense. Negative values
- * can be used to represent anticlockwise rotations
- * \param[out] success Set to `true` if the angle is a multiple of 90 degrees,
- * otherwise `false`
- * \return The orientation corresponding to the rotation if \a success was set
- * to `true`, otherwise the `Rotate0` orientation
+ * can be used to represent anticlockwise rotations. Must be a multiple of 90.
+ * \return The orientation corresponding to the rotation
  */
-Orientation orientationFromRotation(int angle, bool *success)
+std::optional<Orientation> orientationFromRotation(int angle)
 {
 	angle = angle % 360;
 	if (angle < 0)
 		angle += 360;
-
-	if (success != nullptr)
-		*success = true;
 
 	switch (angle) {
 	case 0:
@@ -85,10 +79,7 @@ Orientation orientationFromRotation(int angle, bool *success)
 		return Orientation::Rotate270;
 	}
 
-	if (success != nullptr)
-		*success = false;
-
-	return Orientation::Rotate0;
+	return {};
 }
 
 /**
