@@ -82,6 +82,9 @@ RkISP1ParamsBlockBase::RkISP1ParamsBlockBase(RkISP1Params *params, BlockType typ
 					     const Span<uint8_t> &data)
 	: params_(params), type_(type)
 {
+	if (data.empty())
+		return;
+
 	if (params_->format() == V4L2_META_FMT_RK_ISP1_EXT_PARAMS) {
 		header_ = data.subspan(0, sizeof(rkisp1_ext_params_block_header));
 		data_ = data.subspan(sizeof(rkisp1_ext_params_block_header));
