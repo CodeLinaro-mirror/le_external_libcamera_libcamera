@@ -58,6 +58,10 @@ struct IPAFrameContext : public FrameContext {
 		int32_t exposure;
 		double gain;
 	} sensor;
+	struct {
+		double red;
+		double blue;
+	} gains;
 };
 
 struct IPAContext {

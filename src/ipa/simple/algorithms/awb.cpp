@@ -14,6 +14,8 @@
 
 #include "simple/ipa_context.h"
 
+#include "control_ids.h"
+
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(IPASoftAwb)
@@ -29,14 +31,31 @@ int Awb::configure(IPAContext &context,
 	return 0;
 }
 
+void Awb::prepare(IPAContext &context,
+		  [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext,
+		  [[maybe_unused]] DebayerParams *params)
+{
+	auto &gains = context.activeState.gains;
+	frameContext.gains.red = gains.red;
+	frameContext.gains.blue = gains.blue;
+}
+
 void Awb::process(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
-		  [[maybe_unused]] IPAFrameContext &frameContext,
+		  IPAFrameContext &frameContext,
 		  const SwIspStats *stats,
-		  [[maybe_unused]] ControlList &metadata)
+		  ControlList &metadata)
 {
 	const SwIspStats::Histogram &histogram = stats->yHistogram;
 	const uint8_t blackLevel = context.activeState.blc.level;
+
+	const float maxGain = 1024.0;
+	const float mdGains[] = {
+		static_cast<float>(frameContext.gains.red / maxGain),
+		static_cast<float>(frameContext.gains.blue / maxGain)
+	};
+	metadata.set(controls::ColourGains, mdGains);
 
 	/*
 	 * Black level must be subtracted to get the correct AWB ratios, they
