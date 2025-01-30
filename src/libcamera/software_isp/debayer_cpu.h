@@ -141,6 +141,10 @@ private:
 	DebayerParams::ColorLookupTable red_;
 	DebayerParams::ColorLookupTable green_;
 	DebayerParams::ColorLookupTable blue_;
+	DebayerParams::CcmLookupTable redCcm_;
+	DebayerParams::CcmLookupTable greenCcm_;
+	DebayerParams::CcmLookupTable blueCcm_;
+	DebayerParams::GammaLookupTable gammaLut_;
 	debayerFn debayer0_;
 	debayerFn debayer1_;
 	debayerFn debayer2_;
