@@ -62,6 +62,7 @@ struct IPAFrameContext : public FrameContext {
 		double red;
 		double blue;
 	} gains;
+	std::optional<double> contrast;
 };
 
 struct IPAContext {

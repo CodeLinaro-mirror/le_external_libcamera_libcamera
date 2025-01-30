@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * Copyright (C) 2024, Red Hat Inc.
+ * Copyright (C) 2024-2025 Red Hat Inc.
  *
  * Color lookup tables construction
  */
@@ -82,9 +82,11 @@ void Lut::updateGammaTable(IPAContext &context)
 
 void Lut::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
-		  [[maybe_unused]] IPAFrameContext &frameContext,
+		  IPAFrameContext &frameContext,
 		  [[maybe_unused]] DebayerParams *params)
 {
+	frameContext.contrast = context.activeState.knobs.contrast;
+
 	/*
 	 * Update the gamma table if needed. This means if black level changes
 	 * and since the black level gets updated only if a lower value is
@@ -114,6 +116,17 @@ void Lut::prepare(IPAContext &context,
 				 gammaTableSize - 1 });
 		params->blue[i] = gammaTable[idx];
 	}
+}
+
+void Lut::process([[maybe_unused]] IPAContext &context,
+		  [[maybe_unused]] const uint32_t frame,
+		  [[maybe_unused]] IPAFrameContext &frameContext,
+		  [[maybe_unused]] const SwIspStats *stats,
+		  ControlList &metadata)
+{
+	const auto &contrast = frameContext.contrast;
+	if (contrast)
+		metadata.set(controls::Contrast, contrast.value());
 }
 
 REGISTER_IPA_ALGORITHM(Lut, "Lut")
