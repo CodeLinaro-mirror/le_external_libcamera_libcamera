@@ -872,9 +872,9 @@ const LogCategory &LogCategory::defaultCategory()
  */
 LogMessage::LogMessage(const char *fileName, unsigned int line,
 		       const LogCategory &category, LogSeverity severity,
-		       const std::string &prefix)
+		       std::string prefix)
 	: category_(category), severity_(severity),
-	  timestamp_(utils::clock::now()), prefix_(prefix)
+	  timestamp_(utils::clock::now()), prefix_(std::move(prefix))
 {
 	std::ostringstream ossFileInfo;
 	ossFileInfo << utils::basename(fileName) << ":" << line;
