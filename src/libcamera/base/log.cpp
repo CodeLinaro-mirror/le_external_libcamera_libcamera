@@ -65,7 +65,9 @@
 
 namespace libcamera {
 
-static int log_severity_to_syslog(LogSeverity severity)
+namespace {
+
+int log_severity_to_syslog(LogSeverity severity)
 {
 	switch (severity) {
 	case LogDebug:
@@ -83,7 +85,7 @@ static int log_severity_to_syslog(LogSeverity severity)
 	}
 }
 
-static const char *log_severity_name(LogSeverity severity)
+const char *log_severity_name(LogSeverity severity)
 {
 	static const char *const names[] = {
 		"DEBUG",
@@ -98,6 +100,92 @@ static const char *log_severity_name(LogSeverity severity)
 	else
 		return "UNKWN";
 }
+
+/**
+ * \brief Parse a log level string into a LogSeverity
+ * \param[in] level The log level string
+ *
+ * Log levels can be specified as an integer value in the range from LogDebug to
+ * LogFatal, or as a string corresponding to the severity name in uppercase. Any
+ * other value is invalid.
+ *
+ * \return The log severity, or LogInvalid if the string is invalid
+ */
+LogSeverity parseLogLevel(std::string_view level)
+{
+	static const char *const names[] = {
+		"DEBUG",
+		"INFO",
+		"WARN",
+		"ERROR",
+		"FATAL",
+	};
+
+	unsigned int severity;
+
+	if (std::isdigit(level[0])) {
+		auto [end, ec] = std::from_chars(level.data(), level.data() + level.size(), severity);
+		if (ec != std::errc() || *end != '\0' || severity > LogFatal)
+			severity = LogInvalid;
+	} else {
+		severity = LogInvalid;
+		for (unsigned int i = 0; i < std::size(names); ++i) {
+			if (names[i] == level) {
+				severity = i;
+				break;
+			}
+		}
+	}
+
+	return static_cast<LogSeverity>(severity);
+}
+
+/**
+ * \brief Parse the log levels from the environment
+ *
+ * The log levels are stored in the LIBCAMERA_LOG_LEVELS environment variable
+ * as a list of "category:level" pairs, separated by commas (','). Parse the
+ * variable and store the levels to configure all log categories.
+ */
+void parseLogLevels(const char *line, std::list<std::pair<std::string, LogSeverity>> &levels)
+{
+	for (const char *pair = line; *line != '\0'; pair = line) {
+		const char *comma = strchrnul(line, ',');
+		size_t len = comma - pair;
+
+		/* Skip over the comma. */
+		line = *comma == ',' ? comma + 1 : comma;
+
+		/* Skip to the next pair if the pair is empty. */
+		if (!len)
+			continue;
+
+		std::string_view category;
+		std::string_view level;
+
+		const char *colon = static_cast<const char *>(memchr(pair, ':', len));
+		if (!colon) {
+			/* 'x' is a shortcut for '*:x'. */
+			category = "*";
+			level = std::string_view(pair, len);
+		} else {
+			category = std::string_view(pair, colon - pair);
+			level = std::string_view(colon + 1, comma - colon - 1);
+		}
+
+		/* Both the category and the level must be specified. */
+		if (category.empty() || level.empty())
+			continue;
+
+		LogSeverity severity = parseLogLevel(level);
+		if (severity == LogInvalid)
+			continue;
+
+		levels.emplace_back(category, severity);
+	}
+}
+
+} /* namespace */
 
 /**
  * \brief Log output
@@ -312,8 +400,6 @@ private:
 	Logger();
 
 	void parseLogFile();
-	void parseLogLevels();
-	static LogSeverity parseLogLevel(std::string_view level);
 
 	friend LogCategory;
 	void registerCategory(LogCategory *category);
@@ -592,7 +678,9 @@ Logger::Logger()
 	logSetStream(&std::cerr, color);
 
 	parseLogFile();
-	parseLogLevels();
+
+	if (const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS"))
+		parseLogLevels(debug, levels_);
 }
 
 /**
@@ -616,94 +704,6 @@ void Logger::parseLogFile()
 	}
 
 	logSetFile(file, false);
-}
-
-/**
- * \brief Parse the log levels from the environment
- *
- * The log levels are stored in the LIBCAMERA_LOG_LEVELS environment variable
- * as a list of "category:level" pairs, separated by commas (','). Parse the
- * variable and store the levels to configure all log categories.
- */
-void Logger::parseLogLevels()
-{
-	const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS");
-	if (!debug)
-		return;
-
-	for (const char *pair = debug; *debug != '\0'; pair = debug) {
-		const char *comma = strchrnul(debug, ',');
-		size_t len = comma - pair;
-
-		/* Skip over the comma. */
-		debug = *comma == ',' ? comma + 1 : comma;
-
-		/* Skip to the next pair if the pair is empty. */
-		if (!len)
-			continue;
-
-		std::string_view category;
-		std::string_view level;
-
-		const char *colon = static_cast<const char *>(memchr(pair, ':', len));
-		if (!colon) {
-			/* 'x' is a shortcut for '*:x'. */
-			category = "*";
-			level = std::string_view(pair, len);
-		} else {
-			category = std::string_view(pair, colon - pair);
-			level = std::string_view(colon + 1, comma - colon - 1);
-		}
-
-		/* Both the category and the level must be specified. */
-		if (category.empty() || level.empty())
-			continue;
-
-		LogSeverity severity = parseLogLevel(level);
-		if (severity == LogInvalid)
-			continue;
-
-		levels_.emplace_back(category, severity);
-	}
-}
-
-/**
- * \brief Parse a log level string into a LogSeverity
- * \param[in] level The log level string
- *
- * Log levels can be specified as an integer value in the range from LogDebug to
- * LogFatal, or as a string corresponding to the severity name in uppercase. Any
- * other value is invalid.
- *
- * \return The log severity, or LogInvalid if the string is invalid
- */
-LogSeverity Logger::parseLogLevel(std::string_view level)
-{
-	static const char *const names[] = {
-		"DEBUG",
-		"INFO",
-		"WARN",
-		"ERROR",
-		"FATAL",
-	};
-
-	unsigned int severity;
-
-	if (std::isdigit(level[0])) {
-		auto [end, ec] = std::from_chars(level.data(), level.data() + level.size(), severity);
-		if (ec != std::errc() || *end != '\0' || severity > LogFatal)
-			severity = LogInvalid;
-	} else {
-		severity = LogInvalid;
-		for (unsigned int i = 0; i < std::size(names); ++i) {
-			if (names[i] == level) {
-				severity = i;
-				break;
-			}
-		}
-	}
-
-	return static_cast<LogSeverity>(severity);
 }
 
 /**
