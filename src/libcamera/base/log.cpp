@@ -402,11 +402,11 @@ private:
 	void parseLogFile();
 
 	friend LogCategory;
-	void registerCategory(LogCategory *category);
-	LogCategory *findCategory(std::string_view name) const;
+	LogCategory *findOrCreateCategory(std::string_view name);
 
 	static bool destroyed_;
 
+	Mutex mutex_;
 	std::vector<LogCategory *> categories_;
 	std::list<std::pair<std::string, LogSeverity>> levels_;
 
@@ -657,6 +657,8 @@ void Logger::logSetLevel(const char *category, const char *level)
 	if (severity == LogInvalid)
 		return;
 
+	MutexLocker locker(mutex_);
+
 	for (LogCategory *c : categories_) {
 		if (c->name() == category) {
 			c->setSeverity(severity);
@@ -707,17 +709,21 @@ void Logger::parseLogFile()
 }
 
 /**
- * \brief Register a log category with the logger
- * \param[in] category The log category
- *
- * Log categories must have unique names. It is invalid to call this function
- * if a log category with the same name already exists.
+ * \brief Find an existing log category with the given name or create one
+ * \param[in] name Name of the log category
+ * \return The pointer to the log category found or created
  */
-void Logger::registerCategory(LogCategory *category)
+LogCategory *Logger::findOrCreateCategory(std::string_view name)
 {
-	categories_.push_back(category);
+	MutexLocker locker(mutex_);
 
-	const std::string &name = category->name();
+	for (LogCategory *category : categories_) {
+		if (category->name() == name)
+			return category;
+	}
+
+	LogCategory *category = categories_.emplace_back(new LogCategory(name));
+
 	for (const std::pair<std::string, LogSeverity> &level : levels_) {
 		bool match = true;
 
@@ -737,22 +743,8 @@ void Logger::registerCategory(LogCategory *category)
 			break;
 		}
 	}
-}
 
-/**
- * \brief Find an existing log category with the given name
- * \param[in] name Name of the log category
- * \return The pointer to the found log category or nullptr if not found
- */
-LogCategory *Logger::findCategory(std::string_view name) const
-{
-	if (auto it = std::find_if(categories_.begin(), categories_.end(),
-				   [name](auto c) { return c->name() == name; });
-	    it != categories_.end()) {
-		return *it;
-	}
-
-	return nullptr;
+	return category;
 }
 
 /**
@@ -790,16 +782,7 @@ LogCategory *Logger::findCategory(std::string_view name) const
  */
 LogCategory *LogCategory::create(std::string_view name)
 {
-	static Mutex mutex_;
-	MutexLocker locker(mutex_);
-	LogCategory *category = Logger::instance()->findCategory(name);
-
-	if (!category) {
-		category = new LogCategory(name);
-		Logger::instance()->registerCategory(category);
-	}
-
-	return category;
+	return Logger::instance()->findOrCreateCategory(name);
 }
 
 /**

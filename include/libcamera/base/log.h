@@ -30,6 +30,7 @@ enum LogSeverity {
 class LogCategory
 {
 public:
+	explicit LogCategory(std::string_view name);
 	static LogCategory *create(std::string_view name);
 
 	const std::string &name() const { return name_; }
@@ -39,7 +40,6 @@ public:
 	static const LogCategory &defaultCategory();
 
 private:
-	explicit LogCategory(std::string_view name);
 
 	const std::string name_;
 
