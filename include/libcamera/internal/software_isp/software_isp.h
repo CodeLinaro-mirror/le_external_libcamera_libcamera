@@ -83,12 +83,14 @@ public:
 	Signal<FrameBuffer *> inputBufferReady;
 	Signal<FrameBuffer *> outputBufferReady;
 	Signal<uint32_t, uint32_t> ispStatsReady;
+	Signal<uint32_t, const ControlList &> metadataReady;
 	Signal<const ControlList &> setSensorControls;
 
 private:
 	void saveIspParams();
 	void setSensorCtrls(const ControlList &sensorControls);
 	void statsReady(uint32_t frame, uint32_t bufferId);
+	void saveMetadata(uint32_t frame, const ControlList &metadata);
 	void inputReady(FrameBuffer *input);
 	void outputReady(FrameBuffer *output);
 
