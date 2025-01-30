@@ -104,13 +104,13 @@ void Lut::prepare(IPAContext &context,
 				   gammaTableSize;
 		/* Apply gamma after gain! */
 		unsigned int idx;
-		idx = std::min({ static_cast<unsigned int>(i * gains.red / div),
+		idx = std::min({ static_cast<unsigned int>(i * gains.r() / div),
 				 gammaTableSize - 1 });
 		params->red[i] = gammaTable[idx];
-		idx = std::min({ static_cast<unsigned int>(i * gains.green / div),
+		idx = std::min({ static_cast<unsigned int>(i * gains.g() / div),
 				 gammaTableSize - 1 });
 		params->green[i] = gammaTable[idx];
-		idx = std::min({ static_cast<unsigned int>(i * gains.blue / div),
+		idx = std::min({ static_cast<unsigned int>(i * gains.b() / div),
 				 gammaTableSize - 1 });
 		params->blue[i] = gammaTable[idx];
 	}
