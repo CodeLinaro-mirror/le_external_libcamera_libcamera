@@ -538,20 +538,13 @@ int SimpleCameraData::init()
 			swIsp_.reset();
 		} else {
 			/*
-			 * The inputBufferReady signal is emitted from the soft ISP thread,
-			 * and needs to be handled in the pipeline handler thread. Signals
-			 * implement queued delivery, but this works transparently only if
-			 * the receiver is bound to the target thread. As the
-			 * SimpleCameraData class doesn't inherit from the Object class, it
-			 * is not bound to any thread, and the signal would be delivered
-			 * synchronously. Instead, connect the signal to a lambda function
-			 * bound explicitly to the pipe, which is bound to the pipeline
-			 * handler thread. The function then simply forwards the call to
-			 * conversionInputDone().
+			 * The connected signals should be handled by the camera manager
+			 * thread. This method is called in the camera manager thread and
+			 * instantiates the SoftwareIsp instance, which inherits Object and
+			 * emits the signals from the instance's own signal handlers; thus
+			 * the slots here are invoked in the camera manager thread.
 			 */
-			swIsp_->inputBufferReady.connect(pipe, [this](FrameBuffer *buffer) {
-				this->conversionInputDone(buffer);
-			});
+			swIsp_->inputBufferReady.connect(this, &SimpleCameraData::conversionInputDone);
 			swIsp_->outputBufferReady.connect(this, &SimpleCameraData::conversionOutputDone);
 			swIsp_->ispStatsReady.connect(this, &SimpleCameraData::ispStatsReady);
 			swIsp_->setSensorControls.connect(this, &SimpleCameraData::setSensorControls);
