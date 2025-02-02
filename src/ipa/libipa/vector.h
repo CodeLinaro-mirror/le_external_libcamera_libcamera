@@ -309,6 +309,17 @@ Vector<T, Rows> operator*(const Matrix<T, Rows, Cols> &m, const Vector<T, Cols> 
 }
 
 template<typename T, unsigned int Rows>
+Vector<T, Rows> operator/(T scalar, const Vector<T, Rows> &vector)
+{
+	Vector<T, Rows> result;
+
+	for (unsigned int i = 0; i < Rows; i++)
+		result[i] = scalar / vector[i];
+
+	return result;
+}
+
+template<typename T, unsigned int Rows>
 bool operator==(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
 {
 	for (unsigned int i = 0; i < Rows; i++) {

@@ -313,6 +313,16 @@ namespace ipa {
  */
 
 /**
+ * \fn Vector<T, Rows> operator/(T scalar, const Vector<T, Rows> &vector)
+ * \brief Divide a scalar by a vector element-wise
+ * \tparam T Numerical type of the contents of the vector
+ * \tparam Rows The number of rows in the vector
+ * \param scalar The scalar
+ * \param vector The vector
+ * \return The element-wise division of \a scaler by the \a vector
+ */
+
+/**
  * \typedef RGB
  * \brief A Vector of 3 elements representing an RGB pixel value
  */

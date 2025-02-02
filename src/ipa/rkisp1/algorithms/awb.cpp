@@ -316,11 +316,7 @@ void Awb::process(IPAContext &context,
 	 * gain is hardcoded to 1.0. Avoid divisions by zero by clamping the
 	 * divisor to a minimum value of 1.0.
 	 */
-	RGB<double> gains({
-		rgbMeans.g() / std::max(rgbMeans.r(), 1.0),
-		1.0,
-		rgbMeans.g() / std::max(rgbMeans.b(), 1.0)
-	});
+	RGB<double> gains = rgbMeans.g() / rgbMeans.max(1.0);
 
 	/*
 	 * Clamp the gain values to the hardware, which expresses gains as Q2.8
