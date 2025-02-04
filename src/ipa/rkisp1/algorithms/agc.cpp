@@ -379,7 +379,7 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 	hstConfig.setEnabled(true);
 
 	hstConfig->meas_window = context.configuration.agc.measureWindow;
-	hstConfig->mode = RKISP1_CIF_ISP_HISTOGRAM_MODE_Y_HISTOGRAM;
+	hstConfig->mode = RKISP1_CIF_ISP_HISTOGRAM_MODE_RGB_COMBINED;
 
 	Span<uint8_t> weights{
 		hstConfig->hist_weight,
