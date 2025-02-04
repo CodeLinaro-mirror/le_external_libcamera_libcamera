@@ -891,7 +891,8 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 
 	LOG(RkISP1, Debug)
 		<< "ISP output pad configured with " << format
-		<< " crop " << outputCrop;
+		<< " crop " << outputCrop
+		<< " color space " << ColorSpace::toString(format.colorSpace);
 
 	IPACameraSensorInfo sensorInfo;
 	ret = data->sensor_->sensorInfo(&sensorInfo);
