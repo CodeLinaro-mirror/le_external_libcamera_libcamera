@@ -16,6 +16,7 @@ libcamera_base_internal_sources = files([
     'event_dispatcher_poll.cpp',
     'event_notifier.cpp',
     'file.cpp',
+    'global_configuration.cpp',
     'log.cpp',
     'memfd.cpp',
     'message.cpp',
