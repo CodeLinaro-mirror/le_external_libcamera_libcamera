@@ -591,6 +591,8 @@ void Logger::logSetLevel(const char *category, const char *level)
 Logger::Logger()
 {
 	bool color = !utils::secure_getenv("LIBCAMERA_LOG_NO_COLOR");
+	if (color)
+		color = GlobalConfiguration::option<bool>("log.color").value_or(true);
 	logSetStream(&std::cerr, color);
 
 	parseLogFile();

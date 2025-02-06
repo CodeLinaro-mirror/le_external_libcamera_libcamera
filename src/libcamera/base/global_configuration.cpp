@@ -14,7 +14,6 @@
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
-#include <libcamera/base/utils.h>
 
 #include "libcamera/internal/yaml_parser.h"
 
@@ -144,22 +143,14 @@ void initialize()
  */
 
 /**
+ * \fn std::optional<T> GlobalConfiguration::option(const char *const confPath)
  * \brief Return value of the configuration option identified by \a confPath
+ * \tparam T The type of the retrieved configuration value
  * \param[in] confPath Sequence of the YAML section names (excluding
  * `configuration') leading to the requested option separated by dots
- * \return A value if an item corresponding to \a confPath exists in the
- * configuration file, no value otherwise
+ * \return A value of type \a T if an item corresponding to \a confPath exists
+ * in the configuration file and matches type \a T, no value otherwise
  */
-std::optional<std::string> option(const std::string &confPath)
-{
-	const YamlObject *c = &configuration();
-	for (auto part : utils::split(confPath, ".")) {
-		c = &(*c)[part];
-		if (!*c)
-			return {};
-	}
-	return c->get<std::string>();
-}
 
 /**
  * \brief Return value of the configuration option from a file or environment
@@ -185,7 +176,7 @@ std::optional<std::string> envOption(
 	const char *envValue = utils::secure_getenv(envVariable);
 	if (envValue)
 		return std::optional{ std::string{ envValue } };
-	return option(confPath);
+	return option<std::string>(confPath);
 }
 
 /**
