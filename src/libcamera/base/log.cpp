@@ -15,6 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <syslog.h>
 #include <time.h>
 #include <unordered_set>
@@ -25,6 +26,8 @@
 #include <libcamera/base/mutex.h>
 #include <libcamera/base/thread.h>
 #include <libcamera/base/utils.h>
+
+#include "libcamera/internal/global_configuration.h"
 
 /**
  * \file base/log.h
@@ -627,8 +630,13 @@ void Logger::parseLogFile()
 void Logger::parseLogLevels()
 {
 	const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS");
-	if (!debug)
-		return;
+	if (!debug) {
+		const std::optional<std::string> confDebug =
+			GlobalConfiguration::configuration()["log"]["levels"].get<std::string>();
+		if (!confDebug.has_value())
+			return;
+		debug = confDebug.value().c_str();
+	}
 
 	for (const char *pair = debug; *debug != '\0'; pair = debug) {
 		const char *comma = strchrnul(debug, ',');
