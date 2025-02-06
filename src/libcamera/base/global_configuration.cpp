@@ -9,11 +9,14 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <sys/types.h>
+#include <vector>
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
+#include <libcamera/base/utils.h>
 
 #include "libcamera/internal/yaml_parser.h"
 
@@ -153,6 +156,24 @@ void initialize()
  */
 
 /**
+ * \brief Return values of the configuration option identified by \a confPath
+ * \tparam T The type of the retrieved configuration value
+ * \param[in] confPath Sequence of the YAML section names (excluding
+ * `configuration') leading to the requested list option, separated by dots
+ * \return A vector of strings (empty one if the option is not found)
+ */
+std::vector<std::string> listOption(const std::string &confPath)
+{
+	const YamlObject *c = &configuration();
+	for (auto part : utils::split(confPath, ".")) {
+		c = &(*c)[part];
+		if (!*c)
+			return {};
+	}
+	return c->getList<std::string>().value_or(std::vector<std::string>());
+}
+
+/**
  * \brief Return value of the configuration option from a file or environment
  * \param[in] envVariable Environment variable to get the value from
  * \param[in] confPath The same as in GlobalConfiguration::option
@@ -177,6 +198,36 @@ std::optional<std::string> envOption(
 	if (envValue)
 		return std::optional{ std::string{ envValue } };
 	return option<std::string>(confPath);
+}
+
+/**
+ * \brief Return values of the configuration option from a file or environment
+ * \param[in] envVariable Environment variable to get the value from
+ * \param[in] confPath The same as in GlobalConfiguration::option
+ *
+ * This helper looks first at the given environment variable and if it is
+ * defined (even if it is empty) then it splits its value by semicolons and
+ * returns the resulting list of strings. Otherwise it looks for \a confPath the
+ * same way as in GlobalConfiguration::option, value of which must be a list of
+ * strings.
+ *
+ * \note Support for using environment variables to configure libcamera behavior
+ * is provided here mostly for backward compatibility reasons. Introducing new
+ * configuration environment variables is discouraged.
+ *
+ * \return A vector of strings retrieved from the given environment option or
+ * configuration file (an empty vector is returned if nothing is found)
+ */
+std::vector<std::string> envListOption(
+	const char *const envVariable,
+	const std::string &confPath)
+{
+	const char *envValue = utils::secure_getenv(envVariable);
+	if (envValue) {
+		auto items = utils::split(envValue, ":");
+		return std::vector<std::string>(items.begin(), items.end());
+	}
+	return listOption(confPath);
 }
 
 /**
