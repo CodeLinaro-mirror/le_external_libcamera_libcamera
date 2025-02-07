@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2023, Linaro Ltd
- * Copyright (C) 2023, 2024 Red Hat Inc.
+ * Copyright (C) 2023-2025 Red Hat Inc.
  *
  * Authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -24,8 +24,33 @@ namespace libcamera {
  */
 
 /**
- * \typedef DebayerParams::ColorLookupTable
- * \brief Type of the lookup tables for red, green, blue values
+ * \struct DebayerParams::CcmColumn
+ * \brief Type of a single column of a color correction matrix (CCM)
+ */
+
+/**
+ * \var DebayerParams::CcmColumn::r
+ * \brief Red (first) component of a CCM column
+ */
+
+/**
+ * \var DebayerParams::CcmColumn::g
+ * \brief Green (second) component of a CCM column
+ */
+
+/**
+ * \var DebayerParams::CcmColumn::b
+ * \brief Blue (third) component of a CCM column
+ */
+
+/**
+ * \typedef DebayerParams::LookupTable
+ * \brief Type of the lookup tables for single lookup values
+ */
+
+/**
+ * \typedef DebayerParams::CcmLookupTable
+ * \brief Type of the CCM lookup tables for red, green, blue values
  */
 
 /**
@@ -41,6 +66,26 @@ namespace libcamera {
 /**
  * \var DebayerParams::blue
  * \brief Lookup table for blue color, mapping input values to output values
+ */
+
+/**
+ * \var DebayerParams::redCcm
+ * \brief CCM lookup table for red color, mapping input values to output values
+ */
+
+/**
+ * \var DebayerParams::greenCcm
+ * \brief CCM lookup table for green color, mapping input values to output values
+ */
+
+/**
+ * \var DebayerParams::blueCcm
+ * \brief CCM lookup table for blue color, mapping input values to output values
+ */
+
+/**
+ * \var DebayerParams::gammaLut
+ * \brief Gamma lookup table used with color correction matrix
  */
 
 /**
