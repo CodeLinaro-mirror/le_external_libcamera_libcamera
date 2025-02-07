@@ -1073,6 +1073,11 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	utils::ScopeExitActions actions;
 	int ret;
 
+	isp_->frameStart.connect(data->delayedCtrls_.get(),
+				 &DelayedControls::applyControls);
+
+	actions += [&]() { isp_->frameStart.disconnect(data->delayedCtrls_.get()); };
+
 	/* Allocate buffers for internal pipeline usage. */
 	ret = allocateBuffers(camera);
 	if (ret)
@@ -1143,6 +1148,8 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 	int ret;
 
 	isp_->setFrameStartEnabled(false);
+
+	isp_->frameStart.disconnect(data->delayedCtrls_.get());
 
 	data->ipa_->stop();
 
@@ -1324,8 +1331,6 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	isp_->frameStart.connect(data->delayedCtrls_.get(),
-				 &DelayedControls::applyControls);
 
 	ret = data->loadIPA(media_->hwRevision());
 	if (ret)
