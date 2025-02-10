@@ -51,10 +51,12 @@
 #include "libcamera/internal/yaml_parser.h"
 
 #include "rkisp1_path.h"
+#include "sequence_sync_helper.h"
 
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(RkISP1)
+LOG_DEFINE_CATEGORY(RkISP1Schedule)
 
 class PipelineHandlerRkISP1;
 class RkISP1CameraData;
