@@ -389,7 +389,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 	 * provided.
 	 */
 	const rkisp1_stat_buffer *stats = nullptr;
-	if (!context_.configuration.raw)
+	if (bufferId != 0)
 		stats = reinterpret_cast<rkisp1_stat_buffer *>(
 			mappedBuffers_.at(bufferId).planes()[0].data());
 
