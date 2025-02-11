@@ -214,6 +214,8 @@ struct IPAFrameContext : public FrameContext {
 		double strength;
 		double gain;
 	} wdr;
+
+	bool initialised;
 };
 
 struct IPAContext {

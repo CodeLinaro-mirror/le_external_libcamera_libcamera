@@ -172,6 +172,8 @@ void Awb::queueRequest(IPAContext &context,
 	awbAlgo_->handleControls(controls);
 
 	frameContext.awb.autoEnabled = awb.autoEnabled;
+	frameContext.awb.gains = awb.automatic.gains;
+	frameContext.awb.temperatureK = awb.automatic.temperatureK;
 
 	if (awb.autoEnabled)
 		return;

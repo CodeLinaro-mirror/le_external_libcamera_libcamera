@@ -343,6 +343,10 @@ void IPARkISP1::initializeFrameContext(const uint32_t frame,
 				       IPAFrameContext &frameContext,
 				       const ControlList &controls)
 {
+	if (frameContext.initialised)
+		return;
+
+	frameContext.initialised = true;
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 		if (algo->disabled_)
@@ -354,6 +358,7 @@ void IPARkISP1::initializeFrameContext(const uint32_t frame,
 void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	initializeFrameContext(frame, frameContext, {});
 
 	/*
 	 * \todo: This needs discussion. In raw mode, computeParams is
@@ -383,6 +388,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 			     const ControlList &sensorControls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	initializeFrameContext(frame, frameContext, {});
 
 	/*
 	 * In raw capture mode, the ISP is bypassed and no statistics buffer is
