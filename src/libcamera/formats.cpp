@@ -1001,6 +1001,9 @@ const std::map<PixelFormat, PixelFormatInfo> pixelFormatInfo{
  */
 const PixelFormatInfo &PixelFormatInfo::info(const PixelFormat &format)
 {
+	if (!format.isValid())
+		return pixelFormatInfoInvalid;
+
 	const auto iter = pixelFormatInfo.find(format);
 	if (iter == pixelFormatInfo.end()) {
 		LOG(Formats, Warning)
