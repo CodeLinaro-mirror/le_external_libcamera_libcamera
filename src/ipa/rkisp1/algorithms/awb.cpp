@@ -218,6 +218,16 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 		auto &awb = context.activeState.awb;
 		frameContext.awb.gains = awb.automatic.gains;
 		frameContext.awb.temperatureK = awb.automatic.temperatureK;
+
+		const auto &gains = awbAlgo_->gainsFromColourTemperature(
+			awb.automatic.temperatureK);
+		if (gains) {
+			frameContext.awb.gains.r() = gains->r();
+			frameContext.awb.gains.g() = 1.0;
+			frameContext.awb.gains.b() = gains->b();
+		} else {
+			frameContext.awb.gains = awb.automatic.gains;
+		}
 	}
 
 	auto gainConfig = params->block<BlockType::AwbGain>();
