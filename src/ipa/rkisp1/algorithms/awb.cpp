@@ -261,9 +261,9 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 		 * awb_ref_cr, awb_min_y and awb_ref_cb respectively. The other
 		 * values are not used, set them to 0.
 		 */
-		awbConfig->awb_ref_cr = 250;
-		awbConfig->min_y = 250;
-		awbConfig->awb_ref_cb = 250;
+		awbConfig->awb_ref_cr = 180;
+		awbConfig->min_y = 180;
+		awbConfig->awb_ref_cb = 180;
 
 		awbConfig->max_y = 0;
 		awbConfig->min_c = 0;
