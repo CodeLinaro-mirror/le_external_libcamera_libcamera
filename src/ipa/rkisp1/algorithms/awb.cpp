@@ -305,6 +305,8 @@ void Awb::process(IPAContext &context,
 		rgbMeans = rgbMeans.max(0.0);
 	}
 
+	rgbMeans = frameContext.ccm.ccm.cast<double>().inverse() * rgbMeans;
+
 	/*
 	 * The ISP computes the AWB means after applying the colour gains,
 	 * divide by the gains that were used to get the raw means from the
