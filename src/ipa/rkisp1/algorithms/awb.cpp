@@ -310,9 +310,9 @@ void Awb::process(IPAContext &context,
 	/*
 	 * The ISP computes the AWB means after applying the colour gains,
 	 * divide by the gains that were used to get the raw means from the
-	 * sensor.
+	 * sensor. Apply a minimum value to avoid divisions by near-zero.
 	 */
-	rgbMeans /= frameContext.awb.gains;
+	rgbMeans /= frameContext.awb.gains.max(0.01);
 
 	/*
 	 * If the means are too small we don't have enough information to
