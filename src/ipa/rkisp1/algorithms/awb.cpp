@@ -74,8 +74,8 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 int Awb::configure(IPAContext &context,
 		   const IPACameraSensorInfo &configInfo)
 {
-	context.activeState.awb.gains.manual = RGB<double>{ 1.0 };
-	context.activeState.awb.gains.automatic = RGB<double>{ 1.0 };
+	context.activeState.awb.manual.gains = RGB<double>{ 1.0 };
+	context.activeState.awb.automatic.gains = RGB<double>{ 1.0 };
 	context.activeState.awb.autoEnabled = true;
 	context.activeState.awb.temperatureK = kDefaultColourTemperature;
 
@@ -120,8 +120,8 @@ void Awb::queueRequest(IPAContext &context,
 	const auto &colourTemperature = controls.get(controls::ColourTemperature);
 	bool update = false;
 	if (colourGains) {
-		awb.gains.manual.r() = (*colourGains)[0];
-		awb.gains.manual.b() = (*colourGains)[1];
+		awb.manual.gains.r() = (*colourGains)[0];
+		awb.manual.gains.b() = (*colourGains)[1];
 		/*
 		 * \todo: Colour temperature reported in metadata is now
 		 * incorrect, as we can't deduce the temperature from the gains.
@@ -130,17 +130,17 @@ void Awb::queueRequest(IPAContext &context,
 		update = true;
 	} else if (colourTemperature && colourGainCurve_) {
 		const auto &gains = colourGainCurve_->getInterpolated(*colourTemperature);
-		awb.gains.manual.r() = gains[0];
-		awb.gains.manual.b() = gains[1];
+		awb.manual.gains.r() = gains[0];
+		awb.manual.gains.b() = gains[1];
 		awb.temperatureK = *colourTemperature;
 		update = true;
 	}
 
 	if (update)
 		LOG(RkISP1Awb, Debug)
-			<< "Set colour gains to " << awb.gains.manual;
+			<< "Set colour gains to " << awb.manual.gains;
 
-	frameContext.awb.gains = awb.gains.manual;
+	frameContext.awb.gains = awb.manual.gains;
 	frameContext.awb.temperatureK = awb.temperatureK;
 }
 
@@ -155,7 +155,7 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	 * most up-to-date automatic values we can read.
 	 */
 	if (frameContext.awb.autoEnabled) {
-		frameContext.awb.gains = context.activeState.awb.gains.automatic;
+		frameContext.awb.gains = context.activeState.awb.automatic.gains;
 		frameContext.awb.temperatureK = context.activeState.awb.temperatureK;
 	}
 
@@ -332,14 +332,14 @@ void Awb::process(IPAContext &context,
 
 	/* Filter the values to avoid oscillations. */
 	double speed = 0.2;
-	gains = gains * speed + activeState.awb.gains.automatic * (1 - speed);
+	gains = gains * speed + activeState.awb.automatic.gains * (1 - speed);
 
-	activeState.awb.gains.automatic = gains;
+	activeState.awb.automatic.gains = gains;
 
 	LOG(RkISP1Awb, Debug)
 		<< std::showpoint
 		<< "Means " << rgbMeans << ", gains "
-		<< activeState.awb.gains.automatic << ", temp "
+		<< activeState.awb.automatic.gains << ", temp "
 		<< activeState.awb.temperatureK << "K";
 }
 
