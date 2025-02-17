@@ -77,7 +77,8 @@ int Awb::configure(IPAContext &context,
 	context.activeState.awb.manual.gains = RGB<double>{ 1.0 };
 	context.activeState.awb.automatic.gains = RGB<double>{ 1.0 };
 	context.activeState.awb.autoEnabled = true;
-	context.activeState.awb.temperatureK = kDefaultColourTemperature;
+	context.activeState.awb.manual.temperatureK = kDefaultColourTemperature;
+	context.activeState.awb.automatic.temperatureK = kDefaultColourTemperature;
 
 	/*
 	 * Define the measurement window for AWB as a centered rectangle
@@ -132,7 +133,7 @@ void Awb::queueRequest(IPAContext &context,
 		const auto &gains = colourGainCurve_->getInterpolated(*colourTemperature);
 		awb.manual.gains.r() = gains[0];
 		awb.manual.gains.b() = gains[1];
-		awb.temperatureK = *colourTemperature;
+		awb.manual.temperatureK = *colourTemperature;
 		update = true;
 	}
 
@@ -141,7 +142,7 @@ void Awb::queueRequest(IPAContext &context,
 			<< "Set colour gains to " << awb.manual.gains;
 
 	frameContext.awb.gains = awb.manual.gains;
-	frameContext.awb.temperatureK = awb.temperatureK;
+	frameContext.awb.temperatureK = awb.manual.temperatureK;
 }
 
 /**
@@ -155,8 +156,9 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	 * most up-to-date automatic values we can read.
 	 */
 	if (frameContext.awb.autoEnabled) {
-		frameContext.awb.gains = context.activeState.awb.automatic.gains;
-		frameContext.awb.temperatureK = context.activeState.awb.temperatureK;
+		auto &awb = context.activeState.awb;
+		frameContext.awb.gains = awb.automatic.gains;
+		frameContext.awb.temperatureK = awb.automatic.temperatureK;
 	}
 
 	auto gainConfig = params->block<BlockType::AwbGain>();
@@ -309,7 +311,7 @@ void Awb::process(IPAContext &context,
 	    rgbMeans.b() < kMeanMinThreshold)
 		return;
 
-	activeState.awb.temperatureK = estimateCCT(rgbMeans);
+	activeState.awb.automatic.temperatureK = estimateCCT(rgbMeans);
 
 	/*
 	 * Estimate the red and blue gains to apply in a grey world. The green
@@ -340,7 +342,7 @@ void Awb::process(IPAContext &context,
 		<< std::showpoint
 		<< "Means " << rgbMeans << ", gains "
 		<< activeState.awb.automatic.gains << ", temp "
-		<< activeState.awb.temperatureK << "K";
+		<< activeState.awb.automatic.temperatureK << "K";
 }
 
 REGISTER_IPA_ALGORITHM(Awb, "Awb")
