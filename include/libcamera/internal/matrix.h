@@ -90,6 +90,30 @@ public:
 		return *this;
 	}
 
+	Matrix<T, Rows, Cols> inverse() const
+	{
+		static_assert(Rows == 3 && Cols == 3, "Matrix must be 3x3");
+
+		const auto &m = *this;
+		double det = m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]) -
+			     m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0]) +
+			     m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+
+		double invdet = 1 / det;
+
+		Matrix<T, Rows, Cols> ret;
+		ret[0][0] = (m[1][1] * m[2][2] - m[2][1] * m[1][2]) * invdet;
+		ret[0][1] = (m[0][2] * m[2][1] - m[0][1] * m[2][2]) * invdet;
+		ret[0][2] = (m[0][1] * m[1][2] - m[0][2] * m[1][1]) * invdet;
+		ret[1][0] = (m[1][2] * m[2][0] - m[1][0] * m[2][2]) * invdet;
+		ret[1][1] = (m[0][0] * m[2][2] - m[0][2] * m[2][0]) * invdet;
+		ret[1][2] = (m[1][0] * m[0][2] - m[0][0] * m[1][2]) * invdet;
+		ret[2][0] = (m[1][0] * m[2][1] - m[2][0] * m[1][1]) * invdet;
+		ret[2][1] = (m[2][0] * m[0][1] - m[0][0] * m[2][1]) * invdet;
+		ret[2][2] = (m[0][0] * m[1][1] - m[1][0] * m[0][1]) * invdet;
+		return ret;
+	}
+
 	template<typename T2>
 	Matrix<T2, Rows, Cols> cast() const
 	{

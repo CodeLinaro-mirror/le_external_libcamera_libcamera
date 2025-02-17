@@ -78,6 +78,16 @@ LOG_DEFINE_CATEGORY(Matrix)
  */
 
 /**
+ * \fn Matrix::inverse() const
+ * \brief Compute the inverse of the matrix
+ *
+ * This function computes the inverse of the matrix. It is only implemented for
+ * 3x3 matrices.
+ *
+ * \return The inverse of the matrix
+ */
+
+/**
  * \fn template<typename T2> Matrix<T2, Rows, Cols> Matrix::cast() const
  * \brief Cast the matrix to a different type
  *
