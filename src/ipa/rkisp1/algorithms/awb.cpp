@@ -320,8 +320,6 @@ void Awb::process(IPAContext &context,
 	    rgbMeans.b() < kMeanMinThreshold)
 		return;
 
-	activeState.awb.automatic.temperatureK = estimateCCT(rgbMeans);
-
 	/*
 	 * Estimate the red and blue gains to apply in a grey world. The green
 	 * gain is hardcoded to 1.0. Avoid divisions by zero by clamping the
@@ -343,8 +341,11 @@ void Awb::process(IPAContext &context,
 
 	/* Filter the values to avoid oscillations. */
 	double speed = 0.2;
+	double ct = estimateCCT(rgbMeans);
+	ct = ct * speed + activeState.awb.automatic.temperatureK * (1 - speed);
 	gains = gains * speed + activeState.awb.automatic.gains * (1 - speed);
 
+	activeState.awb.automatic.temperatureK = static_cast<unsigned int>(ct);
 	activeState.awb.automatic.gains = gains;
 
 	LOG(RkISP1Awb, Debug)
