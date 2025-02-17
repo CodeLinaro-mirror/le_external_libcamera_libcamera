@@ -203,6 +203,16 @@ LOG_DEFINE_CATEGORY(Vector)
  */
 
 /**
+ * \fn template<typename T2> Vector<T2, Rows> Vector::cast() const
+ * \brief Cast the vector to a different type
+ *
+ * This function returns a new vector with the same size and values but a
+ * different type.
+ *
+ * \return The new vector
+ */
+
+/**
  * \fn Vector::dot(const Vector<T, Rows> &other) const
  * \brief Compute the dot product
  * \param[in] other The other vector

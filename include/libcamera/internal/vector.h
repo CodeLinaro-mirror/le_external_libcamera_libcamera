@@ -243,6 +243,15 @@ public:
 		return std::accumulate(data_.begin(), data_.end(), R{});
 	}
 
+	template<typename T2>
+	Vector<T2, Rows> cast() const
+	{
+		Vector<T2, Rows> ret;
+		for (unsigned int i = 0; i < Rows; i++)
+			ret[i] = static_cast<T2>(data_[i]);
+		return ret;
+	}
+
 private:
 	template<class BinaryOp>
 	static constexpr Vector apply(const Vector &lhs, const Vector &rhs, BinaryOp op)
