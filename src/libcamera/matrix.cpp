@@ -78,6 +78,16 @@ LOG_DEFINE_CATEGORY(Matrix)
  */
 
 /**
+ * \fn template<typename T2> Matrix<T2, Rows, Cols> Matrix::cast() const
+ * \brief Cast the matrix to a different type
+ *
+ * This function returns a new matrix with the same size and values but a
+ * different type.
+ *
+ * \return The new matrix
+ */
+
+/**
  * \fn Matrix::operator[](size_t i)
  * \copydoc Matrix::operator[](size_t i) const
  */

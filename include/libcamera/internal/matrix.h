@@ -90,6 +90,17 @@ public:
 		return *this;
 	}
 
+	template<typename T2>
+	Matrix<T2, Rows, Cols> cast() const
+	{
+		Matrix<T2, Rows, Cols> ret;
+		for (unsigned int i = 0; i < Rows; i++)
+			for (unsigned int j = 0; j < Cols; j++)
+				ret[i][j] = static_cast<T2>((*this)[i][j]);
+
+		return ret;
+	}
+
 private:
 	std::array<T, Rows * Cols> data_;
 };
