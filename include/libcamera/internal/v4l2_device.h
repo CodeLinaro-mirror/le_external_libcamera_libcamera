@@ -45,6 +45,8 @@ public:
 	const std::string &deviceNode() const { return deviceNode_; }
 	std::string devicePath() const;
 
+	bool supportsFrameStartEvent();
+	bool frameStartEnabled() { return frameStartEnabled_; }
 	int setFrameStartEnabled(bool enable);
 	Signal<uint32_t> frameStart;
 
