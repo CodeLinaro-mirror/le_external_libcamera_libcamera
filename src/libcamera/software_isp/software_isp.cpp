@@ -301,6 +301,8 @@ int SoftwareIsp::queueBuffers(uint32_t frame, FrameBuffer *input,
 			return -EINVAL;
 	}
 
+	queuedInputBuffers_.push_back(input);
+
 	for (auto iter = outputs.begin(); iter != outputs.end(); iter++) {
 		FrameBuffer *const buffer = iter->second;
 		queuedOutputBuffers_.push_back(buffer);
@@ -327,6 +329,9 @@ int SoftwareIsp::start()
 
 /**
  * \brief Stops the Software ISP streaming operation
+ *
+ * All pending buffers are returned back (output buffers as canceled) before
+ * this method finishes.
  */
 void SoftwareIsp::stop()
 {
@@ -342,6 +347,10 @@ void SoftwareIsp::stop()
 		outputBufferReady.emit(buffer);
 	}
 	queuedOutputBuffers_.clear();
+
+	for (auto buffer : queuedInputBuffers_)
+		inputBufferReady.emit(buffer);
+	queuedInputBuffers_.clear();
 }
 
 /**
@@ -375,7 +384,12 @@ void SoftwareIsp::statsReady(uint32_t frame, uint32_t bufferId)
 
 void SoftwareIsp::inputReady(FrameBuffer *input)
 {
-	inputBufferReady.emit(input);
+	if (running_) {
+		queuedInputBuffers_.erase(find(queuedInputBuffers_.begin(),
+					       queuedInputBuffers_.end(),
+					       input));
+		inputBufferReady.emit(input);
+	}
 }
 
 void SoftwareIsp::outputReady(FrameBuffer *output)
