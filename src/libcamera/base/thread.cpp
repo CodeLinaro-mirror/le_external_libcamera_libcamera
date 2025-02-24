@@ -603,6 +603,8 @@ void Thread::removeMessages(Object *receiver)
 /**
  * \brief Dispatch posted messages for this thread
  * \param[in] type The message type
+ * \param[in] receiver If not null, dispatch only messages for the given
+ *    receiver
  *
  * This function immediately dispatches all the messages previously posted for
  * this thread with postMessage() that match the message \a type. If the \a type
@@ -616,7 +618,7 @@ void Thread::removeMessages(Object *receiver)
  * same thread from an object's message handler. It guarantees delivery of
  * messages in the order they have been posted in all cases.
  */
-void Thread::dispatchMessages(Message::Type type)
+void Thread::dispatchMessages(Message::Type type, Object *receiver)
 {
 	ASSERT(data_ == ThreadData::current());
 
@@ -640,12 +642,14 @@ void Thread::dispatchMessages(Message::Type type)
 		 */
 		std::unique_ptr<Message> message = std::move(msg);
 
-		Object *receiver = message->receiver_;
-		ASSERT(data_ == receiver->thread()->data_);
-		receiver->pendingMessages_--;
+		Object *messageReceiver = message->receiver_;
+		if (receiver && receiver != messageReceiver)
+			continue;
+		ASSERT(data_ == messageReceiver->thread()->data_);
+		messageReceiver->pendingMessages_--;
 
 		locker.unlock();
-		receiver->message(message.get());
+		messageReceiver->message(message.get());
 		message.reset();
 		locker.lock();
 	}
