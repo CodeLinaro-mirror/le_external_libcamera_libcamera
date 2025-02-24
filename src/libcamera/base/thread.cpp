@@ -5,8 +5,6 @@
  * Thread support
  */
 
-#include <libcamera/base/thread.h>
-
 #include <atomic>
 #include <list>
 #include <optional>
@@ -20,6 +18,7 @@
 #include <libcamera/base/message.h>
 #include <libcamera/base/mutex.h>
 #include <libcamera/base/object.h>
+#include <libcamera/base/thread.h>
 
 /**
  * \page thread Thread Support
@@ -657,7 +656,7 @@ void Thread::dispatchMessages(Message::Type type)
 	 * the outer calls.
 	 */
 	if (!--data_->messages_.recursion_) {
-		for (auto iter = messages.begin(); iter != messages.end(); ) {
+		for (auto iter = messages.begin(); iter != messages.end();) {
 			if (!*iter)
 				iter = messages.erase(iter);
 			else
