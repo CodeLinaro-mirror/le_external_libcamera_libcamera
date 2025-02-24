@@ -39,7 +39,7 @@ public:
 
 	virtual int init(const YamlObject &tuningData) = 0;
 	virtual AwbResult calculateAwb(const AwbStats &stats, unsigned int lux) = 0;
-	virtual RGB<double> gainsFromColourTemperature(double colourTemperature) = 0;
+	virtual std::optional<RGB<double>> gainsFromColourTemperature(double colourTemperature) = 0;
 
 	const ControlInfoMap::Map &controls() const
 	{
