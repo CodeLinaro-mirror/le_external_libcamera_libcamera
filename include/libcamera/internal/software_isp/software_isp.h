@@ -101,6 +101,7 @@ private:
 
 	std::unique_ptr<ipa::soft::IPAProxySoft> ipa_;
 	bool running_;
+	std::deque<FrameBuffer *> queuedOutputBuffers_;
 };
 
 } /* namespace libcamera */
