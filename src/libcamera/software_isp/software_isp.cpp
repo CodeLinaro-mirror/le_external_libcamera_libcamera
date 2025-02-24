@@ -13,6 +13,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+#include <libcamera/base/thread.h>
+
 #include <libcamera/controls.h>
 #include <libcamera/formats.h>
 #include <libcamera/stream.h>
@@ -339,6 +341,7 @@ void SoftwareIsp::stop()
 	ispWorkerThread_.wait();
 
 	running_ = false;
+	Thread::current()->dispatchMessages(Message::Type::InvokeMessage, this);
 	ipa_->stop();
 
 	for (auto buffer : queuedOutputBuffers_) {
