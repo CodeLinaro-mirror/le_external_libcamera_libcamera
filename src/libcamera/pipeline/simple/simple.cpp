@@ -911,8 +911,11 @@ void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
 void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
 {
 	delayedCtrls_->push(sensorControls);
-	ControlList ctrls(sensorControls);
-	sensor_->setControls(&ctrls);
+	/* Directly apply controls now if there is no frameStart signal */
+	if (!frameStartEmitter_) {
+		ControlList ctrls(sensorControls);
+		sensor_->setControls(&ctrls);
+	}
 }
 
 /* Retrieve all source pads connected to a sink pad through active routes. */
