@@ -277,6 +277,7 @@ public:
 	std::list<Entity> entities_;
 	std::unique_ptr<CameraSensor> sensor_;
 	V4L2VideoDevice *video_;
+	V4L2Subdevice *frameStartEmitter_;
 
 	std::vector<Configuration> configs_;
 	std::map<PixelFormat, std::vector<const Configuration *>> formats_;
@@ -578,6 +579,19 @@ int SimpleCameraData::init()
 	}
 
 	properties_ = sensor_->properties();
+
+	frameStartEmitter_ = nullptr;
+	for (const Entity &entity : entities_) {
+		V4L2Subdevice *sd = pipe->subdev(entity.entity);
+		if (!sd || !sd->supportsFrameStartEvent())
+			continue;
+
+		LOG(SimplePipeline, Debug)
+			<< "Using " << entity.entity->name() << " frameStart signal";
+
+		frameStartEmitter_ = sd;
+		break;
+	}
 
 	return 0;
 }
@@ -1215,6 +1229,7 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 		static_cast<SimpleCameraConfiguration *>(c);
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
+	V4L2Subdevice *frameStartEmitter = data->frameStartEmitter_;
 	int ret;
 
 	/*
@@ -1285,8 +1300,9 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	data->video_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
+	if (frameStartEmitter)
+		frameStartEmitter->frameStart.connect(data->delayedCtrls_.get(),
+						      &DelayedControls::applyControls);
 
 	StreamConfiguration inputCfg;
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
