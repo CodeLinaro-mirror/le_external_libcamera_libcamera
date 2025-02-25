@@ -1229,7 +1229,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 		static_cast<SimpleCameraConfiguration *>(c);
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
-	V4L2Subdevice *frameStartEmitter = data->frameStartEmitter_;
 	int ret;
 
 	/*
@@ -1300,9 +1299,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	if (frameStartEmitter)
-		frameStartEmitter->frameStart.connect(data->delayedCtrls_.get(),
-						      &DelayedControls::applyControls);
 
 	StreamConfiguration inputCfg;
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
@@ -1341,6 +1337,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 {
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
+	V4L2Subdevice *frameStartEmitter = data->frameStartEmitter_;
 	int ret;
 
 	const MediaPad *pad = acquirePipeline(data);
@@ -1369,6 +1366,17 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 	}
 
 	video->bufferReady.connect(data, &SimpleCameraData::imageBufferReady);
+
+	data->delayedCtrls_->reset();
+	if (frameStartEmitter) {
+		ret = frameStartEmitter->setFrameStartEnabled(true);
+		if (ret) {
+			stop(camera);
+			return ret;
+		}
+		frameStartEmitter->frameStart.connect(data->delayedCtrls_.get(),
+						      &DelayedControls::applyControls);
+	}
 
 	ret = video->streamOn();
 	if (ret < 0) {
@@ -1401,6 +1409,13 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 {
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
+	V4L2Subdevice *frameStartEmitter = data->frameStartEmitter_;
+
+	if (frameStartEmitter) {
+		frameStartEmitter->setFrameStartEnabled(false);
+		frameStartEmitter->frameStart.disconnect(data->delayedCtrls_.get(),
+							 &DelayedControls::applyControls);
+	}
 
 	if (data->useConversion_) {
 		if (data->converter_)
