@@ -489,6 +489,13 @@ SimpleCameraData::SimpleCameraData(SimplePipelineHandler *pipe,
 	if (!sensor_)
 		return;
 
+	const CameraSensorProperties::SensorDelays &delays = sensor_->sensorDelays();
+	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
+		{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
+		{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
+	};
+	delayedCtrls_ = std::make_unique<DelayedControls>(sensor_->device(), params);
+
 	LOG(SimplePipeline, Debug)
 		<< "Found pipeline: "
 		<< utils::join(entities_, " -> ",
@@ -1293,15 +1300,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 
 	if (outputCfgs.empty())
 		return 0;
-
-	const CameraSensorProperties::SensorDelays &delays = data->sensor_->sensorDelays();
-	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-		{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
-		{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
-	};
-	data->delayedCtrls_ =
-		std::make_unique<DelayedControls>(data->sensor_->device(),
-						  params);
 
 	StreamConfiguration inputCfg;
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
