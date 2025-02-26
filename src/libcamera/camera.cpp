@@ -864,6 +864,10 @@ std::shared_ptr<Camera> Camera::create(std::unique_ptr<Private> d,
 		}
 	};
 
+	LOG(Camera, Info)
+		<< "Creating camera '" << id << "' for pipeline handler "
+		<< d->pipe_->name();
+
 	Camera *camera = new Camera(std::move(d), id, streams);
 
 	return std::shared_ptr<Camera>(camera, Deleter());
