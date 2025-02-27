@@ -5,4 +5,5 @@ c3isp_ipa_algorithms = files([
     'awb.cpp',
     'blc.cpp',
     'ccm.cpp',
+    'csc.cpp',
 ])
