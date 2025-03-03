@@ -6,6 +6,7 @@
  */
 
 #include <algorithm>
+#include <bitset>
 #include <cmath>
 #include <fstream>
 #include <map>
@@ -55,6 +56,9 @@ public:
 	std::unique_ptr<V4L2VideoDevice> video_;
 	Stream stream_;
 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
+
+	std::optional<v4l2_exposure_auto_type> autoExposureMode_;
+	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
 
 private:
 	bool generateId();
@@ -723,25 +727,44 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 		 * ExposureTimeModeManual = { V4L2_EXPOSURE_MANUAL,
 		 *			      V4L2_EXPOSURE_SHUTTER_PRIORITY }
 		 */
-		std::array<int32_t, 2> values{};
 
-		auto it = std::find_if(v4l2Values.begin(), v4l2Values.end(),
-			[&](const ControlValue &val) {
-				return (val.get<int32_t>() == V4L2_EXPOSURE_APERTURE_PRIORITY ||
-					val.get<int32_t>() == V4L2_EXPOSURE_AUTO) ? true : false;
-			});
-		if (it != v4l2Values.end())
-			values.back() = static_cast<int32_t>(controls::ExposureTimeModeAuto);
+		std::bitset<
+			std::max(V4L2_EXPOSURE_AUTO,
+			std::max(V4L2_EXPOSURE_APERTURE_PRIORITY,
+			std::max(V4L2_EXPOSURE_MANUAL,
+				 V4L2_EXPOSURE_SHUTTER_PRIORITY))) + 1
+		> exposureModes;
 
-		it = std::find_if(v4l2Values.begin(), v4l2Values.end(),
-			[&](const ControlValue &val) {
-				return (val.get<int32_t>() == V4L2_EXPOSURE_SHUTTER_PRIORITY ||
-					val.get<int32_t>() == V4L2_EXPOSURE_MANUAL) ? true : false;
-			});
-		if (it != v4l2Values.end())
-			values.back() = static_cast<int32_t>(controls::ExposureTimeModeManual);
+		for (const ControlValue &value : v4l2Values) {
+			auto x = value.get<int32_t>();
 
-		info = ControlInfo{Span<int32_t>{values}, values[0]};
+			if (0 <= x && static_cast<std::size_t>(x) < exposureModes.size())
+				exposureModes[x] = true;
+		}
+
+		if (exposureModes[V4L2_EXPOSURE_AUTO])
+			autoExposureMode_ = V4L2_EXPOSURE_AUTO;
+		else if (exposureModes[V4L2_EXPOSURE_APERTURE_PRIORITY])
+			autoExposureMode_ = V4L2_EXPOSURE_APERTURE_PRIORITY;
+
+		if (exposureModes[V4L2_EXPOSURE_MANUAL])
+			manualExposureMode_ = V4L2_EXPOSURE_MANUAL;
+		else if (exposureModes[V4L2_EXPOSURE_SHUTTER_PRIORITY])
+			manualExposureMode_ = V4L2_EXPOSURE_SHUTTER_PRIORITY;
+
+		std::array<ControlValue, 2> values;
+		std::size_t count = 0;
+
+		if (autoExposureMode_)
+			values[count++] = controls::ExposureTimeModeAuto;
+
+		if (manualExposureMode_)
+			values[count++] = controls::ExposureTimeModeManual;
+
+		if (count == 0)
+			return;
+
+		info = ControlInfo{ Span<const ControlValue>{ values.data(), count }, values[0] };
 		break;
 	}
 	case V4L2_CID_EXPOSURE_ABSOLUTE:
