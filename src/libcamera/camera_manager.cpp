@@ -202,6 +202,7 @@ void CameraManager::Private::addCamera(std::shared_ptr<Camera> camera)
 {
 	ASSERT(Thread::current() == this);
 
+{
 	MutexLocker locker(mutex_);
 
 	for (const std::shared_ptr<Camera> &c : cameras_) {
@@ -213,13 +214,12 @@ void CameraManager::Private::addCamera(std::shared_ptr<Camera> camera)
 		}
 	}
 
-	cameras_.push_back(std::move(camera));
-
-	unsigned int index = cameras_.size() - 1;
+	cameras_.push_back(camera);
+}
 
 	/* Report the addition to the public signal */
 	CameraManager *const o = LIBCAMERA_O_PTR();
-	o->cameraAdded.emit(cameras_[index]);
+	o->cameraAdded.emit(std::move(camera));
 }
 
 /**
@@ -236,6 +236,7 @@ void CameraManager::Private::removeCamera(std::shared_ptr<Camera> camera)
 {
 	ASSERT(Thread::current() == this);
 
+{
 	MutexLocker locker(mutex_);
 
 	auto iter = std::find_if(cameras_.begin(), cameras_.end(),
@@ -245,14 +246,15 @@ void CameraManager::Private::removeCamera(std::shared_ptr<Camera> camera)
 	if (iter == cameras_.end())
 		return;
 
+	cameras_.erase(iter);
+}
+
 	LOG(Camera, Debug)
 		<< "Unregistering camera '" << camera->id() << "'";
 
-	cameras_.erase(iter);
-
 	/* Report the removal to the public signal */
 	CameraManager *const o = LIBCAMERA_O_PTR();
-	o->cameraRemoved.emit(camera);
+	o->cameraRemoved.emit(std::move(camera));
 }
 
 /**
