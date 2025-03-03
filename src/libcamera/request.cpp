@@ -468,7 +468,7 @@ void Request::reuse(ReuseFlag flags)
  * \retval -EINVAL The buffer does not reference a valid Stream
  */
 int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
-		       std::unique_ptr<Fence> fence)
+		       std::unique_ptr<Fence> &&fence)
 {
 	if (!stream) {
 		LOG(Request, Error) << "Invalid stream reference";
