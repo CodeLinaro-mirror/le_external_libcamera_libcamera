@@ -97,8 +97,8 @@ public:
 	bool match(DeviceEnumerator *enumerator) override;
 
 private:
-	int processControl(ControlList *controls, unsigned int id,
-			   const ControlValue &value);
+	int processControl(UVCCameraData *data, ControlList *controls,
+			   unsigned int id, const ControlValue &value);
 	int processControls(UVCCameraData *data, Request *request);
 
 	bool acquireDevice(Camera *camera) override;
@@ -291,8 +291,8 @@ void PipelineHandlerUVC::stopDevice(Camera *camera)
 	data->video_->releaseBuffers();
 }
 
-int PipelineHandlerUVC::processControl(ControlList *controls, unsigned int id,
-				       const ControlValue &value)
+int PipelineHandlerUVC::processControl(UVCCameraData *data, ControlList *controls,
+				       unsigned int id, const ControlValue &value)
 {
 	uint32_t cid;
 
@@ -336,10 +336,24 @@ int PipelineHandlerUVC::processControl(ControlList *controls, unsigned int id,
 	}
 
 	case V4L2_CID_EXPOSURE_AUTO: {
-		int32_t ivalue = value.get<bool>()
-			       ? V4L2_EXPOSURE_APERTURE_PRIORITY
-			       : V4L2_EXPOSURE_MANUAL;
-		controls->set(V4L2_CID_EXPOSURE_AUTO, ivalue);
+		int32_t exposureMode;
+
+		switch (value.get<int32_t>()) {
+		case controls::ExposureTimeModeAuto:
+			if (!data->autoExposureMode_)
+				return -EINVAL;
+			exposureMode = *data->autoExposureMode_;
+			break;
+		case controls::ExposureTimeModeManual:
+			if (!data->manualExposureMode_)
+				return -EINVAL;
+			exposureMode = *data->manualExposureMode_;
+			break;
+		default:
+			return -EINVAL;
+		}
+
+		controls->set(V4L2_CID_EXPOSURE_AUTO, exposureMode);
 		break;
 	}
 
@@ -377,7 +391,7 @@ int PipelineHandlerUVC::processControls(UVCCameraData *data, Request *request)
 	ControlList controls(data->video_->controls());
 
 	for (const auto &[id, value] : request->controls())
-		processControl(&controls, id, value);
+		processControl(data, &controls, id, value);
 
 	for (const auto &ctrl : controls)
 		LOG(UVC, Debug)
