@@ -447,24 +447,30 @@ extern "C" {
 #define DRM_FORMAT_SGRBG10	fourcc_code('B', 'A', '1', '0')
 #define DRM_FORMAT_SGBRG10	fourcc_code('G', 'B', '1', '0')
 #define DRM_FORMAT_SBGGR10	fourcc_code('B', 'G', '1', '0')
+#define DRM_FORMAT_RAW10	fourcc_code('R', 'W', '1', '0')
 
 /* 12-bit Bayer formats */
 #define DRM_FORMAT_SRGGB12	fourcc_code('R', 'G', '1', '2')
 #define DRM_FORMAT_SGRBG12	fourcc_code('B', 'A', '1', '2')
 #define DRM_FORMAT_SGBRG12	fourcc_code('G', 'B', '1', '2')
 #define DRM_FORMAT_SBGGR12	fourcc_code('B', 'G', '1', '2')
+#define DRM_FORMAT_RAW12	fourcc_code('R', 'W', '1', '2')
 
 /* 14-bit Bayer formats */
 #define DRM_FORMAT_SRGGB14	fourcc_code('R', 'G', '1', '4')
 #define DRM_FORMAT_SGRBG14	fourcc_code('B', 'A', '1', '4')
 #define DRM_FORMAT_SGBRG14	fourcc_code('G', 'B', '1', '4')
 #define DRM_FORMAT_SBGGR14	fourcc_code('B', 'G', '1', '4')
+#define DRM_FORMAT_RAW14	fourcc_code('R', 'W', '1', '4')
 
 /* 16-bit Bayer formats */
 #define DRM_FORMAT_SRGGB16	fourcc_code('R', 'G', 'B', '6')
 #define DRM_FORMAT_SGRBG16	fourcc_code('G', 'R', '1', '6')
 #define DRM_FORMAT_SGBRG16	fourcc_code('G', 'B', '1', '6')
 #define DRM_FORMAT_SBGGR16	fourcc_code('B', 'Y', 'R', '2')
+
+/* 20-bit Bayer formats */
+#define DRM_FORMAT_RAW20	fourcc_code('R', 'W', '2', '0')
 
 /*
  * Format Modifiers:
@@ -491,6 +497,7 @@ extern "C" {
 #define DRM_FORMAT_MOD_VENDOR_AMLOGIC 0x0a
 #define DRM_FORMAT_MOD_VENDOR_MIPI 0x0b
 #define DRM_FORMAT_MOD_VENDOR_RPI 0x0c
+#define DRM_FORMAT_MOD_VENDOR_RENESAS 0x0d
 
 /* add more to the end as needed */
 
@@ -1691,6 +1698,8 @@ drm_fourcc_canonicalize_nvidia_format_mod(__u64 modifier)
 
 #define PISP_FORMAT_MOD_COMPRESS_MODE1 fourcc_mod_code(RPI, 1)
 #define PISP_FORMAT_MOD_COMPRESS_MODE2 fourcc_mod_code(RPI, 2)
+
+#define RENESAS_CRU_FORMAT_MOD_PACKED fourcc_mod_code(RENESAS, 1)
 
 #if defined(__cplusplus)
 }
