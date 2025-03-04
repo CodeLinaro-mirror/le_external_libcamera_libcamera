@@ -133,6 +133,8 @@ const std::map<BayerFormat, Formats, BayerFormatComparator> bayerToFormat{
 		{ formats::SGRBG10_IPU3, V4L2PixelFormat(V4L2_PIX_FMT_IPU3_SGRBG10) } },
 	{ { BayerFormat::RGGB, 10, BayerFormat::Packing::IPU3 },
 		{ formats::SRGGB10_IPU3, V4L2PixelFormat(V4L2_PIX_FMT_IPU3_SRGGB10) } },
+	{ { BayerFormat::NONE, 10, BayerFormat::Packing::CRU },
+		{ formats::RAW10_CRU, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU10) } },
 	{ { BayerFormat::BGGR, 12, BayerFormat::Packing::None },
 		{ formats::SBGGR12, V4L2PixelFormat(V4L2_PIX_FMT_SBGGR12) } },
 	{ { BayerFormat::GBRG, 12, BayerFormat::Packing::None },
@@ -149,6 +151,8 @@ const std::map<BayerFormat, Formats, BayerFormatComparator> bayerToFormat{
 		{ formats::SGRBG12_CSI2P, V4L2PixelFormat(V4L2_PIX_FMT_SGRBG12P) } },
 	{ { BayerFormat::RGGB, 12, BayerFormat::Packing::CSI2 },
 		{ formats::SRGGB12_CSI2P, V4L2PixelFormat(V4L2_PIX_FMT_SRGGB12P) } },
+	{ { BayerFormat::NONE, 12, BayerFormat::Packing::CRU },
+		{ formats::RAW12_CRU, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU12) } },
 	{ { BayerFormat::BGGR, 14, BayerFormat::Packing::None },
 		{ formats::SBGGR14, V4L2PixelFormat(V4L2_PIX_FMT_SBGGR14) } },
 	{ { BayerFormat::GBRG, 14, BayerFormat::Packing::None },
@@ -165,6 +169,8 @@ const std::map<BayerFormat, Formats, BayerFormatComparator> bayerToFormat{
 		{ formats::SGRBG14_CSI2P, V4L2PixelFormat(V4L2_PIX_FMT_SGRBG14P) } },
 	{ { BayerFormat::RGGB, 14, BayerFormat::Packing::CSI2 },
 		{ formats::SRGGB14_CSI2P, V4L2PixelFormat(V4L2_PIX_FMT_SRGGB14P) } },
+	{ { BayerFormat::NONE, 14, BayerFormat::Packing::CRU },
+		{ formats::RAW14_CRU, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU14) } },
 	{ { BayerFormat::BGGR, 16, BayerFormat::Packing::None },
 		{ formats::SBGGR16, V4L2PixelFormat(V4L2_PIX_FMT_SBGGR16) } },
 	{ { BayerFormat::GBRG, 16, BayerFormat::Packing::None },
@@ -195,6 +201,8 @@ const std::map<BayerFormat, Formats, BayerFormatComparator> bayerToFormat{
 		{ formats::R16, V4L2PixelFormat(V4L2_PIX_FMT_Y16) } },
 	{ { BayerFormat::MONO, 16, BayerFormat::Packing::PISP1 },
 		{ formats::MONO_PISP_COMP1, V4L2PixelFormat(V4L2_PIX_FMT_PISP_COMP1_MONO) } },
+	{ { BayerFormat::NONE, 20, BayerFormat::Packing::CRU },
+		{ formats::RAW20_CRU, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU20) } },
 };
 
 const std::unordered_map<unsigned int, BayerFormat> mbusCodeToBayer{
