@@ -55,17 +55,23 @@ class Linear(Gradient):
 
         size = math.ceil(size)
         rem = domain % size
-        output_sectors = [int(size)] * (sectors - 1)
+        n_full_sectors = math.floor(domain / size)
+        output_sectors = [int(size)] * n_full_sectors
 
         if self.remainder == lt.Remainder.Float:
             size = domain / sectors
             output_sectors = [size] * sectors
-        elif self.remainder == lt.Remainder.DistributeFront:
-            output_sectors.append(int(rem))
-        elif self.remainder == lt.Remainder.DistributeBack:
-            output_sectors.insert(0, int(rem))
+        elif ((sectors - n_full_sectors) == 1):
+            if self.remainder == lt.Remainder.DistributeFront:
+                output_sectors.append(int(rem))
+            elif self.remainder == lt.Remainder.DistributeBack:
+                output_sectors.insert(0, int(rem))
+            else:
+                raise ValueError
         else:
-            raise ValueError
+            rem = rem / 2
+            output_sectors.append(int(rem))
+            output_sectors.insert(0, int(rem))
 
         return output_sectors
 
