@@ -27,6 +27,7 @@
 #include <libcamera/camera.h>
 #include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
+#include <libcamera/geometry.h>
 #include <libcamera/pixel_format.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
@@ -1173,6 +1174,9 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	pipeConfig_ = nullptr;
 
 	for (const SimpleCameraData::Configuration *pipeConfig : *configs) {
+		if (data_->processedRequested_ && pipeConfig->raw)
+			continue;
+
 		const Size &size = pipeConfig->captureSize;
 
 		if (size.width >= maxStreamSize.width &&
@@ -1214,21 +1218,43 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	for (unsigned int i = 0; i < config_.size(); ++i) {
 		StreamConfiguration &cfg = config_[i];
 
-		/* Adjust the pixel format and size. */
-		auto it = std::find(pipeConfig_->outputFormats.begin(),
-				    pipeConfig_->outputFormats.end(),
-				    cfg.pixelFormat);
-		if (it == pipeConfig_->outputFormats.end())
-			it = pipeConfig_->outputFormats.begin();
+		/*
+		 * If both processed and raw streams are requested, the pipe
+		 * configuration is set up for the processed stream. The raw
+		 * configuration needs to be compared against the capture format and
+		 * size in such a case.
+		 */
+		const bool rawStream = cfg.colorSpace == ColorSpace::Raw;
+		const bool sideRawStream = rawStream && data_->processedRequested_;
 
-		PixelFormat pixelFormat = *it;
-		if (cfg.pixelFormat != pixelFormat) {
-			LOG(SimplePipeline, Debug) << "Adjusting pixel format";
-			cfg.pixelFormat = pixelFormat;
-			status = Adjusted;
+		/* Adjust the pixel format and size. */
+
+		if (!sideRawStream) {
+			auto it = std::find(pipeConfig_->outputFormats.begin(),
+					    pipeConfig_->outputFormats.end(),
+					    cfg.pixelFormat);
+			if (it == pipeConfig_->outputFormats.end())
+				it = pipeConfig_->outputFormats.begin();
+
+			PixelFormat pixelFormat = *it;
+
+			if (cfg.pixelFormat != pixelFormat) {
+				if (rawStream) {
+					LOG(SimplePipeline, Info)
+						<< "Raw pixel format "
+						<< cfg.pixelFormat
+						<< " doesn't match any of the pipe output formats";
+					return Invalid;
+				}
+				LOG(SimplePipeline, Debug)
+					<< "Adjusting pixel format from " << cfg.pixelFormat
+					<< " to " << pixelFormat;
+				cfg.pixelFormat = pixelFormat;
+				status = Adjusted;
+			}
 		}
 
-		if (!pipeConfig_->outputSizes.contains(cfg.size)) {
+		if (!sideRawStream && !pipeConfig_->outputSizes.contains(cfg.size)) {
 			Size adjustedSize = pipeConfig_->captureSize;
 			/*
 			 * The converter (when present) may not be able to output
@@ -1236,8 +1262,17 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 			 * not guaranteed to be a valid output size. In such cases, use
 			 * the smaller valid output size closest to the requested.
 			 */
-			if (!pipeConfig_->outputSizes.contains(adjustedSize))
+			if (!pipeConfig_->outputSizes.contains(adjustedSize)) {
+				if (rawStream) {
+					LOG(SimplePipeline, Info)
+						<< "Raw output size "
+						<< cfg.size
+						<< " doesn't match any of the pipe output sizes: "
+						<< pipeConfig_->outputSizes;
+					return Invalid;
+				}
 				adjustedSize = adjustSize(cfg.size, pipeConfig_->outputSizes);
+			}
 			LOG(SimplePipeline, Debug)
 				<< "Adjusting size from " << cfg.size
 				<< " to " << adjustedSize;
@@ -1247,11 +1282,20 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 		/* \todo Create a libcamera core class to group format and size */
 		if (cfg.pixelFormat != pipeConfig_->captureFormat ||
-		    cfg.size != pipeConfig_->captureSize)
+		    cfg.size != pipeConfig_->captureSize) {
+			if (rawStream) {
+				LOG(SimplePipeline, Info)
+					<< "Raw output format " << cfg.pixelFormat
+					<< " and size " << cfg.size
+					<< " not matching pipe format " << pipeConfig_->captureFormat
+					<< " and size " << pipeConfig_->captureSize;
+				return Invalid;
+			}
 			needConversion_ = true;
+		}
 
 		/* Set the stride, frameSize and bufferCount. */
-		if (needConversion_) {
+		if (needConversion_ && !rawStream) {
 			std::tie(cfg.stride, cfg.frameSize) =
 				data_->converter_
 					? data_->converter_->strideAndFrameSize(cfg.pixelFormat,
