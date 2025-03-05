@@ -1376,6 +1376,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 
 	video->bufferReady.connect(data, &SimpleCameraData::imageBufferReady);
 
+	data->delayedCtrls_->reset();
 	if (frameStartEmitter) {
 		ret = frameStartEmitter->setFrameStartEnabled(true);
 		if (ret) {
