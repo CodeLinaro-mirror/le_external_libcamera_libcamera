@@ -7,8 +7,8 @@
 
 #include "kms_sink.h"
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <assert.h>
 #include <iostream>
 #include <limits.h>
@@ -122,7 +122,7 @@ int KMSSink::configure(const libcamera::CameraConfiguration &config)
 	for (const DRM::Mode &mode : modes) {
 		unsigned int modeArea = mode.hdisplay * mode.vdisplay;
 		unsigned int distance = modeArea > cfgArea ? modeArea - cfgArea
-				      : cfgArea - modeArea;
+							   : cfgArea - modeArea;
 
 		if (distance < bestDistance) {
 			mode_ = &mode;
@@ -394,8 +394,9 @@ bool KMSSink::setupComposition(DRM::FrameBuffer *drmBuffer)
 
 	/* 1. Scale the frame buffer to full screen, preserving aspect ratio. */
 	libcamera::Rectangle src = framebuffer;
-	libcamera::Rectangle dst = display.size().boundedToAspectRatio(framebuffer.size())
-						 .centeredTo(display.center());
+	libcamera::Rectangle dst = display.size()
+					   .boundedToAspectRatio(framebuffer.size())
+					   .centeredTo(display.center());
 
 	if (testModeSet(drmBuffer, src, dst)) {
 		std::cout << "KMS: full-screen scaled output, square pixels"

@@ -5,6 +5,8 @@
  * Camera capture session
  */
 
+#include "camera_session.h"
+
 #include <iomanip>
 #include <iostream>
 #include <limits.h>
@@ -16,7 +18,6 @@
 #include "../common/event_loop.h"
 #include "../common/stream_options.h"
 
-#include "camera_session.h"
 #include "capture_script.h"
 #include "file_sink.h"
 #ifdef HAVE_KMS
@@ -248,8 +249,8 @@ int CameraSession::start()
 	streamNames_.clear();
 	for (unsigned int index = 0; index < config_->size(); ++index) {
 		StreamConfiguration &cfg = config_->at(index);
-		streamNames_[cfg.stream()] = "cam" + std::to_string(cameraIndex_)
-					   + "-stream" + std::to_string(index);
+		streamNames_[cfg.stream()] = "cam" + std::to_string(cameraIndex_) +
+					     "-stream" + std::to_string(index);
 	}
 
 	camera_->requestCompleted.connect(this, &CameraSession::requestComplete);
