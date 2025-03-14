@@ -20,6 +20,7 @@
 
 #include "capture_script.h"
 #include "file_sink.h"
+#include "frame_sink.h"
 #ifdef HAVE_KMS
 #include "kms_sink.h"
 #endif
@@ -255,14 +256,17 @@ int CameraSession::start()
 
 	camera_->requestCompleted.connect(this, &CameraSession::requestComplete);
 
+	sinks_.clear();
+	std::unique_ptr<FrameSink> defaultSink;
 #ifdef HAVE_KMS
 	if (options_.isSet(OptDisplay))
-		sink_ = std::make_unique<KMSSink>(options_[OptDisplay].toString());
+		defaultSink =
+			std::make_unique<KMSSink>(options_[OptDisplay].toString());
 #endif
 
 #ifdef HAVE_SDL
 	if (options_.isSet(OptSDL))
-		sink_ = std::make_unique<SDLSink>();
+		defaultSink = std::make_unique<SDLSink>();
 #endif
 
 	if (options_.isSet(OptFile)) {
@@ -275,18 +279,21 @@ int CameraSession::start()
 				return ret;
 		}
 
-		sink_ = std::move(sink);
+		defaultSink = std::move(sink);
 	}
 
-	if (sink_) {
-		ret = sink_->configure(*config_);
+	if (defaultSink)
+		sinks_.push_back(std::move(defaultSink));
+
+	for (auto &sink : sinks_) {
+		ret = sink->configure(*config_);
 		if (ret < 0) {
 			std::cout << "Failed to configure frame sink"
 				  << std::endl;
 			return ret;
 		}
 
-		sink_->requestProcessed.connect(this, &CameraSession::sinkRelease);
+		sink->requestProcessed.connect(this, &CameraSession::sinkRelease);
 	}
 
 	allocator_ = std::make_unique<FrameBufferAllocator>(camera_);
@@ -300,13 +307,14 @@ void CameraSession::stop()
 	if (ret)
 		std::cout << "Failed to stop capture" << std::endl;
 
-	if (sink_) {
-		ret = sink_->stop();
+	for (auto &sink : sinks_) {
+		ret = sink->stop();
 		if (ret)
 			std::cout << "Failed to stop frame sink" << std::endl;
 	}
 
-	sink_.reset();
+	for (auto &sink : sinks_)
+		sink.reset();
 
 	requests_.clear();
 
@@ -355,15 +363,15 @@ int CameraSession::startCapture()
 				return ret;
 			}
 
-			if (sink_)
-				sink_->mapBuffer(buffer.get());
+			for (auto &sink : sinks_)
+				sink->mapBuffer(buffer.get());
 		}
 
 		requests_.push_back(std::move(request));
 	}
 
-	if (sink_) {
-		ret = sink_->start();
+	for (auto &sink : sinks_) {
+		ret = sink->start();
 		if (ret) {
 			std::cout << "Failed to start frame sink" << std::endl;
 			return ret;
@@ -373,8 +381,8 @@ int CameraSession::startCapture()
 	ret = camera_->start();
 	if (ret) {
 		std::cout << "Failed to start capture" << std::endl;
-		if (sink_)
-			sink_->stop();
+		for (auto &sink : sinks_)
+			sink->stop();
 		return ret;
 	}
 
@@ -383,8 +391,8 @@ int CameraSession::startCapture()
 		if (ret < 0) {
 			std::cerr << "Can't queue request" << std::endl;
 			camera_->stop();
-			if (sink_)
-				sink_->stop();
+			for (auto &sink : sinks_)
+				sink->stop();
 			return ret;
 		}
 	}
@@ -471,9 +479,14 @@ void CameraSession::processRequest(Request *request)
 		}
 	}
 
-	if (sink_) {
-		if (!sink_->processRequest(request))
+	for (auto &sink : sinks_) {
+		if (!sink->processRequest(request)) {
+			/*
+			 * \todo What happens with the other sinks when the whole request
+			 * gets requeued?
+			 */
 			requeue = false;
+		}
 	}
 
 	std::cout << info.str() << std::endl;

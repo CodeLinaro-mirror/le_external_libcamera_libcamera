@@ -64,7 +64,7 @@ private:
 	std::unique_ptr<CaptureScript> script_;
 
 	std::map<const libcamera::Stream *, std::string> streamNames_;
-	std::unique_ptr<FrameSink> sink_;
+	std::vector<std::unique_ptr<FrameSink>> sinks_;
 	unsigned int cameraIndex_;
 
 	uint64_t last_;
