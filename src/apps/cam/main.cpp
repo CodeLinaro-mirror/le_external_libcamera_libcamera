@@ -138,14 +138,21 @@ int CamApp::parseOptions(int argc, char *argv[])
 			 "Desired image orientation (rot0, rot180, mirror, flip)",
 			 "orientation", ArgumentRequired, "orientation", false,
 			 OptCamera);
+	parser.addOption(OptStream, &streamKeyValue,
+			 "Set configuration of a camera stream", "stream", true,
+			 OptCamera);
 #ifdef HAVE_KMS
 	parser.addOption(OptDisplay, OptionString,
-			 "Display viewfinder through DRM/KMS on specified connector",
+			 "Display viewfinder by default through DRM/KMS on specified connector",
 			 "display", ArgumentOptional, "connector", false,
 			 OptCamera);
+	parser.addOption(OptStreamDisplay, OptionString,
+			 "Display viewfinder stream through DRM/KMS on specified connector",
+			 "stream-display", ArgumentOptional, "connector", false,
+			 OptStream);
 #endif
 	parser.addOption(OptFile, OptionString,
-			 "Write captured frames to disk\n"
+			 "Write captured frames by default to disk\n"
 			 "If the file name ends with a '/', it sets the directory in which\n"
 			 "to write files, using the default file name. Otherwise it sets the\n"
 			 "full file path and name. The first '#' character in the file name\n"
@@ -159,13 +166,17 @@ int CamApp::parseOptions(int argc, char *argv[])
 			 "The default file name is 'frame-#.bin'.",
 			 "file", ArgumentOptional, "filename", false,
 			 OptCamera);
+	parser.addOption(OptStreamFile, OptionString,
+			 "Write frames captured from a stream to disk\n"
+			 "The file name is of the same format as in --file.",
+			 "stream-file", ArgumentOptional, "filename", false,
+			 OptStream);
 #ifdef HAVE_SDL
-	parser.addOption(OptSDL, OptionNone, "Display viewfinder through SDL",
+	parser.addOption(OptSDL, OptionNone, "Display viewfinder by default through SDL",
 			 "sdl", ArgumentNone, "", false, OptCamera);
+	parser.addOption(OptStreamSDL, OptionNone, "Display stream viewfinder through SDL",
+			 "stream-sdl", ArgumentNone, "", false, OptStream);
 #endif
-	parser.addOption(OptStream, &streamKeyValue,
-			 "Set configuration of a camera stream", "stream", true,
-			 OptCamera);
 	parser.addOption(OptStrictFormats, OptionNone,
 			 "Do not allow requested stream format(s) to be adjusted",
 			 "strict-formats", ArgumentNone, nullptr, false,

@@ -7,13 +7,16 @@
 
 #include "camera_session.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <limits.h>
+#include <memory.h>
 #include <sstream>
 
 #include <libcamera/control_ids.h>
 #include <libcamera/property_ids.h>
+#include <libcamera/stream.h>
 
 #include "../common/event_loop.h"
 #include "../common/stream_options.h"
@@ -292,10 +295,70 @@ int CameraSession::start()
 		defaultSink = std::move(sink);
 	}
 
+#ifdef HAVE_KMS
+	bool kmsSinkAssigned = false;
+#endif
+	auto &streamOptions = options_[OptStream];
 	for (unsigned int i = 0; i < config_->size(); i++) {
 		const StreamConfiguration &cfg = config_->at(i);
-		if (defaultSink)
-			defaultSink->addStream(cfg.stream());
+		if (streamOptions.empty()) {
+			if (defaultSink)
+				defaultSink->addStream(cfg.stream());
+		} else {
+			const OptionsParser::Options &suboptions = streamOptions.toArray()[i].children();
+			if (defaultSink) {
+				if (suboptions.isSet(OptStreamDisplay) ||
+				    suboptions.isSet(OptStreamSDL) ||
+				    suboptions.isSet(OptStreamFile)) {
+					std::cerr << "Combining default and stream specific outputs is unsupported" << std::endl;
+					return -EINVAL;
+				}
+
+				defaultSink->addStream(cfg.stream());
+				continue;
+			}
+
+			std::unique_ptr<FrameSink> sink;
+#ifdef HAVE_KMS
+			if (suboptions.isSet(OptStreamDisplay)) {
+				if (kmsSinkAssigned) {
+					std::cerr << "Display doesn't support multiple streams" << std::endl;
+					return -EINVAL;
+				}
+				kmsSinkAssigned = true;
+
+				sink = std::make_unique<KMSSink>(suboptions[OptStreamDisplay].toString());
+			}
+#endif
+#ifdef HAVE_SDL
+			if (suboptions.isSet(OptStreamSDL)) {
+				if (sink) {
+					std::cerr << "Single stream cannot have multiple outputs" << std::endl;
+					return -EINVAL;
+				}
+				sink = std::make_unique<SDLSink>();
+			}
+#endif
+			if (suboptions.isSet(OptStreamFile)) {
+				if (sink) {
+					std::cerr << "Single stream cannot have multiple outputs" << std::endl;
+					return -EINVAL;
+				}
+				std::unique_ptr<FileSink> fileSink =
+					std::make_unique<FileSink>(camera_.get(), streamNames_);
+				if (!suboptions[OptStreamFile].toString().empty()) {
+					ret = fileSink->setFilePattern(suboptions[OptStreamFile]);
+					if (ret)
+						return ret;
+				}
+				sink = std::move(fileSink);
+			}
+
+			if (sink) {
+				sink->addStream(cfg.stream());
+				sinks_.push_back(std::move(sink));
+			}
+		}
 	}
 
 	if (defaultSink)
