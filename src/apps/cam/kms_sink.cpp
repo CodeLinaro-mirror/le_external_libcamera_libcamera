@@ -7,7 +7,6 @@
 
 #include "kms_sink.h"
 
-#include <algorithm>
 #include <array>
 #include <assert.h>
 #include <iostream>

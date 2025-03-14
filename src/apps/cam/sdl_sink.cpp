@@ -9,11 +9,7 @@
 
 #include <assert.h>
 #include <fcntl.h>
-#include <iomanip>
 #include <iostream>
-#include <signal.h>
-#include <sstream>
-#include <string.h>
 #include <unistd.h>
 
 #include <libcamera/camera.h>

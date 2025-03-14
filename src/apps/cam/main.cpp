@@ -8,7 +8,6 @@
 #include "main.h"
 
 #include <atomic>
-#include <iomanip>
 #include <iostream>
 #include <signal.h>
 #include <string.h>
