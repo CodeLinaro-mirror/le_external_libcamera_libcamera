@@ -265,11 +265,21 @@ int CameraSession::start()
 #endif
 
 #ifdef HAVE_SDL
-	if (options_.isSet(OptSDL))
+	if (options_.isSet(OptSDL)) {
+		if (defaultSink) {
+			std::cerr << "Multiple default sinks not allowed" << std::endl;
+			return -EINVAL;
+		}
 		defaultSink = std::make_unique<SDLSink>();
+	}
 #endif
 
 	if (options_.isSet(OptFile)) {
+		if (defaultSink) {
+			std::cerr << "Multiple default sinks not allowed" << std::endl;
+			return -EINVAL;
+		}
+
 		std::unique_ptr<FileSink> sink =
 			std::make_unique<FileSink>(camera_.get(), streamNames_);
 
