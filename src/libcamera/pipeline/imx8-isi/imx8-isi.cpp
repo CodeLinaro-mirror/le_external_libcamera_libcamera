@@ -31,7 +31,9 @@
 
 #include "linux/media-bus-format.h"
 
-namespace libcamera {
+namespace {
+
+using namespace libcamera;
 
 LOG_DEFINE_CATEGORY(ISI)
 
@@ -49,8 +51,6 @@ public:
 		 */
 		streams_.resize(2);
 	}
-
-	PipelineHandlerISI *pipe();
 
 	int init();
 
@@ -148,11 +148,6 @@ private:
 /* -----------------------------------------------------------------------------
  * Camera Data
  */
-
-PipelineHandlerISI *ISICameraData::pipe()
-{
-	return static_cast<PipelineHandlerISI *>(Camera::Private::pipe());
-}
 
 /* Open and initialize pipe components. */
 int ISICameraData::init()
@@ -1112,4 +1107,4 @@ void PipelineHandlerISI::bufferReady(FrameBuffer *buffer)
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerISI, "imx8-isi")
 
-} /* namespace libcamera */
+} /* namespace */

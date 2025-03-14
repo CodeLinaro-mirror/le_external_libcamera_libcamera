@@ -42,7 +42,9 @@
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
-namespace libcamera {
+namespace {
+
+using namespace libcamera;
 
 LOG_DEFINE_CATEGORY(VIMC)
 
@@ -646,4 +648,4 @@ void VimcCameraData::paramsComputed([[maybe_unused]] unsigned int id,
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerVimc, "vimc")
 
-} /* namespace libcamera */
+} /* namespace */

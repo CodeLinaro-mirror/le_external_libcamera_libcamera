@@ -52,7 +52,9 @@ bool isFormatRaw(const libcamera::PixelFormat &pixFmt)
 
 } /* namespace */
 
-namespace libcamera {
+namespace {
+
+using namespace libcamera;
 
 LOG_DEFINE_CATEGORY(MaliC55)
 
@@ -677,8 +679,6 @@ private:
 				     const StreamConfiguration &config,
 				     V4L2SubdeviceFormat &subdevFormat);
 
-	void applyScalerCrop(Camera *camera, const ControlList &controls);
-
 	bool registerMaliCamera(std::unique_ptr<MaliC55CameraData> data,
 				const std::string &name);
 	bool registerTPGCamera(MediaLink *link);
@@ -1270,102 +1270,6 @@ void PipelineHandlerMaliC55::stopDevice(Camera *camera)
 	freeBuffers(camera);
 }
 
-void PipelineHandlerMaliC55::applyScalerCrop(Camera *camera,
-					     const ControlList &controls)
-{
-	MaliC55CameraData *data = cameraData(camera);
-
-	const auto &scalerCrop = controls.get<Rectangle>(controls::ScalerCrop);
-	if (!scalerCrop)
-		return;
-
-	if (!data->sensor_) {
-		LOG(MaliC55, Error) << "ScalerCrop not supported for TPG";
-		return;
-	}
-
-	Rectangle nativeCrop = *scalerCrop;
-
-	IPACameraSensorInfo sensorInfo;
-	int ret = data->sensor_->sensorInfo(&sensorInfo);
-	if (ret) {
-		LOG(MaliC55, Error) << "Failed to retrieve sensor info";
-		return;
-	}
-
-	/*
-	 * The ScalerCrop rectangle re-scaling in the ISP crop rectangle
-	 * comes straight from the RPi pipeline handler.
-	 *
-	 * Create a version of the crop rectangle aligned to the analogue crop
-	 * rectangle top-left coordinates and scaled in the [analogue crop to
-	 * output frame] ratio to take into account binning/skipping on the
-	 * sensor.
-	 */
-	Rectangle ispCrop = nativeCrop.translatedBy(-sensorInfo.analogCrop
-							       .topLeft());
-	ispCrop.scaleBy(sensorInfo.outputSize, sensorInfo.analogCrop.size());
-
-	/*
-	 * The crop rectangle should be:
-	 * 1. At least as big as ispMinCropSize_, once that's been
-	 *    enlarged to the same aspect ratio.
-	 * 2. With the same mid-point, if possible.
-	 * 3. But it can't go outside the sensor area.
-	 */
-	Rectangle ispMinCrop{ 0, 0, 640, 480 };
-	Size minSize = ispMinCrop.size().expandedToAspectRatio(nativeCrop.size());
-	Size size = ispCrop.size().expandedTo(minSize);
-	ispCrop = size.centeredTo(ispCrop.center())
-		      .enclosedIn(Rectangle(sensorInfo.outputSize));
-
-	/*
-	 * As the resizer can't upscale, the crop rectangle has to be larger
-	 * than the larger stream output size.
-	 */
-	Size maxYuvSize;
-	for (MaliC55Pipe &pipe : pipes_) {
-		if (!pipe.stream)
-			continue;
-
-		const StreamConfiguration &config = pipe.stream->configuration();
-		if (isFormatRaw(config.pixelFormat)) {
-			LOG(MaliC55, Debug) << "Cannot crop with a RAW stream";
-			return;
-		}
-
-		Size streamSize = config.size;
-		if (streamSize.width > maxYuvSize.width)
-			maxYuvSize.width = streamSize.width;
-		if (streamSize.height > maxYuvSize.height)
-			maxYuvSize.height = streamSize.height;
-	}
-
-	ispCrop.size().expandTo(maxYuvSize);
-
-	/*
-	 * Now apply the scaler crop to each enabled output. This overrides the
-	 * crop configuration performed at configure() time and can cause
-	 * square pixels if the crop rectangle and scaler output FOV ratio are
-	 * different.
-	 */
-	for (MaliC55Pipe &pipe : pipes_) {
-		if (!pipe.stream)
-			continue;
-
-		/* Create a copy to avoid setSelection() to modify ispCrop. */
-		Rectangle pipeCrop = ispCrop;
-		ret = pipe.resizer->setSelection(0, V4L2_SEL_TGT_CROP, &pipeCrop);
-		if (ret) {
-			LOG(MaliC55, Error)
-				<< "Failed to apply crop to "
-				<< (pipe.stream == &data->frStream_ ?
-				    "FR" : "DS") << " pipe";
-			return;
-		}
-	}
-}
-
 int PipelineHandlerMaliC55::queueRequestDevice(Camera *camera, Request *request)
 {
 	MaliC55CameraData *data = cameraData(camera);
@@ -1752,4 +1656,4 @@ bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerMaliC55, "mali-c55")
 
-} /* namespace libcamera */
+} /* namespace */

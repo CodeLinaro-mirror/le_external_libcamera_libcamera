@@ -41,7 +41,9 @@
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
-namespace libcamera {
+namespace {
+
+using namespace libcamera;
 
 LOG_DEFINE_CATEGORY(SimplePipeline)
 
@@ -1879,4 +1881,4 @@ void SimplePipelineHandler::releasePipeline(SimpleCameraData *data)
 
 REGISTER_PIPELINE_HANDLER(SimplePipelineHandler, "simple")
 
-} /* namespace libcamera */
+} /* namespace */

@@ -34,7 +34,9 @@
 #include "libcamera/internal/sysfs.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
-namespace libcamera {
+namespace {
+
+using namespace libcamera;
 
 LOG_DEFINE_CATEGORY(UVC)
 
@@ -885,4 +887,4 @@ void UVCCameraData::imageBufferReady(FrameBuffer *buffer)
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerUVC, "uvcvideo")
 
-} /* namespace libcamera */
+} /* namespace */
