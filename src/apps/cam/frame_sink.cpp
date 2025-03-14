@@ -7,6 +7,8 @@
 
 #include "frame_sink.h"
 
+#include <iostream>
+
 /**
  * \class FrameSink
  * \brief Abstract class to model a consumer of frames
@@ -65,3 +67,15 @@ int FrameSink::stop()
  * \return True if the request has been processed synchronously, false if
  * processing has been queued
  */
+
+const libcamera::StreamConfiguration &FrameSink::findConfiguration(
+	const libcamera::CameraConfiguration &config)
+{
+	for (unsigned int i = 0; i < config.size(); i++)
+		if (assignedStream(config.at(i).stream()))
+			return config.at(i);
+
+	/* This should never happen. */
+	std::cerr << "No camera configuration for frame sink" << std::endl;
+	return config.at(0);
+}

@@ -110,7 +110,7 @@ int KMSSink::configure(const libcamera::CameraConfiguration &config)
 	plane_ = nullptr;
 	mode_ = nullptr;
 
-	const libcamera::StreamConfiguration &cfg = config.at(0);
+	const libcamera::StreamConfiguration &cfg = findConfiguration(config);
 
 	/* Find the best mode for the stream size. */
 	const std::vector<DRM::Mode> &modes = connector_->modes();
@@ -455,6 +455,12 @@ bool KMSSink::processRequest(libcamera::Request *camRequest)
 		return true;
 
 	libcamera::FrameBuffer *buffer = camRequest->buffers().begin()->second;
+	for (auto [stream, buf] : camRequest->buffers()) {
+		if (assignedStream(stream)) {
+			buffer = buf;
+			break;
+		}
+	}
 	auto iter = buffers_.find(buffer);
 	if (iter == buffers_.end())
 		return true;

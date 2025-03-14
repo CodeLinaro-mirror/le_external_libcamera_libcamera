@@ -292,6 +292,12 @@ int CameraSession::start()
 		defaultSink = std::move(sink);
 	}
 
+	for (unsigned int i = 0; i < config_->size(); i++) {
+		const StreamConfiguration &cfg = config_->at(i);
+		if (defaultSink)
+			defaultSink->addStream(cfg.stream());
+	}
+
 	if (defaultSink)
 		sinks_.push_back(std::move(defaultSink));
 
@@ -374,7 +380,8 @@ int CameraSession::startCapture()
 			}
 
 			for (auto &sink : sinks_)
-				sink->mapBuffer(buffer.get());
+				if (sink->assignedStream(stream))
+					sink->mapBuffer(buffer.get());
 		}
 
 		requests_.push_back(std::move(request));

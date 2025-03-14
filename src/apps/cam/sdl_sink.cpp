@@ -44,18 +44,17 @@ int SDLSink::configure(const libcamera::CameraConfiguration &config)
 	if (ret < 0)
 		return ret;
 
-	if (config.size() > 1) {
+	if (streams_.size() > 1) {
 		std::cerr
-			<< "SDL sink only supports one camera stream at present, streaming first camera stream"
+			<< "SDL sink only supports one camera stream at present, streaming first stream"
 			<< std::endl;
-	} else if (config.empty()) {
+	} else if (streams_.empty()) {
 		std::cerr << "Require at least one camera stream to process"
 			  << std::endl;
 		return -EINVAL;
 	}
 
-	const libcamera::StreamConfiguration &cfg = config.at(0);
-	rect_.w = cfg.size.width;
+	const libcamera::StreamConfiguration &cfg = findConfiguration(config);
 	rect_.h = cfg.size.height;
 
 	switch (cfg.pixelFormat) {
@@ -163,8 +162,10 @@ void SDLSink::mapBuffer(FrameBuffer *buffer)
 bool SDLSink::processRequest(Request *request)
 {
 	for (auto [stream, buffer] : request->buffers()) {
-		renderBuffer(buffer);
-		break; /* to be expanded to launch SDL window per buffer */
+		if (assignedStream(stream)) {
+			renderBuffer(buffer);
+			break; /* to be expanded to launch SDL window per buffer */
+		}
 	}
 
 	return true;

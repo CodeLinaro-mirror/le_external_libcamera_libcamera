@@ -96,7 +96,8 @@ void FileSink::mapBuffer(FrameBuffer *buffer)
 bool FileSink::processRequest(Request *request)
 {
 	for (auto [stream, buffer] : request->buffers())
-		writeBuffer(stream, buffer, request->metadata());
+		if (assignedStream(stream))
+			writeBuffer(stream, buffer, request->metadata());
 
 	return true;
 }
