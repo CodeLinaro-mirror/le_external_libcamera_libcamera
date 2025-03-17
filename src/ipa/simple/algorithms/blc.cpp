@@ -40,6 +40,9 @@ int BlackLevel::init([[maybe_unused]] IPAContext &context,
 int BlackLevel::configure(IPAContext &context,
 			  [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
+	exposure_ = 0;
+	gain_ = 0;
+
 	if (definedLevel_.has_value())
 		context.configuration.black.level = definedLevel_;
 	context.activeState.blc.level =
