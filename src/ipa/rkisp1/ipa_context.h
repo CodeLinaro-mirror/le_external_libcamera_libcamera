@@ -76,6 +76,7 @@ struct IPAActiveState {
 		} manual;
 		struct {
 			uint32_t exposure;
+			double gainLostInExposureQuantization;
 			double gain;
 		} automatic;
 
@@ -149,6 +150,7 @@ struct IPAFrameContext : public FrameContext {
 		RGB<double> gains;
 		bool autoEnabled;
 		unsigned int temperatureK;
+		double additionalGain;
 	} awb;
 
 	struct {

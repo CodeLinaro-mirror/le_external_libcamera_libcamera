@@ -170,6 +170,7 @@ void Awb::queueRequest(IPAContext &context,
 	awbAlgo_->handleControls(controls);
 
 	frameContext.awb.autoEnabled = awb.autoEnabled;
+	frameContext.awb.additionalGain = 1.0;
 
 	if (awb.autoEnabled)
 		return;
@@ -218,15 +219,18 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 		auto &awb = context.activeState.awb;
 		frameContext.awb.gains = awb.automatic.gains;
 		frameContext.awb.temperatureK = awb.automatic.temperatureK;
+		frameContext.awb.additionalGain =
+			context.activeState.agc.automatic.gainLostInExposureQuantization;
 	}
 
+	auto gains = frameContext.awb.gains * frameContext.awb.additionalGain;
 	auto gainConfig = params->block<BlockType::AwbGain>();
 	gainConfig.setEnabled(true);
 
-	gainConfig->gain_green_b = std::clamp<int>(256 * frameContext.awb.gains.g(), 0, 0x3ff);
-	gainConfig->gain_blue = std::clamp<int>(256 * frameContext.awb.gains.b(), 0, 0x3ff);
-	gainConfig->gain_red = std::clamp<int>(256 * frameContext.awb.gains.r(), 0, 0x3ff);
-	gainConfig->gain_green_r = std::clamp<int>(256 * frameContext.awb.gains.g(), 0, 0x3ff);
+	gainConfig->gain_green_b = std::clamp<int>(256 * gains.g(), 0, 0x3ff);
+	gainConfig->gain_blue = std::clamp<int>(256 * gains.b(), 0, 0x3ff);
+	gainConfig->gain_red = std::clamp<int>(256 * gains.r(), 0, 0x3ff);
+	gainConfig->gain_green_r = std::clamp<int>(256 * gains.g(), 0, 0x3ff);
 
 	/* If we have already set the AWB measurement parameters, return. */
 	if (frame > 0)
