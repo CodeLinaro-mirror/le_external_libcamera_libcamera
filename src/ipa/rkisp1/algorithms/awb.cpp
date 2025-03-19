@@ -127,8 +127,12 @@ int Awb::configure(IPAContext &context,
 		   const IPACameraSensorInfo &configInfo)
 {
 	context.activeState.awb.manual.gains = RGB<double>{ 1.0 };
-	context.activeState.awb.automatic.gains =
-		awbAlgo_->gainsFromColourTemperature(kDefaultColourTemperature);
+	auto gains = awbAlgo_->gainsFromColourTemperature(kDefaultColourTemperature);
+	if (gains)
+		context.activeState.awb.automatic.gains = *gains;
+	else
+		context.activeState.awb.automatic.gains = RGB<double>{ 1.0 };
+
 	context.activeState.awb.autoEnabled = true;
 	context.activeState.awb.manual.temperatureK = kDefaultColourTemperature;
 	context.activeState.awb.automatic.temperatureK = kDefaultColourTemperature;
@@ -186,10 +190,12 @@ void Awb::queueRequest(IPAContext &context,
 		update = true;
 	} else if (colourTemperature) {
 		const auto &gains = awbAlgo_->gainsFromColourTemperature(*colourTemperature);
-		awb.manual.gains.r() = gains.r();
-		awb.manual.gains.b() = gains.b();
+		if (gains) {
+			awb.manual.gains.r() = gains->r();
+			awb.manual.gains.b() = gains->b();
+			update = true;
+		}
 		awb.manual.temperatureK = *colourTemperature;
-		update = true;
 	}
 
 	if (update)
