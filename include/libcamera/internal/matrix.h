@@ -19,14 +19,11 @@ namespace libcamera {
 
 LOG_DECLARE_CATEGORY(Matrix)
 
-#ifndef __DOXYGEN__
-template<typename T, unsigned int Rows, unsigned int Cols,
-	 std::enable_if_t<std::is_arithmetic_v<T>> * = nullptr>
-#else
 template<typename T, unsigned int Rows, unsigned int Cols>
-#endif /* __DOXYGEN__ */
 class Matrix
 {
+	static_assert(std::is_arithmetic_v<T>, "Matrix type must be arithmetic");
+
 public:
 	Matrix()
 	{
@@ -78,13 +75,10 @@ public:
 		return Span<T, Cols>{ &data_.data()[i * Cols], Cols };
 	}
 
-#ifndef __DOXYGEN__
-	template<typename U, std::enable_if_t<std::is_arithmetic_v<U>>>
-#else
 	template<typename U>
-#endif /* __DOXYGEN__ */
-	Matrix<T, Rows, Cols> &operator*=(U d)
+	constexpr Matrix<T, Rows, Cols> &operator*=(U d)
 	{
+		static_assert(std::is_arithmetic_v<U>, "Multiplier must be arithmetic");
 		for (unsigned int i = 0; i < Rows * Cols; i++)
 			data_[i] *= d;
 		return *this;
@@ -94,14 +88,10 @@ private:
 	std::array<T, Rows * Cols> data_;
 };
 
-#ifndef __DOXYGEN__
-template<typename T, typename U, unsigned int Rows, unsigned int Cols,
-	 std::enable_if_t<std::is_arithmetic_v<T>> * = nullptr>
-#else
 template<typename T, typename U, unsigned int Rows, unsigned int Cols>
-#endif /* __DOXYGEN__ */
-Matrix<U, Rows, Cols> operator*(T d, const Matrix<U, Rows, Cols> &m)
+constexpr Matrix<U, Rows, Cols> operator*(T d, const Matrix<U, Rows, Cols> &m)
 {
+	static_assert(std::is_arithmetic_v<T>, "Multiplier must be arithmetic");
 	Matrix<U, Rows, Cols> result;
 
 	for (unsigned int i = 0; i < Rows; i++) {
@@ -112,27 +102,17 @@ Matrix<U, Rows, Cols> operator*(T d, const Matrix<U, Rows, Cols> &m)
 	return result;
 }
 
-#ifndef __DOXYGEN__
-template<typename T, typename U, unsigned int Rows, unsigned int Cols,
-	 std::enable_if_t<std::is_arithmetic_v<T>> * = nullptr>
-#else
 template<typename T, typename U, unsigned int Rows, unsigned int Cols>
-#endif /* __DOXYGEN__ */
-Matrix<U, Rows, Cols> operator*(const Matrix<U, Rows, Cols> &m, T d)
+constexpr Matrix<U, Rows, Cols> operator*(const Matrix<U, Rows, Cols> &m, T d)
 {
+	static_assert(std::is_arithmetic_v<T>, "Multiplier must be arithmetic");
 	return d * m;
 }
 
-#ifndef __DOXYGEN__
-template<typename T,
-	 unsigned int R1, unsigned int C1,
-	 unsigned int R2, unsigned int C2,
-	 std::enable_if_t<C1 == R2> * = nullptr>
-#else
-template<typename T, unsigned int R1, unsigned int C1, unsigned int R2, unsigned in C2>
-#endif /* __DOXYGEN__ */
-Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
+template<typename T, unsigned int R1, unsigned int C1, unsigned int R2, unsigned int C2>
+constexpr Matrix<T, R1, C2> operator*(const Matrix<T, R1, C1> &m1, const Matrix<T, R2, C2> &m2)
 {
+	static_assert(C1 == R2, "Matrix dimensions must match for multiplication");
 	Matrix<T, R1, C2> result;
 
 	for (unsigned int i = 0; i < R1; i++) {
