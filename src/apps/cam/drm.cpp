@@ -479,6 +479,18 @@ int Device::openCard()
 			continue;
 		}
 
+		/* Skip devices without connectors. */
+		std::unique_ptr<drmModeRes, decltype(&drmModeFreeResources)> resources{
+			drmModeGetResources(fd_),
+			&drmModeFreeResources
+		};
+		if (!resources || resources->count_connectors <= 0) {
+			resources.reset();
+			drmClose(fd_);
+			fd_ = -1;
+			continue;
+		}
+
 		found = true;
 		break;
 	}
