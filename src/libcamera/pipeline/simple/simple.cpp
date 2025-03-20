@@ -25,6 +25,7 @@
 #include <libcamera/base/log.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
@@ -1314,10 +1315,23 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	 *
 	 * \todo Implement a better way to pick the default format
 	 */
-	for ([[maybe_unused]] StreamRole role : roles) {
+	for (StreamRole role : roles) {
 		StreamConfiguration cfg{ StreamFormats{ formats } };
 		cfg.pixelFormat = formats.begin()->first;
 		cfg.size = formats.begin()->second[0].max;
+
+		switch (role) {
+		case StreamRole::Raw:
+			cfg.colorSpace = ColorSpace::Raw;
+			break;
+		case StreamRole::StillCapture:
+		case StreamRole::Viewfinder:
+			cfg.colorSpace = ColorSpace::Sycc;
+			break;
+		case StreamRole::VideoRecording:
+			cfg.colorSpace = ColorSpace::Rec709;
+			break;
+		}
 
 		config->addConfiguration(cfg);
 	}
