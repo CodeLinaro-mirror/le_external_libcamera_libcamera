@@ -153,22 +153,24 @@ double Histogram::interQuantileMean(double lowQuantile, double highQuantile) con
 	double lowPoint = quantile(lowQuantile);
 	/* Proportion of pixels which lies below highQuantile */
 	double highPoint = quantile(highQuantile, static_cast<uint32_t>(lowPoint));
-	double sumBinFreq = 0, cumulFreq = 0;
+	double sumBinFreq = 0;
+	double cumulFreq = 0;
 
-	for (double p_next = floor(lowPoint) + 1.0;
-	     p_next <= ceil(highPoint);
-	     lowPoint = p_next, p_next += 1.0) {
-		int bin = floor(lowPoint);
+	for (int bin = std::floor(lowPoint); bin < std::ceil(highPoint); bin++) {
+		double lowBound = std::max(static_cast<double>(bin), lowPoint);
+		double highBound = std::min(static_cast<double>(bin + 1), highPoint);
+
 		double freq = (cumulative_[bin + 1] - cumulative_[bin])
-			* (std::min(p_next, highPoint) - lowPoint);
+			* (highBound - lowBound);
 
 		/* Accumulate weighted bin */
-		sumBinFreq += bin * freq;
+		sumBinFreq += 0.5 * (highBound + lowBound) * freq;
+
 		/* Accumulate weights */
 		cumulFreq += freq;
 	}
-	/* add 0.5 to give an average for bin mid-points */
-	return sumBinFreq / cumulFreq + 0.5;
+
+	return sumBinFreq / cumulFreq;
 }
 
 } /* namespace ipa */
