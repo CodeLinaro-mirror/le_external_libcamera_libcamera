@@ -55,6 +55,10 @@ protected:
 		/* Test quantile means that are in the middle of the bins */
 		ASSERT_EQ(hist.interQuantileMean(0.25, 0.75), 1.0);
 
+		/* Test small ranges at the borders of the histogram */
+		ASSERT_EQ(hist.interQuantileMean(0.0, 0.1), 0.1);
+		ASSERT_EQ(hist.interQuantileMean(0.9, 1.0), 1.9);
+
 		return TestPass;
 	}
 };
