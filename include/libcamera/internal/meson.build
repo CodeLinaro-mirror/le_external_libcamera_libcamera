@@ -32,6 +32,7 @@ libcamera_internal_headers = files([
     'matrix.h',
     'media_device.h',
     'media_object.h',
+    'pid_controller.h',
     'pipeline_handler.h',
     'process.h',
     'pub_key.h',
