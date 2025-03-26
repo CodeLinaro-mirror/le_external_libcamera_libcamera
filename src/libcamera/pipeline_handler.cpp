@@ -143,6 +143,21 @@ MediaDevice *PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
 }
 
 /**
+ * \brief Clear the list of acquired media devices for this PipelineHandler instance
+ *
+ * This is meant to be used when the Pipeline Handler needs to search multiple
+ * media graphs to create multiple instances of itself, and a partial match
+ * needs to be canceled as an invalid media device was detected. This is to
+ * prevent mediaDevices_ from having a mix of invalid media devices from a
+ * previous failed match and valid media devices from the current succeeding
+ * match.
+ */
+void PipelineHandler::clearMediaDevices()
+{
+	mediaDevices_.clear();
+}
+
+/**
  * \brief Acquire exclusive access to the pipeline handler for the process
  *
  * This function locks all the media devices used by the pipeline to ensure

@@ -71,6 +71,8 @@ public:
 	CameraManager *cameraManager() const { return manager_; }
 
 protected:
+	void clearMediaDevices();
+
 	void registerCamera(std::shared_ptr<Camera> camera);
 	void hotplugMediaDevice(MediaDevice *media);
 
