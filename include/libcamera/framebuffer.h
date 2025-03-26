@@ -30,6 +30,7 @@ struct FrameMetadata {
 
 	struct Plane {
 		unsigned int bytesused;
+		unsigned int offset;
 	};
 
 	Status status;
