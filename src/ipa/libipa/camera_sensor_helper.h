@@ -60,6 +60,8 @@ public:
 
 	static std::vector<CameraSensorHelperFactoryBase *> &factories();
 
+	const std::string &name() const { return name_; };
+
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(CameraSensorHelperFactoryBase)
 
