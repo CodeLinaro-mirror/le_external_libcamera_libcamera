@@ -486,6 +486,7 @@ void CameraSession::processRequest(Request *request)
 	     << std::setw(6) << std::setfill('0') << ts / 1000 % 1000000
 	     << " (" << std::fixed << std::setprecision(2) << fps << " fps)";
 
+	std::stringstream infoOffset;
 	for (const auto &[stream, buffer] : buffers) {
 		const FrameMetadata &metadata = buffer->metadata();
 
@@ -496,9 +497,14 @@ void CameraSession::processRequest(Request *request)
 		unsigned int nplane = 0;
 		for (const FrameMetadata::Plane &plane : metadata.planes()) {
 			info << plane.bytesused;
-			if (++nplane < metadata.planes().size())
+			infoOffset << plane.offset;
+			if (++nplane < metadata.planes().size()) {
 				info << "/";
+				infoOffset << "/";
+			}
 		}
+
+		info << " offset: " << infoOffset.str();
 	}
 
 	if (sink_) {
