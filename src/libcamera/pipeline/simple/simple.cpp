@@ -181,6 +181,64 @@ LOG_DEFINE_CATEGORY(SimplePipeline)
 
 class SimplePipelineHandler;
 
+struct SimpleFrameInfo {
+	uint32_t frame;
+	Request *request;
+};
+
+class SimpleFrames
+{
+public:
+	void create(Request *request);
+	void destroy(uint32_t frame);
+	void clear();
+
+	SimpleFrameInfo *find(uint32_t frame);
+	SimpleFrameInfo *find(Request *request);
+
+private:
+	std::map<uint32_t, SimpleFrameInfo> frameInfo_;
+};
+
+void SimpleFrames::create(Request *request)
+{
+	uint32_t frame = request->sequence();
+	auto [it, inserted] = frameInfo_.try_emplace(request->sequence());
+	ASSERT(inserted);
+	it->second.frame = frame;
+	it->second.request = request;
+}
+
+void SimpleFrames::destroy(uint32_t frame)
+{
+	frameInfo_.erase(frame);
+}
+
+void SimpleFrames::clear()
+{
+	frameInfo_.clear();
+}
+
+SimpleFrameInfo *SimpleFrames::find(uint32_t frame)
+{
+	auto info = frameInfo_.find(frame);
+	if (info == frameInfo_.end())
+		return nullptr;
+	return &info->second;
+}
+
+SimpleFrameInfo *SimpleFrames::find(Request *request)
+{
+	for (auto &itInfo : frameInfo_) {
+		SimpleFrameInfo *info = &itInfo.second;
+
+		if (info->request == request)
+			return info;
+	}
+
+	return nullptr;
+}
+
 struct SimplePipelineInfo {
 	const char *driver;
 	/*
@@ -293,11 +351,13 @@ public:
 
 	std::unique_ptr<Converter> converter_;
 	std::unique_ptr<SoftwareIsp> swIsp_;
+	SimpleFrames frameInfo_;
 
 private:
 	void tryPipeline(unsigned int code, const Size &size);
 	static std::vector<const MediaPad *> routedSourcePads(MediaPad *sink);
 
+	void completeRequest(Request *request);
 	void conversionInputDone(FrameBuffer *buffer);
 	void conversionOutputDone(FrameBuffer *buffer);
 
@@ -785,7 +845,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 			/* No conversion, just complete the request. */
 			Request *request = buffer->request();
 			pipe->completeBuffer(request, buffer);
-			pipe->completeRequest(request);
+			completeRequest(request);
 			return;
 		}
 
@@ -803,7 +863,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		const RequestOutputs &outputs = conversionQueue_.front();
 		for (auto &[stream, buf] : outputs.outputs)
 			pipe->completeBuffer(outputs.request, buf);
-		pipe->completeRequest(outputs.request);
+		completeRequest(outputs.request);
 		conversionQueue_.pop();
 
 		return;
@@ -861,7 +921,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 
 	/* Otherwise simply complete the request. */
 	pipe->completeBuffer(request, buffer);
-	pipe->completeRequest(request);
+	completeRequest(request);
 }
 
 void SimpleCameraData::clearIncompleteRequests()
@@ -870,6 +930,18 @@ void SimpleCameraData::clearIncompleteRequests()
 		pipe()->cancelRequest(conversionQueue_.front().request);
 		conversionQueue_.pop();
 	}
+}
+
+void SimpleCameraData::completeRequest(Request *request)
+{
+	SimpleFrameInfo *info = frameInfo_.find(request);
+	if (!info) {
+		/* Something is really wrong, let's return. */
+		return;
+	}
+
+	frameInfo_.destroy(info->frame);
+	pipe()->completeRequest(request);
 }
 
 void SimpleCameraData::conversionInputDone(FrameBuffer *buffer)
@@ -885,7 +957,7 @@ void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
 	/* Complete the buffer and the request. */
 	Request *request = buffer->request();
 	if (pipe->completeBuffer(request, buffer))
-		pipe->completeRequest(request);
+		completeRequest(request);
 }
 
 void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
@@ -1398,6 +1470,7 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 
 	video->bufferReady.disconnect(data, &SimpleCameraData::imageBufferReady);
 
+	data->frameInfo_.clear();
 	data->clearIncompleteRequests();
 	data->conversionBuffers_.clear();
 
@@ -1428,8 +1501,10 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 
 	if (data->useConversion_) {
 		data->conversionQueue_.push({ request, std::move(buffers) });
-		if (data->swIsp_)
+		if (data->swIsp_) {
+			data->frameInfo_.create(request);
 			data->swIsp_->queueRequest(request->sequence(), request->controls());
+		}
 	}
 
 	return 0;
