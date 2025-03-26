@@ -3,6 +3,7 @@
 subdir('libipa')
 
 ipa_test = [
+    {'name': 'camera_sensor_helper', 'sources': ['camera_sensor_helper.cpp']},
     {'name': 'ipa_module_test', 'sources': ['ipa_module_test.cpp']},
     {'name': 'ipa_interface_test', 'sources': ['ipa_interface_test.cpp']},
 ]
