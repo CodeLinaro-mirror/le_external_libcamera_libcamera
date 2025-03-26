@@ -90,12 +90,12 @@ uint32_t CameraSensorHelper::gainCode(double gain) const
 	if (auto *l = std::get_if<AnalogueGainLinear>(&gain_)) {
 		ASSERT(l->m0 == 0 || l->m1 == 0);
 
-		return (l->c0 - l->c1 * gain) /
-		       (l->m1 * gain - l->m0);
+		return std::round((l->c0 - l->c1 * gain) /
+				  (l->m1 * gain - l->m0));
 	} else if (auto *e = std::get_if<AnalogueGainExp>(&gain_)) {
 		ASSERT(e->a != 0 && e->m != 0);
 
-		return std::log2(gain / e->a) / e->m;
+		return std::round(std::log2(gain / e->a) / e->m);
 	} else {
 		ASSERT(false);
 		return 0;
