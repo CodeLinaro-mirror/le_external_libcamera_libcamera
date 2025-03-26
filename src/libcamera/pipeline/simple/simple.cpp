@@ -427,6 +427,9 @@ private:
 		return static_cast<SimpleCameraData *>(camera->_d());
 	}
 
+	bool matchDevice(MediaDevice *media, const SimplePipelineInfo &info,
+			 DeviceEnumerator *enumerator);
+
 	std::vector<MediaEntity *> locateSensors(MediaDevice *media);
 	static int resetRoutingTable(V4L2Subdevice *subdev);
 
@@ -1660,25 +1663,13 @@ int SimplePipelineHandler::resetRoutingTable(V4L2Subdevice *subdev)
 	return 0;
 }
 
-bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
+bool SimplePipelineHandler::matchDevice(MediaDevice *media,
+					const SimplePipelineInfo &info,
+					DeviceEnumerator *enumerator)
 {
-	const SimplePipelineInfo *info = nullptr;
 	unsigned int numStreams = 1;
-	MediaDevice *media;
 
-	for (const SimplePipelineInfo &inf : supportedDevices) {
-		DeviceMatch dm(inf.driver);
-		media = acquireMediaDevice(enumerator, dm);
-		if (media) {
-			info = &inf;
-			break;
-		}
-	}
-
-	if (!media)
-		return false;
-
-	for (const auto &[name, streams] : info->converters) {
+	for (const auto &[name, streams] : info.converters) {
 		DeviceMatch converterMatch(name);
 		converter_ = acquireMediaDevice(enumerator, converterMatch);
 		if (converter_) {
@@ -1687,7 +1678,7 @@ bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 		}
 	}
 
-	swIspEnabled_ = info->swIspEnabled;
+	swIspEnabled_ = info.swIspEnabled;
 
 	/* Locate the sensors. */
 	std::vector<MediaEntity *> sensors = locateSensors(media);
@@ -1804,6 +1795,33 @@ bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 	}
 
 	return registered;
+}
+
+bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
+{
+	MediaDevice *media;
+
+	for (const SimplePipelineInfo &inf : supportedDevices) {
+		DeviceMatch dm(inf.driver);
+		while ((media = acquireMediaDevice(enumerator, dm))) {
+			/*
+			 * If match succeeds, return true to let match() be
+			 * called again on a new instance of the pipeline
+			 * handler. Otherwise keep looping until we do
+			 * successfully match one (or run out).
+			 */
+			if (matchDevice(media, inf, enumerator)) {
+				LOG(SimplePipeline, Debug)
+					<< "Matched on device: "
+					<< media->deviceNode();
+				return true;
+			}
+		}
+
+		clearMediaDevices();
+	}
+
+	return false;
 }
 
 V4L2VideoDevice *SimplePipelineHandler::video(const MediaEntity *entity)
