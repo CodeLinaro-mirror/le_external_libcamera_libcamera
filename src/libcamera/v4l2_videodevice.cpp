@@ -1958,10 +1958,13 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 		 * The number of planes in the frame buffer and in the
 		 * V4L2 buffer is guaranteed to be equal at this point.
 		 */
-		for (unsigned int i = 0; i < numV4l2Planes; ++i)
+		for (unsigned int i = 0; i < numV4l2Planes; ++i) {
 			metadata.planes()[i].bytesused = planes[i].bytesused;
+			metadata.planes()[i].offset = planes[i].data_offset;
+		}
 	} else {
 		metadata.planes()[0].bytesused = buf.bytesused;
+		metadata.planes()[0].offset = buf.m.offset;
 	}
 
 	return buffer;
