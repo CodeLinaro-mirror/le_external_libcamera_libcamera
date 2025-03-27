@@ -86,6 +86,7 @@ private:
 	std::map<unsigned int, MappedFrameBuffer> mappedBuffers_;
 
 	ControlInfoMap sensorControls_;
+	ControlList controlsToApply_;
 
 	/* Local parameter storage */
 	struct IPAContext context_;
@@ -343,16 +344,33 @@ void IPARkISP1::initializeFrameContext(const uint32_t frame,
 				       IPAFrameContext &frameContext,
 				       const ControlList &controls)
 {
-	if (frameContext.initialised)
+	if (frameContext.initialised) {
+		if (!controls.empty()) {
+			/* Too late to apply the controls. Store them for later. */
+			LOG(IPARkISP1, Warning)
+				<< "Request underrun. Controls for frame "
+				<< frame << " are delayed ";
+			controlsToApply_.merge(controls,
+					       ControlList::MergePolicy::OverwriteExisting);
+		}
 		return;
+	}
+
+	const ControlList *controls2 = &controls;
+	if (!controlsToApply_.empty()) {
+		controlsToApply_.merge(controls, ControlList::MergePolicy::OverwriteExisting);
+		controls2 = &controlsToApply_;
+	}
 
 	frameContext.initialised = true;
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 		if (algo->disabled_)
 			continue;
-		algo->queueRequest(context_, frame, frameContext, controls);
+		algo->queueRequest(context_, frame, frameContext, *controls2);
 	}
+
+	controlsToApply_.clear();
 }
 
 void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
