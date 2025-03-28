@@ -11,6 +11,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <cstdint>
 
 #include <libcamera/base/flags.h>
 #include <libcamera/base/shared_fd.h>
