@@ -89,6 +89,9 @@ public:
 
 	void setEnabled(bool enabled);
 
+	bool isValid() const { return !data_.empty(); }
+	explicit operator bool() const { return !data_.empty(); }
+
 private:
 	LIBCAMERA_DISABLE_COPY(RkISP1ParamsBlockBase)
 
@@ -107,6 +110,16 @@ public:
 	RkISP1ParamsBlock(RkISP1Params *params, const Span<uint8_t> &data)
 		: RkISP1ParamsBlockBase(params, B, data)
 	{
+	}
+
+	const Type *get() const
+	{
+		return reinterpret_cast<const Type *>(data().data());
+	}
+
+	Type *get()
+	{
+		return reinterpret_cast<Type *>(data().data());
 	}
 
 	const Type *operator->() const
