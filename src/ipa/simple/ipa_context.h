@@ -84,7 +84,7 @@ struct IPAFrameContext : public FrameContext {
 
 struct IPAContext {
 	IPAContext(unsigned int frameContextSize)
-		: frameContexts(frameContextSize)
+		: frameContexts(frameContextSize), ccmEnabled(false)
 	{
 	}
 
