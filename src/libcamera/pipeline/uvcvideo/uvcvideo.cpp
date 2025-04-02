@@ -589,6 +589,9 @@ int UVCCameraData::init(MediaDevice *media)
 	/* Initialise the supported controls. */
 	ControlInfoMap::Map ctrls;
 
+	/* \todo Move this to the Camera class */
+	ctrls[&controls::AeEnable] = ControlInfo(false, true, true);
+
 	for (const auto &ctrl : video_->controls()) {
 		uint32_t cid = ctrl.first->id();
 		const ControlInfo &info = ctrl.second;
