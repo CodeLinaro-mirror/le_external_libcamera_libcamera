@@ -162,8 +162,6 @@ public:
 	const V4L2SubdeviceCapability &caps() const { return caps_; }
 
 	static std::unique_ptr<V4L2Subdevice>
-	fromEntityName(const MediaDevice *media, const std::string &entity);
-	static std::unique_ptr<V4L2Subdevice>
 	fromEntityName(std::shared_ptr<const MediaDevice>, const std::string &entity);
 
 protected:
