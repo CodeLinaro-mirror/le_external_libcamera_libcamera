@@ -49,7 +49,7 @@ LOG_DEFINE_CATEGORY(VIMC)
 class VimcCameraData : public Camera::Private
 {
 public:
-	VimcCameraData(PipelineHandler *pipe, MediaDevice *media)
+	VimcCameraData(PipelineHandler *pipe, std::shared_ptr<MediaDevice> media)
 		: Camera::Private(pipe), media_(media)
 	{
 	}
@@ -59,7 +59,7 @@ public:
 	void imageBufferReady(FrameBuffer *buffer);
 	void paramsComputed(unsigned int id, const Flags<ipa::vimc::TestFlag> flags);
 
-	MediaDevice *media_;
+	std::shared_ptr<MediaDevice> media_;
 	std::unique_ptr<CameraSensor> sensor_;
 	std::unique_ptr<V4L2Subdevice> debayer_;
 	std::unique_ptr<V4L2Subdevice> scaler_;
@@ -479,7 +479,7 @@ bool PipelineHandlerVimc::match(DeviceEnumerator *enumerator)
 	dm.add("RGB/YUV Input");
 	dm.add("Scaler");
 
-	MediaDevice *media = acquireMediaDevice(enumerator, dm);
+	std::shared_ptr<MediaDevice> media = acquireMediaDevice(enumerator, dm);
 	if (!media)
 		return false;
 

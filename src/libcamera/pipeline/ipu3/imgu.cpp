@@ -330,7 +330,8 @@ FOV calcFOV(const Size &in, const ImgUDevice::PipeConfig &pipe)
  *
  * \return 0 on success or a negative error code otherwise
  */
-int ImgUDevice::init(MediaDevice *media, unsigned int index)
+int ImgUDevice::init(std::shared_ptr<libcamera::MediaDevice> media,
+		     unsigned int index)
 {
 	int ret;
 

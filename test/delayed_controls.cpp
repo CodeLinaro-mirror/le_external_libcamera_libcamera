@@ -47,7 +47,7 @@ protected:
 			return TestSkip;
 		}
 
-		dev_ = V4L2VideoDevice::fromEntityName(media_.get(), "vivid-000-vid-cap");
+		dev_ = V4L2VideoDevice::fromEntityName(media_, "vivid-000-vid-cap");
 		if (dev_->open()) {
 			cerr << "Failed to open video device" << endl;
 			return TestFail;

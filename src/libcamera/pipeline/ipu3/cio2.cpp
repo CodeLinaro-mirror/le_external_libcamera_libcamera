@@ -112,7 +112,7 @@ std::vector<SizeRange> CIO2Device::sizes(const PixelFormat &format) const
  * \return 0 on success or a negative error code otherwise
  * \retval -ENODEV No supported image sensor is connected to this CIO2 instance
  */
-int CIO2Device::init(const MediaDevice *media, unsigned int index)
+int CIO2Device::init(std::shared_ptr<const MediaDevice> media, unsigned int index)
 {
 	int ret;
 
