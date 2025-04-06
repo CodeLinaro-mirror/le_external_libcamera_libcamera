@@ -497,6 +497,18 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("gc08a3", CameraSensorHelperGc08a3)
 
+class CameraSensorHelperImx208 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperImx208()
+	{
+		// These values are pure guesses, datasheet yet to be found
+		blackLevel_ = 4096;
+		gain_ = AnalogueGainLinear{ 0, 512, -1, 512 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx208", CameraSensorHelperImx208)
+
 class CameraSensorHelperImx214 : public CameraSensorHelper
 {
 public:
