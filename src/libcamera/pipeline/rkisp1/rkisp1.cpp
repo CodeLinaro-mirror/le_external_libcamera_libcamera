@@ -538,8 +538,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 	 */
 	if (config_.size() > 1) {
 		for (const auto &cfg : config_) {
-			if (PixelFormatInfo::info(cfg.pixelFormat).colourEncoding ==
-			    PixelFormatInfo::ColourEncodingRAW) {
+			if (isFormatRaw(cfg.pixelFormat)) {
 				config_.resize(1);
 				status = Adjusted;
 				break;
@@ -553,9 +552,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 		 * Platforms with dewarper support, such as i.MX8MP, support
 		 * only a single stream. We can inspect config_[0] only here.
 		 */
-		bool isRaw = PixelFormatInfo::info(config_[0].pixelFormat).colourEncoding ==
-			     PixelFormatInfo::ColourEncodingRAW;
-		if (!isRaw)
+		if (!isFormatRaw(config_[0].pixelFormat))
 			useDewarper = true;
 	}
 

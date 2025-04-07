@@ -1215,4 +1215,15 @@ unsigned int PixelFormatInfo::numPlanes() const
 	return count;
 }
 
+/**
+ * \brief Return whether the given pixel format is a raw format
+ * \param[in] pixFmt The pixel format to examine
+ * \return True iff the given format is a raw format
+ */
+bool isFormatRaw(const libcamera::PixelFormat &pixFmt)
+{
+	return libcamera::PixelFormatInfo::info(pixFmt).colourEncoding ==
+	       libcamera::PixelFormatInfo::ColourEncodingRAW;
+}
+
 } /* namespace libcamera */
