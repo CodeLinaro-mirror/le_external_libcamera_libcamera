@@ -872,10 +872,13 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	 * point converting an erroneous buffer.
 	 */
 	if (buffer->metadata().status != FrameMetadata::FrameSuccess) {
-		if (!useConversion_) {
+		if (rawRequested_) {
 			/* No conversion, just complete the request. */
 			Request *request = buffer->request();
 			pipe->completeBuffer(request, buffer);
+			SimpleFrameInfo *info = frameInfo_.find(request->sequence());
+			if (info)
+				info->metadataRequired = false;
 			tryCompleteRequest(request);
 			return;
 		}
@@ -885,7 +888,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		 * buffer for capture (unless the stream is being stopped), and
 		 * complete the request with all the user-facing buffers.
 		 */
-		if (buffer->metadata().status != FrameMetadata::FrameCancelled)
+		if (buffer->metadata().status != FrameMetadata::FrameCancelled &&
+		    !rawRequested_)
 			video_->queueBuffer(buffer);
 
 		if (conversionQueue_.empty())
@@ -934,13 +938,14 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	 */
 	if (useConversion_) {
 		if (conversionQueue_.empty()) {
-			video_->queueBuffer(buffer);
+			if (!rawRequested_)
+				video_->queueBuffer(buffer);
 			return;
 		}
 
 		if (converter_)
 			converter_->queueBuffers(buffer, conversionQueue_.front().outputs);
-		else
+		else if (processedRequested_)
 			/*
 			 * request->sequence() cannot be retrieved from `buffer' inside
 			 * queueBuffers because unique_ptr's make buffer->request() invalid
@@ -950,6 +955,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 					     conversionQueue_.front().outputs);
 
 		conversionQueue_.pop();
+		if (rawRequested_)
+			pipe->completeBuffer(request, buffer);
 		return;
 	}
 
@@ -987,7 +994,8 @@ void SimpleCameraData::tryCompleteRequest(Request *request)
 void SimpleCameraData::conversionInputDone(FrameBuffer *buffer)
 {
 	/* Queue the input buffer back for capture. */
-	video_->queueBuffer(buffer);
+	if (!rawRequested_)
+		video_->queueBuffer(buffer);
 }
 
 void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
@@ -1535,7 +1543,7 @@ int SimplePipelineHandler::exportFrameBuffers(Camera *camera, Stream *stream,
 	 * Export buffers on the converter or capture video node, depending on
 	 * whether the converter is used or not.
 	 */
-	if (data->useConversion_)
+	if (data->useConversion_ && !data->rawRequested_)
 		return data->converter_
 			       ? data->converter_->exportBuffers(stream, count, buffers)
 			       : data->swIsp_->exportBuffers(stream, count, buffers);
@@ -1558,7 +1566,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		return -EBUSY;
 	}
 
-	if (data->useConversion_) {
+	if (data->useConversion_ && !data->rawRequested_) {
 		/*
 		 * When using the converter allocate a fixed number of internal
 		 * buffers.
@@ -1566,7 +1574,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		ret = video->allocateBuffers(kNumInternalBuffers,
 					     &data->conversionBuffers_);
 	} else {
-		/* Otherwise, prepare for using buffers from the only stream. */
+		/* Otherwise, prepare for using buffers from the only or raw stream. */
 		Stream *stream = &data->streams_[0];
 		ret = video->importBuffers(stream->configuration().bufferCount);
 	}
@@ -1608,8 +1616,9 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		}
 
 		/* Queue all internal buffers for capture. */
-		for (std::unique_ptr<FrameBuffer> &buffer : data->conversionBuffers_)
-			video->queueBuffer(buffer.get());
+		if (!data->rawRequested_)
+			for (std::unique_ptr<FrameBuffer> &buffer : data->conversionBuffers_)
+				video->queueBuffer(buffer.get());
 	}
 
 	return 0;
@@ -1660,7 +1669,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		 * queue, it will be handed to the converter in the capture
 		 * completion handler.
 		 */
-		if (data->useConversion_) {
+		if (data->useConversion_ && !isFormatRaw(stream->configuration().pixelFormat)) {
 			buffers.emplace(stream, buffer);
 			metadataRequired = !!data->swIsp_;
 		} else {
