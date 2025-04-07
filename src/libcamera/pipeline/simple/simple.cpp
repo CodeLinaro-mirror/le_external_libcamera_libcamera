@@ -345,6 +345,8 @@ public:
 	};
 	std::queue<RequestOutputs> conversionQueue_;
 	bool useConversion_;
+	bool processedRequested_;
+	bool rawRequested_;
 
 	std::unique_ptr<Converter> converter_;
 	std::unique_ptr<SoftwareIsp> swIsp_;
@@ -1304,6 +1306,20 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 
 	if (roles.empty())
 		return config;
+
+	data->processedRequested_ = false;
+	data->rawRequested_ = false;
+	for (auto &role : roles)
+		if (role == StreamRole::Raw) {
+			if (data->rawRequested_) {
+				LOG(SimplePipeline, Error)
+					<< "Can't capture multiple raw streams";
+				return nullptr;
+			}
+			data->rawRequested_ = true;
+		} else {
+			data->processedRequested_ = true;
+		}
 
 	/* Create the formats map. */
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
