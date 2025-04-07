@@ -439,6 +439,8 @@ private:
 	const MediaPad *acquirePipeline(SimpleCameraData *data);
 	void releasePipeline(SimpleCameraData *data);
 
+	void setUpFormatSizes(std::map<PixelFormat, std::vector<SizeRange>> &formats);
+
 	std::map<const MediaEntity *, EntityData> entities_;
 
 	MediaDevice *converter_;
@@ -1321,15 +1323,59 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 			data->processedRequested_ = true;
 		}
 
-	/* Create the formats map. */
-	std::map<PixelFormat, std::vector<SizeRange>> formats;
+	/* Create the formats maps. */
+	std::map<PixelFormat, std::vector<SizeRange>> processedFormats;
+	std::map<PixelFormat, std::vector<SizeRange>> rawFormats;
 
 	for (const SimpleCameraData::Configuration &cfg : data->configs_)
-		if (!cfg.raw)
-			for (PixelFormat format : cfg.outputFormats)
-				formats[format].push_back(cfg.outputSizes);
+		for (PixelFormat format : cfg.outputFormats)
+			(cfg.raw ? rawFormats : processedFormats)[format].push_back(cfg.outputSizes);
 
+	if (data->processedRequested_ && processedFormats.empty()) {
+		LOG(SimplePipeline, Error)
+			<< "Processed stream requsted but no corresponding output configuration found";
+		return nullptr;
+	}
+	if (data->rawRequested_ && rawFormats.empty()) {
+		LOG(SimplePipeline, Error)
+			<< "Raw stream requsted but no corresponding output configuration found";
+		return nullptr;
+	}
+
+	setUpFormatSizes(processedFormats);
+	setUpFormatSizes(rawFormats);
+
+	/*
+	 * Create the stream configurations. Take the first entry in the formats
+	 * map as the default, for lack of a better option.
+	 *
+	 * \todo Implement a better way to pick the default format
+	 */
+	for (StreamRole role : roles) {
+		bool raw = (role == StreamRole::Raw);
+		auto formats = (raw ? rawFormats : processedFormats);
+		StreamConfiguration cfg{ StreamFormats{ formats } };
+		cfg.pixelFormat = formats.begin()->first;
+		cfg.size = formats.begin()->second[0].max;
+
+		if (raw)
+			cfg.colorSpace = ColorSpace::Raw;
+		else if (data->swIsp_)
+			cfg.colorSpace = ColorSpace::Srgb;
+
+		config->addConfiguration(cfg);
+	}
+
+	config->validate();
+
+	return config;
+}
+
+void SimplePipelineHandler::setUpFormatSizes(
+	std::map<PixelFormat, std::vector<SizeRange>> &formats)
+{
 	/* Sort the sizes and merge any consecutive overlapping ranges. */
+
 	for (auto &[format, sizes] : formats) {
 		std::sort(sizes.begin(), sizes.end(),
 			  [](SizeRange &a, SizeRange &b) {
@@ -1349,29 +1395,6 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 
 		sizes.erase(++cur, sizes.end());
 	}
-
-	/*
-	 * Create the stream configurations. Take the first entry in the formats
-	 * map as the default, for lack of a better option.
-	 *
-	 * \todo Implement a better way to pick the default format
-	 */
-	for (StreamRole role : roles) {
-		StreamConfiguration cfg{ StreamFormats{ formats } };
-		cfg.pixelFormat = formats.begin()->first;
-		cfg.size = formats.begin()->second[0].max;
-
-		if (role == StreamRole::Raw)
-			cfg.colorSpace = ColorSpace::Raw;
-		else if (data->swIsp_)
-			cfg.colorSpace = ColorSpace::Srgb;
-
-		config->addConfiguration(cfg);
-	}
-
-	config->validate();
-
-	return config;
 }
 
 int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
