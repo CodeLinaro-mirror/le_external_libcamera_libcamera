@@ -65,6 +65,24 @@ LOG_DEFINE_CATEGORY(Vector)
  */
 
 /**
+ * \fn Vector::data()
+ * \brief Access the vector data
+ *
+ * Access the contents of the vector as linear array of values.
+ *
+ * \return A span referencing the vector data as a linear array
+ */
+
+/**
+ * \fn Vector::operator Vector<T2, Rows>()
+ * \brief Cast to a different underlying type
+ *
+ * Cast the vector to a different underlying type using static_cast().
+ *
+ * \return A vector of type T2
+ */
+
+/**
  * \fn Vector::operator-() const
  * \brief Negate a Vector by negating both all of its coordinates
  * \return The negated vector

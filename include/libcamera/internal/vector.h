@@ -63,6 +63,17 @@ public:
 		return data_[i];
 	}
 
+	template<typename T2>
+	explicit operator Vector<T2, Rows>() const
+	{
+		Vector<T2, Rows> ret;
+		for (unsigned int i = 0; i < Rows; i++)
+			ret[i] = static_cast<T2>(data_[i]);
+		return ret;
+	}
+
+	constexpr Span<const T, Rows> data() const { return data_; }
+
 	constexpr Vector<T, Rows> operator-() const
 	{
 		Vector<T, Rows> ret;
