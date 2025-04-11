@@ -89,6 +89,9 @@ public:
 
 	void setEnabled(bool enabled);
 
+	bool isValid() const { return !data_.empty(); }
+	explicit operator bool() const { return !data_.empty(); }
+
 private:
 	LIBCAMERA_DISABLE_COPY(RkISP1ParamsBlockBase)
 
