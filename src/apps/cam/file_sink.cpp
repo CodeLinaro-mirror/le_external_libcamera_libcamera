@@ -16,6 +16,8 @@
 #include <string.h>
 #include <unistd.h>
 #include <utility>
+#include <chrono>
+#include <ctime>
 
 #include <libcamera/camera.h>
 
@@ -116,6 +118,44 @@ void FileSink::writeBuffer(const Stream *stream, FrameBuffer *buffer,
 		filename.replace(pos, 1, ss.str());
 	}
 
+	std::ostringstream result;
+	for (size_t i = 0; i < filename.size(); ++i) {
+		if (filename[i] == '%' && i + 1 < filename.size()) {
+			char specifier = filename[i + 1];
+			i++; // Skip specifier character
+			switch (specifier) {
+			case 's':
+				result << std::setw(6) << std::setfill('0') << buffer->metadata().sequence;
+				break;
+			case 'w':
+				result << stream->configuration().size.width;
+				break;
+			case 'h':
+				result << stream->configuration().size.height;
+				break;
+			case 'f':
+				result << stream->configuration().pixelFormat;
+				break;
+			case 't': {
+				auto now = std::chrono::system_clock::now();
+				auto micros = std::chrono::duration_cast<std::chrono::microseconds>(
+					now.time_since_epoch()).count();
+				result << micros;
+				break;
+			}
+			case '%':
+				result << '%' << specifier;
+				break;
+			default:
+				result << "%BAD%";
+			}
+		} else {
+			result << filename[i];
+		}
+	}
+	
+	filename =  result.str();
+	
 	Image *image = mappedBuffers_[buffer].get();
 
 #ifdef HAVE_TIFF
