@@ -261,6 +261,30 @@ public:
 	void reserve(ControlType type, bool isArray = false,
 		     std::size_t numElements = 1);
 
+	void swap(ControlValue &other) noexcept
+	{
+		{
+			auto tmp = type_;
+			type_ = other.type_;
+			other.type_ = tmp;
+		}
+
+		std::swap(isArray_, other.isArray_);
+
+		{
+			auto tmp = numElements_;
+			numElements_ = other.numElements_;
+			other.numElements_ = tmp;
+		}
+
+		std::swap(storage_, other.storage_);
+	}
+
+	friend void swap(ControlValue &a, ControlValue &b) noexcept
+	{
+		a.swap(b);
+	}
+
 private:
 	ControlType type_ : 8;
 	bool isArray_;
