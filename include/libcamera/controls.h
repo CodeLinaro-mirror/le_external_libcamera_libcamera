@@ -259,6 +259,25 @@ public:
 	void reserve(ControlType type, bool isArray = false,
 		     std::size_t numElements = 1);
 
+	void swap(ControlValue &other) noexcept
+	{
+		/* `type_` is a bit field, so `std::swap()` cannot be used. */
+		{
+			auto tmp = type_;
+			type_ = other.type_;
+			other.type_ = tmp;
+		}
+
+		std::swap(isArray_, other.isArray_);
+		std::swap(numElements_, other.numElements_);
+		std::swap(storage_, other.storage_);
+	}
+
+	friend void swap(ControlValue &a, ControlValue &b) noexcept
+	{
+		a.swap(b);
+	}
+
 private:
 	ControlType type_ : 8;
 	bool isArray_;
