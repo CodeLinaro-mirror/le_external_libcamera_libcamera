@@ -77,6 +77,12 @@ int SDLSink::configure(const libcamera::CameraConfiguration &config)
 	case libcamera::formats::YUYV:
 		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_YUY2, cfg.stride);
 		break;
+	case libcamera::formats::RGB888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_RGB24, cfg.stride);
+		break;
+	case libcamera::formats::BGR888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_BGR24, cfg.stride);
+		break;
 	default:
 		std::cerr << "Unsupported pixel format "
 			  << cfg.pixelFormat.toString() << std::endl;
