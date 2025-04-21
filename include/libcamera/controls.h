@@ -236,7 +236,7 @@ public:
 private:
 	ControlType type_ : 8;
 	bool isArray_;
-	std::size_t numElements_ : 32;
+	uint32_t numElements_;
 	union {
 		uint64_t internal;
 		void *external;
