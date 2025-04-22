@@ -21,11 +21,16 @@ precision highp float;
 
 /** Monochrome RGBA or GL_LUMINANCE Bayer encoded texture.*/
 uniform sampler2D       tex_y;
+uniform sampler2D	red_param;
+uniform sampler2D	green_param;
+uniform sampler2D	blue_param;
 varying vec4            center;
 varying vec4            yCoord;
 varying vec4            xCoord;
 
 void main(void) {
+    vec3 rgb;
+
     #define fetch(x, y) texture2D(tex_y, vec2(x, y)).r
 
     float C = texture2D(tex_y, center.xy).r; // ( 0, 0)
@@ -97,11 +102,20 @@ void main(void) {
     PATTERN.xw  += kB.xw * B;
     PATTERN.xz  += kF.xz * F;
 
-    gl_FragColor.rgb = (alternate.y == 0.0) ?
+    rgb =  (alternate.y == 0.0) ?
         ((alternate.x == 0.0) ?
             vec3(C, PATTERN.xy) :
             vec3(PATTERN.z, C, PATTERN.w)) :
         ((alternate.x == 0.0) ?
             vec3(PATTERN.w, C, PATTERN.z) :
             vec3(PATTERN.yx, C));
+
+#if defined(APPLY_BAYER_PARAMETERS)
+	/* Apply bayer params */
+	rgb.r = texture2D(red_param, vec2(rgb.r, 0.5)).r;
+	rgb.g = texture2D(red_param, vec2(rgb.g, 0.5)).g;
+	rgb.b = texture2D(red_param, vec2(rgb.b, 0.5)).b;
+#endif
+
+    gl_FragColor.rgb = rgb;
 }

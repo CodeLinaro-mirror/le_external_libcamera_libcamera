@@ -65,6 +65,9 @@ uniform vec2 tex_step;
 uniform vec2 tex_bayer_first_red;
 
 uniform sampler2D tex_y;
+uniform sampler2D red_param;
+uniform sampler2D green_param;
+uniform sampler2D blue_param;
 
 void main(void)
 {
@@ -211,6 +214,13 @@ void main(void)
 		(even_row ?
 			vec3(patterns.y, C, patterns.x) :
 			vec3(patterns.wz, C));
+
+#if defined(APPLY_BAYER_PARAMETERS)
+	/* Apply bayer params */
+	rgb.r = texture2D(red_param, vec2(rgb.r, 0.5)).r;
+	rgb.g = texture2D(red_param, vec2(rgb.g, 0.5)).g;
+	rgb.b = texture2D(red_param, vec2(rgb.b, 0.5)).b;
+#endif
 
 	gl_FragColor = vec4(rgb, 1.0);
 }
