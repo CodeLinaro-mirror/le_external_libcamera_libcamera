@@ -124,7 +124,9 @@ g_param_spec_{{ ctrl.gtype }}(
 {%- elif ctrl.gtype in ['float', 'int', 'int64', 'uchar'] %}
 	{{ ctrl.min }}, {{ ctrl.max }}, {{ ctrl.default }},
 {%- endif %}
-	(GParamFlags) (GST_PARAM_CONTROLLABLE | G_PARAM_READWRITE |
+	(GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+		       GST_PARAM_CONTROLLABLE |
+		       G_PARAM_READWRITE |
 		       G_PARAM_STATIC_STRINGS)
 )
 {%- endset %}
@@ -138,7 +140,8 @@ g_param_spec_{{ ctrl.gtype }}(
 			"{{ ctrl.name }}",
 			{{ ctrl.description|format_description|indent_str('\t\t\t') }},
 			{{ spec|indent_str('\t\t\t') }},
-			(GParamFlags) (GST_PARAM_CONTROLLABLE |
+			(GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
+				       GST_PARAM_CONTROLLABLE |
 				       G_PARAM_READWRITE |
 				       G_PARAM_STATIC_STRINGS)
 		)
