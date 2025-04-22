@@ -110,7 +110,7 @@ private:
 	int getShaderVariableLocations();
 	void setShaderVariableValues(void);
 	void configureTexture(GLuint &texture);
-	void debayerGPU(MappedFrameBuffer &in, MappedFrameBuffer &out);
+	void debayerGPU(MappedFrameBuffer &in, MappedFrameBuffer &out, DebayerParams &params);
 
 	// Shader program identifiers
 	GLuint vertexShaderId_;
@@ -125,19 +125,26 @@ private:
 	// Pointer to object representing input texture
 	eGLImage *eglImageBayerIn_;
 
+	eGLImage *eglImageRedLookup_;
+	eGLImage *eglImageGreenLookup_;
+	eGLImage *eglImageBlueLookup_;
+
 	// Shader parameters
 	float firstRed_x_;
 	float firstRed_y_;
 	GLint attributeVertex_;
 	GLint attributeTexture_;
-	GLint textureUniformY_;
-	GLint textureUniformU_;
-	GLint textureUniformV_;
 	GLint textureUniformStep_;
 	GLint textureUniformSize_;
 	GLint textureUniformStrideFactor_;
 	GLint textureUniformBayerFirstRed_;
 	GLint textureUniformProjMatrix_;
+
+	#define DEBAYER_EGL_MIN_TEXTURE_UNITS 4
+	GLint textureUniformBayerDataIn_;
+	GLint textureUniformRedLookupDataIn_;
+	GLint textureUniformGreenLookupDataIn_;
+	GLint textureUniformBlueLookupDataIn_;
 
 	Rectangle window_;
 	std::unique_ptr<SwStatsCpu> stats_;
