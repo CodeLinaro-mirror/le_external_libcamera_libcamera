@@ -237,6 +237,7 @@ MappedFrameBuffer::MappedFrameBuffer(const FrameBuffer *buffer, MapFlags flags)
 		}
 
 		planes_.emplace_back(info.address + plane.offset, plane.length);
+		fds_.emplace_back(fd);
 	}
 }
 

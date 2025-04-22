@@ -31,6 +31,7 @@ public:
 	bool isValid() const { return error_ == 0; }
 	int error() const { return error_; }
 	const std::vector<Plane> &planes() const { return planes_; }
+	const std::vector<int> &fds() const { return fds_; }
 
 protected:
 	MappedBuffer();
@@ -38,6 +39,7 @@ protected:
 	int error_;
 	std::vector<Plane> planes_;
 	std::vector<Plane> maps_;
+	std::vector<int> fds_;
 
 private:
 	LIBCAMERA_DISABLE_COPY(MappedBuffer)
