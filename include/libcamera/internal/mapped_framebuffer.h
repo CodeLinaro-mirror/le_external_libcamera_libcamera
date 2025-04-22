@@ -31,6 +31,7 @@ public:
 	bool isValid() const { return error_ == 0; }
 	int error() const { return error_; }
 	const std::vector<Plane> &planes() const { return planes_; }
+	const std::vector<Plane> &maps() const { return maps_; }
 	const std::vector<int> &fds() const { return fds_; }
 
 protected:
