@@ -126,7 +126,13 @@ g_param_spec_{{ ctrl.gtype }}(
 {%- endif %}
 	(GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
 		       GST_PARAM_CONTROLLABLE |
+{%- if ctrl.direction == 'ControlId::Direction::In' %}
+		       G_PARAM_WRITABLE |
+{%- elif ctrl.direction == 'ControlId::Direction::Out' %}
+		       G_PARAM_READABLE |
+{%- else %}
 		       G_PARAM_READWRITE |
+{%- endif %}
 		       G_PARAM_STATIC_STRINGS)
 )
 {%- endset %}
@@ -142,7 +148,13 @@ g_param_spec_{{ ctrl.gtype }}(
 			{{ spec|indent_str('\t\t\t') }},
 			(GParamFlags) (GST_PARAM_CONDITIONALLY_AVAILABLE |
 				       GST_PARAM_CONTROLLABLE |
+{%- if ctrl.direction == 'ControlId::Direction::In' %}
+				       G_PARAM_WRITABLE |
+{%- elif ctrl.direction == 'ControlId::Direction::Out' %}
+				       G_PARAM_READABLE |
+{%- else %}
 				       G_PARAM_READWRITE |
+{%- endif %}
 				       G_PARAM_STATIC_STRINGS)
 		)
 {%- else %}
