@@ -45,10 +45,10 @@ static constexpr std::array<DmaBufAllocatorInfo, 4> providerInfos = { {
 	 * /dev/dma_heap/linux,cma is the CMA dma-heap. When the cma heap size is
 	 * specified on the kernel command line, this gets renamed to "reserved".
 	 */
+	{ DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf, "/dev/udmabuf" },
 	{ DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap, "/dev/dma_heap/linux,cma" },
 	{ DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap, "/dev/dma_heap/reserved" },
 	{ DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap, "/dev/dma_heap/system" },
-	{ DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf, "/dev/udmabuf" },
 } };
 
 LOG_DEFINE_CATEGORY(DmaBufAllocator)
