@@ -85,6 +85,7 @@ void eGL::destroyDMABufTexture(eGLImage *eglImage)
 // Generate a 2D texture from an input buffer directly
 void eGL::createTexture2D(eGLImage *eglImage, uint32_t width, uint32_t height, void *data)
 {
+	glActiveTexture(eglImage->texture_unit_);
 	glBindTexture(GL_TEXTURE_2D, eglImage->texture_);
 
 	// Generate texture, bind, associate image to texture, configure, unbind

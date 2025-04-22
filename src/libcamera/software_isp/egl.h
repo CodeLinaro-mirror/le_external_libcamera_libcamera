@@ -29,13 +29,15 @@ LOG_DECLARE_CATEGORY(eGL)
 
 class eGLImage {
 public:
-	eGLImage(uint32_t width, uint32_t height, uint32_t bpp) {
+	eGLImage(uint32_t width, uint32_t height, uint32_t bpp, GLenum texture_unit, uint32_t texture_unit_uniform_id) {
 		image_ = EGL_NO_IMAGE_KHR;
 		width_ = width;
 		height_ = height;
 		bpp_ = bpp;
 		stride_ = width_ * bpp_ / 4;
 		framesize_ = stride_ * height_;
+		texture_unit_ = texture_unit;
+		texture_unit_uniform_id_ = texture_unit_uniform_id;
 
 		glGenTextures(1, &texture_);
 	}
@@ -44,14 +46,16 @@ public:
 		glDeleteTextures(1, &texture_);
 	};
 
-	GLuint texture_;
-	EGLImageKHR image_;
 	uint32_t width_;
 	uint32_t height_;
 	uint32_t stride_;
 	uint32_t offset_;
 	uint32_t framesize_;
 	uint32_t bpp_;
+	uint32_t texture_unit_uniform_id_;
+	GLenum texture_unit_;
+	GLuint texture_;
+	EGLImageKHR image_;
 };
 
 class eGL
