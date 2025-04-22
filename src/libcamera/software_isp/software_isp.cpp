@@ -25,6 +25,7 @@
 #include "libcamera/internal/software_isp/debayer_params.h"
 
 #include "debayer_cpu.h"
+#include "debayer_egl.h"
 
 /**
  * \file software_isp.cpp
@@ -114,7 +115,17 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
-	debayer_ = std::make_unique<DebayerCpu>(std::move(stats));
+	//TODO: derive the selection from file/environment variable
+	debayer_ = std::make_unique<DebayerEGL>(std::move(stats));
+	if (!debayer_) {
+		LOG(SoftwareIsp, Error) << "Failed to create DebayerEGL object";
+		debayer_ = std::make_unique<DebayerCpu>(std::move(stats));
+		if (!debayer_) {
+			LOG(SoftwareIsp, Error) << "Failed to create DebayerCPUGL object";
+			return;
+		}
+	}
+
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 
