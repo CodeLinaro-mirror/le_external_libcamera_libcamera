@@ -19,13 +19,15 @@ from controls import Control
 
 
 exposed_controls = [
-    'AeEnable', 'AeMeteringMode', 'AeConstraintMode', 'AeExposureMode',
-    'ExposureValue', 'ExposureTime', 'ExposureTimeMode',
-    'AnalogueGain', 'AnalogueGainMode', 'AeFlickerPeriod',
-    'Brightness', 'Contrast', 'AwbEnable', 'AwbMode', 'ColourGains',
-    'Saturation', 'Sharpness', 'ColourCorrectionMatrix', 'ScalerCrop',
-    'DigitalGain', 'AfMode', 'AfRange', 'AfSpeed', 'AfMetering', 'AfWindows',
-    'LensPosition', 'Gamma',
+    'AeEnable', 'AeState', 'AeMeteringMode', 'AeConstraintMode',
+    'AeExposureMode', 'ExposureValue', 'ExposureTime', 'AnalogueGain',
+    'AnalogueGainMode', 'AeFlickerMode', 'AeFlickerPeriod',
+    'AeFlickerDetected', 'Brightness', 'Contrast', 'Lux', 'AwbEnable',
+    'AwbMode', 'AwbLocked', 'ColourGains', 'ColourTemperature', 'Saturation',
+    'SensorBlackLevels', 'Sharpness', 'FocusFoM', 'ColourCorrectionMatrix',
+    'ScalerCrop', 'DigitalGain', 'SensorTemperature', 'AfMode', 'AfRange',
+    'AfSpeed', 'AfMetering', 'AfWindows', 'LensPosition', 'AfState',
+    'AfPauseState', 'HdrMode', 'HdrChannel', 'Gamma',
 ]
 
 
