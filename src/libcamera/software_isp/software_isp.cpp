@@ -263,7 +263,9 @@ int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 	debayer_->moveToThread(&ispWorkerThread_);
 	ispWorkerThread_.start();
 
-	return debayer_->configure(inputCfg, outputCfgs, ccmEnabled_);
+	return debayer_->invokeMethod(&DebayerCpu::configure,
+				      ConnectionTypeBlocking, inputCfg,
+				      outputCfgs, ccmEnabled_);
 }
 
 /**
