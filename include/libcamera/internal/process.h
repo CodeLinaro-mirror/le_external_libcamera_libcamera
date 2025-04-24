@@ -9,10 +9,10 @@
 
 #include <signal.h>
 #include <string>
-#include <vector>
 
 #include <libcamera/base/class.h>
 #include <libcamera/base/signal.h>
+#include <libcamera/base/span.h>
 #include <libcamera/base/unique_fd.h>
 
 namespace libcamera {
@@ -32,8 +32,8 @@ public:
 	~Process();
 
 	int start(const std::string &path,
-		  const std::vector<std::string> &args = std::vector<std::string>(),
-		  const std::vector<int> &fds = std::vector<int>());
+		  Span<const std::string> args = {},
+		  Span<const int> fds = {});
 
 	ExitStatus exitStatus() const { return exitStatus_; }
 	int exitCode() const { return exitCode_; }
@@ -45,7 +45,7 @@ public:
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(Process)
 
-	void closeAllFdsExcept(const std::vector<int> &fds);
+	void closeAllFdsExcept(Span<const int> fds);
 	int isolate();
 	void died(int wstatus);
 

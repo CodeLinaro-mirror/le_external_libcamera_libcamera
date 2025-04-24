@@ -235,8 +235,8 @@ Process::~Process()
  * or a negative error code otherwise
  */
 int Process::start(const std::string &path,
-		   const std::vector<std::string> &args,
-		   const std::vector<int> &fds)
+		   Span<const std::string> args,
+		   Span<const int> fds)
 {
 	int ret;
 
@@ -281,9 +281,9 @@ int Process::start(const std::string &path,
 	}
 }
 
-void Process::closeAllFdsExcept(const std::vector<int> &fds)
+void Process::closeAllFdsExcept(Span<const int> fds)
 {
-	std::vector<int> v(fds);
+	std::vector<int> v(fds.begin(), fds.end());
 	sort(v.begin(), v.end());
 
 	ASSERT(v.empty() || v.front() >= 0);
