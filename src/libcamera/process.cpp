@@ -243,6 +243,11 @@ int Process::start(const std::string &path,
 	if (pid_ > 0)
 		return -EBUSY;
 
+	for (int fd : fds) {
+		if (fd < 0)
+			return -EINVAL;
+	}
+
 	int childPid = fork();
 	if (childPid == -1) {
 		ret = -errno;
@@ -280,6 +285,8 @@ void Process::closeAllFdsExcept(const std::vector<int> &fds)
 {
 	std::vector<int> v(fds);
 	sort(v.begin(), v.end());
+
+	ASSERT(v.empty() || v.front() >= 0);
 
 	DIR *dir = opendir("/proc/self/fd");
 	if (!dir)
