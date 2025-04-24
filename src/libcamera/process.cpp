@@ -63,6 +63,34 @@ void sigact(int signal, siginfo_t *info, void *ucontext)
 	}
 }
 
+void closeAllFdsExcept(Span<const int> fds)
+{
+	std::vector<int> v(fds.begin(), fds.end());
+	sort(v.begin(), v.end());
+
+	ASSERT(v.empty() || v.front() >= 0);
+
+	DIR *dir = opendir("/proc/self/fd");
+	if (!dir)
+		return;
+
+	int dfd = dirfd(dir);
+
+	struct dirent *ent;
+	while ((ent = readdir(dir)) != nullptr) {
+		char *endp;
+		int fd = strtoul(ent->d_name, &endp, 10);
+		if (*endp)
+			continue;
+
+		if (fd >= 0 && fd != dfd &&
+		    !std::binary_search(v.begin(), v.end(), fd))
+			close(fd);
+	}
+
+	closedir(dir);
+}
+
 } /* namespace */
 
 void ProcessManager::sighandler()
@@ -279,34 +307,6 @@ int Process::start(const std::string &path,
 
 		exit(EXIT_FAILURE);
 	}
-}
-
-void Process::closeAllFdsExcept(Span<const int> fds)
-{
-	std::vector<int> v(fds.begin(), fds.end());
-	sort(v.begin(), v.end());
-
-	ASSERT(v.empty() || v.front() >= 0);
-
-	DIR *dir = opendir("/proc/self/fd");
-	if (!dir)
-		return;
-
-	int dfd = dirfd(dir);
-
-	struct dirent *ent;
-	while ((ent = readdir(dir)) != nullptr) {
-		char *endp;
-		int fd = strtoul(ent->d_name, &endp, 10);
-		if (*endp)
-			continue;
-
-		if (fd >= 0 && fd != dfd &&
-		    !std::binary_search(v.begin(), v.end(), fd))
-			close(fd);
-	}
-
-	closedir(dir);
 }
 
 int Process::isolate()
