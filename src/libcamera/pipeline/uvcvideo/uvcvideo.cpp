@@ -109,6 +109,8 @@ private:
 	{
 		return static_cast<UVCCameraData *>(camera->_d());
 	}
+
+	static constexpr unsigned int kUVCBufferSlotCount = 16;
 };
 
 namespace {
@@ -291,9 +293,8 @@ int PipelineHandlerUVC::exportFrameBuffers(Camera *camera,
 int PipelineHandlerUVC::start(Camera *camera, [[maybe_unused]] const ControlList *controls)
 {
 	UVCCameraData *data = cameraData(camera);
-	unsigned int count = data->stream_.configuration().bufferCount;
 
-	int ret = data->video_->importBuffers(count);
+	int ret = data->video_->importBuffers(kUVCBufferSlotCount);
 	if (ret < 0)
 		return ret;
 

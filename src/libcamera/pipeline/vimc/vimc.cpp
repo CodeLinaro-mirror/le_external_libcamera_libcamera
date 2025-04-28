@@ -109,6 +109,8 @@ private:
 	{
 		return static_cast<VimcCameraData *>(camera->_d());
 	}
+
+	static constexpr unsigned int kVimcBufferSlotCount = 16;
 };
 
 namespace {
@@ -356,9 +358,8 @@ int PipelineHandlerVimc::exportFrameBuffers(Camera *camera,
 int PipelineHandlerVimc::start(Camera *camera, [[maybe_unused]] const ControlList *controls)
 {
 	VimcCameraData *data = cameraData(camera);
-	unsigned int count = data->stream_.configuration().bufferCount;
 
-	int ret = data->video_->importBuffers(count);
+	int ret = data->video_->importBuffers(kVimcBufferSlotCount);
 	if (ret < 0)
 		return ret;
 
