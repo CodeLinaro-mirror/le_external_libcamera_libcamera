@@ -75,7 +75,7 @@ public:
 	virtual int exportBuffers(const Stream *stream, unsigned int count,
 				  std::vector<std::unique_ptr<FrameBuffer>> *buffers) = 0;
 
-	virtual int start() = 0;
+	virtual int start(unsigned int inputBufferCount) = 0;
 	virtual void stop() = 0;
 
 	virtual int queueBuffers(FrameBuffer *input,

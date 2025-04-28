@@ -59,7 +59,7 @@ public:
 	int exportBuffers(const Stream *stream, unsigned int count,
 			  std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
-	int start() override;
+	int start(unsigned int inputBufferCount) override;
 	void stop() override;
 
 	int validateOutput(StreamConfiguration *cfg, bool *adjusted,
@@ -85,7 +85,7 @@ private:
 		int exportBuffers(unsigned int count,
 				  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
 
-		int start();
+		int start(unsigned int inputBufferCount);
 		void stop();
 
 		int queueBuffers(FrameBuffer *input, FrameBuffer *output);

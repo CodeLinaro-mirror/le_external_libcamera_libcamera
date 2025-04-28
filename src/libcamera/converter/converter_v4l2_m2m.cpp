@@ -160,13 +160,15 @@ int V4L2M2MConverter::V4L2M2MStream::exportBuffers(unsigned int count,
 	return m2m_->capture()->exportBuffers(count, buffers);
 }
 
-int V4L2M2MConverter::V4L2M2MStream::start()
+int V4L2M2MConverter::V4L2M2MStream::start(unsigned int inputBufferCount)
 {
-	int ret = m2m_->output()->importBuffers(inputBufferCount_);
+	static constexpr unsigned int kOutputBufferCount = 16;
+
+	int ret = m2m_->output()->importBuffers(inputBufferCount);
 	if (ret < 0)
 		return ret;
 
-	ret = m2m_->capture()->importBuffers(outputBufferCount_);
+	ret = m2m_->capture()->importBuffers(kOutputBufferCount);
 	if (ret < 0) {
 		stop();
 		return ret;
@@ -620,12 +622,12 @@ V4L2M2MConverter::inputCropBounds(const Stream *stream)
 /**
  * \copydoc libcamera::Converter::start
  */
-int V4L2M2MConverter::start()
+int V4L2M2MConverter::start(unsigned int inputBufferCount)
 {
 	int ret;
 
 	for (auto &iter : streams_) {
-		ret = iter.second->start();
+		ret = iter.second->start(inputBufferCount);
 		if (ret < 0) {
 			stop();
 			return ret;

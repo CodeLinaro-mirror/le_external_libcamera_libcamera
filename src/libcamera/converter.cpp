@@ -190,6 +190,8 @@ Converter::~Converter()
 /**
  * \fn Converter::start()
  * \brief Start the converter streaming operation
+ * \param[in] inputBufferCount Number of input buffers that will be used to
+ * move video capture device frames into the converter.
  * \return 0 on success or a negative error code otherwise
  */
 

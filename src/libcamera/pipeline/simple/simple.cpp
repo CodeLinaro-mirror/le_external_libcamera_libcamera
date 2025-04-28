@@ -422,6 +422,7 @@ protected:
 
 private:
 	static constexpr unsigned int kNumInternalBuffers = 3;
+	static constexpr unsigned int kSimpleBufferSlotCount = 16;
 
 	struct EntityData {
 		std::unique_ptr<V4L2VideoDevice> video;
@@ -1466,17 +1467,27 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		return -EBUSY;
 	}
 
+	/*
+	 * Number of internal buffers that will be used to move video capture
+	 * device frames to the converter.
+	 *
+	 * \todo Make this depend on the driver in use instead of being
+	 * hardcoded. In order to not drop frames, the realtime requirements for
+	 * each device should be checked, so it may not be as simple as just
+	 * using the minimum number of buffers required by the driver.
+	 */
+	static constexpr unsigned int internalBufferCount = 3;
+
 	if (data->useConversion_) {
 		/*
 		 * When using the converter allocate a fixed number of internal
 		 * buffers.
 		 */
-		ret = video->allocateBuffers(kNumInternalBuffers,
+		ret = video->allocateBuffers(internalBufferCount,
 					     &data->conversionBuffers_);
 	} else {
-		/* Otherwise, prepare for using buffers from the only stream. */
-		Stream *stream = &data->streams_[0];
-		ret = video->importBuffers(stream->configuration().bufferCount);
+		/* Otherwise, prepare for using buffers. */
+		ret = video->importBuffers(kSimpleBufferSlotCount);
 	}
 	if (ret < 0) {
 		releasePipeline(data);
@@ -1504,7 +1515,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 
 	if (data->useConversion_) {
 		if (data->converter_)
-			ret = data->converter_->start();
+			ret = data->converter_->start(internalBufferCount);
 		else if (data->swIsp_)
 			ret = data->swIsp_->start();
 		else

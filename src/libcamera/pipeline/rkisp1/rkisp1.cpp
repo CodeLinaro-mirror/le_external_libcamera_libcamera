@@ -1110,7 +1110,7 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 		actions += [&]() { stat_->streamOff(); };
 
 		if (useDewarper_) {
-			ret = dewarper_->start();
+			ret = dewarper_->start(kRkISP1InternalBufferCount);
 			if (ret) {
 				LOG(RkISP1, Error) << "Failed to start dewarper";
 				return ret;
