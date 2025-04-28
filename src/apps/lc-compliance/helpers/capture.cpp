@@ -44,6 +44,24 @@ void Capture::configure(libcamera::Span<const libcamera::StreamRole> roles)
 	}
 }
 
+void Capture::allocateBuffers(unsigned int count)
+{
+	assert(!allocator_.allocated());
+
+	if (!count)
+		count = camera_->properties().get(properties::MinimumRequests).value();
+
+	for (const auto &cfg : *config_) {
+		Stream *stream = cfg.stream();
+
+		int allocatedCount = allocator_.allocate(stream, count);
+		ASSERT_GE(allocatedCount, 0) << "Failed to allocate buffers";
+		EXPECT_EQ(allocatedCount, count) << "Allocated less buffers than expected";
+	}
+
+	requestCount_ = count;
+}
+
 void Capture::run(unsigned int captureLimit, std::optional<unsigned int> queueLimit)
 {
 	assert(!queueLimit || captureLimit <= *queueLimit);
@@ -103,19 +121,16 @@ void Capture::start()
 {
 	assert(config_);
 	assert(!config_->empty());
-	assert(!allocator_.allocated());
+	assert(allocator_.allocated());
 	assert(requests_.empty());
 
-	unsigned int bufferCount =
-		camera_->properties().get(properties::MinimumRequests).value();
-
 	/* No point in testing less requests then the camera depth. */
-	if (queueLimit_ && *queueLimit_ < bufferCount) {
-		GTEST_SKIP() << "Camera needs " << bufferCount
+	if (queueLimit_ && *queueLimit_ < requestCount_) {
+		GTEST_SKIP() << "Camera needs " << requestCount_
 			     << " requests, can't test only " << *queueLimit_;
 	}
 
-	for (std::size_t i = 0; i < bufferCount; i++) {
+	for (std::size_t i = 0; i < requestCount_; i++) {
 		std::unique_ptr<Request> request = camera_->createRequest();
 		ASSERT_TRUE(request) << "Can't create request";
 		requests_.push_back(std::move(request));
@@ -124,13 +139,10 @@ void Capture::start()
 	for (const auto &cfg : *config_) {
 		Stream *stream = cfg.stream();
 
-		int count = allocator_.allocate(stream, bufferCount);
-		ASSERT_GE(count, 0) << "Failed to allocate buffers";
-
 		const auto &buffers = allocator_.buffers(stream);
-		ASSERT_EQ(buffers.size(), bufferCount) << "Mismatching buffer count";
+		ASSERT_EQ(buffers.size(), requestCount_) << "Mismatching buffer count";
 
-		for (std::size_t i = 0; i < bufferCount; i++) {
+		for (std::size_t i = 0; i < requestCount_; i++) {
 			ASSERT_EQ(requests_[i]->addBuffer(stream, buffers[i].get()), 0)
 				<< "Failed to add buffer to request";
 		}

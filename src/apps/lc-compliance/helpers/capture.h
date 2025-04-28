@@ -21,6 +21,7 @@ public:
 	~Capture();
 
 	void configure(libcamera::Span<const libcamera::StreamRole> roles);
+	void allocateBuffers(unsigned int count = 0);
 	void run(unsigned int captureLimit, std::optional<unsigned int> queueLimit = {});
 
 private:
@@ -42,4 +43,5 @@ private:
 	std::optional<unsigned int> queueLimit_;
 	unsigned int captureCount_ = 0;
 	unsigned int queueCount_ = 0;
+	unsigned int requestCount_ = 0;
 };

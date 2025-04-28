@@ -83,6 +83,8 @@ TEST_P(SimpleCapture, Capture)
 
 	capture.configure(roles);
 
+	capture.allocateBuffers();
+
 	capture.run(numRequests, numRequests);
 }
 
@@ -102,8 +104,10 @@ TEST_P(SimpleCapture, CaptureStartStop)
 
 	capture.configure(roles);
 
-	for (unsigned int starts = 0; starts < numRepeats; starts++)
+	for (unsigned int starts = 0; starts < numRepeats; starts++) {
+		capture.allocateBuffers();
 		capture.run(numRequests, numRequests);
+	}
 }
 
 /*
@@ -120,6 +124,8 @@ TEST_P(SimpleCapture, UnbalancedStop)
 	Capture capture(camera_);
 
 	capture.configure(roles);
+
+	capture.allocateBuffers();
 
 	capture.run(numRequests);
 }
