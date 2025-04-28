@@ -69,8 +69,6 @@ private:
 	void populateFormats();
 	Size filterSensorResolution(const CameraSensor *sensor);
 
-	static constexpr unsigned int RKISP1_BUFFER_COUNT = 4;
-
 	const char *name_;
 	bool running_;
 

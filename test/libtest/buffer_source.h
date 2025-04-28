@@ -18,7 +18,7 @@ public:
 	BufferSource();
 	~BufferSource();
 
-	int allocate(const libcamera::StreamConfiguration &config);
+	int allocate(const libcamera::StreamConfiguration &config, unsigned int count);
 	const std::vector<std::unique_ptr<libcamera::FrameBuffer>> &buffers();
 
 private:

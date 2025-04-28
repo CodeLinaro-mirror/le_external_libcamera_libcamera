@@ -97,7 +97,6 @@ private:
 class IPU3CameraConfiguration : public CameraConfiguration
 {
 public:
-	static constexpr unsigned int kBufferCount = 4;
 	static constexpr unsigned int kMaxStreams = 3;
 
 	IPU3CameraConfiguration(IPU3CameraData *data);
@@ -293,7 +292,6 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 			/* Initialize the RAW stream with the CIO2 configuration. */
 			cfg->size = cio2Configuration_.size;
 			cfg->pixelFormat = cio2Configuration_.pixelFormat;
-			cfg->bufferCount = cio2Configuration_.bufferCount;
 			cfg->stride = info.stride(cfg->size.width, 0, 64);
 			cfg->frameSize = info.frameSize(cfg->size, 64);
 			cfg->setStream(const_cast<Stream *>(&data_->rawStream_));
@@ -337,7 +335,6 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 					      ImgUDevice::kOutputAlignHeight);
 
 			cfg->pixelFormat = formats::NV12;
-			cfg->bufferCount = kBufferCount;
 			cfg->stride = info.stride(cfg->size.width, 0, 1);
 			cfg->frameSize = info.frameSize(cfg->size, 1);
 
@@ -406,7 +403,6 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 	Size sensorResolution = data->cio2_.sensor()->resolution();
 	for (const StreamRole role : roles) {
 		std::map<PixelFormat, std::vector<SizeRange>> streamFormats;
-		unsigned int bufferCount;
 		PixelFormat pixelFormat;
 		Size size;
 
@@ -426,7 +422,6 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 					       .alignedDownTo(ImgUDevice::kOutputMarginWidth,
 							      ImgUDevice::kOutputMarginHeight);
 			pixelFormat = formats::NV12;
-			bufferCount = IPU3CameraConfiguration::kBufferCount;
 			streamFormats[pixelFormat] = { { ImgUDevice::kOutputMinSize, size } };
 
 			break;
@@ -436,7 +431,6 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 				data->cio2_.generateConfiguration(sensorResolution);
 			pixelFormat = cio2Config.pixelFormat;
 			size = cio2Config.size;
-			bufferCount = cio2Config.bufferCount;
 
 			for (const PixelFormat &format : data->cio2_.formats())
 				streamFormats[format] = data->cio2_.sizes(format);
@@ -455,7 +449,6 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 					       .alignedDownTo(ImgUDevice::kOutputAlignWidth,
 							      ImgUDevice::kOutputAlignHeight);
 			pixelFormat = formats::NV12;
-			bufferCount = IPU3CameraConfiguration::kBufferCount;
 			streamFormats[pixelFormat] = { { ImgUDevice::kOutputMinSize, size } };
 
 			break;
@@ -471,7 +464,6 @@ PipelineHandlerIPU3::generateConfiguration(Camera *camera, Span<const StreamRole
 		StreamConfiguration cfg(formats);
 		cfg.size = size;
 		cfg.pixelFormat = pixelFormat;
-		cfg.bufferCount = bufferCount;
 		config->addConfiguration(cfg);
 	}
 

@@ -183,8 +183,6 @@ CameraConfiguration::Status VimcCameraConfiguration::validate()
 		status = Adjusted;
 	}
 
-	cfg.bufferCount = 4;
-
 	V4L2DeviceFormat format;
 	format.fourcc = data_->video_->toV4L2PixelFormat(cfg.pixelFormat);
 	format.size = cfg.size;
@@ -244,7 +242,6 @@ PipelineHandlerVimc::generateConfiguration(Camera *camera,
 
 	cfg.pixelFormat = formats::BGR888;
 	cfg.size = { 1920, 1080 };
-	cfg.bufferCount = 4;
 
 	config->addConfiguration(cfg);
 

@@ -421,7 +421,6 @@ protected:
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
 private:
-	static constexpr unsigned int kNumInternalBuffers = 3;
 	static constexpr unsigned int kSimpleBufferSlotCount = 16;
 
 	struct EntityData {
@@ -1239,7 +1238,7 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		    cfg.size != pipeConfig_->captureSize)
 			needConversion_ = true;
 
-		/* Set the stride, frameSize and bufferCount. */
+		/* Set the stride and frameSize. */
 		if (needConversion_) {
 			std::tie(cfg.stride, cfg.frameSize) =
 				data_->converter_
@@ -1261,8 +1260,6 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 			cfg.stride = format.planes[0].bpl;
 			cfg.frameSize = format.planes[0].size;
 		}
-
-		cfg.bufferCount = 4;
 	}
 
 	return status;
@@ -1407,7 +1404,6 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	inputCfg.pixelFormat = pipeConfig->captureFormat;
 	inputCfg.size = pipeConfig->captureSize;
 	inputCfg.stride = captureFormat.planes[0].bpl;
-	inputCfg.bufferCount = kNumInternalBuffers;
 
 	if (data->converter_) {
 		/*

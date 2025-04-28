@@ -174,10 +174,9 @@ public:
 		StreamConfiguration cfg;
 		cfg.pixelFormat = formats::YUYV;
 		cfg.size = Size(600, 800);
-		cfg.bufferCount = numBuffers;
 
 		BufferSource source;
-		int ret = source.allocate(cfg);
+		int ret = source.allocate(cfg, numBuffers);
 		if (ret != TestPass)
 			return ret;
 

@@ -67,8 +67,6 @@ overloaded(Ts...) -> overloaded<Ts...>;
 class VirtualCameraConfiguration : public CameraConfiguration
 {
 public:
-	static constexpr unsigned int kBufferCount = 4;
-
 	VirtualCameraConfiguration(VirtualCameraData *data);
 
 	Status validate() override;
@@ -188,8 +186,6 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
 		cfg.stride = info.stride(cfg.size.width, 0, 1);
 		cfg.frameSize = info.frameSize(cfg.size, 1);
-
-		cfg.bufferCount = VirtualCameraConfiguration::kBufferCount;
 	}
 
 	return status;
@@ -244,7 +240,6 @@ PipelineHandlerVirtual::generateConfiguration(Camera *camera,
 		StreamConfiguration cfg(formats);
 		cfg.pixelFormat = pixelFormat;
 		cfg.size = data->config_.maxResolutionSize;
-		cfg.bufferCount = VirtualCameraConfiguration::kBufferCount;
 
 		config->addConfiguration(cfg);
 	}

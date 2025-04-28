@@ -46,8 +46,6 @@ struct StreamConfiguration {
 	unsigned int stride;
 	unsigned int frameSize;
 
-	unsigned int bufferCount;
-
 	std::optional<ColorSpace> colorSpace;
 
 	Stream *stream() const { return stream_; }

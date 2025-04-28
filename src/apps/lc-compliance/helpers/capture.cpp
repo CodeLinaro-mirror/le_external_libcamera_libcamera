@@ -33,20 +33,6 @@ void Capture::configure(libcamera::Span<const libcamera::StreamRole> roles)
 
 	ASSERT_EQ(config_->size(), roles.size()) << "Unexpected number of streams in configuration";
 
-	/*
-	 * Set the buffers count to the largest value across all streams.
-	 * \todo: Should all streams from a Camera have the same buffer count ?
-	 */
-	auto largest =
-		std::max_element(config_->begin(), config_->end(),
-				 [](const StreamConfiguration &l, const StreamConfiguration &r)
-				 { return l.bufferCount < r.bufferCount; });
-
-	assert(largest != config_->end());
-
-	for (auto &cfg : *config_)
-		cfg.bufferCount = largest->bufferCount;
-
 	if (config_->validate() != CameraConfiguration::Valid) {
 		config_.reset();
 		FAIL() << "Configuration not valid";

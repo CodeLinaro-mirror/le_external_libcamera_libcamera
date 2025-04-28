@@ -818,7 +818,6 @@ PipelineHandlerMaliC55::generateConfiguration(Camera *camera,
 		StreamFormats streamFormats(formats);
 		StreamConfiguration cfg(streamFormats);
 		cfg.pixelFormat = pixelFormat;
-		cfg.bufferCount = 4;
 		cfg.size = size;
 
 		config->addConfiguration(cfg);

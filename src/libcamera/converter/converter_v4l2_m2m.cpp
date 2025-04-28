@@ -141,9 +141,6 @@ int V4L2M2MConverter::V4L2M2MStream::configure(const StreamConfiguration &inputC
 		return -EINVAL;
 	}
 
-	inputBufferCount_ = inputCfg.bufferCount;
-	outputBufferCount_ = outputCfg.bufferCount;
-
 	if (converter_->features() & Feature::InputCrop) {
 		ret = getCropBounds(m2m_->output(), inputCropBounds_.first,
 				    inputCropBounds_.second);

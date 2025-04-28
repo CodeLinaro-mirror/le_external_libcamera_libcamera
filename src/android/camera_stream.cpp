@@ -14,6 +14,7 @@
 #include <unistd.h>
 
 #include <libcamera/formats.h>
+#include <libcamera/property_ids.h>
 
 #include "jpeg/post_processor_jpeg.h"
 #include "yuv/post_processor_yuv.h"
@@ -131,7 +132,9 @@ int CameraStream::configure()
 	allocator_ = std::make_unique<PlatformFrameBufferAllocator>(cameraDevice_);
 	mutex_ = std::make_unique<Mutex>();
 
-	camera3Stream_->max_buffers = configuration().bufferCount;
+	unsigned int bufferCount =
+		cameraDevice_->camera()->properties().get(properties::MinimumRequests).value();
+	camera3Stream_->max_buffers = bufferCount;
 
 	return 0;
 }

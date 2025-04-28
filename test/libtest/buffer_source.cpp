@@ -26,7 +26,7 @@ BufferSource::~BufferSource()
 		media_->release();
 }
 
-int BufferSource::allocate(const StreamConfiguration &config)
+int BufferSource::allocate(const StreamConfiguration &config, unsigned int count)
 {
 	/* Locate and open the video device. */
 	std::string videoDeviceName = "vivid-000-vid-out";
@@ -78,7 +78,7 @@ int BufferSource::allocate(const StreamConfiguration &config)
 		return TestFail;
 	}
 
-	if (video->allocateBuffers(config.bufferCount, &buffers_) < 0) {
+	if (video->allocateBuffers(count, &buffers_) < 0) {
 		std::cout << "Failed to allocate buffers" << std::endl;
 		return TestFail;
 	}

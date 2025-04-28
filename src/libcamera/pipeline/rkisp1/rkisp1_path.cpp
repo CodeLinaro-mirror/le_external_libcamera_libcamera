@@ -249,7 +249,6 @@ RkISP1Path::generateConfiguration(const CameraSensor *sensor, const Size &size,
 	StreamConfiguration cfg(formats);
 	cfg.pixelFormat = format;
 	cfg.size = streamSize;
-	cfg.bufferCount = RKISP1_BUFFER_COUNT;
 
 	return cfg;
 }
@@ -383,7 +382,6 @@ RkISP1Path::validate(const CameraSensor *sensor,
 
 	cfg->size.boundTo(maxResolution);
 	cfg->size.expandTo(minResolution);
-	cfg->bufferCount = RKISP1_BUFFER_COUNT;
 
 	V4L2DeviceFormat format;
 	format.fourcc = video_->toV4L2PixelFormat(cfg->pixelFormat);

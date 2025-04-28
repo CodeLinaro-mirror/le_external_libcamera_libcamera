@@ -16,6 +16,8 @@
 #include <libcamera/base/thread.h>
 #include <libcamera/base/timer.h>
 
+#include <libcamera/property_ids.h>
+
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/v4l2_videodevice.h"
@@ -97,10 +99,13 @@ protected:
 			return TestFail;
 		}
 
+		unsigned int bufferCount =
+			camera_->properties().get(properties::MinimumRequests).value();
+
 		Stream *stream = cfg.stream();
 
 		BufferSource source;
-		int ret = source.allocate(cfg);
+		int ret = source.allocate(cfg, bufferCount);
 		if (ret != TestPass)
 			return ret;
 
@@ -137,7 +142,7 @@ protected:
 			}
 		}
 
-		const unsigned int nFrames = cfg.bufferCount * 2;
+		const unsigned int nFrames = bufferCount * 2;
 
 		Timer timer;
 		timer.start(500ms * nFrames);

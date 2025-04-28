@@ -280,8 +280,7 @@ SizeRange StreamFormats::range(const PixelFormat &pixelformat) const
  * handlers provide StreamFormats.
  */
 StreamConfiguration::StreamConfiguration()
-	: pixelFormat(0), stride(0), frameSize(0), bufferCount(0),
-	  stream_(nullptr)
+	: pixelFormat(0), stride(0), frameSize(0), stream_(nullptr)
 {
 }
 
@@ -289,8 +288,8 @@ StreamConfiguration::StreamConfiguration()
  * \brief Construct a configuration with stream formats
  */
 StreamConfiguration::StreamConfiguration(const StreamFormats &formats)
-	: pixelFormat(0), stride(0), frameSize(0), bufferCount(0),
-	  stream_(nullptr), formats_(formats)
+	: pixelFormat(0), stride(0), frameSize(0), stream_(nullptr),
+	  formats_(formats)
 {
 }
 
@@ -323,11 +322,6 @@ StreamConfiguration::StreamConfiguration(const StreamFormats &formats)
  * frame of an image buffer for this stream. This total includes the bytes
  * required for all image planes. The value is valid after successfully
  * validating the configuration with a call to CameraConfiguration::validate().
- */
-
-/**
- * \var StreamConfiguration::bufferCount
- * \brief Requested number of buffers to allocate for the stream
  */
 
 /**

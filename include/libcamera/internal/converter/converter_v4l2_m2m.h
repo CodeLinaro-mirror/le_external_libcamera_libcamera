@@ -106,9 +106,6 @@ private:
 		const Stream *stream_;
 		std::unique_ptr<V4L2M2MDevice> m2m_;
 
-		unsigned int inputBufferCount_;
-		unsigned int outputBufferCount_;
-
 		std::pair<Rectangle, Rectangle> inputCropBounds_;
 	};
 

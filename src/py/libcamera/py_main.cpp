@@ -337,7 +337,6 @@ PYBIND11_MODULE(_libcamera, m)
 		.def_readwrite("pixel_format", &StreamConfiguration::pixelFormat)
 		.def_readwrite("stride", &StreamConfiguration::stride)
 		.def_readwrite("frame_size", &StreamConfiguration::frameSize)
-		.def_readwrite("buffer_count", &StreamConfiguration::bufferCount)
 		.def_property_readonly("formats", &StreamConfiguration::formats,
 				       py::return_value_policy::reference_internal)
 		.def_readwrite("color_space", &StreamConfiguration::colorSpace);

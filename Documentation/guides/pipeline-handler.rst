@@ -882,14 +882,12 @@ As well as a list of supported StreamFormats, the StreamConfiguration is also
 expected to provide an initialised default configuration. This may be arbitrary,
 but depending on use case you may wish to select an output that matches the
 Sensor output, or prefer a pixelformat which might provide higher performance on
-the hardware. The bufferCount represents the number of buffers required to
-support functional continuous processing on this stream.
+the hardware.
 
 .. code-block:: cpp
 
    cfg.pixelFormat = formats::BGR888;
    cfg.size = { 1280, 720 };
-   cfg.bufferCount = 4;
 
 Finally add each ``StreamConfiguration`` generated to the
 ``CameraConfiguration``, and ensure that it has been validated before returning
@@ -954,8 +952,6 @@ Add the following function implementation to your file:
                   LOG(VIVID, Debug) << "Adjusting format to " << cfg.pixelFormat.toString();
                   status = Adjusted;
            }
-
-           cfg.bufferCount = 4;
 
            return status;
    }
@@ -1200,13 +1196,20 @@ is performed by using the ``V4L2VideoDevice`` API, which provides an
 
 .. _FrameBuffer: https://libcamera.org/api-html/classlibcamera_1_1FrameBuffer.html
 
+The number passed to ``importBuffers()`` should be at least equal to the value
+of the ``MinimumRequests`` property in order to be possible to queue enough
+buffers to the video device that frames won't be dropped during capture. A
+bigger value can be advantageous to reduce the thrashing of dma-buf file
+descriptor mappings in case the application queues more requests and therefore
+improve performance, but for simplicity we'll just use ``MinimumRequests``.
+
 Implement the pipeline handler ``start()`` function by replacing the stub
 version with the following code:
 
 .. code-block:: c++
 
    VividCameraData *data = cameraData(camera);
-   unsigned int count = data->stream_.configuration().bufferCount;
+   unsigned int count = camera->properties().get(properties::MinimumRequests);
 
    int ret = data->video_->importBuffers(count);
    if (ret < 0)
