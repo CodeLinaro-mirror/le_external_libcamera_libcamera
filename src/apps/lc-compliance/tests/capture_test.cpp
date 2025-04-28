@@ -21,6 +21,8 @@ namespace {
 
 using namespace libcamera;
 
+static constexpr unsigned int MAX_SIMULTANEOUS_REQUESTS = 8;
+
 class SimpleCapture : public testing::TestWithParam<std::tuple<std::vector<StreamRole>, int>>, public CameraHolder
 {
 public:
@@ -54,6 +56,36 @@ std::string SimpleCapture::nameParameters(const testing::TestParamInfo<SimpleCap
 		ss << r << '_';
 
 	ss << '_' << numRequests;
+
+	return ss.str();
+}
+
+class RoleParametrizedTest : public testing::TestWithParam<std::vector<StreamRole>>, public CameraHolder
+{
+public:
+	static std::string nameParameters(const testing::TestParamInfo<RoleParametrizedTest::ParamType> &info);
+
+protected:
+	void SetUp() override;
+	void TearDown() override;
+};
+
+void RoleParametrizedTest::SetUp()
+{
+	acquireCamera();
+}
+
+void RoleParametrizedTest::TearDown()
+{
+	releaseCamera();
+}
+
+std::string RoleParametrizedTest::nameParameters(const testing::TestParamInfo<RoleParametrizedTest::ParamType> &info)
+{
+	std::ostringstream ss;
+
+	for (StreamRole r : info.param)
+		ss << r << '_';
 
 	return ss.str();
 }
@@ -120,6 +152,19 @@ TEST_P(SimpleCapture, UnbalancedStop)
 	capture.run(numRequests);
 }
 
+TEST_P(RoleParametrizedTest, Overflow)
+{
+	auto roles = GetParam();
+
+	Capture capture(camera_);
+
+	capture.configure(roles);
+
+	capture.allocateBuffers(MAX_SIMULTANEOUS_REQUESTS);
+
+	capture.run(MAX_SIMULTANEOUS_REQUESTS, MAX_SIMULTANEOUS_REQUESTS);
+}
+
 const int NUMREQUESTS[] = { 1, 2, 3, 5, 8, 13, 21, 34, 55, 89 };
 
 const std::vector<StreamRole> SINGLEROLES[] = {
@@ -147,5 +192,15 @@ INSTANTIATE_TEST_SUITE_P(MultiStream,
 			 testing::Combine(testing::ValuesIn(MULTIROLES),
 					  testing::ValuesIn(NUMREQUESTS)),
 			 SimpleCapture::nameParameters);
+
+INSTANTIATE_TEST_SUITE_P(SingleStream,
+			 RoleParametrizedTest,
+			 testing::ValuesIn(SINGLEROLES),
+			 RoleParametrizedTest::nameParameters);
+
+INSTANTIATE_TEST_SUITE_P(MultiStream,
+			 RoleParametrizedTest,
+			 testing::ValuesIn(MULTIROLES),
+			 RoleParametrizedTest::nameParameters);
 
 } /* namespace */
