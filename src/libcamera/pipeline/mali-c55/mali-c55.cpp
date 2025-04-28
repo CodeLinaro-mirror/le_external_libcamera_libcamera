@@ -701,6 +701,14 @@ private:
 	std::array<MaliC55Pipe, MaliC55NumPipes> pipes_;
 
 	bool dsFitted_;
+
+	/*
+	 * This many internal buffers (or rather parameter and statistics buffer
+	 * pairs) ensures that the pipeline runs smoothly, without frame drops.
+	 * \todo check if this can be lowered
+	 */
+	static constexpr unsigned int kMaliC55InternalBufferCount = 4;
+	static constexpr unsigned int kMaliC55BufferSlotCount = 16;
 };
 
 PipelineHandlerMaliC55::PipelineHandlerMaliC55(CameraManager *manager)
@@ -1128,15 +1136,9 @@ int PipelineHandlerMaliC55::allocateBuffers(Camera *camera)
 {
 	MaliC55CameraData *data = cameraData(camera);
 	unsigned int ipaBufferId = 1;
-	unsigned int bufferCount;
 	int ret;
 
-	bufferCount = std::max({
-		data->frStream_.configuration().bufferCount,
-		data->dsStream_.configuration().bufferCount,
-	});
-
-	ret = stats_->allocateBuffers(bufferCount, &statsBuffers_);
+	ret = stats_->allocateBuffers(kMaliC55InternalBufferCount, &statsBuffers_);
 	if (ret < 0)
 		return ret;
 
@@ -1147,7 +1149,7 @@ int PipelineHandlerMaliC55::allocateBuffers(Camera *camera)
 		availableStatsBuffers_.push(buffer.get());
 	}
 
-	ret = params_->allocateBuffers(bufferCount, &paramsBuffers_);
+	ret = params_->allocateBuffers(kMaliC55InternalBufferCount, &paramsBuffers_);
 	if (ret < 0)
 		return ret;
 
@@ -1189,9 +1191,7 @@ int PipelineHandlerMaliC55::start(Camera *camera, [[maybe_unused]] const Control
 		if (!pipe.stream)
 			continue;
 
-		Stream *stream = pipe.stream;
-
-		ret = pipe.cap->importBuffers(stream->configuration().bufferCount);
+		ret = pipe.cap->importBuffers(kMaliC55BufferSlotCount);
 		if (ret) {
 			LOG(MaliC55, Error) << "Failed to import buffers";
 			if (data->ipa_)
