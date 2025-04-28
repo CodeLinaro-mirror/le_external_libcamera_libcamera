@@ -950,7 +950,7 @@ void Camera::disconnect()
 	disconnected.emit();
 }
 
-int Camera::exportFrameBuffers(Stream *stream,
+int Camera::exportFrameBuffers(Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	Private *const d = _d();
@@ -967,7 +967,7 @@ int Camera::exportFrameBuffers(Stream *stream,
 
 	return d->pipe_->invokeMethod(&PipelineHandler::exportFrameBuffers,
 				      ConnectionTypeBlocking, this, stream,
-				      buffers);
+				      count, buffers);
 }
 
 /**

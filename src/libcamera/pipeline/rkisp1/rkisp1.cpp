@@ -158,7 +158,7 @@ public:
 								   Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, Stream *stream,
+	int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;
@@ -953,10 +953,10 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 }
 
 int PipelineHandlerRkISP1::exportFrameBuffers([[maybe_unused]] Camera *camera, Stream *stream,
+					      unsigned int count,
 					      std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	RkISP1CameraData *data = cameraData(camera);
-	unsigned int count = stream->configuration().bufferCount;
 
 	if (stream == &data->mainPathStream_) {
 		/*

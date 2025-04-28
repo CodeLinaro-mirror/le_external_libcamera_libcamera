@@ -209,7 +209,7 @@ implementations for the overridden class members.
           Span<const StreamRole> roles) override;
           int configure(Camera *camera, CameraConfiguration *config) override;
 
-          int exportFrameBuffers(Camera *camera, Stream *stream,
+          int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
           std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
           int start(Camera *camera, const ControlList *controls) override;
@@ -1242,7 +1242,6 @@ handle this:
 
 .. code-block:: cpp
 
-   unsigned int count = stream->configuration().bufferCount;
    VividCameraData *data = cameraData(camera);
 
    return data->video_->exportBuffers(count, buffers);

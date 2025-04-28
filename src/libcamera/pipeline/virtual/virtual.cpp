@@ -87,7 +87,7 @@ public:
 								   Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, Stream *stream,
+	int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;
@@ -269,6 +269,7 @@ int PipelineHandlerVirtual::configure(Camera *camera,
 
 int PipelineHandlerVirtual::exportFrameBuffers([[maybe_unused]] Camera *camera,
 					       Stream *stream,
+					       unsigned int count,
 					       std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	if (!dmaBufAllocator_.isValid())
@@ -281,7 +282,7 @@ int PipelineHandlerVirtual::exportFrameBuffers([[maybe_unused]] Camera *camera,
 	for (size_t i = 0; i < info.numPlanes(); ++i)
 		planeSizes.push_back(info.planeSize(config.size, i));
 
-	return dmaBufAllocator_.exportBuffers(config.bufferCount, planeSizes, buffers);
+	return dmaBufAllocator_.exportBuffers(count, planeSizes, buffers);
 }
 
 int PipelineHandlerVirtual::start([[maybe_unused]] Camera *camera,

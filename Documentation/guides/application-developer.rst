@@ -32,6 +32,7 @@ defined names and types without the need of prefixing them.
    #include <thread>
 
    #include <libcamera/libcamera.h>
+   #include <libcamera/property_ids.h>
 
    using namespace libcamera;
    using namespace std::chrono_literals;
@@ -276,7 +277,10 @@ Using the libcamera ``FrameBufferAllocator``
 
 Applications create a ``FrameBufferAllocator`` for a Camera and use it
 to allocate buffers for streams of a ``CameraConfiguration`` with the
-``allocate()`` function.
+``allocate()`` function. The number of buffers to be allocated needs to be
+specified, and should be at least equal to the value of the ``MinimumRequests``
+property in order for the pipeline to have enough requests to be able to
+capture without frame drops.
 
 The list of allocated buffers can be retrieved using the ``Stream`` instance
 as the parameter of the ``FrameBufferAllocator::buffers()`` function.
@@ -284,9 +288,10 @@ as the parameter of the ``FrameBufferAllocator::buffers()`` function.
 .. code:: cpp
 
    FrameBufferAllocator *allocator = new FrameBufferAllocator(camera);
+   unsigned int bufferCount = camera->properties().get(properties::MinimumRequests);
 
    for (StreamConfiguration &cfg : *config) {
-       int ret = allocator->allocate(cfg.stream());
+       int ret = allocator->allocate(cfg.stream(), bufferCount);
        if (ret < 0) {
            std::cerr << "Can't allocate buffers" << std::endl;
            return -ENOMEM;

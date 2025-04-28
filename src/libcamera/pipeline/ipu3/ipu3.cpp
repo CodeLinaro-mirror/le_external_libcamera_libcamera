@@ -139,7 +139,7 @@ public:
 								   Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, Stream *stream,
+	int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;
@@ -637,10 +637,10 @@ int PipelineHandlerIPU3::configure(Camera *camera, CameraConfiguration *c)
 }
 
 int PipelineHandlerIPU3::exportFrameBuffers(Camera *camera, Stream *stream,
+					    unsigned int count,
 					    std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	IPU3CameraData *data = cameraData(camera);
-	unsigned int count = stream->configuration().bufferCount;
 
 	if (stream == &data->outStream_)
 		return data->imgu_->output_->exportBuffers(count, buffers);

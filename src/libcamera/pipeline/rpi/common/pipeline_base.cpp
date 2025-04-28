@@ -630,10 +630,10 @@ int PipelineHandlerBase::configure(Camera *camera, CameraConfiguration *config)
 }
 
 int PipelineHandlerBase::exportFrameBuffers([[maybe_unused]] Camera *camera, libcamera::Stream *stream,
+					    unsigned int count,
 					    std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	RPi::Stream *s = static_cast<RPi::Stream *>(stream);
-	unsigned int count = stream->configuration().bufferCount;
 	int ret = s->dev()->exportBuffers(count, buffers);
 
 	s->setExportedBuffers(buffers);

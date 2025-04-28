@@ -92,7 +92,7 @@ public:
 								   Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, Stream *stream,
+	int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;
@@ -343,11 +343,12 @@ int PipelineHandlerVimc::configure(Camera *camera, CameraConfiguration *config)
 	return 0;
 }
 
-int PipelineHandlerVimc::exportFrameBuffers(Camera *camera, Stream *stream,
+int PipelineHandlerVimc::exportFrameBuffers(Camera *camera,
+					    [[maybe_unused]] Stream *stream,
+					    unsigned int count,
 					    std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	VimcCameraData *data = cameraData(camera);
-	unsigned int count = stream->configuration().bufferCount;
 
 	return data->video_->exportBuffers(count, buffers);
 }

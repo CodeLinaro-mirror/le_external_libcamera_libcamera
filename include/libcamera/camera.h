@@ -163,7 +163,7 @@ private:
 	void requestComplete(Request *request);
 
 	friend class FrameBufferAllocator;
-	int exportFrameBuffers(Stream *stream,
+	int exportFrameBuffers(Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers);
 };
 

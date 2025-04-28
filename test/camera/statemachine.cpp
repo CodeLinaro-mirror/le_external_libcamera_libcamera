@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include <libcamera/framebuffer_allocator.h>
+#include <libcamera/property_ids.h>
 
 #include "camera_test.h"
 #include "test.h"
@@ -120,7 +121,9 @@ protected:
 		/* Use internally allocated buffers. */
 		allocator_ = new FrameBufferAllocator(camera_);
 		Stream *stream = *camera_->streams().begin();
-		if (allocator_->allocate(stream) < 0)
+		unsigned int bufferCount =
+			camera_->properties().get(properties::MinimumRequests).value();
+		if (allocator_->allocate(stream, bufferCount) < 0)
 			return TestFail;
 
 		if (camera_->start())

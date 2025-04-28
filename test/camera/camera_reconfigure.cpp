@@ -17,6 +17,7 @@
 #include <libcamera/base/timer.h>
 
 #include <libcamera/framebuffer_allocator.h>
+#include <libcamera/property_ids.h>
 
 #include "camera_test.h"
 #include "test.h"
@@ -78,7 +79,9 @@ private:
 		 * same buffer allocation for each run.
 		 */
 		if (!allocated_) {
-			int ret = allocator_->allocate(stream);
+			unsigned int bufferCount =
+				camera_->properties().get(properties::MinimumRequests).value();
+			int ret = allocator_->allocate(stream, bufferCount);
 			if (ret < 0) {
 				cerr << "Failed to allocate buffers" << endl;
 				return TestFail;

@@ -162,7 +162,7 @@ int V4L2Camera::allocBuffers(unsigned int count)
 {
 	Stream *stream = config_->at(0).stream();
 
-	int ret = bufferAllocator_->allocate(stream);
+	int ret = bufferAllocator_->allocate(stream, count);
 	if (ret < 0)
 		return ret;
 

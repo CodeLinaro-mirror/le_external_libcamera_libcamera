@@ -12,6 +12,7 @@
 #include <string>
 
 #include <libcamera/camera_manager.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/version.h>
 
 #include <QCoreApplication>
@@ -447,7 +448,14 @@ int MainWindow::startCapture()
 	for (StreamConfiguration &config : *config_) {
 		Stream *stream = config.stream();
 
-		ret = allocator_->allocate(stream);
+		/*
+		 * We hold on to a buffer for display, so need one extra from
+		 * the minimum required for capture.
+		 */
+		unsigned int bufferCount =
+			camera_->properties().get(properties::MinimumRequests).value() + 1;
+
+		ret = allocator_->allocate(stream, bufferCount);
 		if (ret < 0) {
 			qWarning() << "Failed to allocate capture buffers";
 			goto error;

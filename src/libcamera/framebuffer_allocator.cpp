@@ -68,6 +68,7 @@ FrameBufferAllocator::~FrameBufferAllocator() = default;
 /**
  * \brief Allocate buffers for a configured stream
  * \param[in] stream The stream to allocate buffers for
+ * \param[in] count The number of buffers to allocate
  *
  * Allocate buffers suitable for capturing frames from the \a stream. The Camera
  * shall have been previously configured with Camera::configure() and shall be
@@ -76,6 +77,10 @@ FrameBufferAllocator::~FrameBufferAllocator() = default;
  * Upon successful allocation, the allocated buffers can be retrieved with the
  * buffers() function.
  *
+ * This function may allocate less buffers than requested, due to memory and
+ * other system constraints. The caller shall always check the return value to
+ * verify if the number of allocate buffers matches its needs.
+ *
  * \return The number of allocated buffers on success or a negative error code
  * otherwise
  * \retval -EACCES The camera is not in a state where buffers can be allocated
@@ -83,7 +88,7 @@ FrameBufferAllocator::~FrameBufferAllocator() = default;
  * not part of the active camera configuration
  * \retval -EBUSY Buffers are already allocated for the \a stream
  */
-int FrameBufferAllocator::allocate(Stream *stream)
+int FrameBufferAllocator::allocate(Stream *stream, unsigned int count)
 {
 	const auto &[it, inserted] = buffers_.try_emplace(stream);
 
@@ -92,7 +97,7 @@ int FrameBufferAllocator::allocate(Stream *stream)
 		return -EBUSY;
 	}
 
-	int ret = camera_->exportFrameBuffers(stream, &it->second);
+	int ret = camera_->exportFrameBuffers(stream, count, &it->second);
 	if (ret == -EINVAL)
 		LOG(Allocator, Error)
 			<< "Stream is not part of " << camera_->id()

@@ -608,6 +608,7 @@ public:
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
 	int exportFrameBuffers(Camera *camera, Stream *stream,
+			       unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 	int allocateBuffers(Camera *camera);
 	void freeBuffers(Camera *camera);
@@ -1087,10 +1088,10 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 }
 
 int PipelineHandlerMaliC55::exportFrameBuffers(Camera *camera, Stream *stream,
+					       unsigned int count,
 					       std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	MaliC55Pipe *pipe = pipeFromStream(cameraData(camera), stream);
-	unsigned int count = stream->configuration().bufferCount;
 
 	return pipe->cap->exportBuffers(count, buffers);
 }

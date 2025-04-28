@@ -12,6 +12,7 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/framebuffer_allocator.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/stream.h>
 
 #include "gstlibcamera-utils.h"
@@ -209,11 +210,14 @@ gst_libcamera_allocator_new(std::shared_ptr<Camera> camera,
 	if (ret)
 		return nullptr;
 
+	unsigned int bufferCount =
+		camera->properties().get(properties::MinimumRequests).value();
+
 	self->fb_allocator = new FrameBufferAllocator(camera);
 	for (StreamConfiguration &streamCfg : *config_) {
 		Stream *stream = streamCfg.stream();
 
-		ret = self->fb_allocator->allocate(stream);
+		ret = self->fb_allocator->allocate(stream, bufferCount);
 		if (ret <= 0)
 			return nullptr;
 

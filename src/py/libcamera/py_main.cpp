@@ -349,8 +349,8 @@ PYBIND11_MODULE(_libcamera, m)
 
 	pyFrameBufferAllocator
 		.def(py::init<PyCameraSmartPtr<Camera>>(), py::keep_alive<1, 2>())
-		.def("allocate", [](FrameBufferAllocator &self, Stream *stream) {
-			int ret = self.allocate(stream);
+		.def("allocate", [](FrameBufferAllocator &self, Stream *stream, unsigned int count) {
+			int ret = self.allocate(stream, count);
 			if (ret < 0)
 				throw std::system_error(-ret, std::generic_category(),
 							"Failed to allocate buffers");

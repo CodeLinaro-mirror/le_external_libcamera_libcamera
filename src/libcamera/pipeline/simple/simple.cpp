@@ -404,7 +404,7 @@ public:
 								   Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, Stream *stream,
+	int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;
@@ -1434,10 +1434,10 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 }
 
 int SimplePipelineHandler::exportFrameBuffers(Camera *camera, Stream *stream,
+					      unsigned int count,
 					      std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	SimpleCameraData *data = cameraData(camera);
-	unsigned int count = stream->configuration().bufferCount;
 
 	/*
 	 * Export buffers on the converter or capture video node, depending on

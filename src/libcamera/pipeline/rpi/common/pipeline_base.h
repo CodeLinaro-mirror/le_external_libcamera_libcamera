@@ -218,7 +218,7 @@ public:
 	generateConfiguration(Camera *camera, Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, libcamera::Stream *stream,
+	int exportFrameBuffers(Camera *camera, libcamera::Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;

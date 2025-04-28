@@ -25,7 +25,7 @@ public:
 	FrameBufferAllocator(std::shared_ptr<Camera> camera);
 	~FrameBufferAllocator();
 
-	int allocate(Stream *stream);
+	int allocate(Stream *stream, unsigned int count);
 	int free(Stream *stream);
 
 	bool allocated() const { return !buffers_.empty(); }

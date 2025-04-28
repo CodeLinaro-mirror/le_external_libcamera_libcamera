@@ -8,6 +8,7 @@
 #include <iostream>
 
 #include <libcamera/framebuffer_allocator.h>
+#include <libcamera/property_ids.h>
 
 #include "libcamera/internal/mapped_framebuffer.h"
 
@@ -55,7 +56,9 @@ protected:
 
 		stream_ = cfg.stream();
 
-		int ret = allocator_->allocate(stream_);
+		unsigned int bufferCount =
+			camera_->properties().get(properties::MinimumRequests).value();
+		int ret = allocator_->allocate(stream_, bufferCount);
 		if (ret < 0)
 			return TestFail;
 

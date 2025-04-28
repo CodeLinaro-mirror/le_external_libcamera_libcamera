@@ -7,11 +7,12 @@
 
 #include <iostream>
 
-#include <libcamera/framebuffer_allocator.h>
-
 #include <libcamera/base/event_dispatcher.h>
 #include <libcamera/base/thread.h>
 #include <libcamera/base/timer.h>
+
+#include <libcamera/framebuffer_allocator.h>
+#include <libcamera/property_ids.h>
 
 #include "camera_test.h"
 #include "test.h"
@@ -101,8 +102,10 @@ protected:
 
 		Stream *stream = cfg.stream();
 
-		int ret = allocator_->allocate(stream);
-		if (ret < 0)
+		unsigned int bufferCount =
+			camera_->properties().get(properties::MinimumRequests).value();
+		int ret = allocator_->allocate(stream, bufferCount);
+		if (ret < static_cast<int>(bufferCount))
 			return TestFail;
 
 		for (const std::unique_ptr<FrameBuffer> &buffer : allocator_->buffers(stream)) {

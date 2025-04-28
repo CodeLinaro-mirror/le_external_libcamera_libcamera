@@ -108,7 +108,7 @@ public:
 	generateConfiguration(Camera *camera, Span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;
 
-	int exportFrameBuffers(Camera *camera, Stream *stream,
+	int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 			       std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
 	int start(Camera *camera, const ControlList *controls) override;
@@ -908,10 +908,9 @@ int PipelineHandlerISI::configure(Camera *camera, CameraConfiguration *c)
 	return 0;
 }
 
-int PipelineHandlerISI::exportFrameBuffers(Camera *camera, Stream *stream,
+int PipelineHandlerISI::exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 					   std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
-	unsigned int count = stream->configuration().bufferCount;
 	Pipe *pipe = pipeFromStream(camera, stream);
 
 	return pipe->capture->exportBuffers(count, buffers);

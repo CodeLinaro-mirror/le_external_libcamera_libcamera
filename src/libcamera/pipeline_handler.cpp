@@ -314,6 +314,7 @@ void PipelineHandler::unlockMediaDevices()
  * \brief Allocate and export buffers for \a stream
  * \param[in] camera The camera
  * \param[in] stream The stream to allocate buffers for
+ * \param[in] count The number of buffers to allocate
  * \param[out] buffers Array of buffers successfully allocated
  *
  * This function allocates buffers for the \a stream from the devices associated

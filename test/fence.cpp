@@ -18,6 +18,7 @@
 
 #include <libcamera/fence.h>
 #include <libcamera/framebuffer_allocator.h>
+#include <libcamera/property_ids.h>
 
 #include "camera_test.h"
 #include "test.h"
@@ -119,8 +120,11 @@ int FenceTest::init()
 	StreamConfiguration &cfg = config_->at(0);
 	stream_ = cfg.stream();
 
+	unsigned int bufferCount =
+		camera_->properties().get(properties::MinimumRequests).value();
+
 	allocator_ = std::make_unique<FrameBufferAllocator>(camera_);
-	if (allocator_->allocate(stream_) < 0)
+	if (allocator_->allocate(stream_, bufferCount) < 0)
 		return TestFail;
 
 	nbuffers_ = allocator_->buffers(stream_).size();

@@ -48,7 +48,7 @@ public:
 									   Span<const StreamRole> roles) = 0;
 	virtual int configure(Camera *camera, CameraConfiguration *config) = 0;
 
-	virtual int exportFrameBuffers(Camera *camera, Stream *stream,
+	virtual int exportFrameBuffers(Camera *camera, Stream *stream, unsigned int count,
 				       std::vector<std::unique_ptr<FrameBuffer>> *buffers) = 0;
 
 	virtual int start(Camera *camera, const ControlList *controls) = 0;

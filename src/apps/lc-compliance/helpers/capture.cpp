@@ -120,7 +120,8 @@ void Capture::start()
 	assert(!allocator_.allocated());
 	assert(requests_.empty());
 
-	const auto bufferCount = config_->at(0).bufferCount;
+	unsigned int bufferCount =
+		camera_->properties().get(properties::MinimumRequests).value();
 
 	/* No point in testing less requests then the camera depth. */
 	if (queueLimit_ && *queueLimit_ < bufferCount) {
@@ -137,7 +138,7 @@ void Capture::start()
 	for (const auto &cfg : *config_) {
 		Stream *stream = cfg.stream();
 
-		int count = allocator_.allocate(stream);
+		int count = allocator_.allocate(stream, bufferCount);
 		ASSERT_GE(count, 0) << "Failed to allocate buffers";
 
 		const auto &buffers = allocator_.buffers(stream);
