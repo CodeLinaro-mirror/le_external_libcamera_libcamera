@@ -77,6 +77,42 @@ int SDLSink::configure(const libcamera::CameraConfiguration &config)
 	case libcamera::formats::YUYV:
 		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_YUY2, cfg.stride);
 		break;
+	case libcamera::formats::UYVY:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_UYVY, cfg.stride);
+		break;
+	case libcamera::formats::YVYU:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_YVYU, cfg.stride);
+		break;
+	case libcamera::formats::ARGB8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_BGRA32, cfg.stride);
+		break;
+	case libcamera::formats::XRGB8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_BGRX32, cfg.stride);
+		break;
+	case libcamera::formats::RGBA8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_ABGR32, cfg.stride);
+		break;
+	case libcamera::formats::RGBX8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_XBGR32, cfg.stride);
+		break;
+	case libcamera::formats::ABGR8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_RGBA32, cfg.stride);
+		break;
+	case libcamera::formats::XBGR8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_RGBX32, cfg.stride);
+		break;
+	case libcamera::formats::BGRA8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_ARGB32, cfg.stride);
+		break;
+	case libcamera::formats::BGRX8888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_XRGB32, cfg.stride);
+		break;
+	case libcamera::formats::RGB888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_BGR24, cfg.stride);
+		break;
+	case libcamera::formats::BGR888:
+		texture_ = std::make_unique<SDLTexture1Plane>(rect_, SDL_PIXELFORMAT_RGB24, cfg.stride);
+		break;
 	default:
 		std::cerr << "Unsupported pixel format "
 			  << cfg.pixelFormat.toString() << std::endl;
