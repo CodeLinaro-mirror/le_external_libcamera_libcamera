@@ -126,6 +126,7 @@ VirtualCameraData::VirtualCameraData(PipelineHandler *pipe,
 
 	properties_.set(properties::PixelArrayActiveAreas,
 			{ Rectangle(config_.maxResolutionSize) });
+	properties_.set(properties::MinimumRequests, 3);
 
 	/* \todo Support multiple streams and pass multi_stream_test */
 	streamConfigs_.resize(kMaxStream);

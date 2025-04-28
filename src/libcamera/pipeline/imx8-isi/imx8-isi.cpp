@@ -18,6 +18,7 @@
 #include <libcamera/camera_manager.h>
 #include <libcamera/formats.h>
 #include <libcamera/geometry.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
@@ -165,6 +166,7 @@ int ISICameraData::init()
 		return ret;
 
 	properties_ = sensor_->properties();
+	properties_.set(properties::MinimumRequests, 2);
 
 	return 0;
 }

@@ -663,19 +663,29 @@ associated with immutable values, which represent static characteristics that ca
 be used by applications to identify camera devices in the system. Properties can be
 registered by inspecting the values of V4L2 controls from the video devices and
 camera sensor (for example to retrieve the position and orientation of a camera)
-or to express other immutable characteristics. The example pipeline handler does
-not register any property, but examples are available in the libcamera code
-base.
+or to express other immutable characteristics.
 
-.. TODO: Add a property example to the pipeline handler. At least the model.
+A required property is ``MinimumRequests``, which indicates how many requests
+need to be queued in the pipeline for capture without frame drops to be
+possible.
+
+In our case, the vivid driver requires two buffers before it'll start streaming
+(can be seen in the ``min_reqbufs_allocation`` property for the ``vid_cap`` queue in
+vivid's driver code). Therefore we will set our ``MinimumRequests`` to two.
+Append the following line to ``init()``:
+
+.. code-block:: cpp
+
+   properties_.set(properties::MinimumRequests, 2);
 
 At this point you need to add the following includes to the top of the file for
-handling controls:
+handling controls and properties:
 
 .. code-block:: cpp
 
    #include <libcamera/controls.h>
    #include <libcamera/control_ids.h>
+   #include <libcamera/property_ids.h>
 
 Vendor-specific controls and properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

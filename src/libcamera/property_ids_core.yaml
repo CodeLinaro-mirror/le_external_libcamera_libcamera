@@ -701,4 +701,26 @@ controls:
 
         Different cameras may report identical devices.
 
+  - MinimumRequests:
+      type: uint32_t
+      description: |
+        The minimum number of capture requests that the camera pipeline requires
+        to have queued in order to sustain capture operations with only minimal
+        frame drops. At this quantity, there's no guarantee that manual per
+        frame controls will apply correctly. This is also the minimum number of
+        requests that must be queued before capture starts.
+
+        This property is based on the minimum number of memory buffers
+        needed to fill the capture pipeline composed of hardware processing
+        blocks plus as many buffers as needed to take into account propagation
+        delays and avoid dropping frames.
+
+        \todo Should this be a per-stream property?
+
+        \todo Extend this property to expose the different minimum buffer and
+        request counts (the minimum number of buffers to be able to capture at
+        all, the minimum number of buffers to sustain capture without frame
+        drop, and the minimum number of requests to ensure proper operation of
+        per-frame controls).
+
 ...

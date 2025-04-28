@@ -24,6 +24,7 @@
 #include <libcamera/formats.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/geometry.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
@@ -592,6 +593,7 @@ int VimcCameraData::init()
 
 	/* Initialize the camera properties. */
 	properties_ = sensor_->properties();
+	properties_.set(properties::MinimumRequests, 3);
 
 	return 0;
 }

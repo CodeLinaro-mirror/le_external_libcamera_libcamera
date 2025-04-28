@@ -26,6 +26,7 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/control_ids.h>
+#include <libcamera/property_ids.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
@@ -234,6 +235,10 @@ SimpleFrameInfo *SimpleFrames::find(uint32_t frame)
 struct SimplePipelineInfo {
 	const char *driver;
 	/*
+	 * Minimum number of buffers required by the driver to start streaming.
+	 */
+	unsigned int minimumBuffers;
+	/*
 	 * Each converter in the list contains the name
 	 * and the number of streams it supports.
 	 */
@@ -249,14 +254,14 @@ struct SimplePipelineInfo {
 namespace {
 
 static const SimplePipelineInfo supportedDevices[] = {
-	{ "dcmipp", {}, false },
-	{ "imx7-csi", { { "pxp", 1 } }, false },
-	{ "intel-ipu6", {}, true },
-	{ "j721e-csi2rx", {}, true },
-	{ "mtk-seninf", { { "mtk-mdp", 3 } }, false },
-	{ "mxc-isi", {}, false },
-	{ "qcom-camss", {}, true },
-	{ "sun6i-csi", {}, false },
+	{ "dcmipp", 1, {}, false },
+	{ "imx7-csi", 2, { { "pxp", 1 } }, false },
+	{ "intel-ipu6", 3, {}, true }, // \todo Check if the minimumBuffers can be lowered
+	{ "j721e-csi2rx", 1, {}, true },
+	{ "mtk-seninf", 3, { { "mtk-mdp", 3 } }, false }, // \todo Check if the minimumBuffers can be lowered
+	{ "mxc-isi", 3, {}, false },
+	{ "qcom-camss", 1, {}, true },
+	{ "sun6i-csi", 3, {}, false },
 };
 
 } /* namespace */
@@ -345,6 +350,8 @@ public:
 	std::unique_ptr<Converter> converter_;
 	std::unique_ptr<SoftwareIsp> swIsp_;
 	SimpleFrames frameInfo_;
+
+	unsigned int deviceInfoMinimumBuffers;
 
 private:
 	void tryPipeline(unsigned int code, const Size &size);
@@ -1402,8 +1409,24 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	inputCfg.bufferCount = kNumInternalBuffers;
 
 	if (data->converter_) {
+		/*
+		 * The application will interact only with the capture node of
+		 * the converter. Require two buffers for a frame drop free
+		 * conversion, plus one extra to account for requeue delays.
+		 */
+		data->properties_.set(properties::MinimumRequests, 3);
+
 		return data->converter_->configure(inputCfg, outputCfgs);
 	} else {
+		/*
+		 * The application will interact directly with the video capture
+		 * device. Require the minimum required by the driver, plus one
+		 * extra to account for requeue delays. Force at least three
+		 * buffers in order to not drop frames.
+		 */
+		data->properties_.set(properties::MinimumRequests, std::max(data->deviceInfoMinimumBuffers + 1,
+									    3U));
+
 		ipa::soft::IPAConfigInfo configInfo;
 		configInfo.sensorControls = data->sensor_->controls();
 		return data->swIsp_->configure(inputCfg, outputCfgs, configInfo);
@@ -1787,6 +1810,8 @@ bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 	bool registered = false;
 
 	for (std::unique_ptr<SimpleCameraData> &data : pipelines) {
+		data->deviceInfoMinimumBuffers = info->minimumBuffers;
+
 		int ret = data->init();
 		if (ret < 0)
 			continue;

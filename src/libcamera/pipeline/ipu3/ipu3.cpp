@@ -168,6 +168,8 @@ private:
 	MediaDevice *imguMediaDev_;
 
 	std::vector<IPABuffer> ipaBuffers_;
+
+	static constexpr unsigned int kMinimumRequests = 3;
 };
 
 IPU3CameraConfiguration::IPU3CameraConfiguration(IPU3CameraData *data)
@@ -1073,6 +1075,8 @@ int PipelineHandlerIPU3::registerCameras()
 
 		/* Initialize the camera properties. */
 		data->properties_ = cio2->sensor()->properties();
+
+		data->properties_.set(properties::MinimumRequests, kMinimumRequests);
 
 		ret = initControls(data.get());
 		if (ret)

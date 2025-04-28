@@ -1318,6 +1318,7 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 
 	/* Initialize the camera properties. */
 	data->properties_ = data->sensor_->properties();
+	data->properties_.set(properties::MinimumRequests, 3);
 
 	scalerMaxCrop_ = Rectangle(data->sensor_->resolution());
 

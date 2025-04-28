@@ -848,6 +848,8 @@ int PipelineHandlerBase::registerCamera(std::unique_ptr<RPi::CameraData> &camera
 	 */
 	data->properties_.set(properties::ScalerCropMaximum, Rectangle{});
 
+	data->properties_.set(properties::MinimumRequests, 3);
+
 	ret = platformRegister(cameraData, frontend, backend);
 	if (ret)
 		return ret;

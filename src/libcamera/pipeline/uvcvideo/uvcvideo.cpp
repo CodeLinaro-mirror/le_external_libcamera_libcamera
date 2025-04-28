@@ -586,6 +586,8 @@ int UVCCameraData::init(MediaDevice *media)
 	properties_.set(properties::PixelArraySize, resolution);
 	properties_.set(properties::PixelArrayActiveAreas, { Rectangle(resolution) });
 
+	properties_.set(properties::MinimumRequests, 3);
+
 	/* Initialise the supported controls. */
 	ControlInfoMap::Map ctrls;
 
