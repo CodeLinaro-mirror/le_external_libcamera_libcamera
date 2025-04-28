@@ -13,6 +13,7 @@
 #include <libcamera/base/log.h>
 
 #include <libcamera/control_ids.h>
+#include <libcamera/property_ids.h>
 
 using namespace libcamera;
 
@@ -108,15 +109,13 @@ void V4L2Camera::requestComplete(Request *request)
 }
 
 int V4L2Camera::configure(StreamConfiguration *streamConfigOut,
-			  const Size &size, const PixelFormat &pixelformat,
-			  unsigned int bufferCount)
+			  const Size &size, const PixelFormat &pixelformat)
 {
 	StreamConfiguration &streamConfig = config_->at(0);
 	streamConfig.size.width = size.width;
 	streamConfig.size.height = size.height;
 	streamConfig.pixelFormat = pixelformat;
-	streamConfig.bufferCount = bufferCount;
-	/* \todo memoryType (interval vs external) */
+	/* \todo memoryType (internal vs external) */
 
 	CameraConfiguration::Status validation = config_->validate();
 	if (validation == CameraConfiguration::Invalid) {
@@ -147,7 +146,6 @@ int V4L2Camera::validateConfiguration(const PixelFormat &pixelFormat,
 	StreamConfiguration &cfg = config->at(0);
 	cfg.size = size;
 	cfg.pixelFormat = pixelFormat;
-	cfg.bufferCount = 1;
 
 	CameraConfiguration::Status validation = config->validate();
 	if (validation == CameraConfiguration::Invalid)
@@ -166,7 +164,9 @@ int V4L2Camera::allocBuffers(unsigned int count)
 	if (ret < 0)
 		return ret;
 
-	for (unsigned int i = 0; i < count; i++) {
+	unsigned int allocatedCount = ret;
+
+	for (unsigned int i = 0; i < allocatedCount; i++) {
 		std::unique_ptr<Request> request = camera_->createRequest(i);
 		if (!request) {
 			requestPool_.clear();
@@ -175,7 +175,7 @@ int V4L2Camera::allocBuffers(unsigned int count)
 		requestPool_.push_back(std::move(request));
 	}
 
-	return ret;
+	return allocatedCount;
 }
 
 void V4L2Camera::freeBuffers()
@@ -303,4 +303,9 @@ bool V4L2Camera::isBufferAvailable()
 bool V4L2Camera::isRunning()
 {
 	return isRunning_;
+}
+
+unsigned int V4L2Camera::minimumRequests()
+{
+	return camera_->properties().get(properties::MinimumRequests).value();
 }

@@ -45,8 +45,7 @@ public:
 
 	int configure(libcamera::StreamConfiguration *streamConfigOut,
 		      const libcamera::Size &size,
-		      const libcamera::PixelFormat &pixelformat,
-		      unsigned int bufferCount);
+		      const libcamera::PixelFormat &pixelformat);
 	int validateConfiguration(const libcamera::PixelFormat &pixelformat,
 				  const libcamera::Size &size,
 				  libcamera::StreamConfiguration *streamConfigOut);
@@ -67,6 +66,8 @@ public:
 	bool isBufferAvailable() LIBCAMERA_TSA_EXCLUDES(bufferMutex_);
 
 	bool isRunning();
+
+	unsigned int minimumRequests();
 
 private:
 	void requestComplete(libcamera::Request *request)

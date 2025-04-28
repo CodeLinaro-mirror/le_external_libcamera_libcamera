@@ -392,8 +392,7 @@ int V4L2CameraProxy::vidioc_s_fmt(V4L2CameraFile *file, struct v4l2_format *arg)
 
 	Size size(arg->fmt.pix.width, arg->fmt.pix.height);
 	V4L2PixelFormat v4l2Format = V4L2PixelFormat(arg->fmt.pix.pixelformat);
-	ret = vcam_->configure(&streamConfig_, size, v4l2Format.toPixelFormat(),
-			       bufferCount_);
+	ret = vcam_->configure(&streamConfig_, size, v4l2Format.toPixelFormat());
 	if (ret < 0)
 		return -EINVAL;
 
@@ -539,20 +538,21 @@ int V4L2CameraProxy::vidioc_reqbufs(V4L2CameraFile *file, struct v4l2_requestbuf
 	Size size(v4l2PixFormat_.width, v4l2PixFormat_.height);
 	V4L2PixelFormat v4l2Format = V4L2PixelFormat(v4l2PixFormat_.pixelformat);
 	int ret = vcam_->configure(&streamConfig_, size,
-				   v4l2Format.toPixelFormat(), arg->count);
+				   v4l2Format.toPixelFormat());
 	if (ret < 0)
 		return -EINVAL;
 
 	setFmtFromConfig(streamConfig_);
 
-	arg->count = streamConfig_.bufferCount;
-	bufferCount_ = arg->count;
+	arg->count = std::max(arg->count, vcam_->minimumRequests());
 
 	ret = vcam_->allocBuffers(arg->count);
 	if (ret < 0) {
 		arg->count = 0;
 		return ret;
 	}
+
+	bufferCount_ = arg->count = ret;
 
 	buffers_.resize(arg->count);
 	for (unsigned int i = 0; i < arg->count; i++) {
