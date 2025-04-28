@@ -101,6 +101,9 @@ public:
 	const PipelineHandlerRkISP1 *pipe() const;
 	int loadIPA(unsigned int hwRevision);
 
+	void queuePendingRequests();
+	void cancelPendingRequests();
+
 	Stream mainPathStream_;
 	Stream selfPathStream_;
 	std::unique_ptr<CameraSensor> sensor_;
@@ -115,6 +118,7 @@ public:
 	std::unique_ptr<ipa::rkisp1::IPAProxyRkISP1> ipa_;
 
 	ControlInfoMap ipaControls_;
+	std::queue<Request *> pendingRequests_;
 
 private:
 	void paramsComputed(unsigned int frame, unsigned int bytesused);
@@ -254,12 +258,12 @@ RkISP1FrameInfo *RkISP1Frames::create(const RkISP1CameraData *data, Request *req
 
 	if (!isRaw) {
 		if (pipe_->availableParamBuffers_.empty()) {
-			LOG(RkISP1, Error) << "Parameters buffer underrun";
+			LOG(RkISP1, Debug) << "Parameters buffer underrun";
 			return nullptr;
 		}
 
 		if (pipe_->availableStatBuffers_.empty()) {
-			LOG(RkISP1, Error) << "Statistic buffer underrun";
+			LOG(RkISP1, Debug) << "Statistic buffer underrun";
 			return nullptr;
 		}
 
@@ -445,6 +449,56 @@ void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &meta
 	info->metadataProcessed = true;
 
 	pipe()->tryCompleteRequest(info);
+}
+
+void RkISP1CameraData::queuePendingRequests()
+{
+	while (!pendingRequests_.empty()) {
+		Request *request = pendingRequests_.front();
+
+		/*
+		 * If there aren't internal buffers available, we break and try
+		 * again later. If there are, we're guaranteed to also have V4L2
+		 * buffer slots available to queue the request, since we should
+		 * always have more (or equal) buffer slots than internal
+		 * buffers.
+		 */
+		RkISP1FrameInfo *info = frameInfo_.create(this, request, pipe()->isRaw_);
+		if (!info)
+			break;
+
+		ipa_->queueRequest(frame_, request->controls());
+		if (pipe()->isRaw_) {
+			if (info->mainPathBuffer)
+				mainPath_->queueBuffer(info->mainPathBuffer);
+
+			if (selfPath_ && info->selfPathBuffer)
+				selfPath_->queueBuffer(info->selfPathBuffer);
+		} else {
+			ipa_->computeParams(frame_, info->paramBuffer->cookie());
+		}
+
+		frame_++;
+
+		pendingRequests_.pop();
+	}
+}
+
+void RkISP1CameraData::cancelPendingRequests()
+{
+	while (!pendingRequests_.empty()) {
+		Request *request = pendingRequests_.front();
+
+		for (auto it : request->buffers()) {
+			FrameBuffer *buffer = it.second;
+			buffer->_d()->cancel();
+			pipe()->completeBuffer(request, buffer);
+		}
+
+		pipe()->completeRequest(request);
+
+		pendingRequests_.pop();
+	}
 }
 
 /* -----------------------------------------------------------------------------
@@ -1168,6 +1222,8 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 			dewarper_->stop();
 	}
 
+	data->cancelPendingRequests();
+
 	ASSERT(data->queuedRequests_.empty());
 	data->frameInfo_.clear();
 
@@ -1180,23 +1236,8 @@ int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
 {
 	RkISP1CameraData *data = cameraData(camera);
 
-	RkISP1FrameInfo *info = data->frameInfo_.create(data, request, isRaw_);
-	if (!info)
-		return -ENOENT;
-
-	data->ipa_->queueRequest(data->frame_, request->controls());
-	if (isRaw_) {
-		if (info->mainPathBuffer)
-			data->mainPath_->queueBuffer(info->mainPathBuffer);
-
-		if (data->selfPath_ && info->selfPathBuffer)
-			data->selfPath_->queueBuffer(info->selfPathBuffer);
-	} else {
-		data->ipa_->computeParams(data->frame_,
-					  info->paramBuffer->cookie());
-	}
-
-	data->frame_++;
+	data->pendingRequests_.push(request);
+	data->queuePendingRequests();
 
 	return 0;
 }
@@ -1481,6 +1522,8 @@ void PipelineHandlerRkISP1::tryCompleteRequest(RkISP1FrameInfo *info)
 	data->frameInfo_.destroy(info->frame);
 
 	completeRequest(request);
+
+	data->queuePendingRequests();
 }
 
 void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
