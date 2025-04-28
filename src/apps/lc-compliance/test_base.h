@@ -21,4 +21,11 @@ protected:
 	std::shared_ptr<libcamera::Camera> camera_;
 };
 
+class CameraTests : public ::testing::Test, public CameraHolder
+{
+protected:
+	void SetUp() override;
+	void TearDown() override;
+};
+
 #endif /* __LC_COMPLIANCE_TEST_BASE_H__ */

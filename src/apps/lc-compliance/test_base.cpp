@@ -26,3 +26,13 @@ void CameraHolder::releaseCamera()
 	camera_->release();
 	camera_.reset();
 }
+
+void CameraTests::SetUp()
+{
+	acquireCamera();
+}
+
+void CameraTests::TearDown()
+{
+	releaseCamera();
+}
