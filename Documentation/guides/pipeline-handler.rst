@@ -452,10 +452,26 @@ it will be used:
           int init();
           void bufferReady(FrameBuffer *buffer);
 
+          void queuePendingRequests();
+          void cancelPendingRequests();
+
+          void setAvailableBufferSlotCount(unsigned int count) { availableBufferSlotCount_ = count; }
+
           MediaDevice *media_;
           V4L2VideoDevice *video_;
           Stream stream_;
+
+          std::queue<Request *> pendingRequests_;
+
+   private:
+          unsigned int availableBufferSlotCount_;
    };
+
+And the following include needs to be added:
+
+.. code-block:: cpp
+
+   #include <queue>
 
 This example pipeline handler handles a single video device and supports a
 single stream, represented by the ``VividCameraData`` class members. More
@@ -1274,7 +1290,8 @@ algorithms, or other devices you should also stop them.
 
 Of course we also need to handle the corresponding actions to stop streaming on
 a device, Add the following to the ``stop`` function, to stop the stream with
-the `streamOff`_ function and release all buffers.
+the `streamOff`_ function and release all buffers. Additionally we need to
+cancel pending requests, the reason will become clearer in the next section.
 
 .. _streamOff: https://libcamera.org/api-html/classlibcamera_1_1V4L2VideoDevice.html#a61998710615bdf7aa25a046c8565ed66
 
@@ -1282,6 +1299,7 @@ the `streamOff`_ function and release all buffers.
 
    VividCameraData *data = cameraData(camera);
    data->video_->streamOff();
+   data->cancelPendingRequests();
    data->video_->releaseBuffers();
 
 Queuing requests between applications and hardware
@@ -1302,24 +1320,75 @@ directly with the `queueBuffer`_ function provided by the V4L2VideoDevice.
 .. _findBuffer: https://libcamera.org/api-html/classlibcamera_1_1Request.html#ac66050aeb9b92c64218945158559c4d4
 .. _queueBuffer: https://libcamera.org/api-html/classlibcamera_1_1V4L2VideoDevice.html#a594cd594686a8c1cf9ae8dba0b2a8a75
 
+Since the pipeline handler has a finite number of buffer slots allocated through
+importBuffers(), in order to not drop frames when more requests than that are
+queued by the application, we need to implement a queue to hold the requests and
+queue them to the devices as slots become available.
+
 Replace the stubbed contents of ``queueRequestDevice`` with the following:
 
 .. code-block:: cpp
 
    VividCameraData *data = cameraData(camera);
-   FrameBuffer *buffer = request->findBuffer(&data->stream_);
-   if (!buffer) {
+   if (!request->findBuffer(&data->stream_)) {
           LOG(VIVID, Error)
                   << "Attempt to queue request with invalid stream";
 
           return -ENOENT;
    }
 
-   int ret = data->video_->queueBuffer(buffer);
-   if (ret < 0)
-          return ret;
+   data->pendingRequests_.push(request);
+   data->queuePendingRequests();
 
    return 0;
+
+Now create the ``queuePendingRequests`` function for ``VividCameraData`` and
+inside it add:
+
+.. code-block:: cpp
+
+   while (!pendingRequests_.empty() && availableBufferSlotCount_) {
+           Request *request = pendingRequests_.front();
+           FrameBuffer *buffer = request->findBuffer(&stream_);
+
+           ret = video_->queueBuffer(buffer);
+           if (ret < 0) {
+                   LOG(UVC, Error) << "Failed to queue buffer with error "
+                                   << ret << ". Cancelling buffer.";
+                   buffer->_d()->cancel();
+                   pipe()->completeBuffer(request, buffer);
+                   pipe()->completeRequest(request);
+                   pendingRequests_.pop();
+
+                   continue;
+           }
+
+           availableBufferSlotCount_--;
+
+           pendingRequests_.pop();
+   }
+
+Create ``cancelPendingRequests`` as well with:
+
+.. code-block:: cpp
+
+   while (!pendingRequests_.empty()) {
+           Request *request = pendingRequests_.front();
+           FrameBuffer *buffer = request->findBuffer(&stream_);
+
+           buffer->_d()->cancel();
+           pipe()->completeBuffer(request, buffer);
+           pipe()->completeRequest(request);
+
+           pendingRequests_.pop();
+   }
+
+Finally we need to initialize the buffer slot count in ``start()``. Add the
+following line there:
+
+.. code-block:: cpp
+
+   data->setAvailableBufferSlotCount(count);
 
 Processing controls
 ~~~~~~~~~~~~~~~~~~~
@@ -1395,31 +1464,27 @@ where appropriate by setting controls on V4L2Subdevices directly. Each pipeline
 handler is responsible for understanding the correct procedure for applying
 controls to the device they support.
 
-This example pipeline handler applies controls during the `queueRequestDevice`_
-function for each request, and applies them to the capture device through the
-capture node.
+This example pipeline handler applies controls as soon as the request is queued
+to the device from ``queuePendingRequests``, and applies them to the capture
+device through the capture node.
 
-.. _queueRequestDevice: https://libcamera.org/api-html/classlibcamera_1_1PipelineHandler.html#a106914cca210640c9da9ee1f0419e83c
-
-In the ``queueRequestDevice`` function, replace the following:
-
-.. code-block:: cpp
-
-   int ret = data->video_->queueBuffer(buffer);
-   if (ret < 0)
-        return ret;
-
-With the following code:
+In the ``queuePendingRequests`` function, before the line ``ret =
+video_->queueBuffer(buffer);``, add the following:
 
 .. code-block:: cpp
 
-   int ret = processControls(data, request);
-   if (ret < 0)
-        return ret;
+   int ret = processControls(request);
+   if (ret < 0) {
+           LOG(UVC, Error) << "Failed to process controls with"
+                           << " error " << ret << ". Cancelling"
+                           << " buffer.";
+           buffer->_d()->cancel();
+           pipe()->completeBuffer(request, buffer);
+           pipe()->completeRequest(request);
+           pendingRequests_.pop();
 
-   ret = data->video_->queueBuffer(buffer);
-   if (ret < 0)
-        return ret;
+           continue;
+   }
 
 We also need to add the following include directive to support the control
 value translation operations:
@@ -1483,9 +1548,10 @@ VividCameradata::init() implementation.
 The ``bufferReady`` function obtains the request from the buffer using the
 ``request`` function, and notifies the ``Camera`` that the buffer and
 request are completed. In this simpler pipeline handler, there is only one
-stream, so it completes the request immediately. You can find a more complex
-example of event handling with supporting multiple streams in the libcamera
-code-base.
+stream, so it completes the request immediately. It also updates the number of
+available buffer slots and tries to queue any pending requests. You can find a
+more complex example of event handling with support to multiple streams in the
+libcamera code-base.
 
 .. TODO: Add link
 
@@ -1497,6 +1563,9 @@ code-base.
 
           pipe_->completeBuffer(request, buffer);
           pipe_->completeRequest(request);
+
+          availableBufferSlotCount_++;
+          queuePendingRequests();
    }
 
 Testing a pipeline handler
