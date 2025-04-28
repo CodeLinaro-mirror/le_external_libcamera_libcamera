@@ -144,6 +144,8 @@ private:
 
 	std::unique_ptr<V4L2Subdevice> crossbar_;
 	std::vector<Pipe> pipes_;
+
+	static constexpr unsigned int kBufferSlotCount = 16;
 };
 
 /* -----------------------------------------------------------------------------
@@ -923,9 +925,8 @@ int PipelineHandlerISI::start(Camera *camera,
 
 	for (const auto &stream : data->enabledStreams_) {
 		Pipe *pipe = pipeFromStream(camera, stream);
-		const StreamConfiguration &config = stream->configuration();
 
-		int ret = pipe->capture->importBuffers(config.bufferCount);
+		int ret = pipe->capture->importBuffers(kBufferSlotCount);
 		if (ret)
 			return ret;
 
