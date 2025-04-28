@@ -159,7 +159,7 @@ private:
 	int updateControls(IPU3CameraData *data);
 	int registerCameras();
 
-	int allocateBuffers(Camera *camera);
+	int allocateBuffers(Camera *camera, unsigned int bufferSlotCount);
 	int freeBuffers(Camera *camera);
 
 	ImgUDevice imgu0_;
@@ -170,6 +170,7 @@ private:
 	std::vector<IPABuffer> ipaBuffers_;
 
 	static constexpr unsigned int kMinimumRequests = 3;
+	static constexpr unsigned int kIPU3BufferSlotCount = 16;
 };
 
 IPU3CameraConfiguration::IPU3CameraConfiguration(IPU3CameraData *data)
@@ -660,20 +661,25 @@ int PipelineHandlerIPU3::exportFrameBuffers(Camera *camera, Stream *stream,
  * In order to be able to start the 'viewfinder' and 'stat' nodes, we need
  * memory to be reserved.
  */
-int PipelineHandlerIPU3::allocateBuffers(Camera *camera)
+int PipelineHandlerIPU3::allocateBuffers(Camera *camera,
+					 unsigned int bufferSlotCount)
 {
 	IPU3CameraData *data = cameraData(camera);
 	ImgUDevice *imgu = data->imgu_;
-	unsigned int bufferCount;
 	int ret;
 
-	bufferCount = std::max({
-		data->outStream_.configuration().bufferCount,
-		data->vfStream_.configuration().bufferCount,
-		data->rawStream_.configuration().bufferCount,
-	});
-
-	ret = imgu->allocateBuffers(bufferCount);
+	/*
+	 * This many internal buffers (or rather parameter and statistics buffer
+	 * pairs) for the ImgU ensures that the pipeline runs smoothly, without
+	 * frame drops. This number considers:
+	 * - three buffers queued to the CIO2 (Since these buffers are bound to
+	 *   CIO2 buffers before queuing to the CIO2)
+	 * - one buffer under processing in ImgU
+	 *
+	 * \todo Update this number when we make these buffers only get added to
+	 * the FrameInfo after the raw buffers are dequeued from CIO2.
+	 */
+	ret = imgu->allocateBuffers(kMinimumRequests + 1, bufferSlotCount);
 	if (ret < 0)
 		return ret;
 
@@ -731,7 +737,7 @@ int PipelineHandlerIPU3::start(Camera *camera, [[maybe_unused]] const ControlLis
 		return ret;
 
 	/* Allocate buffers for internal pipeline usage. */
-	ret = allocateBuffers(camera);
+	ret = allocateBuffers(camera, kIPU3BufferSlotCount);
 	if (ret)
 		return ret;
 
@@ -744,8 +750,21 @@ int PipelineHandlerIPU3::start(Camera *camera, [[maybe_unused]] const ControlLis
 	/*
 	 * Start the ImgU video devices, buffers will be queued to the
 	 * ImgU output and viewfinder when requests will be queued.
+	 *
+	 * This many internal buffers for the CIO2 ensures that the pipeline
+	 * runs smoothly, without frame drops. This number considers:
+	 * - one buffer being DMA'ed to in CIO2
+	 * - one buffer programmed by the CIO2 as the next buffer
+	 * - one buffer under processing in ImgU
+	 * - one extra idle buffer queued to CIO2, to account for possible
+	 *   delays in requeuing the buffer from ImgU back to CIO2
+	 *
+	 * Transient situations can arise when one of the parts, CIO2 or ImgU,
+	 * finishes its processing first and experiences a lack of buffers, but
+	 * they will shortly after return to the state described above as the
+	 * other part catches up.
 	 */
-	ret = cio2->start();
+	ret = cio2->start(kMinimumRequests + 1, kIPU3BufferSlotCount);
 	if (ret)
 		goto error;
 

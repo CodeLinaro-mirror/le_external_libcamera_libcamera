@@ -84,7 +84,8 @@ public:
 					    outputFormat);
 	}
 
-	int allocateBuffers(unsigned int bufferCount);
+	int allocateBuffers(unsigned int internalBufferCount,
+			    unsigned int bufferSlotCount);
 	void freeBuffers();
 
 	int start();

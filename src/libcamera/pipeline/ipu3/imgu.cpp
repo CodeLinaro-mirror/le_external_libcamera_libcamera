@@ -576,22 +576,23 @@ int ImgUDevice::configureVideoDevice(V4L2VideoDevice *dev, unsigned int pad,
 /**
  * \brief Allocate buffers for all the ImgU video devices
  */
-int ImgUDevice::allocateBuffers(unsigned int bufferCount)
+int ImgUDevice::allocateBuffers(unsigned int internalBufferCount,
+				unsigned int bufferSlotCount)
 {
 	/* Share buffers between CIO2 output and ImgU input. */
-	int ret = input_->importBuffers(bufferCount);
+	int ret = input_->importBuffers(bufferSlotCount);
 	if (ret) {
 		LOG(IPU3, Error) << "Failed to import ImgU input buffers";
 		return ret;
 	}
 
-	ret = param_->allocateBuffers(bufferCount, &paramBuffers_);
+	ret = param_->allocateBuffers(internalBufferCount, &paramBuffers_);
 	if (ret < 0) {
 		LOG(IPU3, Error) << "Failed to allocate ImgU param buffers";
 		goto error;
 	}
 
-	ret = stat_->allocateBuffers(bufferCount, &statBuffers_);
+	ret = stat_->allocateBuffers(internalBufferCount, &statBuffers_);
 	if (ret < 0) {
 		LOG(IPU3, Error) << "Failed to allocate ImgU stat buffers";
 		goto error;
@@ -602,13 +603,13 @@ int ImgUDevice::allocateBuffers(unsigned int bufferCount)
 	 * corresponding stream is active or inactive, as the driver needs
 	 * buffers to be requested on the V4L2 devices in order to operate.
 	 */
-	ret = output_->importBuffers(bufferCount);
+	ret = output_->importBuffers(bufferSlotCount);
 	if (ret < 0) {
 		LOG(IPU3, Error) << "Failed to import ImgU output buffers";
 		goto error;
 	}
 
-	ret = viewfinder_->importBuffers(bufferCount);
+	ret = viewfinder_->importBuffers(bufferSlotCount);
 	if (ret < 0) {
 		LOG(IPU3, Error) << "Failed to import ImgU viewfinder buffers";
 		goto error;

@@ -236,7 +236,6 @@ StreamConfiguration CIO2Device::generateConfiguration(Size size) const
 
 	cfg.size = sensorFormat.size;
 	cfg.pixelFormat = mbusCodesToPixelFormat.at(sensorFormat.code);
-	cfg.bufferCount = kBufferCount;
 
 	return cfg;
 }
@@ -337,13 +336,14 @@ int CIO2Device::exportBuffers(unsigned int count,
 	return output_->exportBuffers(count, buffers);
 }
 
-int CIO2Device::start()
+int CIO2Device::start(unsigned int internalBufferCount,
+		      unsigned int bufferSlotCount)
 {
-	int ret = output_->exportBuffers(kBufferCount, &buffers_);
+	int ret = output_->exportBuffers(internalBufferCount, &buffers_);
 	if (ret < 0)
 		return ret;
 
-	ret = output_->importBuffers(kBufferCount);
+	ret = output_->importBuffers(bufferSlotCount);
 	if (ret)
 		LOG(IPU3, Error) << "Failed to import CIO2 buffers";
 

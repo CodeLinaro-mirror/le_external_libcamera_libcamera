@@ -31,8 +31,6 @@ enum class Transform;
 class CIO2Device
 {
 public:
-	static constexpr unsigned int kBufferCount = 4;
-
 	CIO2Device();
 
 	std::vector<PixelFormat> formats() const;
@@ -50,7 +48,7 @@ public:
 	V4L2SubdeviceFormat getSensorFormat(const std::vector<unsigned int> &mbusCodes,
 					    const Size &size) const;
 
-	int start();
+	int start(unsigned int internalBufferCount, unsigned int bufferSlotCount);
 	int stop();
 
 	CameraSensor *sensor() { return sensor_.get(); }
