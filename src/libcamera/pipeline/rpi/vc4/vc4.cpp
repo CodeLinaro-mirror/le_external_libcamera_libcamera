@@ -224,7 +224,7 @@ int PipelineHandlerVc4::prepareBuffers(Camera *camera)
 
 	for (Stream *s : camera->streams()) {
 		if (BayerFormat::fromPixelFormat(s->configuration().pixelFormat).isValid()) {
-			numRawBuffers = s->configuration().bufferCount;
+			numRawBuffers = data->unicam_[Unicam::Image].getBuffers().size();
 			break;
 		}
 	}

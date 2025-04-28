@@ -965,7 +965,7 @@ int PipelineHandlerPiSP::prepareBuffers(Camera *camera)
 
 	for (Stream *s : camera->streams()) {
 		if (PipelineHandlerBase::isRaw(s->configuration().pixelFormat)) {
-			numRawBuffers = s->configuration().bufferCount;
+			numRawBuffers = data->cfe_[Cfe::Output0].getBuffers().size();
 			break;
 		}
 	}

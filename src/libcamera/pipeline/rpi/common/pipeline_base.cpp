@@ -388,7 +388,6 @@ PipelineHandlerBase::generateConfiguration(Camera *camera, Span<const StreamRole
 	std::unique_ptr<CameraConfiguration> config =
 		std::make_unique<RPiCameraConfiguration>(data);
 	V4L2SubdeviceFormat sensorFormat;
-	unsigned int bufferCount;
 	PixelFormat pixelFormat;
 	V4L2VideoDevice::Formats fmts;
 	Size size;
@@ -407,7 +406,6 @@ PipelineHandlerBase::generateConfiguration(Camera *camera, Span<const StreamRole
 							    BayerFormat::Packing::CSI2);
 			ASSERT(pixelFormat.isValid());
 			colorSpace = ColorSpace::Raw;
-			bufferCount = 2;
 			break;
 
 		case StreamRole::StillCapture:
@@ -421,7 +419,6 @@ PipelineHandlerBase::generateConfiguration(Camera *camera, Span<const StreamRole
 			colorSpace = ColorSpace::Sycc;
 			/* Return the largest sensor resolution. */
 			size = sensorSize;
-			bufferCount = 1;
 			break;
 
 		case StreamRole::VideoRecording:
@@ -441,7 +438,6 @@ PipelineHandlerBase::generateConfiguration(Camera *camera, Span<const StreamRole
 			 */
 			colorSpace = ColorSpace::Rec709;
 			size = { 1920, 1080 };
-			bufferCount = 4;
 			break;
 
 		case StreamRole::Viewfinder:
@@ -449,7 +445,6 @@ PipelineHandlerBase::generateConfiguration(Camera *camera, Span<const StreamRole
 			pixelFormat = formats::XRGB8888;
 			colorSpace = ColorSpace::Sycc;
 			size = { 800, 600 };
-			bufferCount = 4;
 			break;
 
 		default:
@@ -494,7 +489,6 @@ PipelineHandlerBase::generateConfiguration(Camera *camera, Span<const StreamRole
 		cfg.size = size;
 		cfg.pixelFormat = pixelFormat;
 		cfg.colorSpace = colorSpace;
-		cfg.bufferCount = bufferCount;
 		config->addConfiguration(cfg);
 	}
 
