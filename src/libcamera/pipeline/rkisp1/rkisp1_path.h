@@ -88,6 +88,8 @@ private:
 	 * which are guaranteed to be supported by the pipeline.
 	 */
 	std::map<const CameraSensor *, std::vector<Size>> sensorSizesMap_;
+
+	static constexpr unsigned int kRkISP1BufferSlotCount = 16;
 };
 
 class RkISP1MainPath : public RkISP1Path

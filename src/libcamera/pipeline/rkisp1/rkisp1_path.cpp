@@ -487,8 +487,7 @@ int RkISP1Path::start()
 	if (running_)
 		return -EBUSY;
 
-	/* \todo Make buffer count user configurable. */
-	ret = video_->importBuffers(RKISP1_BUFFER_COUNT);
+	ret = video_->importBuffers(kRkISP1BufferSlotCount);
 	if (ret)
 		return ret;
 
