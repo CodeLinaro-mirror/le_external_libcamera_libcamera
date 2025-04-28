@@ -12,6 +12,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <queue>
 #include <set>
 #include <string>
 #include <vector>
@@ -29,6 +30,7 @@
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/sysfs.h"
@@ -53,18 +55,28 @@ public:
 
 	const std::string &id() const { return id_; }
 
+	void queuePendingRequests();
+	void cancelPendingRequests();
+
+	void setAvailableBufferSlotCount(unsigned int count) { availableBufferSlotCount_ = count; }
+
 	Mutex openLock_;
 	std::unique_ptr<V4L2VideoDevice> video_;
 	Stream stream_;
 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
+	std::queue<Request *> pendingRequests_;
 
 	std::optional<v4l2_exposure_auto_type> autoExposureMode_;
 	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
 
 private:
 	bool generateId();
+	int processControl(ControlList *controls, unsigned int id,
+			   const ControlValue &value);
+	int processControls(Request *request);
 
 	std::string id_;
+	unsigned int availableBufferSlotCount_;
 };
 
 class UVCCameraConfiguration : public CameraConfiguration
@@ -98,10 +110,6 @@ public:
 	bool match(DeviceEnumerator *enumerator) override;
 
 private:
-	int processControl(const UVCCameraData *data, ControlList *controls,
-			   unsigned int id, const ControlValue &value);
-	int processControls(UVCCameraData *data, Request *request);
-
 	bool acquireDevice(Camera *camera) override;
 	void releaseDevice(Camera *camera) override;
 
@@ -295,6 +303,8 @@ int PipelineHandlerUVC::start(Camera *camera, [[maybe_unused]] const ControlList
 	if (ret < 0)
 		return ret;
 
+	data->setAvailableBufferSlotCount(kUVCBufferSlotCount);
+
 	ret = data->video_->streamOn();
 	if (ret < 0) {
 		data->video_->releaseBuffers();
@@ -308,11 +318,12 @@ void PipelineHandlerUVC::stopDevice(Camera *camera)
 {
 	UVCCameraData *data = cameraData(camera);
 	data->video_->streamOff();
+	data->cancelPendingRequests();
 	data->video_->releaseBuffers();
 }
 
-int PipelineHandlerUVC::processControl(const UVCCameraData *data, ControlList *controls,
-				       unsigned int id, const ControlValue &value)
+int UVCCameraData::processControl(ControlList *controls, unsigned int id,
+				  const ControlValue &value)
 {
 	uint32_t cid;
 
@@ -362,10 +373,10 @@ int PipelineHandlerUVC::processControl(const UVCCameraData *data, ControlList *c
 
 		switch (value.get<int32_t>()) {
 		case controls::ExposureTimeModeAuto:
-			mode = data->autoExposureMode_;
+			mode = autoExposureMode_;
 			break;
 		case controls::ExposureTimeModeManual:
-			mode = data->manualExposureMode_;
+			mode = manualExposureMode_;
 			break;
 		}
 
@@ -409,19 +420,19 @@ int PipelineHandlerUVC::processControl(const UVCCameraData *data, ControlList *c
 	return 0;
 }
 
-int PipelineHandlerUVC::processControls(UVCCameraData *data, Request *request)
+int UVCCameraData::processControls(Request *request)
 {
-	ControlList controls(data->video_->controls());
+	ControlList controls(video_->controls());
 
 	for (const auto &[id, value] : request->controls())
-		processControl(data, &controls, id, value);
+		processControl(&controls, id, value);
 
 	for (const auto &ctrl : controls)
 		LOG(UVC, Debug)
 			<< "Setting control " << utils::hex(ctrl.first)
 			<< " to " << ctrl.second.toString();
 
-	int ret = data->video_->setControls(&controls);
+	int ret = video_->setControls(&controls);
 	if (ret) {
 		LOG(UVC, Error) << "Failed to set controls: " << ret;
 		return ret < 0 ? ret : -EINVAL;
@@ -433,21 +444,16 @@ int PipelineHandlerUVC::processControls(UVCCameraData *data, Request *request)
 int PipelineHandlerUVC::queueRequestDevice(Camera *camera, Request *request)
 {
 	UVCCameraData *data = cameraData(camera);
-	FrameBuffer *buffer = request->findBuffer(&data->stream_);
-	if (!buffer) {
+
+	if (!request->findBuffer(&data->stream_)) {
 		LOG(UVC, Error)
 			<< "Attempt to queue request with invalid stream";
 
 		return -ENOENT;
 	}
 
-	int ret = processControls(data, request);
-	if (ret < 0)
-		return ret;
-
-	ret = data->video_->queueBuffer(buffer);
-	if (ret < 0)
-		return ret;
+	data->pendingRequests_.push(request);
+	data->queuePendingRequests();
 
 	return 0;
 }
@@ -882,6 +888,61 @@ void UVCCameraData::imageBufferReady(FrameBuffer *buffer)
 
 	pipe()->completeBuffer(request, buffer);
 	pipe()->completeRequest(request);
+
+	availableBufferSlotCount_++;
+
+	queuePendingRequests();
+}
+
+void UVCCameraData::queuePendingRequests()
+{
+	while (!pendingRequests_.empty() && availableBufferSlotCount_) {
+		Request *request = pendingRequests_.front();
+		FrameBuffer *buffer = request->findBuffer(&stream_);
+
+		int ret = processControls(request);
+		if (ret < 0) {
+			LOG(UVC, Error) << "Failed to process controls with"
+					<< " error " << ret << ". Cancelling"
+					<< " buffer.";
+			buffer->_d()->cancel();
+			pipe()->completeBuffer(request, buffer);
+			pipe()->completeRequest(request);
+			pendingRequests_.pop();
+
+			continue;
+		}
+
+		ret = video_->queueBuffer(buffer);
+		if (ret < 0) {
+			LOG(UVC, Error) << "Failed to queue buffer with error "
+					<< ret << ". Cancelling buffer.";
+			buffer->_d()->cancel();
+			pipe()->completeBuffer(request, buffer);
+			pipe()->completeRequest(request);
+			pendingRequests_.pop();
+
+			continue;
+		}
+
+		availableBufferSlotCount_--;
+
+		pendingRequests_.pop();
+	}
+}
+
+void UVCCameraData::cancelPendingRequests()
+{
+	while (!pendingRequests_.empty()) {
+		Request *request = pendingRequests_.front();
+		FrameBuffer *buffer = request->findBuffer(&stream_);
+
+		buffer->_d()->cancel();
+		pipe()->completeBuffer(request, buffer);
+		pipe()->completeRequest(request);
+
+		pendingRequests_.pop();
+	}
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerUVC, "uvcvideo")
