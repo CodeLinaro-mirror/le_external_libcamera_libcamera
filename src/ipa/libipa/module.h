@@ -74,6 +74,13 @@ private:
 	int createAlgorithm(Context &context, const YamlObject &data)
 	{
 		const auto &[name, algoData] = *data.asDict().begin();
+		if (algoData.contains("disabled")) {
+			LOG(IPAModuleAlgo, Debug)
+				<< "Algorithm " << name << " is disabled"
+				<< " in the tuning file!";
+			/* If we return an error code, the IPA does not work */
+			return 0;
+		}
 		std::unique_ptr<Algorithm<Module>> algo = createAlgorithm(name);
 		if (!algo) {
 			LOG(IPAModuleAlgo, Error)
