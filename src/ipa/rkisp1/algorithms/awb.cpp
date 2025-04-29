@@ -296,6 +296,11 @@ void Awb::process(IPAContext &context,
 	const rkisp1_cif_isp_stat *params = &stats->params;
 	const rkisp1_cif_isp_awb_stat *awb = &params->awb;
 
+	if (awb->awb_mean[0].cnt == 0) {
+		LOG(RkISP1Awb, Warning) << "AWB statistics are empty";
+		return;
+	}
+
 	RGB<double> rgbMeans = calculateRgbMeans(frameContext, awb);
 
 	/*
