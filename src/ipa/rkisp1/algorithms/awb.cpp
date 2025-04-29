@@ -313,6 +313,11 @@ void Awb::process(IPAContext &context,
 		return;
 	}
 
+	if (awb->awb_mean[0].cnt == 0) {
+		LOG(RkISP1Awb, Warning) << "AWB statistics are empty";
+		return;
+	}
+
 	RGB<double> rgbMeans = calculateRgbMeans(frameContext, awb);
 
 	/*
