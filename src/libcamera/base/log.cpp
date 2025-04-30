@@ -603,16 +603,21 @@ Logger::Logger()
  */
 void Logger::parseLogFile()
 {
-	const char *file = utils::secure_getenv("LIBCAMERA_LOG_FILE");
-	if (!file)
+	std::optional<std::string> file =
+		GlobalConfiguration::envOption("LIBCAMERA_LOG_FILE", "log.file");
+	if (!file.has_value())
 		return;
 
-	if (!strcmp(file, "syslog")) {
+	auto fileValue = file.value();
+	if (fileValue == "")
+		return;
+
+	if (fileValue == "syslog") {
 		logSetTarget(LoggingTargetSyslog);
 		return;
 	}
 
-	logSetFile(file, false);
+	logSetFile(fileValue.c_str(), false);
 }
 
 /**
