@@ -5,8 +5,6 @@
  * Logging infrastructure
  */
 
-#include <libcamera/base/log.h>
-
 #include <array>
 #include <charconv>
 #include <fnmatch.h>
@@ -16,17 +14,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <string_view>
 #include <syslog.h>
 #include <time.h>
 #include <unordered_set>
 
-#include <libcamera/logging.h>
-
 #include <libcamera/base/backtrace.h>
+#include <libcamera/base/log.h>
 #include <libcamera/base/mutex.h>
 #include <libcamera/base/thread.h>
 #include <libcamera/base/utils.h>
+
+#include <libcamera/logging.h>
+
+#include "libcamera/internal/global_configuration.h"
 
 /**
  * \file base/log.h
@@ -235,8 +237,7 @@ void LogOutput::write(const LogMessage &msg)
 
 	switch (target_) {
 	case LoggingTargetSyslog:
-		str = std::string(log_severity_name(severity)) + " "
-		    + msg.category().name() + " " + msg.fileInfo() + " ";
+		str = std::string(log_severity_name(severity)) + " " + msg.category().name() + " " + msg.fileInfo() + " ";
 		if (!msg.prefix().empty())
 			str += msg.prefix() + ": ";
 		str += msg.msg();
@@ -244,11 +245,7 @@ void LogOutput::write(const LogMessage &msg)
 		break;
 	case LoggingTargetStream:
 	case LoggingTargetFile:
-		str = "[" + utils::time_point_to_string(msg.timestamp()) + "] ["
-		    + std::to_string(Thread::currentId()) + "] "
-		    + severityColor + log_severity_name(severity) + " "
-		    + categoryColor + msg.category().name() + " "
-		    + fileColor + msg.fileInfo() + " ";
+		str = "[" + utils::time_point_to_string(msg.timestamp()) + "] [" + std::to_string(Thread::currentId()) + "] " + severityColor + log_severity_name(severity) + " " + categoryColor + msg.category().name() + " " + fileColor + msg.fileInfo() + " ";
 		if (!msg.prefix().empty())
 			str += prefixColor + msg.prefix() + ": ";
 		str += resetColor + msg.msg();
@@ -628,8 +625,13 @@ void Logger::parseLogFile()
 void Logger::parseLogLevels()
 {
 	const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS");
-	if (!debug)
-		return;
+	if (!debug) {
+		const std::optional<std::string> confDebug =
+			GlobalConfiguration::configuration()["log"]["levels"].get<std::string>();
+		if (!confDebug.has_value())
+			return;
+		debug = confDebug.value().c_str();
+	}
 
 	for (const char *pair = debug; *debug != '\0'; pair = debug) {
 		const char *comma = strchrnul(debug, ',');
