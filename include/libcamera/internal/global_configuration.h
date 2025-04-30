@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "libcamera/internal/yaml_parser.h"
 
 namespace libcamera {
@@ -19,6 +22,9 @@ void initialize();
 
 unsigned int version();
 Configuration configuration();
+std::optional<std::string> option(const std::string &confPath);
+std::optional<std::string> envOption(const char *const envVariable,
+				     const std::string &confPath);
 
 } /* namespace GlobalConfiguration */
 

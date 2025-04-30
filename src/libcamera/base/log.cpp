@@ -624,14 +624,11 @@ void Logger::parseLogFile()
  */
 void Logger::parseLogLevels()
 {
-	const char *debug = utils::secure_getenv("LIBCAMERA_LOG_LEVELS");
-	if (!debug) {
-		const std::optional<std::string> confDebug =
-			GlobalConfiguration::configuration()["log"]["levels"].get<std::string>();
-		if (!confDebug.has_value())
-			return;
-		debug = confDebug.value().c_str();
-	}
+	const std::optional<std::string> confDebug =
+		GlobalConfiguration::envOption("LIBCAMERA_LOG_LEVELS", "log.levels");
+	if (!confDebug.has_value())
+		return;
+	const char *debug = confDebug.value().c_str();
 
 	for (const char *pair = debug; *debug != '\0'; pair = debug) {
 		const char *comma = strchrnul(debug, ',');
