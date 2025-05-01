@@ -673,8 +673,20 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 	sensorFormat_ = sensor->getFormat(mbusCodes, maxSize,
 					  mainPath->maxResolution());
 
+
+	/*
+	 * TODO: There doesn't seem to be a valid occasion to set the size to
+	 * the native resolution if there was not a supported size found above.
+	 */
 	if (sensorFormat_.size.isNull())
 		sensorFormat_.size = sensor->resolution();
+
+	if (sensorFormat_.size > mainPath->maxResolution()) {
+		LOG(RkISP1, Error)
+			<< "Sensor format size " << sensorFormat_.size
+			<< " exceeds maximum possible size " << mainPath->maxResolution();
+		return Invalid;
+	}
 
 	return status;
 }
