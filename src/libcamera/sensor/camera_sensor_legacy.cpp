@@ -742,7 +742,9 @@ CameraSensorLegacy::getFormat(const std::vector<unsigned int> &mbusCodes,
 	}
 
 	if (!bestSize) {
-		LOG(CameraSensor, Debug) << "No supported format or size found";
+		LOG(CameraSensor, Warning)
+			<< "No supported format or size found. Requested "
+			<< size << " with a maximum size " << maxSize;
 		return {};
 	}
 
