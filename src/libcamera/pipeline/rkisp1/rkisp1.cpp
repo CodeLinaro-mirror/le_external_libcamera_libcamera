@@ -1624,10 +1624,11 @@ void PipelineHandlerRkISP1::frameStart(uint32_t sequence)
 		return;
 
 	RkISP1CameraData *data = cameraData(activeCamera_);
-	data->delayedCtrls_->applyControls(sequence);
+	uint32_t sequenceToApply = sequence + data->delayedCtrls_->maxDelay();
+	data->delayedCtrls_->applyControls(sequenceToApply);
 
 	if (isRaw_) {
-		data->ipa_->computeParams(sequence + 1, 0);
+		data->ipa_->computeParams(sequenceToApply + 1, 0);
 	}
 }
 
