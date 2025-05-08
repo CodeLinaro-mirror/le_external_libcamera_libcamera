@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <deque>
 #include <iomanip>
 #include <map>
 #include <tuple>
@@ -69,6 +70,16 @@ public:
 
 	std::unique_ptr<ipa::vimc::IPAProxyVimc> ipa_;
 	std::vector<std::unique_ptr<FrameBuffer>> mockIPABufs_;
+
+	struct FrameContext {
+		uint32_t seq;
+		float brightness;
+		float contrast;
+		float saturation;
+	};
+
+	/* A cheap frame context queue just for testing purposes */
+	std::deque<FrameContext> fcQueue_;
 };
 
 class VimcCameraConfiguration : public CameraConfiguration
@@ -402,26 +413,36 @@ int PipelineHandlerVimc::processControls(VimcCameraData *data, Request *request)
 {
 	ControlList controls(data->sensor_->controls());
 
+	VimcCameraData::FrameContext fc = {};
+	if (data->fcQueue_.size() > 0)
+		fc = data->fcQueue_.back();
+	fc.seq = request->sequence();
+
 	for (const auto &it : request->controls()) {
 		unsigned int id = it.first;
 		unsigned int offset;
 		uint32_t cid;
+		float *fcValue;
 
 		if (id == controls::Brightness) {
 			cid = V4L2_CID_BRIGHTNESS;
 			offset = 128;
+			fcValue = &fc.brightness;
 		} else if (id == controls::Contrast) {
 			cid = V4L2_CID_CONTRAST;
 			offset = 0;
+			fcValue = &fc.contrast;
 		} else if (id == controls::Saturation) {
 			cid = V4L2_CID_SATURATION;
 			offset = 0;
+			fcValue = &fc.saturation;
 		} else {
 			continue;
 		}
 
 		int32_t value = std::lround(it.second.get<float>() * 128 + offset);
 		controls.set(cid, std::clamp(value, 0, 255));
+		*fcValue = std::clamp(value, 0, 255);
 	}
 
 	for (const auto &ctrl : controls)
@@ -434,6 +455,8 @@ int PipelineHandlerVimc::processControls(VimcCameraData *data, Request *request)
 		LOG(VIMC, Error) << "Failed to set controls: " << ret;
 		return ret < 0 ? ret : -EINVAL;
 	}
+
+	data->fcQueue_.push_back(std::move(fc));
 
 	return ret;
 }
@@ -612,6 +635,19 @@ void VimcCameraData::imageBufferReady(FrameBuffer *buffer)
 
 		pipe->completeRequest(request);
 		return;
+	}
+
+	FrameContext fc = fcQueue_.front();
+	fcQueue_.pop_front();
+
+	if (fc.seq != request->sequence()) {
+		LOG(VIMC, Error)
+			<< "Invalid sequence number: expected "
+			<< request->sequence() << ", got " << fc.seq;
+	} else {
+		request->metadata().set(controls::Brightness, fc.brightness);
+		request->metadata().set(controls::Contrast, fc.contrast);
+		request->metadata().set(controls::Saturation, fc.saturation);
 	}
 
 	/* Record the sensor's timestamp in the request metadata. */
