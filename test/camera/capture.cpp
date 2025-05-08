@@ -7,9 +7,11 @@
 
 #include <iostream>
 
+#include <libcamera/control_ids.h>
 #include <libcamera/framebuffer_allocator.h>
 
 #include <libcamera/base/event_dispatcher.h>
+#include <libcamera/base/span.h>
 #include <libcamera/base/thread.h>
 #include <libcamera/base/timer.h>
 
@@ -58,6 +60,27 @@ protected:
 
 		request->reuse();
 		request->addBuffer(stream, buffer);
+
+		/*
+		 * Test setting non-scalar controls using information directly
+		 * from the ControlInfo
+		 */
+		ControlInfo info = camera_->controls().at(&controls::FrameDurationLimits);
+		switch (request->sequence() % 3) {
+		case 0:
+			request->controls().set(controls::FrameDurationLimits,
+						info.min().get<Span<const int64_t, 2>>());
+			break;
+		case 1:
+			request->controls().set(controls::FrameDurationLimits,
+						info.max().get<Span<const int64_t, 2>>());
+			break;
+		case 2:
+			request->controls().set(controls::FrameDurationLimits,
+						info.def().get<Span<const int64_t, 2>>());
+			break;
+		}
+
 		camera_->queueRequest(request);
 
 		dispatcher_->interrupt();
