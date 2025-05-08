@@ -6,6 +6,7 @@
  */
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <deque>
 #include <iomanip>
@@ -76,6 +77,8 @@ public:
 		float brightness;
 		float contrast;
 		float saturation;
+		int64_t minFrameDuration;
+		int64_t maxFrameDuration;
 	};
 
 	/* A cheap frame context queue just for testing purposes */
@@ -456,6 +459,17 @@ int PipelineHandlerVimc::processControls(VimcCameraData *data, Request *request)
 		return ret < 0 ? ret : -EINVAL;
 	}
 
+	const auto &frameDurationLimits =
+		request->controls().get(controls::FrameDurationLimits);
+	if (frameDurationLimits) {
+		LOG(VIMC, Debug)
+			<< "Setting frameDurationLimits to ["
+			<< (*frameDurationLimits).front()
+			<< ", " << (*frameDurationLimits).back() << "]";
+		fc.minFrameDuration = (*frameDurationLimits).front();
+		fc.maxFrameDuration = (*frameDurationLimits).back();
+	}
+
 	data->fcQueue_.push_back(std::move(fc));
 
 	return ret;
@@ -611,6 +625,18 @@ int VimcCameraData::init()
 		ctrls.emplace(id, info);
 	}
 
+	/*
+	 * vimc doesn't support vblank, we but want to test setting non-scalar
+	 * controls from ControlInfo min/max/def values so add a dummy control.
+	 */
+	std::array<int64_t, 2> minFrameDurationLimits = {   90000,   90000 };
+	std::array<int64_t, 2> maxFrameDurationLimits = { 1600000, 1600000 };
+	std::array<int64_t, 2> defFrameDurationLimits = {   90000, 1600000 };
+	ctrls[&controls::FrameDurationLimits] =
+		      ControlInfo(Span<const int64_t, 2>{ minFrameDurationLimits },
+				  Span<const int64_t, 2>{ maxFrameDurationLimits },
+				  Span<const int64_t, 2>{ defFrameDurationLimits });
+
 	controlInfo_ = ControlInfoMap(std::move(ctrls), controls::controls);
 
 	/* Initialize the camera properties. */
@@ -648,6 +674,12 @@ void VimcCameraData::imageBufferReady(FrameBuffer *buffer)
 		request->metadata().set(controls::Brightness, fc.brightness);
 		request->metadata().set(controls::Contrast, fc.contrast);
 		request->metadata().set(controls::Saturation, fc.saturation);
+
+		std::array<int64_t, 2> frameDurationLimits = {
+			fc.minFrameDuration, fc.maxFrameDuration
+		};
+		request->metadata().set(controls::FrameDurationLimits,
+					Span<const int64_t, 2>{ frameDurationLimits });
 	}
 
 	/* Record the sensor's timestamp in the request metadata. */
