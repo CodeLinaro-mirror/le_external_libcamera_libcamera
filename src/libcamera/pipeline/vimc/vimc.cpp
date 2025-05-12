@@ -629,13 +629,14 @@ int VimcCameraData::init()
 	 * vimc doesn't support vblank, we but want to test setting non-scalar
 	 * controls from ControlInfo min/max/def values so add a dummy control.
 	 */
-	std::array<int64_t, 2> minFrameDurationLimits = {   90000,   90000 };
-	std::array<int64_t, 2> maxFrameDurationLimits = { 1600000, 1600000 };
-	std::array<int64_t, 2> defFrameDurationLimits = {   90000, 1600000 };
+	//std::array<int64_t, 2> minFrameDurationLimits = {   90000,   90000 };
+	//std::array<int64_t, 2> maxFrameDurationLimits = { 1600000, 1600000 };
+	//std::array<int64_t, 2> defFrameDurationLimits = {   90000, 1600000 };
 	ctrls[&controls::FrameDurationLimits] =
-		      ControlInfo(Span<const int64_t, 2>{ minFrameDurationLimits },
-				  Span<const int64_t, 2>{ maxFrameDurationLimits },
-				  Span<const int64_t, 2>{ defFrameDurationLimits });
+		      ControlInfo(//Span<const int64_t, 2>{ minFrameDurationLimits },
+				  //Span<const int64_t, 2>{ maxFrameDurationLimits },
+				  ControlValue(90000L), ControlValue(1600000L),
+				  /*Span<const int64_t, 2>{ defFrameDurationLimits },*/ ControlValue(90000L));
 
 	controlInfo_ = ControlInfoMap(std::move(ctrls), controls::controls);
 
