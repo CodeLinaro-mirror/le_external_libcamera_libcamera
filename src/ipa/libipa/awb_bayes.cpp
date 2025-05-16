@@ -170,13 +170,13 @@ int AwbBayes::init(const YamlObject &tuningData)
 		return ret;
 	}
 
-	ret = parseModeConfigs(tuningData, controls::AwbAuto);
+	ret = parseModeConfigs(tuningData, controls::AwbModeAuto);
 	if (ret) {
 		LOG(Awb, Error)
 			<< "Failed to parse mode parameter from tuning file";
 		return ret;
 	}
-	currentMode_ = &modes_[controls::AwbAuto];
+	currentMode_ = &modes_[controls::AwbModeAuto];
 
 	transversePos_ = tuningData["transversePos"].get<double>(0.01);
 	transverseNeg_ = tuningData["transverseNeg"].get<double>(0.01);

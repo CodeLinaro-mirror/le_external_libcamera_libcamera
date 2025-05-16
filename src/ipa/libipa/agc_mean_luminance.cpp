@@ -215,8 +215,8 @@ int AgcMeanLuminance::parseConstraintModes(const YamlObject &tuningData)
 			0.5
 		};
 
-		constraintModes_[controls::ConstraintNormal].insert(
-			constraintModes_[controls::ConstraintNormal].begin(),
+		constraintModes_[controls::AeConstraintModeNormal].insert(
+			constraintModes_[controls::AeConstraintModeNormal].begin(),
 			constraint);
 		availableConstraintModes.push_back(
 			AeConstraintModeNameValueMap.at("ConstraintNormal"));

@@ -233,9 +233,9 @@ int ConfigParser::parseFrameGenerator(const YamlObject &cameraConfigData, Virtua
 
 int ConfigParser::parseLocation(const YamlObject &cameraConfigData, VirtualCameraData *data)
 {
-	std::string location = cameraConfigData["location"].get<std::string>("CameraLocationFront");
+	std::string location = cameraConfigData["location"].get<std::string>("Front");
 
-	/* Default value is properties::CameraLocationFront */
+	/* Default value is properties::LocationFront */
 	auto it = properties::LocationNameValueMap.find(location);
 	if (it == properties::LocationNameValueMap.end()) {
 		LOG(Virtual, Error)
