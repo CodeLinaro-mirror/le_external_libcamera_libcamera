@@ -44,11 +44,18 @@ LOG_DEFINE_CATEGORY(Buffer)
  * of the FrameMetadata structure are valid.
  * \var FrameMetadata::FrameError
  * An error occurred during capture of the frame. The frame data may be partly
- * or fully invalid. The sequence and timestamp fields of the FrameMetadata
- * structure is valid, the other fields may be invalid.
+ * or fully invalid. This status may also indicate an invalid frame produced by
+ * the sensor during its startup or restart phase. The sequence and timestamp
+ * fields of the FrameMetadata structure is valid, the other fields may be
+ * invalid.
  * \var FrameMetadata::FrameCancelled
  * Capture stopped before the frame completed. The frame data is not valid. All
  * fields of the FrameMetadata structure but the status field are invalid.
+ * \var FrameMetadata::FrameStartup The frame has been successfully captured.
+ * However, the IPA is in a cold-start or reset phase and will result in image
+ * quality parameters producing unusable images. Applications are recommended to
+ * not consume these frames. All fields of the FrameMetadata structure are
+ * valid.
  */
 
 /**
