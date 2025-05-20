@@ -1648,6 +1648,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 	int ret;
 
 	std::map<const Stream *, FrameBuffer *> buffers;
+	bool metadataRequired = false;
 
 	for (auto &[stream, buffer] : request->buffers()) {
 		/*
@@ -1657,6 +1658,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		 */
 		if (data->useConversion_) {
 			buffers.emplace(stream, buffer);
+			metadataRequired = !!data->swIsp_;
 		} else {
 			ret = data->video_->queueBuffer(buffer);
 			if (ret < 0)
@@ -1664,7 +1666,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		}
 	}
 
-	data->frameInfo_.create(request, !!data->swIsp_);
+	data->frameInfo_.create(request, metadataRequired);
 	if (data->useConversion_) {
 		data->conversionQueue_.push({ request, std::move(buffers) });
 		if (data->swIsp_)
