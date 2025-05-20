@@ -32,6 +32,7 @@ public:
 	};
 
 	bool isValid() const { return format.isValid(); }
+	bool isRaw() const { return colourEncoding == ColourEncodingRAW; }
 
 	static const PixelFormatInfo &info(const PixelFormat &format);
 	static const PixelFormatInfo &info(const V4L2PixelFormat &format);
