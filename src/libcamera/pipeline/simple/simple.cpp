@@ -1322,37 +1322,50 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 			config->processedRequested_ = true;
 		}
 
-	/* Create the formats map. */
-	std::map<PixelFormat, std::vector<SizeRange>> formats;
+	/* Create the formats maps. */
+	std::map<PixelFormat, std::vector<SizeRange>> processedFormats;
+	std::map<PixelFormat, std::vector<SizeRange>> rawFormats;
 
-	const bool rawOnly = std::all_of(data->configs_.cbegin(),
-					 data->configs_.cend(),
-					 [](const auto &c) { return c.raw; });
 	for (const SimpleCameraData::Configuration &cfg : data->configs_)
-		if (!cfg.raw || rawOnly)
-			for (PixelFormat format : cfg.outputFormats)
-				formats[format].push_back(cfg.outputSizes);
+		for (PixelFormat format : cfg.outputFormats)
+			(cfg.raw ? rawFormats : processedFormats)[format].push_back(cfg.outputSizes);
 
-	/* Sort the sizes and merge any consecutive overlapping ranges. */
-	for (auto &[format, sizes] : formats) {
-		std::sort(sizes.begin(), sizes.end(),
-			  [](SizeRange &a, SizeRange &b) {
-				  return a.min < b.min;
-			  });
-
-		auto cur = sizes.begin();
-		auto next = cur;
-
-		while (++next != sizes.end()) {
-			if (cur->max.width >= next->min.width &&
-			    cur->max.height >= next->min.height)
-				cur->max = next->max;
-			else if (++cur != next)
-				*cur = *next;
-		}
-
-		sizes.erase(++cur, sizes.end());
+	if (config->processedRequested_ && processedFormats.empty()) {
+		LOG(SimplePipeline, Error)
+			<< "Processed stream requsted but no corresponding output configuration found";
+		return nullptr;
 	}
+	if (config->rawRequested_ && rawFormats.empty()) {
+		LOG(SimplePipeline, Error)
+			<< "Raw stream requsted but no corresponding output configuration found";
+		return nullptr;
+	}
+
+	auto setUpFormatSizes = [](std::map<PixelFormat, std::vector<SizeRange>> &formats) {
+		/* Sort the sizes and merge any consecutive overlapping ranges. */
+
+		for (auto &[format, sizes] : formats) {
+			std::sort(sizes.begin(), sizes.end(),
+				  [](SizeRange &a, SizeRange &b) {
+					  return a.min < b.min;
+				  });
+
+			auto cur = sizes.begin();
+			auto next = cur;
+
+			while (++next != sizes.end()) {
+				if (cur->max.width >= next->min.width &&
+				    cur->max.height >= next->min.height)
+					cur->max = next->max;
+				else if (++cur != next)
+					*cur = *next;
+			}
+
+			sizes.erase(++cur, sizes.end());
+		}
+	};
+	setUpFormatSizes(processedFormats);
+	setUpFormatSizes(rawFormats);
 
 	/*
 	 * Create the stream configurations. Take the first entry in the formats
@@ -1361,11 +1374,13 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	 * \todo Implement a better way to pick the default format
 	 */
 	for (StreamRole role : roles) {
+		bool raw = (role == StreamRole::Raw);
+		auto formats = (raw ? rawFormats : processedFormats);
 		StreamConfiguration cfg{ StreamFormats{ formats } };
 		cfg.pixelFormat = formats.begin()->first;
 		cfg.size = formats.begin()->second[0].max;
 
-		if (role == StreamRole::Raw)
+		if (raw)
 			cfg.colorSpace = ColorSpace::Raw;
 		else if (data->swIsp_)
 			cfg.colorSpace = ColorSpace::Srgb;
