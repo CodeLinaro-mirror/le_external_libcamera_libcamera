@@ -24,6 +24,7 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/formats.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/v4l2_subdevice.h"
@@ -312,8 +313,7 @@ unsigned int ISICameraData::getYuvMediaBusFormat(const PixelFormat &pixelFormat)
 
 unsigned int ISICameraData::getMediaBusFormat(PixelFormat *pixelFormat) const
 {
-	if (PixelFormatInfo::info(*pixelFormat).colourEncoding ==
-	    PixelFormatInfo::ColourEncodingRAW)
+	if (isFormatRaw(*pixelFormat))
 		return getRawMediaBusFormat(pixelFormat);
 
 	return getYuvMediaBusFormat(*pixelFormat);
