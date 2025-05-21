@@ -131,7 +131,6 @@ private:
 	void setSensorControls(const ControlList &sensorControls);
 
 	std::string id_;
-	std::vector<Size> tpgSizes_;
 	Size tpgResolution_;
 };
 
@@ -174,6 +173,8 @@ int MaliC55CameraData::init()
 
 void MaliC55CameraData::initTPGData()
 {
+	std::vector<Size> tpgSizes;
+
 	/* Replicate the CameraSensor implementation for TPG. */
 	V4L2Subdevice::Formats formats = sd_->formats(0);
 	if (formats.empty())
@@ -181,11 +182,11 @@ void MaliC55CameraData::initTPGData()
 
 	for (const auto &format : formats) {
 		const std::vector<SizeRange> &ranges = format.second;
-		std::transform(ranges.begin(), ranges.end(), std::back_inserter(tpgSizes_),
+		std::transform(ranges.begin(), ranges.end(), std::back_inserter(tpgSizes),
 			       [](const SizeRange &range) { return range.max; });
 	}
 
-	tpgResolution_ = tpgSizes_.back();
+	tpgResolution_ = tpgSizes.back();
 }
 
 void MaliC55CameraData::setSensorControls(const ControlList &sensorControls)
