@@ -29,6 +29,7 @@
 
 #include <atomic>
 #include <queue>
+#include <tuple>
 #include <vector>
 
 #include <libcamera/camera.h>
@@ -519,6 +520,61 @@ gst_libcamera_src_open(GstLibcameraSrc *self)
 	return true;
 }
 
+static std::tuple<GstBufferPool *, int>
+gst_libcamera_create_video_pool(GstLibcameraSrc *self,
+				const StreamConfiguration &stream_cfg,
+				GstVideoInfo *info, GstPad *srcpad,
+				GstCaps *caps)
+{
+	GstQuery *query = NULL;
+	const gboolean need_pool = true;
+	gboolean has_video_meta = false;
+	GstBufferPool *video_pool = NULL;
+
+	gst_libcamera_extrapolate_info(info, stream_cfg.stride);
+
+	query = gst_query_new_allocation(caps, need_pool);
+	if (!gst_pad_peer_query(srcpad, query))
+		GST_DEBUG_OBJECT(self, "Didn't get downstream ALLOCATION hints");
+	else
+		has_video_meta = gst_query_find_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+
+	if (!has_video_meta) {
+		GstBufferPool *pool = NULL;
+
+		if (gst_query_get_n_allocation_pools(query) > 0)
+			gst_query_parse_nth_allocation_pool(query, 0, &pool, NULL, NULL, NULL);
+
+		if (pool)
+			video_pool = pool;
+		else {
+			GstStructure *config;
+			guint min_buffers = 3;
+			video_pool = gst_video_buffer_pool_new();
+
+			config = gst_buffer_pool_get_config(video_pool);
+			gst_buffer_pool_config_set_params(config, caps, info->size, min_buffers, 0);
+
+			GST_DEBUG_OBJECT(self, "Own pool config is %" GST_PTR_FORMAT, config);
+
+			gst_buffer_pool_set_config(GST_BUFFER_POOL_CAST(video_pool), config);
+		}
+
+		GST_WARNING_OBJECT(self, "Downstream doesn't support video meta, need to copy frame.");
+
+		if (!gst_buffer_pool_set_active(video_pool, true)) {
+			gst_caps_unref(caps);
+			GST_ELEMENT_ERROR(self, RESOURCE, SETTINGS,
+					  ("Failed to active buffer pool"),
+					  ("gst_libcamera_src_negotiate() failed."));
+			return { NULL, -EINVAL };
+		}
+	}
+
+	gst_query_unref(query);
+	return { video_pool, 0 };
+}
+
 /* Must be called with stream_lock held. */
 static bool
 gst_libcamera_src_negotiate(GstLibcameraSrc *self)
@@ -601,50 +657,11 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		/* Stride mismatch between camera stride and that calculated by video-info. */
 		if (static_cast<unsigned int>(info.stride[0]) != stream_cfg.stride &&
 		    GST_VIDEO_INFO_FORMAT(&info) != GST_VIDEO_FORMAT_ENCODED) {
-			GstQuery *query = NULL;
-			const gboolean need_pool = true;
-			gboolean has_video_meta = false;
-
-			gst_libcamera_extrapolate_info(&info, stream_cfg.stride);
-
-			query = gst_query_new_allocation(caps, need_pool);
-			if (!gst_pad_peer_query(srcpad, query))
-				GST_DEBUG_OBJECT(self, "Didn't get downstream ALLOCATION hints");
-			else
-				has_video_meta = gst_query_find_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
-
-			if (!has_video_meta) {
-				GstBufferPool *pool = NULL;
-
-				if (gst_query_get_n_allocation_pools(query) > 0)
-					gst_query_parse_nth_allocation_pool(query, 0, &pool, NULL, NULL, NULL);
-
-				if (pool)
-					video_pool = pool;
-				else {
-					GstStructure *config;
-					guint min_buffers = 3;
-					video_pool = gst_video_buffer_pool_new();
-
-					config = gst_buffer_pool_get_config(video_pool);
-					gst_buffer_pool_config_set_params(config, caps, info.size, min_buffers, 0);
-
-					GST_DEBUG_OBJECT(self, "Own pool config is %" GST_PTR_FORMAT, config);
-
-					gst_buffer_pool_set_config(GST_BUFFER_POOL_CAST(video_pool), config);
-				}
-
-				GST_WARNING_OBJECT(self, "Downstream doesn't support video meta, need to copy frame.");
-
-				if (!gst_buffer_pool_set_active(video_pool, true)) {
-					gst_caps_unref(caps);
-					GST_ELEMENT_ERROR(self, RESOURCE, SETTINGS,
-							  ("Failed to active buffer pool"),
-							  ("gst_libcamera_src_negotiate() failed."));
-					return false;
-				}
-			}
-			gst_query_unref(query);
+			std::tie(video_pool, ret) =
+				gst_libcamera_create_video_pool(self, stream_cfg,
+								&info, srcpad, caps);
+			if (ret)
+				return false;
 		}
 
 		GstLibcameraPool *pool = gst_libcamera_pool_new(self->allocator,
