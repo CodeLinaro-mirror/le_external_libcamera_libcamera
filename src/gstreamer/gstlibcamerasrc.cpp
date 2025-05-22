@@ -526,7 +526,7 @@ gst_libcamera_create_video_pool(GstLibcameraSrc *self,
 				GstVideoInfo *info, GstPad *srcpad,
 				GstCaps *caps)
 {
-	GstQuery *query = NULL;
+	g_autoptr(GstQuery) query = NULL;
 	const gboolean need_pool = true;
 	gboolean has_video_meta = false;
 	GstBufferPool *video_pool = NULL;
@@ -571,7 +571,6 @@ gst_libcamera_create_video_pool(GstLibcameraSrc *self,
 		}
 	}
 
-	gst_query_unref(query);
 	return { video_pool, 0 };
 }
 
