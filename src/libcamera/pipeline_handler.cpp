@@ -363,15 +363,16 @@ void PipelineHandler::stop(Camera *camera)
 	/* Stop the pipeline handler and let the queued requests complete. */
 	stopDevice(camera);
 
+	Camera::Private *data = camera->_d();
+
 	/* Cancel and signal as complete all waiting requests. */
-	while (!waitingRequests_.empty()) {
-		Request *request = waitingRequests_.front();
-		waitingRequests_.pop();
+	while (!data->waitingRequests_.empty()) {
+		Request *request = data->waitingRequests_.front();
+		data->waitingRequests_.pop();
 		cancelRequest(request);
 	}
 
 	/* Make sure no requests are pending. */
-	Camera::Private *data = camera->_d();
 	ASSERT(data->queuedRequests_.empty());
 
 	data->requestSequence_ = 0;
@@ -444,7 +445,9 @@ void PipelineHandler::queueRequest(Request *request)
 {
 	LIBCAMERA_TRACEPOINT(request_queue, request);
 
-	waitingRequests_.push(request);
+	Camera *camera = request->_d()->camera();
+	Camera::Private *data = camera->_d();
+	data->waitingRequests_.push(request);
 
 	request->_d()->prepare(300ms);
 }
@@ -480,13 +483,20 @@ void PipelineHandler::doQueueRequest(Request *request)
  */
 void PipelineHandler::doQueueRequests()
 {
-	while (!waitingRequests_.empty()) {
-		Request *request = waitingRequests_.front();
-		if (!request->_d()->prepared_)
-			break;
+	for (const std::weak_ptr<Camera> &ptr : cameras_) {
+		std::shared_ptr<Camera> camera = ptr.lock();
+		if (!camera)
+			continue;
 
-		doQueueRequest(request);
-		waitingRequests_.pop();
+		Camera::Private *data = camera->_d();
+		while (!data->waitingRequests_.empty()) {
+			Request *request = data->waitingRequests_.front();
+			if (!request->_d()->prepared_)
+				break;
+
+			doQueueRequest(request);
+			data->waitingRequests_.pop();
+		}
 	}
 }
 
@@ -562,6 +572,8 @@ void PipelineHandler::completeRequest(Request *request)
 		data->queuedRequests_.pop_front();
 		camera->requestComplete(req);
 	}
+
+	doQueueRequests();
 }
 
 /**

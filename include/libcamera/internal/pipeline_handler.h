@@ -8,7 +8,6 @@
 #pragma once
 
 #include <memory>
-#include <queue>
 #include <string>
 #include <sys/types.h>
 #include <vector>
@@ -93,8 +92,6 @@ private:
 
 	std::vector<std::shared_ptr<MediaDevice>> mediaDevices_;
 	std::vector<std::weak_ptr<Camera>> cameras_;
-
-	std::queue<Request *> waitingRequests_;
 
 	const char *name_;
 	unsigned int useCount_;
