@@ -79,6 +79,11 @@ protected:
 	virtual bool acquireDevice(Camera *camera);
 	virtual void releaseDevice(Camera *camera);
 
+	virtual unsigned int maxQueuedRequestsDevice() const
+	{
+		return std::numeric_limits<unsigned int>::max();
+	}
+
 	CameraManager *manager_;
 
 private:

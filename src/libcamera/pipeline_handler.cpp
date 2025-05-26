@@ -490,6 +490,9 @@ void PipelineHandler::doQueueRequests()
 
 		Camera::Private *data = camera->_d();
 		while (!data->waitingRequests_.empty()) {
+			if (data->queuedRequests_.size() == maxQueuedRequestsDevice())
+				break;
+
 			Request *request = data->waitingRequests_.front();
 			if (!request->_d()->prepared_)
 				break;
