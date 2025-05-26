@@ -42,16 +42,6 @@
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
-namespace {
-
-bool isFormatRaw(const libcamera::PixelFormat &pixFmt)
-{
-	return libcamera::PixelFormatInfo::info(pixFmt).colourEncoding ==
-	       libcamera::PixelFormatInfo::ColourEncodingRAW;
-}
-
-} /* namespace */
-
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(MaliC55)
