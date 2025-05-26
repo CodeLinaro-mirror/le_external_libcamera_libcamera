@@ -155,6 +155,12 @@ private:
 	Transform combinedTransform_;
 };
 
+namespace {
+
+const unsigned int kPipelineDepth = 4;
+
+};
+
 class PipelineHandlerRkISP1 : public PipelineHandler
 {
 public:
@@ -171,6 +177,7 @@ public:
 	void stopDevice(Camera *camera) override;
 
 	int queueRequestDevice(Camera *camera, Request *request) override;
+	unsigned int maxQueuedRequestsDevice() const override { return kPipelineDepth; }
 
 	bool match(DeviceEnumerator *enumerator) override;
 
