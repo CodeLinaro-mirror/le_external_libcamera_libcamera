@@ -452,9 +452,8 @@ ISICameraConfiguration::validateYuv(std::set<Stream *> &availableStreams,
 
 		/* If the stream is RAW or not supported default it to YUYV. */
 		const PixelFormatInfo &cfgInfo = PixelFormatInfo::info(cfg.pixelFormat);
-		if (cfgInfo.colourEncoding == PixelFormatInfo::ColourEncodingRAW ||
-		    !formatsMap_.count(cfg.pixelFormat)) {
 
+		if (cfgInfo.isRaw() || !formatsMap_.count(cfg.pixelFormat)) {
 			LOG(ISI, Debug) << "Stream " << i << " format: "
 					<< cfg.pixelFormat << " adjusted to YUYV";
 
@@ -523,7 +522,7 @@ CameraConfiguration::Status ISICameraConfiguration::validate()
 	const PixelFormatInfo info = PixelFormatInfo::info(config_[0].pixelFormat);
 
 	Status validationStatus;
-	if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW)
+	if (info.isRaw())
 		validationStatus = validateRaw(availableStreams, maxResolution);
 	else
 		validationStatus = validateYuv(availableStreams, maxResolution);
@@ -651,7 +650,7 @@ StreamConfiguration PipelineHandlerISI::generateYUVConfiguration(Camera *camera,
 
 	for (const auto &[pixFmt, pipeFmt] : ISICameraConfiguration::formatsMap_) {
 		const PixelFormatInfo &info = PixelFormatInfo::info(pixFmt);
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW)
+		if (info.isRaw())
 			continue;
 
 		streamFormats[pixFmt] = { { kMinISISize, sensorSize } };

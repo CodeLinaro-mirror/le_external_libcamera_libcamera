@@ -218,7 +218,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 	for (const StreamConfiguration &cfg : config_) {
 		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
 
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW) {
+		if (info.isRaw()) {
 			rawCount++;
 			rawSize = std::max(rawSize, cfg.size);
 		} else {
@@ -286,7 +286,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 
 		LOG(IPU3, Debug) << "Validating stream: " << config_[i].toString();
 
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW) {
+		if (info.isRaw()) {
 			/* Initialize the RAW stream with the CIO2 configuration. */
 			cfg->size = cio2Configuration_.size;
 			cfg->pixelFormat = cio2Configuration_.pixelFormat;
