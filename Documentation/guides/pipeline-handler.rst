@@ -213,7 +213,7 @@ implementations for the overridden class members.
           std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
           int start(Camera *camera, const ControlList *controls) override;
-          void stop(Camera *camera) override;
+          void stopDevice(Camera *camera) override;
 
           int queueRequestDevice(Camera *camera, Request *request) override;
 
@@ -247,7 +247,7 @@ implementations for the overridden class members.
           return -1;
    }
 
-   void PipelineHandlerVivid::stop(Camera *camera)
+   void PipelineHandlerVivid::stopDevice(Camera *camera)
    {
    }
 
@@ -1152,7 +1152,7 @@ available to the devices which have to be started and ready to produce
 images. At the end of a capture session the ``Camera`` device needs to be
 stopped, to gracefully clean up any allocated memory and stop the hardware
 devices. Pipeline handlers implement two functions for these purposes, the
-``start()`` and ``stop()`` functions.
+``start()`` and ``stopDevice()`` functions.
 
 The memory initialization phase that happens at ``start()`` time serves to
 configure video devices to be able to use memory buffers exported as dma-buf
