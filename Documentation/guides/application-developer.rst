@@ -357,6 +357,14 @@ Signals and Slots`_) to connect events with callbacks to handle them.
 The ``Camera`` device emits two signals that applications can connect to in
 order to execute callbacks on frame completion events.
 
+The ``Camera::metadataAvailable`` signal notifies applications of the
+availability of metadata results before a request completes. Receiving
+notification about metadata availability allows application to fast-track
+handling of metadata results before all the image buffers in a request are
+ready. The full list of metadata results associated with a Request is anyway
+available at request complete time, and receiving notifications for early
+metadata availability is an optional feature for applications.
+
 The ``Camera::bufferCompleted`` signal notifies applications that a buffer with
 image data is available. Receiving notifications about the single buffer
 completion event allows applications to implement partial request completion
