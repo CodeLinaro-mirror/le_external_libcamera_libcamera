@@ -1407,7 +1407,7 @@ void CameraData::clearIncompleteRequests()
 		}
 
 		// TODO: need this when cancelled?
-		request->metadata().merge(metadata);
+		pipe()->metadataAvailable(request, metadata);
 
 		pipe()->completeRequest(request);
 		requestQueue_.pop();
@@ -1485,7 +1485,7 @@ void CameraData::checkRequestCompleted()
 		LOG(RPI, Debug) << "Completing request sequence: "
 				<< request->sequence();
 
-		request->metadata().merge(metadata);
+		pipe()->metadataAvailable(request, metadata);
 
 		pipe()->completeRequest(request);
 		requestQueue_.pop();
