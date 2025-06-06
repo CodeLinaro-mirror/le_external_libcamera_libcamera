@@ -18,6 +18,7 @@
 
 #include <libcamera/controls.h>
 #include <libcamera/fence.h>
+#include <libcamera/metadata_list.h>
 
 namespace libcamera {
 
@@ -51,6 +52,9 @@ public:
 
 	ControlList &controls() { return *controls_; }
 	ControlList &metadata() { return *metadata_; }
+#ifndef __DOXYGEN__
+	[[nodiscard]] auto &metadata2() { return metadata2_; }
+#endif
 	const BufferMap &buffers() const { return bufferMap_; }
 	int addBuffer(const Stream *stream, FrameBuffer *buffer,
 		      std::unique_ptr<Fence> fence = nullptr);
@@ -69,6 +73,7 @@ private:
 
 	ControlList *controls_;
 	ControlList *metadata_;
+	MetadataList metadata2_;
 	BufferMap bufferMap_;
 
 	const uint64_t cookie_;
