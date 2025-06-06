@@ -11,6 +11,8 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/metadata_list_plan.h>
+
 #include "libcamera/internal/byte_stream_buffer.h"
 
 /**
@@ -616,6 +618,88 @@ FrameBuffer::Plane
 IPADataSerializer<FrameBuffer::Plane>::deserialize(const std::vector<uint8_t> &data,
 						   const std::vector<SharedFD> &fds,
 						   ControlSerializer *cs)
+{
+	return deserialize(data.cbegin(), data.end(), fds.cbegin(), fds.end(), cs);
+}
+
+template<>
+std::tuple<std::vector<uint8_t>, std::vector<SharedFD>>
+IPADataSerializer<MetadataListPlan>::serialize([[maybe_unused]] const MetadataListPlan &data,
+					       [[maybe_unused]] ControlSerializer *cs)
+{
+	std::vector<uint8_t> dataVec;
+
+	appendPOD<uint32_t>(dataVec, data.size());
+
+	for (auto &&[tag, e] : data) {
+		appendPOD<uint32_t>(dataVec, tag);
+		appendPOD<uint32_t>(dataVec, e.size);
+		appendPOD<uint32_t>(dataVec, e.alignment);
+		appendPOD<uint8_t>(dataVec, e.type);
+		appendPOD<uint8_t>(dataVec, e.isArray);
+	}
+
+	return { dataVec, {} };
+}
+
+template<>
+MetadataListPlan
+IPADataSerializer<MetadataListPlan>::deserialize([[maybe_unused]] std::vector<uint8_t>::const_iterator dataBegin,
+						 [[maybe_unused]] std::vector<uint8_t>::const_iterator dataEnd,
+						 [[maybe_unused]] std::vector<SharedFD>::const_iterator fdsBegin,
+						 [[maybe_unused]] std::vector<SharedFD>::const_iterator fdsEnd,
+						 [[maybe_unused]] ControlSerializer *cs)
+{
+	MetadataListPlan ret;
+	std::size_t offset = 0;
+
+	auto count = readPOD<uint32_t>(dataBegin, 0, dataEnd);
+	offset += sizeof(count);
+
+	while (count--) {
+		auto tag = readPOD<uint32_t>(dataBegin, offset, dataEnd);
+		offset += sizeof(tag);
+
+		auto size = readPOD<uint32_t>(dataBegin, offset, dataEnd);
+		offset += sizeof(size);
+
+		auto alignment = readPOD<uint32_t>(dataBegin, offset, dataEnd);
+		offset += sizeof(alignment);
+
+		auto type = readPOD<uint8_t>(dataBegin, offset, dataEnd);
+		offset += sizeof(type);
+
+		auto isArray = readPOD<uint8_t>(dataBegin, offset, dataEnd);
+		offset += sizeof(isArray);
+
+		ret.add(tag, size, 1, alignment, static_cast<ControlType>(type), isArray);
+	}
+
+	return ret;
+}
+
+template<>
+MetadataListPlan
+IPADataSerializer<MetadataListPlan>::deserialize(std::vector<uint8_t>::const_iterator dataBegin,
+						 std::vector<uint8_t>::const_iterator dataEnd,
+						 ControlSerializer *cs)
+{
+	return deserialize(dataBegin, dataEnd, {}, {}, cs);
+}
+
+template<>
+MetadataListPlan
+IPADataSerializer<MetadataListPlan>::deserialize(const std::vector<uint8_t> &data,
+						 ControlSerializer *cs)
+{
+	return deserialize(data.cbegin(), data.end(), cs);
+}
+
+template<>
+MetadataListPlan
+IPADataSerializer<MetadataListPlan>::deserialize(const std::vector<uint8_t> &data,
+						 const std::vector<SharedFD> &fds,
+						 ControlSerializer *cs)
 {
 	return deserialize(data.cbegin(), data.end(), fds.cbegin(), fds.end(), cs);
 }
