@@ -13,10 +13,14 @@
 #include <sys/types.h>
 #include <vector>
 
+#include <libcamera/base/details/cxx20.h>
 #include <libcamera/base/object.h>
 
+#include <libcamera/camera.h>
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
+
+#include "libcamera/internal/request.h"
 
 namespace libcamera {
 
@@ -57,6 +61,23 @@ public:
 
 	void registerRequest(Request *request);
 	void queueRequest(Request *request);
+
+	void metadataAvailable(Request *request, const ControlList &metadata);
+
+	template<typename T>
+	void metadataAvailable(Request *request, const Control<T> &ctrl,
+			       const details::cxx20::type_identity_t<T> &value)
+	{
+		auto &m = request->metadata2();
+		const auto c = m.checkpoint();
+
+		m.set(ctrl, value);
+		request->metadata().set(ctrl, value);
+
+		const auto d = c.diffSince();
+		if (d)
+			request->_d()->camera()->metadataAvailable.emit(request, d);
+	}
 
 	bool completeBuffer(Request *request, FrameBuffer *buffer);
 	void completeRequest(Request *request);

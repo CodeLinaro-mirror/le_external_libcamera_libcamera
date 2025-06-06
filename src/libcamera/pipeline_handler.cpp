@@ -508,6 +508,67 @@ void PipelineHandler::doQueueRequests()
  */
 
 /**
+ * \brief Notify the availability of a list of metadata for \a request
+ * \param[in] request The request the metadata belongs to
+ * \param[in] metadata The metadata list
+ *
+ * This function should be called multiple times by pipeline handlers to signal
+ * the availability of a list of metadata results. It notifies applications
+ * by triggering the Camera::availableMetadata signal and accumulates the
+ * metadata results in Request::metadata().
+ *
+ * Early metadata completion allows pipeline handlers to fast track delivery of
+ * metadata results as soon as they are available before the completion of \a
+ * request. The full list of metadata results of a Request is available at
+ * Request completion time in Request::metadata().
+ *
+ * A metadata key is expected to be notified at most once. Metadata keys
+ * notified multiple times are ignored.
+ *
+ * This overload allows to signal the availability of a list of metadata and
+ * merges them in the Request::metadata() list. This operations is expensive
+ * as controls are copied from \a metadata to Request::metadata().
+ *
+ * \context This function shall be called from the CameraManager thread.
+ */
+void PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+{
+	request->metadata().merge(metadata);
+
+	const auto d = request->metadata2().merge(metadata);
+	if (d)
+		request->_d()->camera()->metadataAvailable.emit(request, d);
+}
+
+/**
+ * \fn void PipelineHandler::metadataAvailable(Request *request, const Control<T> &ctrl,
+ *					       const details::cxx20::type_identity_t<T> &value)
+ * \brief Notify the availability of a metadata result for \a request
+ * \param[in] request The request the metadata belongs to
+ * \param[in] ctrl The control id to notify
+ * \param[in] value the control value
+ *
+ * This function should be called multiple times by pipeline handlers to signal
+ * the availability of a metadata result. It notifies applications
+ * by triggering the Camera::availableMetadata signal and accumulates the
+ * metadata result in Request::metadata().
+ *
+ * Early metadata completion allows pipeline handlers to fast track delivery of
+ * metadata results as soon as they are available before the completion of \a
+ * request. The full list of metadata results of a Request is available at
+ * Request completion time in Request::metadata().
+ *
+ * A metadata key is expected to be notified at most once. Metadata keys
+ * notified multiple times are ignored.
+ *
+ * This overload allows to signal the availability of a single metadata and
+ * merge \a value in the Request::metadata() list. This operations copies \a
+ * value in the Request::metadata() list without creating intermediate copies.
+ *
+ * \context This function shall be called from the CameraManager thread.
+ */
+
+/**
  * \brief Complete a buffer for a request
  * \param[in] request The request the buffer belongs to
  * \param[in] buffer The buffer that has completed
