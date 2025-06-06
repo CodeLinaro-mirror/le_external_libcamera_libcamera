@@ -660,6 +660,14 @@ Camera::Private::~Private()
  * over a single capture session.
  */
 
+/**
+ * \var Camera::Private::metadataPlan_
+ * \brief The set of metadata supported by the camera
+ *
+ * The metadata information shall be initialised by the pipeline handler when
+ * creating the camera.
+ */
+
 static const char *const camera_state_names[] = {
 	"Available",
 	"Acquired",

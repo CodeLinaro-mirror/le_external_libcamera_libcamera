@@ -17,6 +17,7 @@
 #include <libcamera/base/class.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/metadata_list_plan.h>
 
 namespace libcamera {
 
@@ -40,6 +41,8 @@ public:
 	ControlList properties_;
 
 	uint32_t requestSequence_;
+
+	MetadataListPlan metadataPlan_;
 
 	const CameraControlValidator *validator() const { return validator_.get(); }
 
