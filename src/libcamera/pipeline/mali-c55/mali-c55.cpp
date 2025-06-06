@@ -1523,7 +1523,7 @@ void PipelineHandlerMaliC55::statsProcessed(unsigned int requestId,
 	MaliC55FrameInfo &frameInfo = frameInfoMap_[requestId];
 
 	frameInfo.statsDone = true;
-	frameInfo.request->metadata().merge(metadata);
+	metadataAvailable(frameInfo.request, metadata);
 
 	tryComplete(&frameInfo);
 }

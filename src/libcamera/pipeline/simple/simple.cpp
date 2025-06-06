@@ -909,7 +909,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	}
 
 	if (request)
-		request->metadata().set(controls::SensorTimestamp,
+		// TODO: is this correct? should it be set later?
+		pipe->metadataAvailable(request, controls::SensorTimestamp,
 					buffer->metadata().timestamp);
 
 	/*
@@ -997,7 +998,7 @@ void SimpleCameraData::metadataReady(uint32_t frame, const ControlList &metadata
 	if (!info)
 		return;
 
-	info->request->metadata().merge(metadata);
+	pipe()->metadataAvailable(info->request, metadata);
 	info->metadataProcessed = true;
 	tryCompleteRequest(info->request);
 }
