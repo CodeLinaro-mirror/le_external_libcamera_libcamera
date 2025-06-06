@@ -41,6 +41,7 @@ class DebayerCpu;
 class FrameBuffer;
 class PixelFormat;
 class Stream;
+class MetadataListPlan;
 struct StreamConfiguration;
 
 LOG_DECLARE_CATEGORY(SoftwareIsp)
@@ -49,7 +50,7 @@ class SoftwareIsp : public Object
 {
 public:
 	SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-		    ControlInfoMap *ipaControls);
+		    ControlInfoMap *ipaControls, MetadataListPlan *metadataPlan);
 	~SoftwareIsp();
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }

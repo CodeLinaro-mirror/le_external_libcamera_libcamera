@@ -166,6 +166,8 @@ int ISICameraData::init()
 
 	properties_ = sensor_->properties();
 
+	metadataPlan_.add(controls::SensorTimestamp);
+
 	return 0;
 }
 

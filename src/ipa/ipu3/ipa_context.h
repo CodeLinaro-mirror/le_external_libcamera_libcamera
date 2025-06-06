@@ -14,6 +14,7 @@
 
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
+#include <libcamera/metadata_list_plan.h>
 
 #include <libipa/fc_queue.h>
 
@@ -95,6 +96,8 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+
+	MetadataListPlan metadataPlan; // TODO: only needed during init(), how could be removed?
 };
 
 } /* namespace ipa::ipu3 */

@@ -180,6 +180,40 @@ int32_t IpaBase::init(const IPASettings &settings, const InitParams &params, Ini
 
 	result->controlInfo = ControlInfoMap(std::move(ctrlMap), controls::controls);
 
+	// TODO: only set those that can be reported by configured algorithms?
+	// TODO: move this somewhere else?
+	result->metadataPlan.add(controls::AnalogueGainMode);
+	result->metadataPlan.add(controls::ExposureTimeMode);
+	result->metadataPlan.add(controls::ExposureTime);
+	result->metadataPlan.add(controls::AnalogueGain);
+	result->metadataPlan.add(controls::AeMeteringMode);
+	result->metadataPlan.add(controls::AeConstraintMode);
+	result->metadataPlan.add(controls::AeExposureMode);
+	result->metadataPlan.add(controls::ExposureValue);
+	result->metadataPlan.add(controls::AwbEnable);
+	result->metadataPlan.add(controls::AwbMode);
+	result->metadataPlan.add(controls::ColourGains);
+	result->metadataPlan.add(controls::Brightness);
+	result->metadataPlan.add(controls::Contrast);
+	result->metadataPlan.add(controls::Saturation);
+	result->metadataPlan.add(controls::Sharpness);
+	result->metadataPlan.add(controls::draft::NoiseReductionMode);
+	result->metadataPlan.add(controls::FrameDuration);
+	result->metadataPlan.add(controls::SensorTemperature);
+	result->metadataPlan.add(controls::LensPosition);
+	result->metadataPlan.add(controls::DigitalGain);
+	result->metadataPlan.add(controls::AeState);
+	result->metadataPlan.add(controls::Lux);
+	result->metadataPlan.add(controls::ColourTemperature);
+	result->metadataPlan.add(controls::SensorBlackLevels);
+	result->metadataPlan.add(controls::FocusFoM);
+	result->metadataPlan.add(controls::ColourCorrectionMatrix);
+	result->metadataPlan.add(controls::AfState);
+	result->metadataPlan.add(controls::AfPauseState);
+	result->metadataPlan.add(controls::HdrMode);
+	result->metadataPlan.add(controls::HdrChannel);
+	result->metadataPlan.add(controls::FrameDurationLimits);
+
 	return platformInit(params, result);
 }
 

@@ -603,6 +603,8 @@ int UVCCameraData::init(MediaDevice *media)
 
 	controlInfo_ = ControlInfoMap(std::move(ctrls), controls::controls);
 
+	metadataPlan_.add(controls::SensorTimestamp);
+
 	/*
 	 * Close to allow camera to go into runtime-suspend, video_ will be
 	 * re-opened from acquireDevice() and validate().

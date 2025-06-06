@@ -51,6 +51,8 @@ int BlackLevelCorrection::init([[maybe_unused]] IPAContext &context,
 
 	tuningParameters_ = true;
 
+	context.metadataPlan.add(controls::SensorBlackLevels);
+
 	LOG(MaliC55Blc, Debug)
 		<< "Black levels: 00 " << offset00 << ", 01 " << offset01
 		<< ", 10 " << offset10 << ", 11 " << offset11;

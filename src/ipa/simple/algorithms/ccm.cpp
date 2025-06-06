@@ -39,6 +39,9 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
 	context.ccmEnabled = true;
 	context.ctrlMap[&controls::Saturation] = ControlInfo(0.0f, 2.0f, 1.0f);
 
+	context.metadataPlan.add(controls::ColourCorrectionMatrix);
+	context.metadataPlan.add(controls::Saturation);
+
 	return 0;
 }
 

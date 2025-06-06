@@ -198,6 +198,18 @@ Awb::Awb()
 Awb::~Awb() = default;
 
 /**
+ * \copydoc libcamera::ipa::Algorithm::init
+ */
+int Awb::init(IPAContext &context, [[maybe_unused]] const YamlObject &tuningData)
+{
+	context.metadataPlan.add(controls::AwbEnable);
+	context.metadataPlan.add(controls::ColourGains);
+	context.metadataPlan.add(controls::ColourTemperature);
+
+	return 0;
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::configure
  */
 int Awb::configure(IPAContext &context,

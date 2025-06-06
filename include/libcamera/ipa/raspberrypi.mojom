@@ -26,6 +26,7 @@ struct InitParams {
 struct InitResult {
 	SensorConfig sensorConfig;
 	libcamera.ControlInfoMap controlInfo;
+	libcamera.MetadataListPlan metadataPlan;
 };
 
 struct BufferIds {

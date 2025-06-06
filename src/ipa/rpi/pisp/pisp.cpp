@@ -267,8 +267,7 @@ private:
 	HdrStatus lastStitchHdrStatus_;
 };
 
-int32_t IpaPiSP::platformInit(const InitParams &params,
-			      [[maybe_unused]] InitResult *result)
+int32_t IpaPiSP::platformInit(const InitParams &params, InitResult *result)
 {
 	const std::string &target = controller_.getTarget();
 	if (target != "pisp") {
@@ -300,6 +299,8 @@ int32_t IpaPiSP::platformInit(const InitParams &params,
 	}
 
 	setDefaultConfig();
+
+	result->metadataPlan.add(controls::rpi::PispStatsOutput, sizeof(pisp_statistics));
 
 	return 0;
 }

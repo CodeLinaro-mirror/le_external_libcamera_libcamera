@@ -34,6 +34,9 @@ int BlackLevel::init([[maybe_unused]] IPAContext &context,
 		 */
 		definedLevel_ = blackLevel.value() >> 8;
 	}
+
+	context.metadataPlan.add(controls::SensorBlackLevels);
+
 	return 0;
 }
 

@@ -25,6 +25,14 @@ LOG_DEFINE_CATEGORY(IPASoftAwb)
 
 namespace ipa::soft::algorithms {
 
+int Awb::init(IPAContext &context, [[maybe_unused]] const YamlObject &tuningData)
+{
+	context.metadataPlan.add(controls::ColourGains);
+	context.metadataPlan.add(controls::ColourTemperature);
+
+	return 0;
+}
+
 int Awb::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {

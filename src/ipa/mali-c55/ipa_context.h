@@ -9,6 +9,7 @@
 
 #include <libcamera/base/utils.h>
 #include <libcamera/controls.h>
+#include <libcamera/metadata_list_plan.h>
 
 #include "libcamera/internal/bayer_format.h"
 
@@ -83,6 +84,8 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+
+	MetadataListPlan metadataPlan; // TODO: only needed during init(), how could be removed?
 };
 
 } /* namespace ipa::mali_c55 */

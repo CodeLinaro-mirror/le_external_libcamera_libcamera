@@ -394,7 +394,7 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision)
 	}
 
 	ret = ipa_->init({ ipaTuningFile, sensor_->model() }, hwRevision,
-			 sensorInfo, sensor_->controls(), &ipaControls_);
+			 sensorInfo, sensor_->controls(), &ipaControls_, &metadataPlan_);
 	if (ret < 0) {
 		LOG(RkISP1, Error) << "IPA initialization failure";
 		return ret;
@@ -1332,6 +1332,8 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 		return ret;
 
 	updateControls(data.get());
+
+	data->metadataPlan_.add(controls::SensorTimestamp);
 
 	std::set<Stream *> streams{
 		&data->mainPathStream_,

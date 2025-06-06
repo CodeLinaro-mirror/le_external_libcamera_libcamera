@@ -145,6 +145,11 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	);
 	context.ctrlMap.merge(controls());
 
+	context.metadataPlan.add(controls::ExposureTime);
+	context.metadataPlan.add(controls::AnalogueGain);
+	context.metadataPlan.add(controls::DigitalGain);
+	context.metadataPlan.add(controls::ColourTemperature);
+
 	return 0;
 }
 

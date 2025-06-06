@@ -19,7 +19,7 @@ interface IPARkISP1Interface {
 	     uint32 hwRevision,
 	     libcamera.IPACameraSensorInfo sensorInfo,
 	     libcamera.ControlInfoMap sensorControls)
-		=> (int32 ret, libcamera.ControlInfoMap ipaControls);
+		=> (int32 ret, libcamera.ControlInfoMap ipaControls, libcamera.MetadataListPlan metadataPlan);
 	start() => (int32 ret);
 	stop();
 

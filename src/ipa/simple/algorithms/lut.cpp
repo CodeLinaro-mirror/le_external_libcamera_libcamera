@@ -28,6 +28,9 @@ int Lut::init(IPAContext &context,
 	      [[maybe_unused]] const YamlObject &tuningData)
 {
 	context.ctrlMap[&controls::Contrast] = ControlInfo(0.0f, 2.0f, 1.0f);
+
+	context.metadataPlan.add(controls::Contrast);
+
 	return 0;
 }
 

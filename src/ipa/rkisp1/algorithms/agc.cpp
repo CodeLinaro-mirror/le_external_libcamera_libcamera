@@ -159,6 +159,16 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true, true);
 	context.ctrlMap.merge(controls());
 
+	context.metadataPlan.add(controls::AnalogueGain);
+	context.metadataPlan.add(controls::ExposureTime);
+	context.metadataPlan.add(controls::FrameDuration);
+	context.metadataPlan.add(controls::FrameDuration);
+	context.metadataPlan.add(controls::ExposureTimeMode);
+	context.metadataPlan.add(controls::AnalogueGainMode);
+	context.metadataPlan.add(controls::AeMeteringMode);
+	context.metadataPlan.add(controls::AeExposureMode);
+	context.metadataPlan.add(controls::AeConstraintMode);
+
 	return 0;
 }
 

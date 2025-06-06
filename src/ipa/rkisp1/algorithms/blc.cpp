@@ -103,6 +103,8 @@ int BlackLevelCorrection::init(IPAContext &context, const YamlObject &tuningData
 		<< ", green (blue) " << blackLevelGreenB_
 		<< ", blue " << blackLevelBlue_;
 
+	context.metadataPlan.add(controls::SensorBlackLevels);
+
 	return 0;
 }
 
