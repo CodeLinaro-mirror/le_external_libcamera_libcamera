@@ -836,7 +836,7 @@ void Vc4CameraData::ispOutputDequeue(FrameBuffer *buffer)
 	if (stream == &isp_[Isp::Stats]) {
 		ipa::RPi::ProcessParams params;
 		params.buffers.stats = index | RPi::MaskStats;
-		params.ipaContext = requestQueue_.front()->sequence();
+		params.ipaContext = requestQueue_.front().first->sequence();
 		ipa_->processStats(params);
 	} else {
 		/* Any other ISP output can be handed back to the application now. */
@@ -935,7 +935,7 @@ void Vc4CameraData::tryRunPipeline()
 		return;
 
 	/* Take the first request from the queue and action the IPA. */
-	Request *request = requestQueue_.front();
+	auto &[request, metadata] = requestQueue_.front();
 
 	/* See if a new ScalerCrop value needs to be applied. */
 	applyScalerCrop(request->controls());
@@ -945,8 +945,8 @@ void Vc4CameraData::tryRunPipeline()
 	 * related controls. We clear it first because the request metadata
 	 * may have been populated if we have dropped the previous frame.
 	 */
-	request->metadata().clear();
-	fillRequestMetadata(bayerFrame.controls, request);
+	metadata.clear();
+	fillRequestMetadata(bayerFrame.controls, metadata);
 
 	/* Set our state to say the pipeline is active. */
 	state_ = State::Busy;

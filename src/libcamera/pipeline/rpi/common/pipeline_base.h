@@ -129,7 +129,7 @@ public:
 		return state_ != State::Stopped && state_ != State::Error;
 	}
 
-	std::queue<Request *> requestQueue_;
+	std::queue<std::pair<Request *, ControlList>> requestQueue_;
 
 	/* For handling digital zoom. */
 	IPACameraSensorInfo sensorInfo_;
@@ -179,7 +179,7 @@ public:
 
 protected:
 	void fillRequestMetadata(const ControlList &bufferControls,
-				 Request *request);
+				 ControlList &metadata);
 
 	virtual void tryRunPipeline() = 0;
 

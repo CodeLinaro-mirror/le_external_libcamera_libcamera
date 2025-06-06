@@ -780,7 +780,7 @@ int PipelineHandlerBase::queueRequestDevice(Camera *camera, Request *request)
 	}
 
 	/* Push the request to the back of the queue. */
-	data->requestQueue_.push(request);
+	data->requestQueue_.push({ request, {} });
 	data->handleState();
 
 	return 0;
@@ -1232,8 +1232,8 @@ void CameraData::metadataReady(const ControlList &metadata)
 
 	/* Add to the Request metadata buffer what the IPA has provided. */
 	/* Last thing to do is to fill up the request metadata. */
-	Request *request = requestQueue_.front();
-	request->metadata().merge(metadata);
+	ControlList &requestMetadata = requestQueue_.front().second;
+	requestMetadata.merge(metadata);
 
 	/*
 	 * Inform the sensor of the latest colour gains if it has the
@@ -1392,7 +1392,7 @@ void CameraData::clearIncompleteRequests()
 	 * back to the application.
 	 */
 	while (!requestQueue_.empty()) {
-		Request *request = requestQueue_.front();
+		auto &[request, metadata] = requestQueue_.front();
 
 		for (auto &b : request->buffers()) {
 			FrameBuffer *buffer = b.second;
@@ -1406,6 +1406,9 @@ void CameraData::clearIncompleteRequests()
 			}
 		}
 
+		// TODO: need this when cancelled?
+		request->metadata().merge(metadata);
+
 		pipe()->completeRequest(request);
 		requestQueue_.pop();
 	}
@@ -1418,7 +1421,7 @@ void CameraData::handleStreamBuffer(FrameBuffer *buffer, RPi::Stream *stream)
 	 * that we actually have one to action, otherwise we just return
 	 * buffer back to the stream.
 	 */
-	Request *request = requestQueue_.empty() ? nullptr : requestQueue_.front();
+	Request *request = requestQueue_.empty() ? nullptr : requestQueue_.front().first;
 	if (!dropFrameCount_ && request && request->findBuffer(stream) == buffer) {
 		/*
 		 * Tag the buffer as completed, returning it to the
@@ -1471,7 +1474,7 @@ void CameraData::checkRequestCompleted()
 	 * change the state to IDLE when ready.
 	 */
 	if (!dropFrameCount_) {
-		Request *request = requestQueue_.front();
+		auto &[request, metadata] = requestQueue_.front();
 		if (request->hasPendingBuffers())
 			return;
 
@@ -1481,6 +1484,8 @@ void CameraData::checkRequestCompleted()
 
 		LOG(RPI, Debug) << "Completing request sequence: "
 				<< request->sequence();
+
+		request->metadata().merge(metadata);
 
 		pipe()->completeRequest(request);
 		requestQueue_.pop();
@@ -1504,10 +1509,10 @@ void CameraData::checkRequestCompleted()
 	}
 }
 
-void CameraData::fillRequestMetadata(const ControlList &bufferControls, Request *request)
+void CameraData::fillRequestMetadata(const ControlList &bufferControls, ControlList &metadata)
 {
-	request->metadata().set(controls::SensorTimestamp,
-				bufferControls.get(controls::SensorTimestamp).value_or(0));
+	metadata.set(controls::SensorTimestamp,
+		     bufferControls.get(controls::SensorTimestamp).value_or(0));
 
 	if (cropParams_.size()) {
 		std::vector<Rectangle> crops;
@@ -1515,10 +1520,10 @@ void CameraData::fillRequestMetadata(const ControlList &bufferControls, Request 
 		for (auto const &[k, v] : cropParams_)
 			crops.push_back(scaleIspCrop(v.ispCrop));
 
-		request->metadata().set(controls::ScalerCrop, crops[0]);
+		metadata.set(controls::ScalerCrop, crops[0]);
 		if (crops.size() > 1) {
-			request->metadata().set(controls::rpi::ScalerCrops,
-						Span<const Rectangle>(crops.data(), crops.size()));
+			metadata.set(controls::rpi::ScalerCrops,
+				     Span<const Rectangle>(crops.data(), crops.size()));
 		}
 	}
 }

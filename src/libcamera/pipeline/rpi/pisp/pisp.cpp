@@ -2318,7 +2318,7 @@ void PiSPCameraData::tryRunPipeline()
 	CfeJob &job = cfeJobQueue_.front();
 
 	/* Take the first request from the queue and action the IPA. */
-	Request *request = requestQueue_.front();
+	auto &[request, metadata] = requestQueue_.front();
 
 	/* See if a new ScalerCrop value needs to be applied. */
 	applyScalerCrop(request->controls());
@@ -2328,8 +2328,8 @@ void PiSPCameraData::tryRunPipeline()
 	 * related controls. We clear it first because the request metadata
 	 * may have been populated if we have dropped the previous frame.
 	 */
-	request->metadata().clear();
-	fillRequestMetadata(job.sensorControls, request);
+	metadata.clear();
+	fillRequestMetadata(job.sensorControls, metadata);
 
 	/* Set our state to say the pipeline is active. */
 	state_ = State::Busy;
@@ -2347,7 +2347,7 @@ void PiSPCameraData::tryRunPipeline()
 	params.buffers.bayer = RPi::MaskBayerData | bayerId;
 	params.buffers.stats = RPi::MaskStats | statsId;
 	params.buffers.embedded = 0;
-	params.ipaContext = requestQueue_.front()->sequence();
+	params.ipaContext = requestQueue_.front().first->sequence();
 	params.delayContext = job.delayContext;
 	params.sensorControls = std::move(job.sensorControls);
 	params.requestControls = request->controls();
