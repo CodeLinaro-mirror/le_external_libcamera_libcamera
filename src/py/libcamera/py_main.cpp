@@ -460,14 +460,13 @@ PYBIND11_MODULE(_libcamera, m)
 			self.controls().set(id.id(), pyToControlValue(value, id.type()));
 		})
 		.def_property_readonly("metadata", [](Request &self) {
-			/* Convert ControlList to std container */
+			/* Convert MetadataList to std container */
 
 			std::unordered_map<const ControlId *, py::object> ret;
 
-			for (const auto &[key, cv] : self.metadata()) {
-				const ControlId *id = controls::controls.at(key);
-				py::object ob = controlValueToPy(cv);
-				ret[id] = ob;
+			for (const auto &[k, v] : self.metadata2()) {
+				const ControlId *id = controls::controls.at(k);
+				ret.try_emplace(id, controlValueToPy(v));
 			}
 
 			return ret;
