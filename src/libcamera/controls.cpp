@@ -107,6 +107,16 @@ ControlValue::ControlValue()
 }
 
 /**
+ * \brief Construct a ControlValue from a ControlValueView
+ */
+ControlValue::ControlValue(const ControlValueView &cvv)
+	: ControlValue()
+{
+	set(cvv.type(), cvv.isArray(), cvv.data().data(),
+	    cvv.numElements(), ControlValueSize[cvv.type()]);
+}
+
+/**
  * \fn template<typename T> T ControlValue::ControlValue(const T &value)
  * \brief Construct a ControlValue of type T
  * \param[in] value Initial value
@@ -393,6 +403,190 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
 
 	if (newSize > sizeof(value_))
 		storage_ = reinterpret_cast<void *>(new uint8_t[newSize]);
+}
+
+/**
+ * \class ControlValueView
+ * \brief A non-owning view-like type to the value of a control
+ */
+
+/**
+ * \fn ControlValueView::ControlValueView()
+ * \brief Construct an empty view
+ * \sa ControlValue::ControlValue()
+ */
+
+/**
+ * \fn ControlValueView::ControlValueView(const ControlValue &v)
+ * \brief Construct a view referring to \a v
+ *
+ * The constructed view will refer to the value stored by \a v, and
+ * thus \a v must not be modified or destroyed before the view.
+ *
+ * \sa ControlValue::ControlValue()
+ */
+
+/**
+ * \fn ControlValueView::operator bool() const
+ * \brief Determine if the referred value is valid
+ * \sa ControlValueView::isNone()
+ */
+
+/**
+ * \fn ControlType ControlValueView::type() const
+ * \copydoc ControlValue::type()
+ * \sa ControlValue::type()
+ */
+
+/**
+ * \fn ControlValueView::isNone() const
+ * \copydoc ControlValue::isNone()
+ * \sa ControlValue::isNone()
+ */
+
+/**
+ * \fn ControlValueView::isArray() const
+ * \copydoc ControlValue::isArray()
+ * \sa ControlValue::isArray()
+ */
+
+/**
+ * \fn ControlValueView::numElements() const
+ * \copydoc ControlValue::numElements()
+ * \sa ControlValue::numElements()
+ */
+
+/**
+ * \copydoc ControlValue::data()
+ * \sa ControlValue::data()
+ */
+Span<const std::byte> ControlValueView::data() const
+{
+	return { data_, numElements_ * ControlValueSize[type_] };
+}
+
+/**
+ * \copydoc ControlValue::operator==()
+ * \sa ControlValue::operator==()
+ * \sa ControlValueView::operator!=()
+ */
+bool ControlValueView::operator==(const ControlValueView &other) const
+{
+	if (type_ != other.type_)
+		return false;
+
+	if (numElements_ != other.numElements_)
+		return false;
+
+	if (isArray_ != other.isArray_)
+		return false;
+
+	const auto d = data();
+
+	return memcmp(d.data(), other.data_, d.size_bytes()) == 0;
+}
+
+/**
+ * \fn ControlValueView::operator!=() const
+ * \copydoc ControlValue::operator!=()
+ * \sa ControlValue::operator!=()
+ * \sa ControlValueView::operator==()
+ */
+
+/**
+ * \fn template<typename T> T ControlValueView::get() const
+ * \copydoc ControlValue::get()
+ * \sa ControlValue::get()
+ */
+
+/**
+ * \brief Insert a text representation of a value into an output stream
+ * \sa ControlValue::toString()
+ */
+std::ostream &operator<<(std::ostream &s, const ControlValueView &v)
+{
+	const auto type = v.type();
+	if (type == ControlTypeNone)
+		return s << "None";
+
+	const auto *data = v.data().data();
+	const auto numElements = v.numElements();
+
+	if (type == ControlTypeString)
+		return s << std::string_view(reinterpret_cast<const char *>(data),
+					     numElements);
+
+	const bool isArray = v.isArray();
+	if (isArray)
+		s << "[ ";
+
+	for (std::size_t i = 0; i < numElements; ++i) {
+		if (i > 0)
+			s << ", ";
+
+		switch (type) {
+		case ControlTypeBool: {
+			const bool *value = reinterpret_cast<const bool *>(data);
+			s << (*value ? "true" : "false");
+			break;
+		}
+		case ControlTypeByte: {
+			const auto *value = reinterpret_cast<const uint8_t *>(data);
+			s << static_cast<unsigned int>(*value);
+			break;
+		}
+		case ControlTypeUnsigned16: {
+			const auto *value = reinterpret_cast<const uint16_t *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypeUnsigned32: {
+			const auto *value = reinterpret_cast<const uint32_t *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypeInteger32: {
+			const auto *value = reinterpret_cast<const int32_t *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypeInteger64: {
+			const auto *value = reinterpret_cast<const int64_t *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypeFloat: {
+			const auto *value = reinterpret_cast<const float *>(data);
+			s << std::fixed << *value;
+			break;
+		}
+		case ControlTypeRectangle: {
+			const auto *value = reinterpret_cast<const Rectangle *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypeSize: {
+			const auto *value = reinterpret_cast<const Size *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypePoint: {
+			const auto *value = reinterpret_cast<const Point *>(data);
+			s << *value;
+			break;
+		}
+		case ControlTypeNone:
+		case ControlTypeString:
+			break;
+		}
+
+		data += ControlValueSize[type];
+	}
+
+	if (isArray)
+		s << " ]";
+
+	return s;
 }
 
 /**

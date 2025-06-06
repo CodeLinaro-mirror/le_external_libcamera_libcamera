@@ -8,6 +8,7 @@
 #pragma once
 
 #include <assert.h>
+#include <cstddef>
 #include <map>
 #include <optional>
 #include <set>
@@ -25,6 +26,7 @@
 namespace libcamera {
 
 class ControlValidator;
+class ControlValueView;
 
 enum ControlType {
 	ControlTypeNone,
@@ -160,6 +162,8 @@ public:
 		    value.data(), value.size(), sizeof(typename T::value_type));
 	}
 
+	explicit ControlValue(const ControlValueView &cvv);
+
 	~ControlValue();
 
 	ControlValue(const ControlValue &other);
@@ -246,6 +250,71 @@ private:
 	void set(ControlType type, bool isArray, const void *data,
 		 std::size_t numElements, std::size_t elementSize);
 };
+
+class ControlValueView
+{
+public:
+	constexpr ControlValueView() noexcept
+		: type_(ControlTypeNone)
+	{
+	}
+
+	ControlValueView(const ControlValue &cv) noexcept
+		: ControlValueView(cv.type(), cv.isArray(), cv.numElements(),
+				   reinterpret_cast<const std::byte *>(cv.data().data()))
+	{
+	}
+
+#ifndef __DOXYGEN__
+	// TODO: should have restricted access?
+	ControlValueView(ControlType type, bool isArray, std::size_t numElements, const std::byte *data) noexcept
+		: type_(type),
+		  isArray_(isArray),
+		  numElements_(numElements),
+		  data_(data)
+	{
+		assert(isArray || numElements == 1);
+	}
+#endif
+
+	[[nodiscard]] explicit operator bool() const { return type_ != ControlTypeNone; }
+	[[nodiscard]] ControlType type() const { return type_; }
+	[[nodiscard]] bool isNone() const { return type_ == ControlTypeNone; }
+	[[nodiscard]] bool isArray() const { return isArray_; }
+	[[nodiscard]] std::size_t numElements() const { return numElements_; }
+	[[nodiscard]] Span<const std::byte> data() const;
+
+	[[nodiscard]] bool operator==(const ControlValueView &other) const;
+
+	[[nodiscard]] bool operator!=(const ControlValueView &other) const
+	{
+		return !(*this == other);
+	}
+
+	template<typename T>
+	[[nodiscard]] auto get() const
+	{
+		using TypeInfo = details::control_type<std::remove_cv_t<T>>;
+
+		assert(type_ == TypeInfo::value);
+		assert(isArray_ == (TypeInfo::size > 0));
+
+		if constexpr (TypeInfo::size > 0) {
+			return T(reinterpret_cast<const typename T::value_type *>(data().data()), numElements_);
+		} else {
+			assert(numElements_ == 1);
+			return *reinterpret_cast<const T *>(data().data());
+		}
+	}
+
+private:
+	ControlType type_ : 8;
+	bool isArray_ = false;
+	uint32_t numElements_ = 0;
+	const std::byte *data_ = nullptr;
+};
+
+std::ostream &operator<<(std::ostream &s, const ControlValueView &v);
 
 class ControlId
 {
