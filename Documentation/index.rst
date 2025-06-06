@@ -24,6 +24,7 @@
    Tracing guide <guides/tracing>
 
    Design document: AE <design/ae>
+   Design document: Metadata list <design/metadata-list>
 
 .. toctree::
    :hidden:

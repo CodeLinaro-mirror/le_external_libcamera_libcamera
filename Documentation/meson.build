@@ -127,6 +127,7 @@ if sphinx.found()
         'conf.py',
         'contributing.rst',
         'design/ae.rst',
+        'design/metadata-list.rst',
         'documentation-contents.rst',
         'environment_variables.rst',
         'feature_requirements.rst',
