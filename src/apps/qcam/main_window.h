@@ -12,9 +12,9 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
-#include <libcamera/controls.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/framebuffer_allocator.h>
+#include <libcamera/metadata_list.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
@@ -66,7 +66,7 @@ private Q_SLOTS:
 	void saveImageAs();
 	void captureRaw();
 	void processRaw(libcamera::FrameBuffer *buffer,
-			const libcamera::ControlList &metadata);
+			const libcamera::MetadataList &metadata);
 
 	void renderComplete(libcamera::FrameBuffer *buffer);
 

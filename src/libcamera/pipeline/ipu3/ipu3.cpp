@@ -1375,7 +1375,7 @@ void IPU3CameraData::statBufferReady(FrameBuffer *buffer)
 		return;
 	}
 
-	ipa_->processStats(info->id, request->metadata().get(controls::SensorTimestamp).value_or(0),
+	ipa_->processStats(info->id, request->metadata2().get(controls::SensorTimestamp).value_or(0),
 			   info->statBuffer->cookie(), info->effectiveSensorControls);
 }
 

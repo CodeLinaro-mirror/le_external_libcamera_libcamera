@@ -96,13 +96,13 @@ void FileSink::mapBuffer(FrameBuffer *buffer)
 bool FileSink::processRequest(Request *request)
 {
 	for (auto [stream, buffer] : request->buffers())
-		writeBuffer(stream, buffer, request->metadata());
+		writeBuffer(stream, buffer, request->metadata2());
 
 	return true;
 }
 
 void FileSink::writeBuffer(const Stream *stream, FrameBuffer *buffer,
-			   [[maybe_unused]] const ControlList &metadata)
+			   [[maybe_unused]] const MetadataList &metadata)
 {
 	std::string filename = pattern_;
 	size_t pos;

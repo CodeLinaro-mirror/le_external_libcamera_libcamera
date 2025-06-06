@@ -643,7 +643,7 @@ void MainWindow::captureRaw()
 }
 
 void MainWindow::processRaw(FrameBuffer *buffer,
-			    [[maybe_unused]] const ControlList &metadata)
+			    [[maybe_unused]] const MetadataList &metadata)
 {
 #ifdef HAVE_TIFF
 	QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -707,7 +707,7 @@ void MainWindow::processCapture()
 		processViewfinder(request->buffers().at(vfStream_));
 
 	if (request->buffers().count(rawStream_))
-		processRaw(request->buffers().at(rawStream_), request->metadata());
+		processRaw(request->buffers().at(rawStream_), request->metadata2());
 
 	request->reuse();
 	QMutexLocker locker(&mutex_);

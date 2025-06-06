@@ -1187,7 +1187,7 @@ void CameraDevice::requestComplete(Request *request)
 	 * \todo The shutter event notification should be sent to the framework
 	 * as soon as possible, earlier than request completion time.
 	 */
-	uint64_t sensorTimestamp = static_cast<uint64_t>(request->metadata()
+	uint64_t sensorTimestamp = static_cast<uint64_t>(request->metadata2()
 								 .get(controls::SensorTimestamp)
 								 .value_or(0));
 	notifyShutter(descriptor->frameNumber_, sensorTimestamp);
@@ -1423,7 +1423,7 @@ void CameraDevice::notifyError(uint32_t frameNumber, camera3_stream_t *stream,
 std::unique_ptr<CameraMetadata>
 CameraDevice::getResultMetadata(const Camera3RequestDescriptor &descriptor) const
 {
-	const ControlList &metadata = descriptor.request_->metadata();
+	const MetadataList &metadata = descriptor.request_->metadata2();
 	const CameraMetadata &settings = descriptor.settings_;
 	camera_metadata_ro_entry_t entry;
 	bool found;
