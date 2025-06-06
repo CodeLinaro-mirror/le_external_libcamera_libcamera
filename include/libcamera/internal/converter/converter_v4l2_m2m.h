@@ -89,8 +89,8 @@ protected:
 
 		bool isValid() const { return m2m_ != nullptr; }
 
-		int configure(const StreamConfiguration &inputCfg,
-			      const StreamConfiguration &outputCfg);
+		virtual int configure(const StreamConfiguration &inputCfg,
+				      const StreamConfiguration &outputCfg);
 		int exportBuffers(unsigned int count,
 				  std::vector<std::unique_ptr<FrameBuffer>> *buffers);
 
