@@ -556,8 +556,7 @@ int V4L2M2MConverter::configure(const StreamConfiguration &inputCfg,
 
 	for (unsigned int i = 0; i < outputCfgs.size(); ++i) {
 		const StreamConfiguration &cfg = outputCfgs[i];
-		std::unique_ptr<V4L2M2MStream> stream =
-			std::make_unique<V4L2M2MStream>(this, cfg.stream());
+		std::unique_ptr<V4L2M2MStream> stream = makeStream(cfg.stream());
 
 		if (!stream->isValid()) {
 			LOG(Converter, Error)
@@ -809,6 +808,11 @@ bool V4L2M2MConverter::supportsRequests()
 	bool ret = media_->supportsRequests();
 	media_->release();
 	return ret;
+}
+
+std::unique_ptr<V4L2M2MConverter::V4L2M2MStream> V4L2M2MConverter::makeStream(const Stream *stream)
+{
+	return std::make_unique<V4L2M2MConverter::V4L2M2MStream>(this, stream);
 }
 
 /*
