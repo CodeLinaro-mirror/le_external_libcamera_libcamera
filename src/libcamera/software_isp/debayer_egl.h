@@ -150,6 +150,8 @@ private:
 	GBM gbmSurface_;
 	uint32_t width_;
 	uint32_t height_;
+	GLint glFormat_;
+	unsigned int bytesPerPixel_;
 
 	GLfloat vcoordinates[DEBAYER_OPENGL_COORDS][2] = {
 		{ -1.0f, -1.0f },

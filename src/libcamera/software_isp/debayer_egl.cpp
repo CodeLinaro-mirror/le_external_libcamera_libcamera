@@ -151,6 +151,8 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	}
 
 	// Pixel location parameters
+	glFormat_ = GL_LUMINANCE;
+	bytesPerPixel_ = 1;
 	switch (inputFormat) {
 	case libcamera::formats::SBGGR8:
 	case libcamera::formats::SBGGR10_CSI2P:
@@ -197,20 +199,38 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	case libcamera::formats::SGRBG10_CSI2P:
 	case libcamera::formats::SRGGB10_CSI2P:
 		egl_.pushEnv(shaderEnv, "#define RAW10P");
-		fragmentShaderData = bayer_1x_packed_frag;
-		fragmentShaderDataLen = bayer_1x_packed_frag_len;
-		vertexShaderData = identity_vert;
-		vertexShaderDataLen = identity_vert_len;
+		if (BayerFormat::fromPixelFormat(inputFormat).packing == BayerFormat::Packing::None) {
+			fragmentShaderData = bayer_8_frag;
+			fragmentShaderDataLen = bayer_8_frag_len;
+			vertexShaderData = bayer_8_vert;
+			vertexShaderDataLen = bayer_8_vert_len;
+			glFormat_ = GL_RG;
+			bytesPerPixel_ = 2;
+		} else {
+			fragmentShaderData = bayer_1x_packed_frag;
+			fragmentShaderDataLen = bayer_1x_packed_frag_len;
+			vertexShaderData = identity_vert;
+			vertexShaderDataLen = identity_vert_len;
+		}
 		break;
 	case libcamera::formats::SBGGR12_CSI2P:
 	case libcamera::formats::SGBRG12_CSI2P:
 	case libcamera::formats::SGRBG12_CSI2P:
 	case libcamera::formats::SRGGB12_CSI2P:
 		egl_.pushEnv(shaderEnv, "#define RAW12P");
-		fragmentShaderData = bayer_1x_packed_frag;
-		fragmentShaderDataLen = bayer_1x_packed_frag_len;
-		vertexShaderData = identity_vert;
-		vertexShaderDataLen = identity_vert_len;
+		if (BayerFormat::fromPixelFormat(inputFormat).packing == BayerFormat::Packing::None) {
+			fragmentShaderData = bayer_8_frag;
+			fragmentShaderDataLen = bayer_8_frag_len;
+			vertexShaderData = bayer_8_vert;
+			vertexShaderDataLen = bayer_8_vert_len;
+			glFormat_ = GL_RG;
+			bytesPerPixel_ = 2;
+		} else {
+			fragmentShaderData = bayer_1x_packed_frag;
+			fragmentShaderDataLen = bayer_1x_packed_frag_len;
+			vertexShaderData = identity_vert;
+			vertexShaderDataLen = identity_vert_len;
+		}
 		break;
 	default:
 		goto invalid_fmt;
@@ -430,7 +450,7 @@ void DebayerEGL::setShaderVariableValues(void)
 	GLfloat firstRed[] = { firstRed_x_, firstRed_y_ };
 	GLfloat imgSize[] = { (GLfloat)width_,
 			      (GLfloat)height_ };
-	GLfloat Step[] = { 1.0f / (inputConfig_.stride - 1),
+	GLfloat Step[] = { static_cast<float>(bytesPerPixel_) / (inputConfig_.stride - 1),
 			   1.0f / (height_ - 1) };
 	GLfloat Stride = 1.0f;
 	GLfloat projIdentityMatrix[] = {
@@ -507,7 +527,7 @@ void DebayerEGL::debayerGPU(MappedFrameBuffer &in, MappedFrameBuffer &out, Debay
 
 	// Greate a standard texture
 	// we will replace this with the DMA version at some point
-	egl_.createTexture2D(eglImageBayerIn_, inputConfig_.stride, height_, in.planes()[0].data());
+	egl_.createTexture2D(eglImageBayerIn_, glFormat_, inputConfig_.stride / bytesPerPixel_, height_, in.planes()[0].data());
 
 	// Populate bayer parameters
 	if (ccmEnabled_) {
@@ -518,9 +538,9 @@ void DebayerEGL::debayerGPU(MappedFrameBuffer &in, MappedFrameBuffer &out, Debay
 		};
 		glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
 	} else {
-		egl_.createTexture2D(eglImageRedLookup_, DebayerParams::kRGBLookupSize, 1, &params.red);
-		egl_.createTexture2D(eglImageGreenLookup_, DebayerParams::kRGBLookupSize, 1, &params.green);
-		egl_.createTexture2D(eglImageBlueLookup_, DebayerParams::kRGBLookupSize, 1, &params.blue);
+		egl_.createTexture2D(eglImageRedLookup_, GL_LUMINANCE, DebayerParams::kRGBLookupSize, 1, &params.red);
+		egl_.createTexture2D(eglImageGreenLookup_, GL_LUMINANCE, DebayerParams::kRGBLookupSize, 1, &params.green);
+		egl_.createTexture2D(eglImageBlueLookup_, GL_LUMINANCE, DebayerParams::kRGBLookupSize, 1, &params.blue);
 	}
 
 	// Setup the scene
