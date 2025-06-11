@@ -189,10 +189,10 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	case libcamera::formats::SGBRG8:
 	case libcamera::formats::SGRBG8:
 	case libcamera::formats::SRGGB8:
-		fragmentShaderData = bayer_8_frag;
-		fragmentShaderDataLen = bayer_8_frag_len;
-		vertexShaderData = bayer_8_vert;
-		vertexShaderDataLen = bayer_8_vert_len;
+		fragmentShaderData = bayer_unpacked_frag;
+		fragmentShaderDataLen = bayer_unpacked_frag_len;
+		vertexShaderData = bayer_unpacked_vert;
+		vertexShaderDataLen = bayer_unpacked_vert_len;
 		break;
 	case libcamera::formats::SBGGR10_CSI2P:
 	case libcamera::formats::SGBRG10_CSI2P:
@@ -200,10 +200,10 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	case libcamera::formats::SRGGB10_CSI2P:
 		egl_.pushEnv(shaderEnv, "#define RAW10P");
 		if (BayerFormat::fromPixelFormat(inputFormat).packing == BayerFormat::Packing::None) {
-			fragmentShaderData = bayer_8_frag;
-			fragmentShaderDataLen = bayer_8_frag_len;
-			vertexShaderData = bayer_8_vert;
-			vertexShaderDataLen = bayer_8_vert_len;
+			fragmentShaderData = bayer_unpacked_frag;
+			fragmentShaderDataLen = bayer_unpacked_frag_len;
+			vertexShaderData = bayer_unpacked_vert;
+			vertexShaderDataLen = bayer_unpacked_vert_len;
 			glFormat_ = GL_RG;
 			bytesPerPixel_ = 2;
 		} else {
@@ -219,10 +219,10 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	case libcamera::formats::SRGGB12_CSI2P:
 		egl_.pushEnv(shaderEnv, "#define RAW12P");
 		if (BayerFormat::fromPixelFormat(inputFormat).packing == BayerFormat::Packing::None) {
-			fragmentShaderData = bayer_8_frag;
-			fragmentShaderDataLen = bayer_8_frag_len;
-			vertexShaderData = bayer_8_vert;
-			vertexShaderDataLen = bayer_8_vert_len;
+			fragmentShaderData = bayer_unpacked_frag;
+			fragmentShaderDataLen = bayer_unpacked_frag_len;
+			vertexShaderData = bayer_unpacked_vert;
+			vertexShaderDataLen = bayer_unpacked_vert_len;
 			glFormat_ = GL_RG;
 			bytesPerPixel_ = 2;
 		} else {
