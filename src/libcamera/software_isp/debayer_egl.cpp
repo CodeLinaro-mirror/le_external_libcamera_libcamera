@@ -99,6 +99,7 @@ int DebayerEGL::getShaderVariableLocations(void)
 	textureUniformRedLookupDataIn_ = glGetUniformLocation(programId_, "red_param");
 	textureUniformGreenLookupDataIn_ = glGetUniformLocation(programId_, "green_param");
 	textureUniformBlueLookupDataIn_ = glGetUniformLocation(programId_, "blue_param");
+	ccmUniformDataIn_ = glGetUniformLocation(programId_, "ccm");
 
 	textureUniformStep_ = glGetUniformLocation(programId_, "tex_step");
 	textureUniformSize_ = glGetUniformLocation(programId_, "tex_size");
@@ -111,6 +112,7 @@ int DebayerEGL::getShaderVariableLocations(void)
 			    << " red_param " << textureUniformRedLookupDataIn_
 			    << " green_param " << textureUniformGreenLookupDataIn_
 			    << " blue_param " << textureUniformBlueLookupDataIn_
+			    << " ccm " << ccmUniformDataIn_
 			    << " tex_step " << textureUniformStep_
 			    << " tex_size " << textureUniformSize_
 			    << " stride_factor " << textureUniformStrideFactor_
@@ -215,8 +217,13 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 		break;
 	};
 
-	// Flag to shaders that we have parameter gain tables
-	egl_.pushEnv(shaderEnv, "#define APPLY_RGB_PARAMETERS");
+	if (ccmEnabled_) {
+		// Run the CCM if available
+		egl_.pushEnv(shaderEnv, "#define APPLY_CCM_PARAMETERS");
+	} else {
+		// Flag to shaders that we have parameter gain tables
+		egl_.pushEnv(shaderEnv, "#define APPLY_RGB_PARAMETERS");
+	}
 
 	if (egl_.compileVertexShader(vertexShaderId_, vertexShaderData, vertexShaderDataLen, shaderEnv))
 		goto compile_fail;
@@ -266,6 +273,8 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 			  const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs,
 			  bool ccmEnabled)
 {
+	GLint maxTextureImageUnits;
+
 	if (getInputConfig(inputCfg.pixelFormat, inputConfig_) != 0)
 		return -EINVAL;
 
@@ -284,7 +293,7 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	inputConfig_.stride = inputCfg.stride;
 	width_ = inputCfg.size.width;
 	height_ = inputCfg.size.height;
-	ccmEnabled_ = ccmEnabled = false;
+	ccmEnabled_ = ccmEnabled = true;
 
 	if (outputCfgs.size() != 1) {
 		LOG(Debayer, Error)
@@ -304,30 +313,35 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &maxTextureImageUnits);
 	LOG(Debayer, Debug) << "Fragment shader maximum texture units " << maxTextureImageUnits;
 
-	if (maxTextureImageUnits < DEBAYER_EGL_MIN_SIMPLE_RGB_GAIN_TEXTURE_UNITS) {
+	if (!ccmEnabled && maxTextureImageUnits < DEBAYER_EGL_MIN_SIMPLE_RGB_GAIN_TEXTURE_UNITS) {
 		LOG(Debayer, Error) << "Fragment shader texture unit count " << maxTextureImageUnits
 				    << " required minimum for RGB gain table lookup " << DEBAYER_EGL_MIN_SIMPLE_RGB_GAIN_TEXTURE_UNITS
 				    << " try using an identity CCM ";
 		return -ENODEV;
 	}
+
 	// Raw bayer input as texture
 	eglImageBayerIn_ = new eGLImage(width_, height_, 32, GL_TEXTURE0, 0);
 	if (!eglImageBayerIn_)
 		return -ENOMEM;
 
-	/// RGB correction tables as 2d textures
-	// eGL doesn't support glTexImage1D so we do a little hack with 2D to compensate
-	eglImageRedLookup_ = new eGLImage(DebayerParams::kRGBLookupSize, 1, 32, GL_TEXTURE1, 1);
-	if (!eglImageRedLookup_)
-		return -ENOMEM;
+	// Only do the RGB lookup table textures if CCM is disabled
+	if (!ccmEnabled_) {
 
-	eglImageGreenLookup_ = new eGLImage(DebayerParams::kRGBLookupSize, 1, 32, GL_TEXTURE2, 2);
-	if (!eglImageGreenLookup_)
-		return -ENOMEM;
+		/// RGB correction tables as 2d textures
+		// eGL doesn't support glTexImage1D so we do a little hack with 2D to compensate
+		eglImageRedLookup_ = new eGLImage(DebayerParams::kRGBLookupSize, 1, 32, GL_TEXTURE1, 1);
+		if (!eglImageRedLookup_)
+			return -ENOMEM;
 
-	eglImageBlueLookup_ = new eGLImage(DebayerParams::kRGBLookupSize, 1, 32, GL_TEXTURE3, 3);
-	if (!eglImageBlueLookup_)
-		return -ENOMEM;
+		eglImageGreenLookup_ = new eGLImage(DebayerParams::kRGBLookupSize, 1, 32, GL_TEXTURE2, 2);
+		if (!eglImageGreenLookup_)
+			return -ENOMEM;
+
+		eglImageBlueLookup_ = new eGLImage(DebayerParams::kRGBLookupSize, 1, 32, GL_TEXTURE3, 3);
+		if (!eglImageBlueLookup_)
+			return -ENOMEM;
+	}
 
 	// Create a single BO (calling gbm_surface_lock_front_buffer() again before gbm_surface_release_buffer() would create another BO)
 	if (gbmSurface_.mapSurface())
@@ -440,9 +454,11 @@ void DebayerEGL::setShaderVariableValues(void)
 	// To simultaneously sample multiple textures we need to use multiple
 	// texture units
 	glUniform1i(textureUniformBayerDataIn_, eglImageBayerIn_->texture_unit_uniform_id_);
-	glUniform1i(textureUniformRedLookupDataIn_, eglImageRedLookup_->texture_unit_uniform_id_);
-	glUniform1i(textureUniformGreenLookupDataIn_, eglImageGreenLookup_->texture_unit_uniform_id_);
-	glUniform1i(textureUniformBlueLookupDataIn_, eglImageBlueLookup_->texture_unit_uniform_id_);
+	if (!ccmEnabled_) {
+		glUniform1i(textureUniformRedLookupDataIn_, eglImageRedLookup_->texture_unit_uniform_id_);
+		glUniform1i(textureUniformGreenLookupDataIn_, eglImageGreenLookup_->texture_unit_uniform_id_);
+		glUniform1i(textureUniformBlueLookupDataIn_, eglImageBlueLookup_->texture_unit_uniform_id_);
+	}
 
 	// These values are:
 	// firstRed = tex_bayer_first_red - bayer_8.vert
@@ -494,9 +510,18 @@ void DebayerEGL::debayerGPU(MappedFrameBuffer &in, MappedFrameBuffer &out, Debay
 	egl_.createTexture2D(eglImageBayerIn_, inputConfig_.stride, height_, in.planes()[0].data());
 
 	// Populate bayer parameters
-	egl_.createTexture2D(eglImageRedLookup_, DebayerParams::kRGBLookupSize, 1, &params.red);
-	egl_.createTexture2D(eglImageGreenLookup_, DebayerParams::kRGBLookupSize, 1, &params.green);
-	egl_.createTexture2D(eglImageBlueLookup_, DebayerParams::kRGBLookupSize, 1, &params.blue);
+	if (ccmEnabled_) {
+		GLfloat ccm[] = {
+			1, 0, 0,
+			0, 1, 0,
+			0, 0, 1,
+		};
+		glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
+	} else {
+		egl_.createTexture2D(eglImageRedLookup_, DebayerParams::kRGBLookupSize, 1, &params.red);
+		egl_.createTexture2D(eglImageGreenLookup_, DebayerParams::kRGBLookupSize, 1, &params.green);
+		egl_.createTexture2D(eglImageBlueLookup_, DebayerParams::kRGBLookupSize, 1, &params.blue);
+	}
 
 	// Setup the scene
 	setShaderVariableValues();

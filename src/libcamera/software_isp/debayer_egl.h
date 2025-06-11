@@ -134,9 +134,15 @@ private:
 	GLint textureUniformProjMatrix_;
 
 	GLint textureUniformBayerDataIn_;
+
+	// These textures will either point to simple RGB gains or to CCM lookup tables
 	GLint textureUniformRedLookupDataIn_;
 	GLint textureUniformGreenLookupDataIn_;
 	GLint textureUniformBlueLookupDataIn_;
+
+	// Represent per-frame CCM as a uniform vector of floats 3 x 3
+	GLint ccmUniformDataIn_;
+	bool ccmEnabled_;
 
 	Rectangle window_;
 	std::unique_ptr<SwStatsCpu> stats_;
@@ -144,7 +150,6 @@ private:
 	GBM gbmSurface_;
 	uint32_t width_;
 	uint32_t height_;
-	bool ccmEnabled_;
 
 	GLfloat vcoordinates[DEBAYER_OPENGL_COORDS][2] = {
 		{ -1.0f, -1.0f },
