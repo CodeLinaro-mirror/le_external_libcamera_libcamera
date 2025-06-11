@@ -22,7 +22,6 @@
 #include <libcamera/formats.h>
 
 #include "libcamera/internal/bayer_format.h"
-#include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/mapped_framebuffer.h"
 
@@ -740,30 +739,10 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	bench_.startFrame();
 
 	std::vector<DmaSyncer> dmaSyncers;
-	for (const FrameBuffer::Plane &plane : input->planes())
-		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Read);
 
-	for (const FrameBuffer::Plane &plane : output->planes())
-		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Write);
+	dmaSyncBegin(dmaSyncers, input, output);
 
-	green_ = params.green;
-	greenCcm_ = params.greenCcm;
-	if (swapRedBlueGains_) {
-		red_ = params.blue;
-		blue_ = params.red;
-		redCcm_ = params.blueCcm;
-		blueCcm_ = params.redCcm;
-		for (unsigned int i = 0; i < 256; i++) {
-			std::swap(redCcm_[i].r, redCcm_[i].b);
-			std::swap(blueCcm_[i].r, blueCcm_[i].b);
-		}
-	} else {
-		red_ = params.red;
-		blue_ = params.blue;
-		redCcm_ = params.redCcm;
-		blueCcm_ = params.blueCcm;
-	}
-	gammaLut_ = params.gammaLut;
+	setParams(params);
 
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();

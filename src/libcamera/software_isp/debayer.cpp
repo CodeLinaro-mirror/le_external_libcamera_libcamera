@@ -187,4 +187,44 @@ Debayer::~Debayer()
  * \brief Signals when the output buffer is ready
  */
 
+/**
+ * \fn void Debayer::setParams(DebayerParams &params)
+ * \brief Select the bayer params to use for the next frame debayer
+ * \param[in] params The parameters to be used in debayering
+ */
+void Debayer::setParams(DebayerParams &params)
+{
+	green_ = params.green;
+	greenCcm_ = params.greenCcm;
+	if (swapRedBlueGains_) {
+		red_ = params.blue;
+		blue_ = params.red;
+		redCcm_ = params.blueCcm;
+		blueCcm_ = params.redCcm;
+		for (unsigned int i = 0; i < 256; i++) {
+			std::swap(redCcm_[i].r, redCcm_[i].b);
+			std::swap(blueCcm_[i].r, blueCcm_[i].b);
+		}
+	} else {
+		red_ = params.red;
+		blue_ = params.blue;
+		redCcm_ = params.redCcm;
+		blueCcm_ = params.blueCcm;
+	}
+	gammaLut_ = params.gammaLut;
+}
+
+/**
+ * \fn void Debayer::dmaSyncBegin(DebayerParams &params)
+ * \brief Common CPU/GPU Dma Sync Buffer begin
+ */
+void Debayer::dmaSyncBegin(std::vector<DmaSyncer> &dmaSyncers, FrameBuffer *input, FrameBuffer *output)
+{
+	for (const FrameBuffer::Plane &plane : input->planes())
+		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Read);
+
+	for (const FrameBuffer::Plane &plane : output->planes())
+		dmaSyncers.emplace_back(plane.fd, DmaSyncer::SyncType::Write);
+}
+
 } /* namespace libcamera */
