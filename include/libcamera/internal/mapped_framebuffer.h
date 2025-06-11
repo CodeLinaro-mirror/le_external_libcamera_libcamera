@@ -55,6 +55,7 @@ public:
 	using MapFlags = Flags<MapFlag>;
 
 	MappedFrameBuffer(const FrameBuffer *buffer, MapFlags flags);
+	int getPlaneFD(int plane);
 
 private:
 	const FrameBuffer *buffer_;

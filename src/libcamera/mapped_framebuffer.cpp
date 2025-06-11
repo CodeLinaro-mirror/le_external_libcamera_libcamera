@@ -242,4 +242,9 @@ MappedFrameBuffer::MappedFrameBuffer(const FrameBuffer *buffer, MapFlags flags)
 	buffer_ = buffer;
 }
 
+int MappedFrameBuffer::getPlaneFD(int plane)
+{
+	return buffer_->planes()[plane].fd.get();
+}
+
 } /* namespace libcamera */
