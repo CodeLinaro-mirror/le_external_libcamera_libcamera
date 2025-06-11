@@ -82,13 +82,13 @@ void eGL::destroyDMABufTexture(eGLImage *eglImage)
 
 //
 // Generate a 2D texture from an input buffer directly
-void eGL::createTexture2D(eGLImage *eglImage, uint32_t width, uint32_t height, void *data)
+void eGL::createTexture2D(eGLImage *eglImage, GLint format, uint32_t width, uint32_t height, void *data)
 {
 	glActiveTexture(eglImage->texture_unit_);
 	glBindTexture(GL_TEXTURE_2D, eglImage->texture_);
 
 	// Generate texture, bind, associate image to texture, configure, unbind
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_LUMINANCE, width, height, 0, GL_LUMINANCE, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
 
 	// Nearest filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
