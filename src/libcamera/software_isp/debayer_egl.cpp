@@ -293,7 +293,7 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	inputConfig_.stride = inputCfg.stride;
 	width_ = inputCfg.size.width;
 	height_ = inputCfg.size.height;
-	ccmEnabled_ = ccmEnabled = true;
+	ccmEnabled_ = ccmEnabled;
 
 	if (outputCfgs.size() != 1) {
 		LOG(Debayer, Error)
@@ -511,10 +511,10 @@ void DebayerEGL::debayerGPU(MappedFrameBuffer &in, MappedFrameBuffer &out, Debay
 
 	// Populate bayer parameters
 	if (ccmEnabled_) {
-		GLfloat ccm[] = {
-			1, 0, 0,
-			0, 1, 0,
-			0, 0, 1,
+		GLfloat ccm[9] = {
+			params.ccm[0][0], params.ccm[0][1], params.ccm[0][2],
+			params.ccm[1][0], params.ccm[1][1], params.ccm[1][2],
+			params.ccm[2][0], params.ccm[2][1], params.ccm[2][2],
 		};
 		glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
 	} else {
