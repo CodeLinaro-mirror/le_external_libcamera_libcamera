@@ -1204,7 +1204,7 @@ std::vector<SizeRange> V4L2VideoDevice::enumSizes(V4L2PixelFormat pixelFormat)
 		case V4L2_FRMSIZE_TYPE_DISCRETE:
 			sizes.emplace_back(Size{ frameSize.discrete.width,
 						 frameSize.discrete.height });
-			break;
+			continue;
 		case V4L2_FRMSIZE_TYPE_CONTINUOUS:
 			sizes.emplace_back(Size{ frameSize.stepwise.min_width,
 						 frameSize.stepwise.min_height },
