@@ -125,6 +125,11 @@ public:
 	 */
 	MediaPipeline pipe_;
 
+	struct DewarpParms {
+		Matrix<double, 3, 3> cm;
+		std::vector<double> coeffs;
+	};
+	std::optional<DewarpParms> dewarpParams_;
 	bool canUseDewarper_;
 	bool usesDewarper_;
 
@@ -458,8 +463,30 @@ int RkISP1CameraData::loadTuningFile(const std::string &path)
 
 	const auto &algos = (*data)["algorithms"].asList();
 	for (const auto &algo : algos) {
-		if (algo.contains("Dewarp"))
+		const auto &params = algo["Dewarp"];
+		if (params) {
 			canUseDewarper_ = true;
+			DewarpParms dp;
+			if (params["cm"]) {
+				const auto &cm = params["cm"].get<Matrix<double, 3, 3>>();
+				if (!cm) {
+					LOG(RkISP1, Error) << "Dewarp parameters are missing 'cm' value";
+					return -EINVAL;
+				}
+				dp.cm = *cm;
+			}
+
+			if (params["coefficients"]) {
+				const auto &coeffs = params["coefficients"].getList<double>();
+				if (!coeffs) {
+					LOG(RkISP1, Error) << "Dewarp parameters 'coefficients' value is not a list";
+					return -EINVAL;
+				}
+				dp.coeffs = *coeffs;
+			}
+
+			dewarpParams_ = dp;
+		}
 	}
 
 	return 0;
@@ -1050,6 +1077,10 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 				auto &vertexMap = dewarper_->vertexMap(cfg.stream());
 				vertexMap.setSensorCrop(sensorCrop);
 				vertexMap.setTransform(config->combinedTransform());
+				if (data->dewarpParams_) {
+					vertexMap.setDewarpParams(data->dewarpParams_->cm,
+								  data->dewarpParams_->coeffs);
+				}
 				data->properties_.set(properties::ScalerCropMaximum, sensorCrop);
 
 				/*
