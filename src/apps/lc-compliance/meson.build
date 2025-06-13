@@ -2,7 +2,10 @@
 
 libgtest = dependency('gtest', version : '>=1.10.0',
                       required : get_option('lc-compliance'),
-                      fallback : ['gtest', 'gtest_dep'])
+                      fallback : ['gtest', 'gtest_dep'],
+                      default_options : [
+                        'default_library=static',
+                      ])
 
 if opt_lc_compliance.disabled() or not libevent.found() or not libgtest.found()
     lc_compliance_enabled = false
