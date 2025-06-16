@@ -40,6 +40,7 @@
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/media_pipeline.h"
@@ -383,8 +384,9 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision)
 	ipa_->metadataReady.connect(this, &RkISP1CameraData::metadataReady);
 
 	/* The IPA tuning file is made from the sensor name. */
+	const GlobalConfiguration &configuration = pipe()->cameraManager()->_d()->configuration();
 	std::string ipaTuningFile =
-		ipa_->configurationFile(sensor_->model() + ".yaml", "uncalibrated.yaml");
+		ipa_->configurationFile(sensor_->model() + ".yaml", configuration, "uncalibrated.yaml");
 
 	IPACameraSensorInfo sensorInfo{};
 	int ret = sensor_->sensorInfo(&sensorInfo);

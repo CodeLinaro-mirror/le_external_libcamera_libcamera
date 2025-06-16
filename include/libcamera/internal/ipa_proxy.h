@@ -11,6 +11,8 @@
 
 #include <libcamera/ipa/ipa_interface.h>
 
+#include "libcamera/internal/global_configuration.h"
+
 namespace libcamera {
 
 class IPAModule;
@@ -30,10 +32,11 @@ public:
 	bool isValid() const { return valid_; }
 
 	std::string configurationFile(const std::string &name,
+				      const GlobalConfiguration &configuration,
 				      const std::string &fallbackName = std::string()) const;
 
 protected:
-	std::string resolvePath(const std::string &file) const;
+	std::string resolvePath(const std::string &file, const GlobalConfiguration &configuration) const;
 
 	bool valid_;
 	ProxyState state_;

@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <dirent.h>
+#include <numeric>
 #include <string.h>
 #include <sys/types.h>
 
@@ -16,6 +17,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_module.h"
 #include "libcamera/internal/ipa_proxy.h"
 #include "libcamera/internal/pipeline_handler.h"
@@ -101,7 +103,7 @@ LOG_DEFINE_CATEGORY(IPAManager)
  * The IPAManager class is meant to only be instantiated once, by the
  * CameraManager.
  */
-IPAManager::IPAManager()
+IPAManager::IPAManager(const GlobalConfiguration &configuration)
 {
 #if HAVE_IPA_PUBKEY
 	if (!pubKey_.isValid())
@@ -111,18 +113,25 @@ IPAManager::IPAManager()
 	unsigned int ipaCount = 0;
 
 	/* User-specified paths take precedence. */
-	const char *modulePaths = utils::secure_getenv("LIBCAMERA_IPA_MODULE_PATH");
-	if (modulePaths) {
-		for (const auto &dir : utils::split(modulePaths, ":")) {
-			if (dir.empty())
-				continue;
+	const auto modulePaths =
+		configuration.envListOption(
+			"LIBCAMERA_IPA_MODULE_PATH", "ipa.module_paths");
+	for (const auto &dir : modulePaths) {
+		if (dir.empty())
+			continue;
 
-			ipaCount += addDir(dir.c_str());
+		ipaCount += addDir(dir.c_str());
+	}
+
+	if (!ipaCount) {
+		std::string paths;
+		if (!modulePaths.empty()) {
+			paths = std::accumulate(std::next(modulePaths.begin()),
+						modulePaths.end(),
+						modulePaths[0],
+						[](std::string s1, std::string s2) { return s1 + ":" + s2; });
 		}
-
-		if (!ipaCount)
-			LOG(IPAManager, Warning)
-				<< "No IPA found in '" << modulePaths << "'";
+		LOG(IPAManager, Warning) << "No IPA found in '" << paths << "'";
 	}
 
 	/*
@@ -276,11 +285,13 @@ IPAModule *IPAManager::module(PipelineHandler *pipe, uint32_t minVersion,
  */
 #endif
 
-bool IPAManager::isSignatureValid([[maybe_unused]] IPAModule *ipa) const
+bool IPAManager::isSignatureValid([[maybe_unused]] IPAModule *ipa, const GlobalConfiguration &configuration) const
 {
 #if HAVE_IPA_PUBKEY
 	char *force = utils::secure_getenv("LIBCAMERA_IPA_FORCE_ISOLATION");
-	if (force && force[0] != '\0') {
+	if ((force && force[0] != '\0') ||
+	    (!force && configuration.option<bool>("ipa.force_isolation")
+			       .value_or(false))) {
 		LOG(IPAManager, Debug)
 			<< "Isolation of IPA module " << ipa->path()
 			<< " forced through environment variable";
