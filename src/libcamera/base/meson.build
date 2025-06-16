@@ -24,10 +24,12 @@ libcamera_base_internal_sources = files([
     'thread.cpp',
     'timer.cpp',
     'utils.cpp',
+    'yaml_parser.cpp',
 ])
 
 libdw = dependency('libdw', required : false)
 libunwind = dependency('libunwind', required : false)
+libyaml = dependency('yaml-0.1', required : false)
 
 if cc.has_header_symbol('execinfo.h', 'backtrace')
     config_h.set('HAVE_BACKTRACE', 1)
@@ -41,11 +43,23 @@ if libunwind.found()
     config_h.set('HAVE_UNWIND', 1)
 endif
 
+# Fallback to a subproject if libyaml isn't found, as it's not packaged in AOSP.
+if not libyaml.found()
+    cmake = import('cmake')
+
+    libyaml_vars = cmake.subproject_options()
+    libyaml_vars.add_cmake_defines({'CMAKE_POSITION_INDEPENDENT_CODE': 'ON'})
+    libyaml_vars.append_compile_args('c', '-Wno-unused-value')
+    libyaml_wrap = cmake.subproject('libyaml', options : libyaml_vars)
+    libyaml = libyaml_wrap.dependency('yaml')
+endif
+
 libcamera_base_deps = [
     libatomic,
     libdw,
     libthreads,
     libunwind,
+    libyaml,
 ]
 
 # Internal components must use the libcamera_base_private dependency to enable
