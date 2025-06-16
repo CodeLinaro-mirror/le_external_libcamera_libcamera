@@ -20,6 +20,7 @@
 #include <libcamera/property_ids.h>
 
 #include "libcamera/internal/camera_lens.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 
@@ -1084,7 +1085,12 @@ int CameraData::loadPipelineConfiguration()
 	/* Initial configuration of the platform, in case no config file is present */
 	platformPipelineConfigure({});
 
-	char const *configFromEnv = utils::secure_getenv("LIBCAMERA_RPI_CONFIG_FILE");
+	const GlobalConfiguration &config = pipe()->cameraManager()->_d()->configuration();
+	std::optional<std::string> configFile =
+		config.envOption("LIBCAMERA_RPI_CONFIG_FILE", "pipelines.rpi.config_file");
+	if (!configFile.has_value())
+		return 0;
+	char const *configFromEnv = configFile.value().c_str();
 	if (!configFromEnv || *configFromEnv == '\0')
 		return 0;
 
