@@ -8,6 +8,14 @@ module ipa.rkisp1;
 
 import "include/libcamera/ipa/core.mojom";
 
+/*
+ * Hardware revisions in rkisp1-config.h (enum rkisp1_cif_isp_version) start at
+ * 10 and increment sequentially. Add a namespace starting at 0x80000000 for
+ * devices not cover by the kernel rkisp1 implementation but still supported
+ * by the IPA.
+ */
+const uint32 HwRevisionExternalRppX1 = 0x80000001;
+
 struct IPAConfigInfo {
 	libcamera.IPACameraSensorInfo sensorInfo;
 	libcamera.ControlInfoMap sensorControls;

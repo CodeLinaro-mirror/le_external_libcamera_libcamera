@@ -113,6 +113,14 @@ const IPAHwSettings ipaHwSettingsV12{
 	false,
 };
 
+const IPAHwSettings ipaHwSettingsRPPX1{
+	RKISP1_CIF_ISP_AE_MEAN_MAX_V10,
+	RKISP1_CIF_ISP_HIST_BIN_N_MAX_V12,
+	RKISP1_CIF_ISP_HISTOGRAM_WEIGHT_GRIDS_SIZE_V10,
+	RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V10,
+	false,
+};
+
 /* List of controls handled by the RkISP1 IPA */
 const ControlInfoMap::Map rkisp1Controls{
 	{ &controls::DebugMetadataEnable, ControlInfo(false, true, false) },
@@ -147,6 +155,9 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 		break;
 	case RKISP1_V12:
 		context_.hw = &ipaHwSettingsV12;
+		break;
+	case HwRevisionExternalRppX1:
+		context_.hw = &ipaHwSettingsRPPX1;
 		break;
 	default:
 		LOG(IPARkISP1, Error)
