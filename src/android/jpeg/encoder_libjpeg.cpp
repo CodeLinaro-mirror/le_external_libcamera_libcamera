@@ -34,7 +34,7 @@ namespace {
 
 struct JPEGPixelFormatInfo {
 	J_COLOR_SPACE colorSpace;
-	const PixelFormatInfo &pixelFormatInfo;
+	const PixelFormatInfo pixelFormatInfo;
 	bool nvSwap;
 };
 
