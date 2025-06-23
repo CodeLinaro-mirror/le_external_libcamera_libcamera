@@ -146,6 +146,7 @@ struct _GstLibcameraSrc {
 	GstTask *task;
 
 	gchar *camera_name;
+	Orientation orientation;
 
 	std::atomic<GstEvent *> pending_eos;
 
@@ -157,6 +158,7 @@ struct _GstLibcameraSrc {
 enum {
 	PROP_0,
 	PROP_CAMERA_NAME,
+	PROP_ORIENTATION,
 	PROP_LAST
 };
 
@@ -616,6 +618,11 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		gst_libcamera_get_framerate_from_caps(caps, element_caps);
 	}
 
+	// print state->orientation for debugging purposes
+	GST_DEBUG_OBJECT(self, "Orientation: %d", (int)self->orientation);
+	/* Set the orientation control. */
+	state->config_->orientation = self->orientation;
+
 	/* Validate the configuration. */
 	if (state->config_->validate() == CameraConfiguration::Invalid)
 		return false;
@@ -926,6 +933,9 @@ gst_libcamera_src_set_property(GObject *object, guint prop_id,
 		g_free(self->camera_name);
 		self->camera_name = g_value_dup_string(value);
 		break;
+	case PROP_ORIENTATION:
+		self->orientation = (libcamera::Orientation)g_value_get_enum(value);
+		break;
 	default:
 		if (!state->controls_.setProperty(prop_id - PROP_LAST, value, pspec))
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -944,6 +954,9 @@ gst_libcamera_src_get_property(GObject *object, guint prop_id, GValue *value,
 	switch (prop_id) {
 	case PROP_CAMERA_NAME:
 		g_value_set_string(value, self->camera_name);
+		break;
+	case PROP_ORIENTATION:
+		g_value_set_enum(value, (gint)self->orientation);
 		break;
 	default:
 		if (!state->controls_.getProperty(prop_id - PROP_LAST, value, pspec))
@@ -1120,6 +1133,53 @@ gst_libcamera_src_release_pad(GstElement *element, GstPad *pad)
 	gst_element_remove_pad(element, pad);
 }
 
+static GType
+gst_libcamera_orientation_get_type()
+{
+	static GType type = 0;
+	static const GEnumValue values[] = {
+		{
+			static_cast<gint>(libcamera::Orientation::Rotate0),
+			"libcamera::Orientation::Rotate0",
+			"rotate-0",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate0Mirror),
+			"libcamera::Orientation::Rotate0Mirror",
+			"rotate-0-mirror",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate180),
+			"libcamera::Orientation::Rotate180",
+			"rotate-180",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate180Mirror),
+			"libcamera::Orientation::Rotate180Mirror",
+			"rotate-180-mirror",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate90Mirror),
+			"libcamera::Orientation::Rotate90Mirror",
+			"rotate-90-mirror",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate270),
+			"libcamera::Orientation::Rotate270",
+			"rotate-270",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate270Mirror),
+			"libcamera::Orientation::Rotate270Mirror",
+			"rotate-270-mirror",
+		}, {
+			static_cast<gint>(libcamera::Orientation::Rotate90),
+			"libcamera::Orientation::Rotate90",
+			"rotate-90",
+		},
+		{ 0, nullptr, nullptr }
+	};
+
+	if (!type)
+		type = g_enum_register_static("GstLibcameraOrientation", values);
+
+	return type;
+}
+
 static void
 gst_libcamera_src_class_init(GstLibcameraSrcClass *klass)
 {
@@ -1153,6 +1213,18 @@ gst_libcamera_src_class_init(GstLibcameraSrcClass *klass)
 							     | G_PARAM_READWRITE
 							     | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property(object_class, PROP_CAMERA_NAME, spec);
+
+	/* Register the orientation enum type. */
+	GType orientation_type = gst_libcamera_orientation_get_type();
+	spec = g_param_spec_enum("orientation", "Orientation",
+					       "Select the orientation of the camera.",
+					       orientation_type,
+					       static_cast<gint>(libcamera::Orientation::Rotate0),
+					       (GParamFlags)(GST_PARAM_MUTABLE_READY
+							     | G_PARAM_CONSTRUCT
+							     | G_PARAM_READWRITE
+							     | G_PARAM_STATIC_STRINGS));
+	g_object_class_install_property(object_class, PROP_ORIENTATION, spec);
 
 	GstCameraControls::installProperties(object_class, PROP_LAST);
 }
