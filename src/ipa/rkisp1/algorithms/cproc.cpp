@@ -44,9 +44,19 @@ int convertBrightness(const float v)
 	return std::clamp<int>(std::lround(v * 128), -128, 127);
 }
 
+float convertBrightness(const int v)
+{
+	return static_cast<float>(v) / 128.0f;
+}
+
 int convertContrastOrSaturation(const float v)
 {
 	return std::clamp<int>(std::lround(v * 128), 0, 255);
+}
+
+float convertContrastOrSaturation(const int v)
+{
+	return static_cast<float>(v) / 128.0f;
 }
 
 } /* namespace */
@@ -151,6 +161,18 @@ void ColorProcessing::prepare([[maybe_unused]] IPAContext &context,
 	config->brightness = frameContext.cproc.brightness;
 	config->contrast = frameContext.cproc.contrast;
 	config->sat = frameContext.cproc.saturation;
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void ColorProcessing::process([[maybe_unused]] IPAContext &context, [[maybe_unused]] const uint32_t frame,
+			      IPAFrameContext &frameContext, [[maybe_unused]] const rkisp1_stat_buffer *stats,
+			      ControlList &metadata)
+{
+	metadata.set(controls::Brightness, convertBrightness(frameContext.cproc.brightness));
+	metadata.set(controls::Contrast, convertContrastOrSaturation(frameContext.cproc.contrast));
+	metadata.set(controls::Saturation, convertContrastOrSaturation(frameContext.cproc.saturation));
 }
 
 REGISTER_IPA_ALGORITHM(ColorProcessing, "ColorProcessing")
