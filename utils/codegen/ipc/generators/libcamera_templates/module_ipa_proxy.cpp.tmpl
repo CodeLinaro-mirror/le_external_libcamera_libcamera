@@ -45,7 +45,7 @@ namespace {{ns}} {
 {% endfor %}
 {%- endif %}
 
-{{proxy_name}}::{{proxy_name}}(IPAModule *ipam, bool isolate)
+{{proxy_name}}::{{proxy_name}}(IPAModule *ipam, bool isolate, const GlobalConfiguration &configuration)
 	: IPAProxy(ipam), isolate_(isolate),
 	  controlSerializer_(ControlSerializer::Role::Proxy), seq_(0)
 {
@@ -54,7 +54,7 @@ namespace {{ns}} {
 		<< ipam->path();
 
 	if (isolate_) {
-		const std::string proxyWorkerPath = resolvePath("{{module_name}}_ipa_proxy");
+		const std::string proxyWorkerPath = resolvePath("{{module_name}}_ipa_proxy", configuration);
 		if (proxyWorkerPath.empty()) {
 			LOG(IPAProxy, Error)
 				<< "Failed to get proxy worker path";

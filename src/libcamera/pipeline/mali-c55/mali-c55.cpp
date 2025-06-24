@@ -388,7 +388,9 @@ int MaliC55CameraData::loadIPA()
 
 	ipa_->setSensorControls.connect(this, &MaliC55CameraData::setSensorControls);
 
+	const GlobalConfiguration &configuration = pipe()->cameraManager()->_d()->configuration();
 	std::string ipaTuningFile = ipa_->configurationFile(sensor_->model() + ".yaml",
+							    configuration,
 							    "uncalibrated.yaml");
 
 	/* We need to inform the IPA of the sensor configuration */

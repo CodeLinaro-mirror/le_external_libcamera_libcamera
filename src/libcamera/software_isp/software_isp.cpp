@@ -21,6 +21,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
 
@@ -130,8 +131,9 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	 * The API tuning file is made from the sensor name. If the tuning file
 	 * isn't found, fall back to the 'uncalibrated' file.
 	 */
+	const GlobalConfiguration &configuration = pipe->cameraManager()->_d()->configuration();
 	std::string ipaTuningFile =
-		ipa_->configurationFile(sensor->model() + ".yaml", "uncalibrated.yaml");
+		ipa_->configurationFile(sensor->model() + ".yaml", configuration, "uncalibrated.yaml");
 
 	IPACameraSensorInfo sensorInfo{};
 	int ret = sensor->sensorInfo(&sensorInfo);

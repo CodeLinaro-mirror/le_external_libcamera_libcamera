@@ -494,7 +494,8 @@ bool PipelineHandlerVimc::match(DeviceEnumerator *enumerator)
 
 	data->ipa_->paramsComputed.connect(data.get(), &VimcCameraData::paramsComputed);
 
-	std::string conf = data->ipa_->configurationFile("vimc.conf");
+	const GlobalConfiguration &configuration = manager_->_d()->configuration();
+	std::string conf = data->ipa_->configurationFile("vimc.conf", configuration);
 	Flags<ipa::vimc::TestFlag> inFlags = ipa::vimc::TestFlag::Flag2;
 	Flags<ipa::vimc::TestFlag> outFlags;
 	data->ipa_->init(IPASettings{ conf, data->sensor_->model() },

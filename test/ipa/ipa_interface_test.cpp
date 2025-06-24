@@ -106,7 +106,8 @@ protected:
 		}
 
 		/* Test initialization of IPA module. */
-		std::string conf = ipa_->configurationFile("vimc.conf");
+		const GlobalConfiguration configuration;
+		std::string conf = ipa_->configurationFile("vimc.conf", configuration);
 		Flags<ipa::vimc::TestFlag> inFlags;
 		Flags<ipa::vimc::TestFlag> outFlags;
 		int ret = ipa_->init(IPASettings{ conf, "vimc" },

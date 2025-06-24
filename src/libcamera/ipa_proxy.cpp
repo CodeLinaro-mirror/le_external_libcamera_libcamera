@@ -14,6 +14,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_module.h"
 
 /**
@@ -71,6 +72,7 @@ IPAProxy::~IPAProxy()
 /**
  * \brief Retrieve the absolute path to an IPA configuration file
  * \param[in] name The configuration file name
+ * \param[in] configuration The global configuration
  * \param[in] fallbackName The name of a fallback configuration file
  *
  * This function locates the configuration file for an IPA and returns its
@@ -96,6 +98,7 @@ IPAProxy::~IPAProxy()
  * no configuration file can be found
  */
 std::string IPAProxy::configurationFile(const std::string &name,
+					const GlobalConfiguration &configuration,
 					const std::string &fallbackName) const
 {
 	/*
@@ -105,37 +108,37 @@ std::string IPAProxy::configurationFile(const std::string &name,
 	const std::string ipaName = ipam_->info().name;
 
 	/*
-	 * Start with any user override through the module-specific environment
-	 * variable. Use the name of the IPA module up to the first '/' to
-	 * construct the variable name.
+	 * Start with any user override through the module-specific configuration or
+	 * environment variable. Use the name of the IPA module up to the first '/'
+	 * to construct the configuration and variable names.
 	 */
-	std::string ipaEnvName = ipaName.substr(0, ipaName.find('/'));
+	std::string ipaBaseName = ipaName.substr(0, ipaName.find('/'));
+	std::string ipaConfigName = "ipa/ipas/" + ipaBaseName + "/tuning_file";
+	std::string ipaEnvName = ipaBaseName;
 	std::transform(ipaEnvName.begin(), ipaEnvName.end(), ipaEnvName.begin(),
 		       [](unsigned char c) { return std::toupper(c); });
 	ipaEnvName = "LIBCAMERA_" + ipaEnvName + "_TUNING_FILE";
 
-	char const *configFromEnv = utils::secure_getenv(ipaEnvName.c_str());
-	if (configFromEnv && *configFromEnv != '\0')
-		return { configFromEnv };
+	auto config = configuration.envOption(ipaEnvName.c_str(), ipaConfigName);
+	if (config)
+		return { config.value() };
 
 	struct stat statbuf;
 	int ret;
 
 	/*
-	 * Check the directory pointed to by the IPA config path environment
-	 * variable next.
+	 * Check the directory pointed to by the IPA config path next.
 	 */
-	const char *confPaths = utils::secure_getenv("LIBCAMERA_IPA_CONFIG_PATH");
-	if (confPaths) {
-		for (const auto &dir : utils::split(confPaths, ":")) {
-			if (dir.empty())
-				continue;
-
-			std::string confPath = dir + "/" + ipaName + "/" + name;
-			ret = stat(confPath.c_str(), &statbuf);
-			if (ret == 0 && (statbuf.st_mode & S_IFMT) == S_IFREG)
-				return confPath;
-		}
+	auto confPaths =
+		configuration.envListOption(
+			"LIBCAMERA_IPA_CONFIG_PATH", "ipa/config_paths");
+	for (const auto &dir : confPaths) {
+		if (dir.empty())
+			continue;
+		std::string confPath = dir + "/" + ipaName + "/" + name;
+		ret = stat(confPath.c_str(), &statbuf);
+		if (ret == 0 && (statbuf.st_mode & S_IFMT) == S_IFREG)
+			return confPath;
 	}
 
 	std::string root = utils::libcameraSourcePath();
@@ -178,12 +181,13 @@ std::string IPAProxy::configurationFile(const std::string &name,
 		<< "Configuration file '" << name
 		<< "' not found for IPA module '" << ipaName
 		<< "', falling back to '" << fallbackName << "'";
-	return configurationFile(fallbackName);
+	return configurationFile(fallbackName, configuration);
 }
 
 /**
  * \brief Find a valid full path for a proxy worker for a given executable name
  * \param[in] file File name of proxy worker executable
+ * \param[in] configuration The global configuration
  *
  * A proxy worker's executable could be found in either the global installation
  * directory, or in the paths specified by the environment variable
@@ -195,22 +199,22 @@ std::string IPAProxy::configurationFile(const std::string &name,
  * \return The full path to the proxy worker executable, or an empty string if
  * no valid executable path
  */
-std::string IPAProxy::resolvePath(const std::string &file) const
+std::string IPAProxy::resolvePath(const std::string &file, const GlobalConfiguration &configuration) const
 {
 	std::string proxyFile = "/" + file;
 
-	/* Check env variable first. */
-	const char *execPaths = utils::secure_getenv("LIBCAMERA_IPA_PROXY_PATH");
-	if (execPaths) {
-		for (const auto &dir : utils::split(execPaths, ":")) {
-			if (dir.empty())
-				continue;
+	/* Check the configuration first. */
+	const auto execPaths =
+		configuration.envListOption(
+			"LIBCAMERA_IPA_PROXY_PATH", "ipa/proxy_paths");
+	for (const auto &dir : execPaths) {
+		if (dir.empty())
+			continue;
 
-			std::string proxyPath = dir;
-			proxyPath += proxyFile;
-			if (!access(proxyPath.c_str(), X_OK))
-				return proxyPath;
-		}
+		std::string proxyPath = dir;
+		proxyPath += proxyFile;
+		if (!access(proxyPath.c_str(), X_OK))
+			return proxyPath;
 	}
 
 	/*
