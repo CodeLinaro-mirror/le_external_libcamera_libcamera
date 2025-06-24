@@ -115,7 +115,8 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
-	debayer_ = std::make_unique<DebayerCpu>(std::move(stats));
+	const GlobalConfiguration &configuration = pipe->cameraManager()->_d()->configuration();
+	debayer_ = std::make_unique<DebayerCpu>(std::move(stats), configuration);
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 
@@ -131,7 +132,6 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	 * The API tuning file is made from the sensor name. If the tuning file
 	 * isn't found, fall back to the 'uncalibrated' file.
 	 */
-	const GlobalConfiguration &configuration = pipe->cameraManager()->_d()->configuration();
 	std::string ipaTuningFile =
 		ipa_->configurationFile(sensor->model() + ".yaml", configuration, "uncalibrated.yaml");
 
