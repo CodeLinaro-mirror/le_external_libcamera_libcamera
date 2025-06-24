@@ -27,8 +27,8 @@ namespace ipa::rkisp1::algorithms {
  * \brief RkISP1 Color Processing control
  *
  * The ColorProcessing algorithm is responsible for applying brightness,
- * contrast and saturation corrections. The values are directly provided
- * through requests by the corresponding controls.
+ * contrast, hue and saturation corrections. The values are directly
+ * provided through requests by the corresponding controls.
  */
 
 LOG_DEFINE_CATEGORY(RkISP1CProc)
@@ -37,14 +37,15 @@ namespace {
 
 constexpr float kDefaultBrightness = 0.0f;
 constexpr float kDefaultContrast = 1.0f;
+constexpr float kDefaultHue = 0.0f;
 constexpr float kDefaultSaturation = 1.0f;
 
-int convertBrightness(const float v)
+int convertBrightnessOrHue(const float v)
 {
 	return std::clamp<int>(std::lround(v * 128), -128, 127);
 }
 
-float convertBrightness(const int v)
+float convertBrightnessOrHue(const int v)
 {
 	return static_cast<float>(v) / 128.0f;
 }
@@ -71,6 +72,7 @@ int ColorProcessing::init(IPAContext &context,
 
 	cmap[&controls::Brightness] = ControlInfo(-1.0f, 0.993f, kDefaultBrightness);
 	cmap[&controls::Contrast] = ControlInfo(0.0f, 1.993f, kDefaultContrast);
+	cmap[&controls::Hue] = ControlInfo(-1.0f, 0.993f, kDefaultHue);
 	cmap[&controls::Saturation] = ControlInfo(0.0f, 1.993f, kDefaultSaturation);
 
 	return 0;
@@ -84,8 +86,9 @@ int ColorProcessing::configure(IPAContext &context,
 {
 	auto &cproc = context.activeState.cproc;
 
-	cproc.brightness = convertBrightness(kDefaultBrightness);
+	cproc.brightness = convertBrightnessOrHue(kDefaultBrightness);
 	cproc.contrast = convertContrastOrSaturation(kDefaultContrast);
+	cproc.hue = convertBrightnessOrHue(kDefaultHue);
 	cproc.saturation = convertContrastOrSaturation(kDefaultSaturation);
 
 	return 0;
@@ -107,7 +110,7 @@ void ColorProcessing::queueRequest(IPAContext &context,
 
 	const auto &brightness = controls.get(controls::Brightness);
 	if (brightness) {
-		int value = convertBrightness(*brightness);
+		int value = convertBrightnessOrHue(*brightness);
 		if (cproc.brightness != value) {
 			cproc.brightness = value;
 			update = true;
@@ -127,6 +130,17 @@ void ColorProcessing::queueRequest(IPAContext &context,
 		LOG(RkISP1CProc, Debug) << "Set contrast to " << value;
 	}
 
+	const auto &hue = controls.get(controls::Hue);
+	if (hue) {
+		int value = convertBrightnessOrHue(*hue);
+		if (cproc.hue != value) {
+			cproc.hue = value;
+			update = true;
+		}
+
+		LOG(RkISP1CProc, Debug) << "Set hue to " << value;
+	}
+
 	const auto saturation = controls.get(controls::Saturation);
 	if (saturation) {
 		int value = convertContrastOrSaturation(*saturation);
@@ -140,6 +154,7 @@ void ColorProcessing::queueRequest(IPAContext &context,
 
 	frameContext.cproc.brightness = cproc.brightness;
 	frameContext.cproc.contrast = cproc.contrast;
+	frameContext.cproc.hue = cproc.hue;
 	frameContext.cproc.saturation = cproc.saturation;
 	frameContext.cproc.update = update;
 }
@@ -160,6 +175,7 @@ void ColorProcessing::prepare([[maybe_unused]] IPAContext &context,
 	config.setEnabled(true);
 	config->brightness = frameContext.cproc.brightness;
 	config->contrast = frameContext.cproc.contrast;
+	config->hue = frameContext.cproc.hue;
 	config->sat = frameContext.cproc.saturation;
 }
 
@@ -170,8 +186,9 @@ void ColorProcessing::process([[maybe_unused]] IPAContext &context, [[maybe_unus
 			      IPAFrameContext &frameContext, [[maybe_unused]] const rkisp1_stat_buffer *stats,
 			      ControlList &metadata)
 {
-	metadata.set(controls::Brightness, convertBrightness(frameContext.cproc.brightness));
+	metadata.set(controls::Brightness, convertBrightnessOrHue(frameContext.cproc.brightness));
 	metadata.set(controls::Contrast, convertContrastOrSaturation(frameContext.cproc.contrast));
+	metadata.set(controls::Hue, convertBrightnessOrHue(frameContext.cproc.hue));
 	metadata.set(controls::Saturation, convertContrastOrSaturation(frameContext.cproc.saturation));
 }
 

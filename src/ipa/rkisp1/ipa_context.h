@@ -108,6 +108,7 @@ struct IPAActiveState {
 	struct {
 		int8_t brightness;
 		uint8_t contrast;
+		int8_t hue;
 		uint8_t saturation;
 	} cproc;
 
@@ -152,6 +153,7 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		int8_t brightness;
 		uint8_t contrast;
+		int8_t hue;
 		uint8_t saturation;
 		bool update;
 	} cproc;
