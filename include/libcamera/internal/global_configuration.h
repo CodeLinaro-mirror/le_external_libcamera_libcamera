@@ -8,6 +8,8 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
+#include <string>
 
 #include "libcamera/internal/yaml_parser.h"
 
@@ -22,6 +24,9 @@ public:
 
 	unsigned int version() const;
 	Configuration configuration() const;
+	std::optional<std::string> option(const std::string &confPath) const;
+	std::optional<std::string> envOption(const char *const envVariable,
+					     const std::string &confPath) const;
 
 private:
 	bool loadFile(const std::filesystem::path &fileName);
