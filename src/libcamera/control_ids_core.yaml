@@ -1281,4 +1281,14 @@ controls:
 
         The FrameWallClock control can only be returned in metadata.
 
+  - Hue:
+      type: float
+      direction: inout
+      description:  |
+        Specify a fixed hue parameter.
+
+        Positive values (up to 1.0) produce an increase of the hue angle up to
+        90 degrees; negative values (up to -1.0) produce a decrease of the hue
+        angle down to -90 degrees.
+
 ...
