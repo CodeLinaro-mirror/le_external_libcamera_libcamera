@@ -107,7 +107,38 @@ int configureMediaDevices(std::vector<std::pair<std::unique_ptr<V4L2Subdevice>, 
 		}
 
 		/*
-		 * Next, enable the entity -> entity links, and setup the pad format.
+		 * Next, setup the stream routing if needed. By default this
+		 * sets up Stream 0:[pad 0 -> pad 1] route. Anything more
+		 * complicated must currently be setup and activated externally.
+		 *
+		 * If we find any active routes, we don't change anything.
+		 */
+		if (device->caps().hasStreams()) {
+			V4L2Subdevice::Routing routing;
+
+			ret = device->getRouting(&routing);
+			if (ret)
+				return ret;
+
+			/* If we find an active route, don't do anything more. */
+			for (auto const &r : routing) {
+				if (r.flags & V4L2_SUBDEV_ROUTE_FL_ACTIVE)
+					return 0;
+			}
+
+			/*
+			 * Set up a default Stream 0:[pad 0 -> pad 1] route if nothing
+			 * has already been set.
+			 */
+			routing = { { V4L2Subdevice::Stream{ 0, 0 },
+				      V4L2Subdevice::Stream{ 1, 0 },
+				      V4L2_SUBDEV_ROUTE_FL_ACTIVE } };
+
+			ret = device->setRouting(&routing);
+		}
+
+		/*
+		 * Finally, enable the entity -> entity links, and setup the pad format.
 		 *
 		 * \todo Some bridge devices may chainge the media bus code, so we
 		 * ought to read the source pad format and propagate it to the sink pad.
