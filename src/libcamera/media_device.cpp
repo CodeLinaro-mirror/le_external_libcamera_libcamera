@@ -9,6 +9,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <regex>
 #include <stdint.h>
 #include <string>
 #include <string.h>
@@ -328,14 +329,17 @@ done:
  */
 
 /**
- * \brief Return the MediaEntity with name \a name
- * \param[in] name The entity name
- * \return The entity with \a name, or nullptr if no such entity is found
+ * \brief Return the MediaEntity with name matching the regex \a name
+ * \param[in] name Regex to match against the entity name
+ * \return The entity with name matching \a name, or nullptr if no such entity
+ * is found
  */
 MediaEntity *MediaDevice::getEntityByName(const std::string &name) const
 {
+	std::regex name_regex(name);
+
 	for (MediaEntity *e : entities_)
-		if (e->name() == name)
+		if (std::regex_search(e->name(), name_regex))
 			return e;
 
 	return nullptr;

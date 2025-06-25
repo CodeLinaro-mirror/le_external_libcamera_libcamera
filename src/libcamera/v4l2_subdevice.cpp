@@ -1748,10 +1748,10 @@ const std::string &V4L2Subdevice::model()
  */
 
 /**
- * \brief Create a new video subdevice instance from \a entity in media device
+ * \brief Create a new video subdevice instance from an entity in media device
  * \a media
  * \param[in] media The media device where the entity is registered
- * \param[in] entity The media entity name
+ * \param[in] entity A regex that will match media entity name
  *
  * \return A newly created V4L2Subdevice on success, nullptr otherwise
  */
