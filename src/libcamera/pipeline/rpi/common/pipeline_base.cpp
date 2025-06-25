@@ -85,6 +85,51 @@ std::optional<ColorSpace> findValidColorSpace(const ColorSpace &colourSpace)
 	return std::nullopt;
 }
 
+int configureMediaDevices(std::vector<std::pair<std::unique_ptr<V4L2Subdevice>, MediaLink *>> &bridgeDevices,
+			  V4L2SubdeviceFormat *sensorFormat)
+{
+	int ret = 0;
+
+	/* Setup the Video Mux/Bridge entities. */
+	for (auto &[device, link] : bridgeDevices) {
+		/*
+		 * Start by disabling all the sink pad links on the devices in the
+		 * cascade, with the exception of the link connecting the device.
+		 */
+		for (const MediaPad *p : device->entity()->pads()) {
+			if (!(p->flags() & MEDIA_PAD_FL_SINK))
+				continue;
+
+			for (MediaLink *l : p->links()) {
+				if (l != link)
+					l->setEnabled(false);
+			}
+		}
+
+		/*
+		 * Next, enable the entity -> entity links, and setup the pad format.
+		 *
+		 * \todo Some bridge devices may chainge the media bus code, so we
+		 * ought to read the source pad format and propagate it to the sink pad.
+		 */
+		link->setEnabled(true);
+		const MediaPad *sinkPad = link->sink();
+		ret = device->setFormat(sinkPad->index(), sensorFormat);
+		if (ret) {
+			LOG(RPI, Error) << "Failed to set format on " << device->entity()->name()
+					<< " pad " << sinkPad->index()
+					<< " with format  " << *sensorFormat
+					<< ": " << ret;
+			return ret;
+		}
+
+		LOG(RPI, Debug) << "Configured media link on device " << device->entity()->name()
+				<< " on pad " << sinkPad->index();
+	}
+
+	return ret;
+}
+
 } /* namespace */
 
 /*
@@ -589,44 +634,7 @@ int PipelineHandlerBase::configure(Camera *camera, CameraConfiguration *config)
 
 	data->controlInfo_ = ControlInfoMap(std::move(ctrlMap), result.controlInfo.idmap());
 
-	/* Setup the Video Mux/Bridge entities. */
-	for (auto &[device, link] : data->bridgeDevices_) {
-		/*
-		 * Start by disabling all the sink pad links on the devices in the
-		 * cascade, with the exception of the link connecting the device.
-		 */
-		for (const MediaPad *p : device->entity()->pads()) {
-			if (!(p->flags() & MEDIA_PAD_FL_SINK))
-				continue;
-
-			for (MediaLink *l : p->links()) {
-				if (l != link)
-					l->setEnabled(false);
-			}
-		}
-
-		/*
-		 * Next, enable the entity -> entity links, and setup the pad format.
-		 *
-		 * \todo Some bridge devices may chainge the media bus code, so we
-		 * ought to read the source pad format and propagate it to the sink pad.
-		 */
-		link->setEnabled(true);
-		const MediaPad *sinkPad = link->sink();
-		ret = device->setFormat(sinkPad->index(), sensorFormat);
-		if (ret) {
-			LOG(RPI, Error) << "Failed to set format on " << device->entity()->name()
-					<< " pad " << sinkPad->index()
-					<< " with format  " << *sensorFormat
-					<< ": " << ret;
-			return ret;
-		}
-
-		LOG(RPI, Debug) << "Configured media link on device " << device->entity()->name()
-				<< " on pad " << sinkPad->index();
-	}
-
-	return 0;
+	return configureMediaDevices(data->bridgeDevices_, sensorFormat);
 }
 
 int PipelineHandlerBase::exportFrameBuffers([[maybe_unused]] Camera *camera, libcamera::Stream *stream,
