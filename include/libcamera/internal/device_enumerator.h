@@ -8,6 +8,7 @@
 #pragma once
 
 #include <memory>
+#include <regex>
 #include <string>
 #include <vector>
 
@@ -28,7 +29,7 @@ public:
 
 private:
 	std::string driver_;
-	std::vector<std::string> entities_;
+	std::vector<std::regex> entities_;
 };
 
 class DeviceEnumerator

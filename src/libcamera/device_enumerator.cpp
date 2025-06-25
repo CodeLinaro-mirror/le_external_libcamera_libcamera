@@ -52,15 +52,15 @@ LOG_DEFINE_CATEGORY(DeviceEnumerator)
  * device enumerator to find matching media devices.
  *
  * A DeviceMatch is created with a specific Linux device driver in mind,
- * therefore the name of the driver is a required property. One or more Entity
- * names can be added as match criteria.
+ * therefore the name of the driver is a required property. Regex expressions to
+ * match one or more Entity names can be added as match criteria.
  *
- * Pipeline handlers are recommended to add entities to DeviceMatch as
- * appropriate to ensure that the media device they need can be uniquely
- * identified. This is useful when the corresponding kernel driver can produce
- * different graphs, for instance as a result of different driver versions or
- * hardware configurations, and not all those graphs are suitable for a pipeline
- * handler.
+ * Pipeline handlers are recommended to add regex expressions for entities to
+ * DeviceMatch as appropriate to ensure that the media device they need can be
+ * uniquely identified. This is useful when the corresponding kernel driver can
+ * produce different graphs, for instance as a result of different driver
+ * versions or hardware configurations, and not all those graphs are suitable
+ * for a pipeline handler.
  */
 
 /**
@@ -73,12 +73,13 @@ DeviceMatch::DeviceMatch(const std::string &driver)
 }
 
 /**
- * \brief Add a media entity name to the search pattern
- * \param[in] entity The name of the entity in the media graph
+ * \brief Add a media entity regex string to the search pattern
+ * \param[in] entity A regex string to match the entity in the media graph
  */
 void DeviceMatch::add(const std::string &entity)
 {
-	entities_.push_back(entity);
+	std::regex entity_regex(entity);
+	entities_.push_back(entity_regex);
 }
 
 /**
@@ -96,11 +97,11 @@ bool DeviceMatch::match(const MediaDevice *device) const
 	if (driver_ != device->driver())
 		return false;
 
-	for (const std::string &name : entities_) {
+	for (const std::regex &name_regex : entities_) {
 		bool found = false;
 
 		for (const MediaEntity *entity : device->entities()) {
-			if (name == entity->name()) {
+			if (std::regex_search(entity->name(), name_regex)) {
 				if (!entity->deviceNode().empty()) {
 					found = true;
 					break;
