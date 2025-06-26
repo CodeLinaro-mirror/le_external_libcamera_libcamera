@@ -51,6 +51,7 @@ libcamera_internal_sources = files([
     'shared_mem_object.cpp',
     'source_paths.cpp',
     'sysfs.cpp',
+    'utils.cpp',
     'v4l2_device.cpp',
     'v4l2_pixelformat.cpp',
     'v4l2_subdevice.cpp',
