@@ -12,3 +12,5 @@ config_h.set('LAYER_DIR',
 layers_env = environment()
 layers_env.set('LIBCAMERA_LAYER_PATH', meson.current_build_dir())
 meson.add_devenv(layers_env)
+
+subdir('inject_controls')
