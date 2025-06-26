@@ -1361,25 +1361,6 @@ int Camera::queueRequest(Request *request)
 		}
 	}
 
-	/* Pre-process AeEnable. */
-	ControlList &controls = request->controls();
-	const auto &aeEnable = controls.get(controls::AeEnable);
-	if (aeEnable) {
-		if (_d()->controlInfo_.count(controls::AnalogueGainMode.id()) &&
-		    !controls.contains(controls::AnalogueGainMode.id())) {
-			controls.set(controls::AnalogueGainMode,
-				     *aeEnable ? controls::AnalogueGainModeAuto
-					       : controls::AnalogueGainModeManual);
-		}
-
-		if (_d()->controlInfo_.count(controls::ExposureTimeMode.id()) &&
-		    !controls.contains(controls::ExposureTimeMode.id())) {
-			controls.set(controls::ExposureTimeMode,
-				     *aeEnable ? controls::ExposureTimeModeAuto
-					       : controls::ExposureTimeModeManual);
-		}
-	}
-
 	d->layerManager_->queueRequest(request);
 
 	d->pipe_->invokeMethod(&PipelineHandler::queueRequest,
