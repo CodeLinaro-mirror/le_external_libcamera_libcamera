@@ -18,6 +18,8 @@
 
 #include <libcamera/camera.h>
 
+#include "libcamera/internal/layer_manager.h"
+
 namespace libcamera {
 
 class CameraControlValidator;
@@ -76,6 +78,8 @@ private:
 	std::atomic<State> state_;
 
 	std::unique_ptr<CameraControlValidator> validator_;
+
+	std::unique_ptr<LayerManager> layerManager_;
 };
 
 } /* namespace libcamera */
