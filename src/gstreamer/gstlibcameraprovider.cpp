@@ -10,6 +10,7 @@
 
 #include "gstlibcameraprovider.h"
 
+#include <libcamera/libcamera.h>
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
 
@@ -131,6 +132,7 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 	static const std::array roles{ StreamRole::VideoRecording };
 	g_autoptr(GstCaps) caps = gst_caps_new_empty();
 	const gchar *name = camera->id().c_str();
+	const int32_t rotation = camera->properties().get(libcamera::properties::Rotation).value_or(0);
 
 	std::unique_ptr<CameraConfiguration> config = camera->generateConfiguration(roles);
 	if (!config || config->size() != roles.size()) {
@@ -150,6 +152,9 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 				       "display-name", name,
 				       "caps", caps,
 				       "device-class", "Source/Video",
+					   "properties", gst_structure_new("device-properties",
+							"rotation", G_TYPE_INT, rotation,
+							NULL),
 				       nullptr));
 }
 
