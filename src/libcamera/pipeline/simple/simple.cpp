@@ -27,6 +27,7 @@
 #include <libcamera/camera.h>
 #include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
+#include <libcamera/pixel_format.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
@@ -1411,7 +1412,7 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 
 		cfg.setStream(&data->streams_[i]);
 
-		if (data->useConversion_)
+		if (data->useConversion_ && !isFormatRaw(cfg.pixelFormat))
 			outputCfgs.push_back(cfg);
 	}
 
