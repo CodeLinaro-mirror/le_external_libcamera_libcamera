@@ -8,6 +8,7 @@
 #include <libcamera/orientation.h>
 
 #include <array>
+#include <sstream>
 
 /**
  * \file orientation.h
@@ -89,6 +90,19 @@ Orientation orientationFromRotation(int angle, bool *success)
 		*success = false;
 
 	return Orientation::Rotate0;
+}
+
+/**
+ * \brief Generate a string representation of \a orientation item
+ * \param[in] orientation The Orientation item
+ * \return A std::string representation for \a orientation
+ */
+std::string orientationToString(const Orientation &orientation)
+{
+	std::stringstream ss;
+	ss << orientation;
+
+	return ss.str();
 }
 
 /**

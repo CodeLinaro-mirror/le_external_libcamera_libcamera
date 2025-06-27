@@ -24,6 +24,7 @@ enum class Orientation {
 };
 
 Orientation orientationFromRotation(int angle, bool *success = nullptr);
+std::string orientationToString(const Orientation &orientation);
 
 std::ostream &operator<<(std::ostream &out, const Orientation &orientation);
 
