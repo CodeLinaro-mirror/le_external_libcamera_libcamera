@@ -378,6 +378,9 @@ public:
 	bool needConversion() const { return needConversion_; }
 	const Transform &combinedTransform() const { return combinedTransform_; }
 
+	bool processedRequested_;
+	bool rawRequested_;
+
 private:
 	/*
 	 * The SimpleCameraData instance is guaranteed to be valid as long as
@@ -1299,11 +1302,26 @@ std::unique_ptr<CameraConfiguration>
 SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRole> roles)
 {
 	SimpleCameraData *data = cameraData(camera);
-	std::unique_ptr<CameraConfiguration> config =
+	std::unique_ptr<SimpleCameraConfiguration> config =
 		std::make_unique<SimpleCameraConfiguration>(camera, data);
+
+	config->processedRequested_ = false;
+	config->rawRequested_ = false;
 
 	if (roles.empty())
 		return config;
+
+	for (const auto &role : roles)
+		if (role == StreamRole::Raw) {
+			if (config->rawRequested_) {
+				LOG(SimplePipeline, Error)
+					<< "Can't capture multiple raw streams";
+				return nullptr;
+			}
+			config->rawRequested_ = true;
+		} else {
+			config->processedRequested_ = true;
+		}
 
 	/* Create the formats map. */
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
