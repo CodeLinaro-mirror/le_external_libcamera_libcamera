@@ -12,6 +12,7 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
+#include <libcamera/property_ids.h>
 
 #include "gstlibcamerasrc.h"
 #include "gstlibcamera-utils.h"
@@ -131,6 +132,8 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 	static const std::array roles{ StreamRole::VideoRecording };
 	g_autoptr(GstCaps) caps = gst_caps_new_empty();
 	const gchar *name = camera->id().c_str();
+	std::string rotation_str;
+	bool success;
 
 	std::unique_ptr<CameraConfiguration> config = camera->generateConfiguration(roles);
 	if (!config || config->size() != roles.size()) {
@@ -144,12 +147,23 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 			gst_caps_append(caps, sub_caps);
 	}
 
+	const int32_t rotation = camera->properties().get(properties::Rotation).value_or(0);
+	Orientation mountingOrientation = orientationFromRotation(rotation, &success);
+	rotation_str = success ? orientationToString(mountingOrientation)
+			       : std::to_string(rotation);
+
+	g_autoptr(GstStructure) props =
+		gst_structure_new("camera-properties",
+				  "mounting-rotation", G_TYPE_STRING, rotation_str.c_str(),
+				  nullptr);
+
 	return GST_DEVICE(g_object_new(GST_TYPE_LIBCAMERA_DEVICE,
 				       /* \todo Use a unique identifier instead of camera name. */
 				       "name", name,
 				       "display-name", name,
 				       "caps", caps,
 				       "device-class", "Source/Video",
+				       "properties", props,
 				       nullptr));
 }
 
