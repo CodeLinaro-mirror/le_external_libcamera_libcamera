@@ -62,4 +62,6 @@ public:
 	std::array<Plane, 3> planes;
 };
 
+bool isFormatRaw(const libcamera::PixelFormat &pixFmt);
+
 } /* namespace libcamera */
