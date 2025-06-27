@@ -188,7 +188,7 @@ RkISP1Path::generateConfiguration(const CameraSensor *sensor, const Size &size,
 		const PixelFormatInfo &info = PixelFormatInfo::info(format);
 
 		/* Populate stream formats for non-RAW configurations. */
-		if (info.colourEncoding != PixelFormatInfo::ColourEncodingRAW) {
+		if (!info.isRaw()) {
 			if (role == StreamRole::Raw)
 				continue;
 
@@ -279,7 +279,7 @@ RkISP1Path::validate(const CameraSensor *sensor,
 	for (const auto &format : streamFormats_) {
 		const PixelFormatInfo &info = PixelFormatInfo::info(format);
 
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW) {
+		if (info.isRaw()) {
 			/* Skip raw formats not supported by the sensor. */
 			uint32_t mbusCode = formatToMediaBus.at(format);
 			if (std::find(mbusCodes.begin(), mbusCodes.end(), mbusCode) ==
@@ -310,8 +310,7 @@ RkISP1Path::validate(const CameraSensor *sensor,
 	if (sensorConfig && !rawFormat.isValid())
 		return CameraConfiguration::Invalid;
 
-	bool isRaw = PixelFormatInfo::info(cfg->pixelFormat).colourEncoding ==
-		     PixelFormatInfo::ColourEncodingRAW;
+	bool isRaw = PixelFormatInfo::info(cfg->pixelFormat).isRaw();
 
 	/*
 	 * If no raw format supported by the sensor has been found, use a

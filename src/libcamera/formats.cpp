@@ -994,6 +994,12 @@ const std::map<PixelFormat, PixelFormatInfo> pixelFormatInfo{
  */
 
 /**
+ * \fn bool PixelFormatInfo::isRaw() const
+ * \brief Check if the colour encoding is raw
+ * \return True if the colour encoding is raw, false otherwise
+ */
+
+/**
  * \brief Retrieve information about a pixel format
  * \param[in] format The pixel format
  * \return The PixelFormatInfo describing the \a format if known, or an invalid
@@ -1222,8 +1228,7 @@ unsigned int PixelFormatInfo::numPlanes() const
  */
 bool isFormatRaw(const libcamera::PixelFormat &pixFmt)
 {
-	return libcamera::PixelFormatInfo::info(pixFmt).colourEncoding ==
-	       libcamera::PixelFormatInfo::ColourEncodingRAW;
+	return libcamera::PixelFormatInfo::info(pixFmt).isRaw();
 }
 
 } /* namespace libcamera */
