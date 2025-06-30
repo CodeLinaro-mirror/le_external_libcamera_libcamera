@@ -62,13 +62,17 @@ LOG_DEFINE_CATEGORY(Pipeline)
 /**
  * \brief Construct a PipelineHandler instance
  * \param[in] manager The camera manager
+ * \param[in] maxQueuedRequestsDevice The maximum number of requests queued to
+ * the device
  *
  * In order to honour the std::enable_shared_from_this<> contract,
  * PipelineHandler instances shall never be constructed manually, but always
  * through the PipelineHandlerFactoryBase::create() function.
  */
-PipelineHandler::PipelineHandler(CameraManager *manager)
-	: manager_(manager), useCount_(0)
+PipelineHandler::PipelineHandler(CameraManager *manager,
+				 unsigned int maxQueuedRequestsDevice)
+	: manager_(manager), maxQueuedRequestsDevice_(maxQueuedRequestsDevice),
+	  useCount_(0)
 {
 }
 
@@ -430,9 +434,9 @@ void PipelineHandler::registerRequest(Request *request)
  * requests which have to be prepared to make sure they are ready for being
  * queued to the pipeline handler.
  *
- * The queue of waiting requests is iterated and all prepared requests are
- * passed to the pipeline handler in the same order they have been queued by
- * calling this function.
+ * The queue of waiting requests is iterated and up to \a
+ * maxQueuedRequestsDevice_ prepared requests are passed to the pipeline handler
+ * in the same order they have been queued by calling this function.
  *
  * If a Request fails during the preparation phase or if the pipeline handler
  * fails in queuing the request to the hardware the request is cancelled.
@@ -487,6 +491,9 @@ void PipelineHandler::doQueueRequests(Camera *camera)
 {
 	Camera::Private *data = camera->_d();
 	while (!data->waitingRequests_.empty()) {
+		if (data->queuedRequests_.size() == maxQueuedRequestsDevice_)
+			break;
+
 		Request *request = data->waitingRequests_.front();
 		if (!request->_d()->prepared_)
 			break;
@@ -568,6 +575,9 @@ void PipelineHandler::completeRequest(Request *request)
 		data->queuedRequests_.pop_front();
 		camera->requestComplete(req);
 	}
+
+	/* Allow any waiting requests to be queued to the pipeline. */
+	doQueueRequests(camera);
 }
 
 /**
