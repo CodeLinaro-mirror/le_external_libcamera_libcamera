@@ -364,20 +364,28 @@ void PipelineHandler::unlockMediaDevices()
  */
 void PipelineHandler::stop(Camera *camera)
 {
+	/*
+	 * Take all waiting requests so that they are not requeued in response
+	 * to completeRequest() being called inside stopDevice(). Cancel them
+	 * after the device to keep them in order.
+	 */
+	Camera::Private *data = camera->_d();
+	std::queue<Request *> waitingRequests;
+	waitingRequests.swap(data->waitingRequests_);
+
 	/* Stop the pipeline handler and let the queued requests complete. */
 	stopDevice(camera);
 
-	Camera::Private *data = camera->_d();
-
 	/* Cancel and signal as complete all waiting requests. */
-	while (!data->waitingRequests_.empty()) {
-		Request *request = data->waitingRequests_.front();
-		data->waitingRequests_.pop();
+	while (!waitingRequests.empty()) {
+		Request *request = waitingRequests.front();
+		waitingRequests.pop();
 		cancelRequest(request);
 	}
 
 	/* Make sure no requests are pending. */
 	ASSERT(data->queuedRequests_.empty());
+	ASSERT(data->waitingRequests_.empty());
 
 	data->requestSequence_ = 0;
 }
