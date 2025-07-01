@@ -52,6 +52,9 @@ void Capture::configure(libcamera::Span<const libcamera::StreamRole> roles)
 		FAIL() << "Configuration not valid";
 	}
 
+	for (auto &cfg : *config_)
+		EXPECT_TRUE(cfg.colorSpace) << cfg << " - colorspace not set.";
+
 	if (camera_->configure(config_.get())) {
 		config_.reset();
 		FAIL() << "Failed to configure camera";
