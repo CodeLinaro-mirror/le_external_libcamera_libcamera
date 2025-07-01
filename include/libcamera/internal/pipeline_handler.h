@@ -88,7 +88,7 @@ private:
 	void mediaDeviceDisconnected(MediaDevice *media);
 	virtual void disconnect();
 
-	void doQueueRequest(Request *request);
+	int doQueueRequest(Request *request);
 	void doQueueRequests();
 
 	std::vector<std::shared_ptr<MediaDevice>> mediaDevices_;

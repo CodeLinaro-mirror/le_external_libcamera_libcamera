@@ -452,8 +452,10 @@ void PipelineHandler::queueRequest(Request *request)
 /**
  * \brief Queue one requests to the device
  */
-void PipelineHandler::doQueueRequest(Request *request)
+int PipelineHandler::doQueueRequest(Request *request)
 {
+	int ret;
+
 	LIBCAMERA_TRACEPOINT(request_device_queue, request);
 
 	Camera *camera = request->_d()->camera();
@@ -464,12 +466,14 @@ void PipelineHandler::doQueueRequest(Request *request)
 
 	if (request->_d()->cancelled_) {
 		completeRequest(request);
-		return;
+		return -ECANCELED;
 	}
 
-	int ret = queueRequestDevice(camera, request);
-	if (ret)
+	ret = queueRequestDevice(camera, request);
+	if (ret && ret != -EAGAIN)
 		cancelRequest(request);
+
+	return ret;
 }
 
 /**
@@ -485,7 +489,9 @@ void PipelineHandler::doQueueRequests()
 		if (!request->_d()->prepared_)
 			break;
 
-		doQueueRequest(request);
+		if (doQueueRequest(request) == -EAGAIN)
+			break;
+
 		waitingRequests_.pop();
 	}
 }
@@ -501,6 +507,10 @@ void PipelineHandler::doQueueRequests()
  * parameters. The pipeline handler shall program the device to ensure that the
  * parameters will be applied to the frames captured in the buffers provided in
  * the request.
+ *
+ * If the underlying hardware pipeline is saturated with requests, this
+ * function returns -EAGAIN, so that the \a request stays in the internal
+ * waiting queue.
  *
  * \context This function is called from the CameraManager thread.
  *
