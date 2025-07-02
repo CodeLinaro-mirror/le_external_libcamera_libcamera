@@ -25,6 +25,7 @@
 #include <libcamera/base/log.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
@@ -35,6 +36,7 @@
 #include "libcamera/internal/converter.h"
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/formats.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/software_isp/software_isp.h"
@@ -1206,6 +1208,28 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		if (cfg.pixelFormat != pixelFormat) {
 			LOG(SimplePipeline, Debug) << "Adjusting pixel format";
 			cfg.pixelFormat = pixelFormat;
+			/*
+			 * Do not touch the colour space for raw requested roles.
+			 * Even if the pixel format is non-raw (whatever it means), we
+			 * shouldn't try to interpret the colour space of raw data.
+			 */
+			if (cfg.colorSpace && cfg.colorSpace != ColorSpace::Raw)
+				cfg.colorSpace->adjust(pixelFormat);
+			status = Adjusted;
+		}
+		if (!cfg.colorSpace) {
+			const PixelFormatInfo &info = PixelFormatInfo::info(pixelFormat);
+			switch (info.colourEncoding) {
+			case PixelFormatInfo::ColourEncodingRGB:
+				cfg.colorSpace = ColorSpace::Srgb;
+				break;
+			case libcamera::PixelFormatInfo::ColourEncodingYUV:
+				cfg.colorSpace = ColorSpace::Sycc;
+				break;
+			default:
+				cfg.colorSpace = ColorSpace::Raw;
+			}
+			cfg.colorSpace->adjust(pixelFormat);
 			status = Adjusted;
 		}
 
@@ -1314,10 +1338,22 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	 *
 	 * \todo Implement a better way to pick the default format
 	 */
-	for ([[maybe_unused]] StreamRole role : roles) {
+	for (StreamRole role : roles) {
 		StreamConfiguration cfg{ StreamFormats{ formats } };
 		cfg.pixelFormat = formats.begin()->first;
 		cfg.size = formats.begin()->second[0].max;
+
+		if (role == StreamRole::Raw) {
+			/* Enforce raw colour space for raw roles. */
+			cfg.colorSpace = ColorSpace::Raw;
+		} else if (data->swIsp_) {
+			/*
+			 * This is what software ISP currently produces. It may be arguable
+			 * whether this applies also when CCM is not used but even then it's
+			 * still likely to be a reasonable setting.
+			 */
+			cfg.colorSpace = ColorSpace::Srgb;
+		}
 
 		config->addConfiguration(cfg);
 	}
