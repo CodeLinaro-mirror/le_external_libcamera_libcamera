@@ -48,7 +48,8 @@ public:
 		const std::initializer_list<std::string_view> confPath) const;
 	std::optional<std::vector<std::string>> envListOption(
 		const char *const envVariable,
-		const std::initializer_list<std::string_view> confPath) const;
+		const std::initializer_list<std::string_view> confPath,
+		const std::string delimiter = ":") const;
 
 private:
 	bool loadFile(const std::filesystem::path &fileName);
