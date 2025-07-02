@@ -51,6 +51,7 @@ file structure:
         pipeline_handler:
           ...
       simple:
+        copy_input_buffer: # true/false
         supported_devices:
         - driver: # driver name, e.g. `mxc-isi`
           software_isp: # true/false
@@ -85,6 +86,7 @@ Configuration file example
             min_unicam_buffers: 2
             min_total_unicam_buffers: 2
        simple:
+         copy_input_buffer: false
          supported_devices:
          - driver: mxc-isi
            software_isp: true
