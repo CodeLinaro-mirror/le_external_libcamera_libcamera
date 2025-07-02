@@ -9,9 +9,11 @@
 
 #include <filesystem>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <sys/types.h>
+#include <vector>
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
@@ -116,13 +118,22 @@ GlobalConfiguration::GlobalConfiguration()
  */
 
 /**
+ * \fn std::optional<T> GlobalConfiguration::option(const std::initializer_list<std::string_view> &confPath) const
  * \brief Return value of the configuration option identified by \a confPath
  * \param[in] confPath Sequence of the YAML section names (excluding
  * `configuration') leading to the requested option
  * \return A value if an item corresponding to \a confPath exists in the
  * configuration file, no value otherwise
  */
-std::optional<std::string> GlobalConfiguration::option(
+
+/**
+ * \brief Return values of the configuration option identified by \a confPath
+ * \tparam T The type of the retrieved configuration value
+ * \param[in] confPath Sequence of the YAML section names (excluding
+ * `configuration') leading to the requested list option, separated by dots
+ * \return A vector of strings or no value if not found
+ */
+std::optional<std::vector<std::string>> GlobalConfiguration::listOption(
 	const std::initializer_list<std::string_view> confPath) const
 {
 	const YamlObject *c = &configuration();
@@ -131,7 +142,7 @@ std::optional<std::string> GlobalConfiguration::option(
 		if (!*c)
 			return {};
 	}
-	return c->get<std::string>();
+	return c->getList<std::string>();
 }
 
 /**
@@ -158,7 +169,37 @@ std::optional<std::string> GlobalConfiguration::envOption(
 	const char *envValue = utils::secure_getenv(envVariable);
 	if (envValue)
 		return std::optional{ std::string{ envValue } };
-	return option(confPath);
+	return option<std::string>(confPath);
+}
+
+/**
+ * \brief Return values of the configuration option from a file or environment
+ * \param[in] envVariable Environment variable to get the value from
+ * \param[in] confPath The same as in GlobalConfiguration::option
+ *
+ * This helper looks first at the given environment variable and if it is
+ * defined (even if it is empty) then it splits its value by semicolons and
+ * returns the resulting list of strings. Otherwise it looks for \a confPath the
+ * same way as in GlobalConfiguration::option, value of which must be a list of
+ * strings.
+ *
+ * \note Support for using environment variables to configure libcamera behavior
+ * is provided here mostly for backward compatibility reasons. Introducing new
+ * configuration environment variables is discouraged.
+ *
+ * \return A vector of strings retrieved from the given environment option or
+ * configuration file or no value if not found; the vector may be empty
+ */
+std::optional<std::vector<std::string>> GlobalConfiguration::envListOption(
+	const char *const envVariable,
+	const std::initializer_list<std::string_view> confPath) const
+{
+	const char *envValue = utils::secure_getenv(envVariable);
+	if (envValue) {
+		auto items = utils::split(envValue, ":");
+		return std::vector<std::string>(items.begin(), items.end());
+	}
+	return listOption(confPath);
 }
 
 /**
