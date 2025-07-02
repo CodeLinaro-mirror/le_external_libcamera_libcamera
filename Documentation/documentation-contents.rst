@@ -7,7 +7,7 @@
    * :doc:`/feature_requirements`
    * :doc:`/guides/application-developer`
    * :doc:`/python-bindings`
-   * :doc:`/environment_variables`
+   * :doc:`/runtime_configuration`
    * :doc:`/api-html/index`
    * :doc:`/code-of-conduct`
    * |
