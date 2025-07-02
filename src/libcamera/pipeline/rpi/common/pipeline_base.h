@@ -95,8 +95,11 @@ public:
 	virtual V4L2VideoDevice::Formats ispFormats() const = 0;
 	virtual V4L2VideoDevice::Formats rawFormats() const = 0;
 	virtual V4L2VideoDevice *frontendDevice() = 0;
+	virtual std::string target() const = 0;
 
-	virtual int platformPipelineConfigure(const std::unique_ptr<YamlObject> &root) = 0;
+	virtual int platformPipelineConfigure(
+		const YamlObject &phConfig,
+		const std::optional<std::string> &target) = 0;
 
 	std::unique_ptr<ipa::RPi::IPAProxyRPi> ipa_;
 
