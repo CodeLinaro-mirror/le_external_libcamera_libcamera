@@ -737,6 +737,25 @@ void Camera::Private::setState(State state)
 {
 	state_.store(state, std::memory_order_release);
 }
+
+void Camera::Private::emitBufferCompleted(Request *request, FrameBuffer *buffer)
+{
+	Camera *camera = _o<Camera>();
+	camera->bufferCompleted.emit(request, buffer);
+}
+
+void Camera::Private::emitRequestCompleted(Request *request)
+{
+	Camera *camera = _o<Camera>();
+	camera->requestCompleted.emit(request);
+}
+
+void Camera::Private::emitDisconnected()
+{
+	Camera *camera = _o<Camera>();
+	camera->disconnected.emit();
+}
+
 #endif /* __DOXYGEN_PUBLIC__ */
 
 /**
@@ -947,7 +966,7 @@ void Camera::disconnect()
 	LOG(Camera, Debug) << "Disconnecting camera " << id();
 
 	_d()->disconnect();
-	disconnected.emit();
+	_d()->emitDisconnected();
 }
 
 int Camera::exportFrameBuffers(Stream *stream,
@@ -1451,7 +1470,7 @@ void Camera::requestComplete(Request *request)
 				  true))
 		LOG(Camera, Fatal) << "Trying to complete a request when stopped";
 
-	requestCompleted.emit(request);
+	_d()->emitRequestCompleted(request);
 }
 
 } /* namespace libcamera */

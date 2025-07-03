@@ -35,6 +35,10 @@ public:
 	PipelineHandler *pipe() { return pipe_.get(); }
 	const PipelineHandler *pipe() const { return pipe_.get(); }
 
+	void emitBufferCompleted(Request *request, FrameBuffer *buffer);
+	void emitRequestCompleted(Request *request);
+	void emitDisconnected();
+
 	std::list<Request *> queuedRequests_;
 	ControlInfoMap controlInfo_;
 	ControlList properties_;
