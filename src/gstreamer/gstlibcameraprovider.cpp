@@ -12,6 +12,7 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
+#include <libcamera/property_ids.h>
 
 #include "gstlibcamerasrc.h"
 #include "gstlibcamera-utils.h"
@@ -144,12 +145,19 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 			gst_caps_append(caps, sub_caps);
 	}
 
+	const int32_t rotation = camera->properties().get(properties::Rotation).value_or(0);
+	g_autoptr(GstStructure) props =
+		gst_structure_new("camera-properties",
+				  "api.libcamera.mounting-rotation", G_TYPE_INT, rotation,
+				  nullptr);
+
 	return GST_DEVICE(g_object_new(GST_TYPE_LIBCAMERA_DEVICE,
 				       /* \todo Use a unique identifier instead of camera name. */
 				       "name", name,
 				       "display-name", name,
 				       "caps", caps,
 				       "device-class", "Source/Video",
+				       "properties", props,
 				       nullptr));
 }
 
