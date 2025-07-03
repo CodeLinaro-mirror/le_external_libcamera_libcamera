@@ -16,6 +16,7 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/global_configuration.h"
+#include "libcamera/internal/layer_manager.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/pipeline_handler.h"
 
