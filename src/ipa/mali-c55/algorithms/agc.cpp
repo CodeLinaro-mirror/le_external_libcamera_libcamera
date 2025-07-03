@@ -137,6 +137,7 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	if (ret)
 		return ret;
 
+	/* \todo Support AnalogueGainMode and ExposureTimeMode */
 	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true);
 	context.ctrlMap[&controls::DigitalGain] = ControlInfo(
 		static_cast<float>(kMinDigitalGain),
