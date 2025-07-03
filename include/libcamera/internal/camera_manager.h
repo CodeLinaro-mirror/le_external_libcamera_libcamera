@@ -25,6 +25,7 @@ namespace libcamera {
 class Camera;
 class DeviceEnumerator;
 class IPAManager;
+class LayerManager;
 class PipelineHandlerFactoryBase;
 
 class CameraManager::Private : public Extensible::Private, public Thread
@@ -39,6 +40,7 @@ public:
 	void removeCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 
 	IPAManager *ipaManager() const { return ipaManager_.get(); }
+	LayerManager *layerManager() const { return layerManager_.get(); }
 
 protected:
 	void run() override;
@@ -66,6 +68,7 @@ private:
 
 	std::unique_ptr<IPAManager> ipaManager_;
 	ProcessManager processManager_;
+	std::unique_ptr<LayerManager> layerManager_;
 };
 
 } /* namespace libcamera */
