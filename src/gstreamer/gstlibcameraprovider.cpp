@@ -12,6 +12,7 @@
 
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
+#include <libcamera/property_ids.h>
 
 #include "gstlibcamerasrc.h"
 #include "gstlibcamera-utils.h"
@@ -130,6 +131,7 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 {
 	static const std::array roles{ StreamRole::VideoRecording };
 	g_autoptr(GstCaps) caps = gst_caps_new_empty();
+	g_autoptr(GstStructure) props = gst_structure_new_empty("camera-properties");
 	const gchar *name = camera->id().c_str();
 
 	std::unique_ptr<CameraConfiguration> config = camera->generateConfiguration(roles);
@@ -144,12 +146,34 @@ gst_libcamera_device_new(const std::shared_ptr<Camera> &camera)
 			gst_caps_append(caps, sub_caps);
 	}
 
+	for (const auto &[key, value] : camera->properties()) {
+		const ControlId *id = properties::properties.at(key);
+
+		g_autoptr(GString) prop_str = g_string_new("api.libcamera.");
+		g_string_append(prop_str, id->name().c_str());
+
+		/* Use string names for enum values for better readability */
+		if (value.type() == ControlTypeInteger32) {
+			int32_t val = value.get<int32_t>();
+			const auto &it = id->enumerators().find(val);
+			if (it != id->enumerators().end()) {
+				gst_structure_set(props, prop_str->str, G_TYPE_STRING,
+						  it->second.c_str(), nullptr);
+				continue;
+			}
+		}
+
+		gst_structure_set(props, prop_str->str, G_TYPE_STRING,
+				  value.toString().c_str(), nullptr);
+	}
+
 	return GST_DEVICE(g_object_new(GST_TYPE_LIBCAMERA_DEVICE,
 				       /* \todo Use a unique identifier instead of camera name. */
 				       "name", name,
 				       "display-name", name,
 				       "caps", caps,
 				       "device-class", "Source/Video",
+				       "properties", props,
 				       nullptr));
 }
 
