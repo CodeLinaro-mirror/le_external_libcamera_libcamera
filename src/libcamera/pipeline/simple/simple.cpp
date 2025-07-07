@@ -325,6 +325,7 @@ public:
 		Size captureSize;
 		std::vector<PixelFormat> outputFormats;
 		SizeRange outputSizes;
+		bool raw;
 	};
 
 	std::vector<Stream> streams_;
@@ -714,27 +715,33 @@ void SimpleCameraData::tryPipeline(unsigned int code, const Size &size)
 			continue;
 
 		Configuration config;
+
+		/* Raw configuration */
 		config.code = code;
 		config.sensorSize = size;
 		config.captureFormat = pixelFormat;
 		config.captureSize = format.size;
+		config.outputFormats = { pixelFormat };
+		config.outputSizes = config.captureSize;
+		config.raw = true;
+		configs_.push_back(config);
 
+		/* Modified, non-raw, configuration */
+		config.raw = false;
 		if (converter_) {
 			config.outputFormats = converter_->formats(pixelFormat);
 			config.outputSizes = converter_->sizes(format.size);
 		} else if (swIsp_) {
-			config.outputFormats = swIsp_->formats(pixelFormat);
-			config.outputSizes = swIsp_->sizes(pixelFormat, format.size);
-			if (config.outputFormats.empty()) {
+			std::vector<PixelFormat> outputFormats = swIsp_->formats(pixelFormat);
+			if (outputFormats.empty()) {
 				/* Do not use swIsp for unsupported pixelFormat's. */
-				config.outputFormats = { pixelFormat };
-				config.outputSizes = config.captureSize;
+				continue;
 			}
+			config.outputFormats = outputFormats;
+			config.outputSizes = swIsp_->sizes(pixelFormat, format.size);
 		} else {
-			config.outputFormats = { pixelFormat };
-			config.outputSizes = config.captureSize;
+			continue;
 		}
-
 		configs_.push_back(config);
 	}
 }
@@ -1313,10 +1320,13 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	/* Create the formats map. */
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
 
-	for (const SimpleCameraData::Configuration &cfg : data->configs_) {
-		for (PixelFormat format : cfg.outputFormats)
-			formats[format].push_back(cfg.outputSizes);
-	}
+	const bool rawOnly = std::all_of(data->configs_.cbegin(),
+					 data->configs_.cend(),
+					 [](const auto &c) { return c.raw; });
+	for (const SimpleCameraData::Configuration &cfg : data->configs_)
+		if (!cfg.raw || rawOnly)
+			for (PixelFormat format : cfg.outputFormats)
+				formats[format].push_back(cfg.outputSizes);
 
 	/* Sort the sizes and merge any consecutive overlapping ranges. */
 	for (auto &[format, sizes] : formats) {
