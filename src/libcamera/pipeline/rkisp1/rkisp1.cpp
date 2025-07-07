@@ -157,6 +157,10 @@ private:
 
 namespace {
 
+/*
+ * This many internal buffers (or rather parameter and statistics buffer
+ * pairs) ensures that the pipeline runs smoothly, without frame drops.
+ */
 const unsigned int kPipelineDepth = 4;
 
 } // namespace
@@ -990,24 +994,19 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 	unsigned int ipaBufferId = 1;
 	int ret;
 
-	unsigned int maxCount = std::max({
-		data->mainPathStream_.configuration().bufferCount,
-		data->selfPathStream_.configuration().bufferCount,
-	});
-
 	if (!isRaw_) {
-		ret = param_->allocateBuffers(maxCount, &paramBuffers_);
+		ret = param_->allocateBuffers(kPipelineDepth, &paramBuffers_);
 		if (ret < 0)
 			goto error;
 
-		ret = stat_->allocateBuffers(maxCount, &statBuffers_);
+		ret = stat_->allocateBuffers(kPipelineDepth, &statBuffers_);
 		if (ret < 0)
 			goto error;
 	}
 
 	/* If the dewarper is being used, allocate internal buffers for ISP. */
 	if (useDewarper_) {
-		ret = mainPath_.exportBuffers(maxCount, &mainPathBuffers_);
+		ret = mainPath_.exportBuffers(kPipelineDepth, &mainPathBuffers_);
 		if (ret < 0)
 			goto error;
 
