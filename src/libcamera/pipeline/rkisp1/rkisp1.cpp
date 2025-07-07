@@ -155,6 +155,12 @@ private:
 	Transform combinedTransform_;
 };
 
+namespace {
+
+const unsigned int kPipelineDepth = 4;
+
+} // namespace
+
 class PipelineHandlerRkISP1 : public PipelineHandler
 {
 public:
@@ -684,7 +690,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
  */
 
 PipelineHandlerRkISP1::PipelineHandlerRkISP1(CameraManager *manager)
-	: PipelineHandler(manager), hasSelfPath_(true), useDewarper_(false)
+	: PipelineHandler(manager, kPipelineDepth), hasSelfPath_(true), useDewarper_(false)
 {
 }
 
