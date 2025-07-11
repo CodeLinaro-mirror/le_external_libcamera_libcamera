@@ -19,6 +19,14 @@ order:
 - LIBCAMERA_SYSCONF_DIR/configuration.yaml
 - LIBCAMERA_DATA_DIR/libcamera/configuration.yaml
 
+The default name of the configuration file, configuration.yaml, can be
+overridden in LIBCAMERA_CONFIG_NAME environment variable. The variable
+can specify just an alternative configuration file name to be looked up
+in the locations above, or it can contain a whole relative or absolute
+path. If an absolute path is specified then it is the only location that
+is used; if the given file doesn't exist then no configuration file is
+read. If the variable is defined but empty, no configuration is loaded.
+
 The first configuration file found wins, configuration files in other
 locations are ignored.
 
