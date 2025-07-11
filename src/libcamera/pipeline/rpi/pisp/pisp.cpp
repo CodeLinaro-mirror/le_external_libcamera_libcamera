@@ -740,10 +740,16 @@ public:
 		return cfe_[Cfe::Output0].dev();
 	}
 
+	const std::string &target() const override
+	{
+		static const std::string target = "pisp";
+		return target;
+	}
+
 	CameraConfiguration::Status
 	platformValidate(RPi::RPiCameraConfiguration *rpiConfig) const override;
 
-	int platformPipelineConfigure(const std::unique_ptr<YamlObject> &root) override;
+	int platformPipelineConfigure(const YamlObject &phConfig) override;
 
 	void platformStart() override;
 	void platformStop() override;
@@ -1331,7 +1337,7 @@ PiSPCameraData::platformValidate(RPi::RPiCameraConfiguration *rpiConfig) const
 	return status;
 }
 
-int PiSPCameraData::platformPipelineConfigure(const std::unique_ptr<YamlObject> &root)
+int PiSPCameraData::platformPipelineConfigure(const YamlObject &phConfig)
 {
 	config_ = {
 		.numCfeConfigStatsBuffers = 12,
@@ -1340,23 +1346,9 @@ int PiSPCameraData::platformPipelineConfigure(const std::unique_ptr<YamlObject> 
 		.disableHdr = false,
 	};
 
-	if (!root)
+	if (!phConfig)
 		return 0;
 
-	std::optional<double> ver = (*root)["version"].get<double>();
-	if (!ver || *ver != 1.0) {
-		LOG(RPI, Error) << "Unexpected configuration file version reported";
-		return -EINVAL;
-	}
-
-	std::optional<std::string> target = (*root)["target"].get<std::string>();
-	if (target != "pisp") {
-		LOG(RPI, Error) << "Unexpected target reported: expected \"pisp\", got "
-				<< (target ? target->c_str() : "(unknown)");
-		return -EINVAL;
-	}
-
-	const YamlObject &phConfig = (*root)["pipeline_handler"];
 	config_.numCfeConfigStatsBuffers =
 		phConfig["num_cfe_config_stats_buffers"].get<unsigned int>(config_.numCfeConfigStatsBuffers);
 	config_.numCfeConfigQueue =
