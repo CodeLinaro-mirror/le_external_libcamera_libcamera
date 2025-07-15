@@ -175,6 +175,7 @@ std::optional<std::string> GlobalConfiguration::envOption(
  * \brief Return values of the configuration option from a file or environment
  * \param[in] envVariable Environment variable to get the value from
  * \param[in] confPath The same as in GlobalConfiguration::option
+ * \param[in] delimiter Items separator in the environment variable
  *
  * This helper looks first at the given environment variable and if it is
  * defined (even if it is empty) then it splits its value by semicolons and
@@ -191,11 +192,12 @@ std::optional<std::string> GlobalConfiguration::envOption(
  */
 std::optional<std::vector<std::string>> GlobalConfiguration::envListOption(
 	const char *const envVariable,
-	const std::initializer_list<std::string_view> confPath) const
+	const std::initializer_list<std::string_view> confPath,
+	const std::string delimiter) const
 {
 	const char *envValue = utils::secure_getenv(envVariable);
 	if (envValue) {
-		auto items = utils::split(envValue, ":");
+		auto items = utils::split(envValue, delimiter);
 		return std::vector<std::string>(items.begin(), items.end());
 	}
 	return listOption(confPath);
