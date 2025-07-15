@@ -1762,6 +1762,25 @@ V4L2Subdevice::fromEntityName(const MediaDevice *media,
 	return std::make_unique<V4L2Subdevice>(mediaEntity);
 }
 
+/**
+ * \brief Create a new video subdevice instance from an entity in media device
+ * \a media
+ * \param[in] media The media device where the entity is registered
+ * \param[in] entity A regex that will match the media entity's name
+ *
+ * \return A newly created V4L2Subdevice on success, nullptr otherwise
+ */
+std::unique_ptr<V4L2Subdevice>
+V4L2Subdevice::fromEntityName(const MediaDevice *media,
+			      const std::regex &entity)
+{
+	MediaEntity *mediaEntity = media->getEntityByName(entity);
+	if (!mediaEntity)
+		return nullptr;
+
+	return std::make_unique<V4L2Subdevice>(mediaEntity);
+}
+
 std::string V4L2Subdevice::logPrefix() const
 {
 	return "'" + entity_->name() + "'";
