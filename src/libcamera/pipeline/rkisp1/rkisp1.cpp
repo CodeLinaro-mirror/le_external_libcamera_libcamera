@@ -787,7 +787,8 @@ PipelineHandlerRkISP1::generateConfiguration(Camera *camera,
 		config->addConfiguration(cfg);
 	}
 
-	config->validate();
+	if (config->validate() == CameraConfiguration::Invalid)
+		return nullptr;
 
 	return config;
 }
