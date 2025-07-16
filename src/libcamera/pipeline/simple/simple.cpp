@@ -1128,6 +1128,23 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	LOG(SimplePipeline, Debug)
 		<< "Largest stream size is " << maxStreamSize;
 
+	/* Cap the number of raw stream configuration */
+	unsigned int rawCount = 0;
+	PixelFormat requestedRawFormat;
+	for (const StreamConfiguration &cfg : config_) {
+		if (!isFormatRaw(cfg.pixelFormat))
+			continue;
+		requestedRawFormat = cfg.pixelFormat;
+		rawCount++;
+	}
+
+	if (rawCount > 1) {
+		LOG(SimplePipeline, Error)
+			<< "Camera configuration with "
+			<< rawCount << " raw streams not supported";
+		return Invalid;
+	}
+
 	/*
 	 * Find the best configuration for the pipeline using a heuristic.
 	 * First select the pixel format based on the streams (which are
@@ -1289,9 +1306,9 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 	/* Create the formats map. */
 	std::map<PixelFormat, std::vector<SizeRange>> formats;
 
-	for (const SimpleCameraData::Configuration &cfg : data->configs_) {
-		for (PixelFormat format : cfg.outputFormats)
-			formats[format].push_back(cfg.outputSizes);
+	for (const auto &it : data->formats_) {
+		for (const SimpleCameraData::Configuration *cfg : it.second)
+			formats[it.first].push_back(cfg->outputSizes);
 	}
 
 	/* Sort the sizes and merge any consecutive overlapping ranges. */
@@ -1317,14 +1334,33 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 
 	/*
 	 * Create the stream configurations. Take the first entry in the formats
-	 * map as the default, for lack of a better option.
+	 * map as the default for each of role (raw or non-raw), for lack of a
+	 * better option.
 	 *
 	 * \todo Implement a better way to pick the default format
 	 */
-	for ([[maybe_unused]] StreamRole role : roles) {
+	for (StreamRole role : roles) {
 		StreamConfiguration cfg{ StreamFormats{ formats } };
-		cfg.pixelFormat = formats.begin()->first;
-		cfg.size = formats.begin()->second[0].max;
+
+		switch (role) {
+		case StreamRole::Raw:
+			for (auto &[format, sizes] : formats) {
+				if (!isFormatRaw(format))
+					continue;
+				cfg.pixelFormat = format;
+				cfg.size = sizes.back().max;
+				cfg.colorSpace = ColorSpace::Raw;
+				break;
+			}
+			break;
+		default:
+			for (auto &[format, sizes] : formats) {
+				if (isFormatRaw(format))
+					continue;
+				cfg.pixelFormat = format;
+				cfg.size = sizes[0].max;
+			}
+		}
 
 		config->addConfiguration(cfg);
 	}
