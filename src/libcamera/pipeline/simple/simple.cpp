@@ -1147,19 +1147,24 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 	/*
 	 * Find the best configuration for the pipeline using a heuristic.
-	 * First select the pixel format based on the streams (which are
-	 * considered ordered from highest to lowest priority). Default to the
-	 * first pipeline configuration if no streams request a supported pixel
-	 * format.
+	 * First select the pixel format based on the raw streams followed by
+	 * non-raw streams (which are considered ordered from highest to lowest
+	 * priority). Default to the first pipeline configuration if no streams
+	 * request a supported pixel format.
 	 */
 	const std::vector<const SimpleCameraData::Configuration *> *configs =
 		&data_->formats_.begin()->second;
 
-	for (const StreamConfiguration &cfg : config_) {
-		auto it = data_->formats_.find(cfg.pixelFormat);
-		if (it != data_->formats_.end()) {
-			configs = &it->second;
-			break;
+	auto rawIter = data_->formats_.find(requestedRawFormat);
+	if (rawIter != data_->formats_.end()) {
+		configs = &rawIter->second;
+	} else {
+		for (const StreamConfiguration &cfg : config_) {
+			auto it = data_->formats_.find(cfg.pixelFormat);
+			if (it != data_->formats_.end()) {
+				configs = &it->second;
+				break;
+			}
 		}
 	}
 
@@ -1218,8 +1223,23 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 	for (unsigned int i = 0; i < config_.size(); ++i) {
 		StreamConfiguration &cfg = config_[i];
+		const bool raw = isFormatRaw(cfg.pixelFormat);
 
-		/* Adjust the pixel format and size. */
+		/* Adjust the raw pixel format and size. */
+		if (raw) {
+			if (cfg.pixelFormat != pipeConfig_->captureFormat ||
+			    cfg.size != pipeConfig_->captureSize) {
+				cfg.pixelFormat = pipeConfig_->captureFormat;
+				cfg.size = pipeConfig_->captureSize;
+
+				LOG(SimplePipeline, Debug)
+					<< "Adjusting raw stream to "
+					<< cfg.toString();
+				status = Adjusted;
+			}
+		}
+
+		/* Adjust the non-raw pixel format and size. */
 		auto it = std::find(pipeConfig_->outputFormats.begin(),
 				    pipeConfig_->outputFormats.end(),
 				    cfg.pixelFormat);
@@ -1227,13 +1247,13 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 			it = pipeConfig_->outputFormats.begin();
 
 		PixelFormat pixelFormat = *it;
-		if (cfg.pixelFormat != pixelFormat) {
+		if (!raw && cfg.pixelFormat != pixelFormat) {
 			LOG(SimplePipeline, Debug) << "Adjusting pixel format";
 			cfg.pixelFormat = pixelFormat;
 			status = Adjusted;
 		}
 
-		if (!pipeConfig_->outputSizes.contains(cfg.size)) {
+		if (!raw && !pipeConfig_->outputSizes.contains(cfg.size)) {
 			Size adjustedSize = pipeConfig_->captureSize;
 			/*
 			 * The converter (when present) may not be able to output
