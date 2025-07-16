@@ -377,6 +377,7 @@ int CameraDevice::initialize(const CameraConfigData *cameraConfigData)
 		orientation_ = 0;
 	}
 
+	mirrored_ = cameraConfigData && cameraConfigData->mirrored;
 	return capabilities_.initialize(camera_, orientation_, facing_);
 }
 
@@ -545,6 +546,11 @@ int CameraDevice::configureStreams(camera3_stream_configuration_t *stream_list)
 	if (!config) {
 		LOG(HAL, Error) << "Failed to generate camera configuration";
 		return -EINVAL;
+	}
+
+	// Rotation is unsupported, so if mirrored just set orientation.
+	if (mirrored_) {
+		config->orientation = Orientation::Rotate0Mirror;
 	}
 
 	/*

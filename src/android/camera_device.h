@@ -126,6 +126,7 @@ private:
 
 	int facing_;
 	int orientation_;
+	int mirrored_;
 
 	CameraMetadata lastSettings_;
 };
