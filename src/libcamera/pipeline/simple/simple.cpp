@@ -1446,6 +1446,8 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	std::vector<std::reference_wrapper<StreamConfiguration>> outputCfgs;
 	data->useConversion_ = config->needConversion();
 
+	LOG(SimplePipeline, Error) << "Use conversion or not : " << data->useConversion_;
+
 	for (unsigned int i = 0; i < config->size(); ++i) {
 		StreamConfiguration &cfg = config->at(i);
 
