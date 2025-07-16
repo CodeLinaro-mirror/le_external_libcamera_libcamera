@@ -1265,7 +1265,7 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
  */
 
 SimplePipelineHandler::SimplePipelineHandler(CameraManager *manager)
-	: PipelineHandler(manager), converter_(nullptr)
+	: PipelineHandler(manager), converter_(nullptr), swIspEnabled_(false)
 {
 }
 
@@ -1687,7 +1687,16 @@ bool SimplePipelineHandler::match(DeviceEnumerator *enumerator)
 		}
 	}
 
-	swIspEnabled_ = info->swIspEnabled;
+	if (info->swIspEnabled) {
+		/*
+		 * When the software ISP is enabled, the simple pipeline handler
+		 * exposes the raw stream, giving a total of two streams. This
+		 * is mutally exclusive with the presence of a converter.
+		 */
+		ASSERT(!converter_);
+		numStreams = 2;
+		swIspEnabled_ = true;
+	}
 
 	/* Locate the sensors. */
 	std::vector<MediaEntity *> sensors = locateSensors(media);
