@@ -53,7 +53,8 @@ LOG_DEFINE_CATEGORY(DeviceEnumerator)
  *
  * A DeviceMatch is created with a specific Linux device driver in mind,
  * therefore the name of the driver is a required property. One or more Entity
- * names can be added as match criteria.
+ * names (or regular expressions designed to match an entity name) can be added
+ * as match criteria.
  *
  * Pipeline handlers are recommended to add entities to DeviceMatch as
  * appropriate to ensure that the media device they need can be uniquely
@@ -82,6 +83,15 @@ void DeviceMatch::add(const std::string &entity)
 }
 
 /**
+ * \brief Add a regex to match a media entity name to the search pattern
+ * \param[in] entity The regex intended to match to an entity in the media graph
+ */
+void DeviceMatch::add(const std::regex &entity)
+{
+	entityRegexs_.push_back(entity);
+}
+
+/**
  * \brief Compare a search pattern with a media device
  * \param[in] device The media device
  *
@@ -104,6 +114,31 @@ bool DeviceMatch::match(const MediaDevice *device) const
 				if (!entity->deviceNode().empty()) {
 					found = true;
 					break;
+				} else {
+					LOG(DeviceEnumerator, Debug)
+						<< "Skip " << entity->name()
+						<< ": no device node";
+				}
+			}
+		}
+
+		if (!found)
+			return false;
+	}
+
+	for (const std::regex &nameRegex : entityRegexs_) {
+		bool found = false;
+
+		for (const MediaEntity *entity : device->entities()) {
+			if (std::regex_search(entity->name(), nameRegex)) {
+				if (found) {
+					LOG(DeviceEnumerator, Error)
+						<< "Multiple entities match regex";
+					return false;
+				}
+
+				if (!entity->deviceNode().empty()) {
+					found = true;
 				} else {
 					LOG(DeviceEnumerator, Debug)
 						<< "Skip " << entity->name()
