@@ -41,6 +41,14 @@ Agc::Agc()
 {
 }
 
+int Agc::init(IPAContext &context, [[maybe_unused]] const YamlObject &tuningData)
+{
+	context.metadataPlan.set(controls::AnalogueGain);
+	context.metadataPlan.set(controls::ExposureTime);
+
+	return 0;
+}
+
 void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, double exposureMSV)
 {
 	/*

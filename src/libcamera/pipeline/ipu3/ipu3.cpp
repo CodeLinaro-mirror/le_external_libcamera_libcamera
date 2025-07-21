@@ -1078,6 +1078,11 @@ int PipelineHandlerIPU3::registerCameras()
 		if (ret)
 			continue;
 
+		data->metadataPlan_.set(controls::draft::PipelineDepth);
+		data->metadataPlan_.set(controls::draft::TestPatternMode);
+		data->metadataPlan_.set(controls::ScalerCrop);
+		data->metadataPlan_.set(controls::SensorTimestamp);
+
 		const CameraSensorProperties::SensorDelays &delays = cio2->sensor()->sensorDelays();
 		std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
 			{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
@@ -1187,7 +1192,7 @@ int IPU3CameraData::loadIPA()
 		ipa_->configurationFile(sensor->model() + ".yaml", "uncalibrated.yaml");
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
-			 sensorInfo, sensor->controls(), &ipaControls_);
+			 sensorInfo, sensor->controls(), &ipaControls_, &metadataPlan_);
 	if (ret) {
 		LOG(IPU3, Error) << "Failed to initialise the IPU3 IPA";
 		return ret;

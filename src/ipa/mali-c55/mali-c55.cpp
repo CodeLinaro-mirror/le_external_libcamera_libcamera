@@ -46,7 +46,7 @@ public:
 	IPAMaliC55();
 
 	int init(const IPASettings &settings, const IPAConfigInfo &ipaConfig,
-		 ControlInfoMap *ipaControls) override;
+		 ControlInfoMap *ipaControls, MetadataListPlan *metadataPlan) override;
 	int start() override;
 	void stop() override;
 	int configure(const IPAConfigInfo &ipaConfig, uint8_t bayerOrder,
@@ -96,7 +96,7 @@ std::string IPAMaliC55::logPrefix() const
 }
 
 int IPAMaliC55::init(const IPASettings &settings, const IPAConfigInfo &ipaConfig,
-		     ControlInfoMap *ipaControls)
+		     ControlInfoMap *ipaControls, MetadataListPlan *metadataPlan)
 {
 	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
 	if (!camHelper_) {
@@ -130,6 +130,8 @@ int IPAMaliC55::init(const IPASettings &settings, const IPAConfigInfo &ipaConfig
 		return ret;
 
 	updateControls(ipaConfig.sensorInfo, ipaConfig.sensorControls, ipaControls);
+
+	*metadataPlan = std::move(context_.metadataPlan);
 
 	return 0;
 }

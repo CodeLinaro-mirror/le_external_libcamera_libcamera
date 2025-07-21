@@ -160,6 +160,16 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	context.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
 	context.ctrlMap.merge(controls());
 
+	context.metadataPlan.set(controls::AeConstraintMode);
+	context.metadataPlan.set(controls::AeExposureMode);
+	context.metadataPlan.set(controls::AeMeteringMode);
+	context.metadataPlan.set(controls::AnalogueGain);
+	context.metadataPlan.set(controls::AnalogueGainMode);
+	context.metadataPlan.set(controls::ExposureTime);
+	context.metadataPlan.set(controls::ExposureTimeMode);
+	context.metadataPlan.set(controls::ExposureValue);
+	context.metadataPlan.set(controls::FrameDuration);
+
 	return 0;
 }
 

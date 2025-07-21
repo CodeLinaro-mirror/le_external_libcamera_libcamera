@@ -85,7 +85,7 @@ private:
 	void *lsTable_;
 };
 
-int32_t IpaVc4::platformInit([[maybe_unused]] const InitParams &params, [[maybe_unused]] InitResult *result)
+int32_t IpaVc4::platformInit([[maybe_unused]] const InitParams &params, InitResult *result)
 {
 	const std::string &target = controller_.getTarget();
 
@@ -95,6 +95,8 @@ int32_t IpaVc4::platformInit([[maybe_unused]] const InitParams &params, [[maybe_
 			<< ", expected \"bcm2835\"";
 		return -EINVAL;
 	}
+
+	result->metadataPlan.set(controls::rpi::Bcm2835StatsOutput, sizeof(bcm2835_isp_stats));
 
 	return 0;
 }

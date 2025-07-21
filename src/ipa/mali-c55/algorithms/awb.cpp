@@ -29,6 +29,13 @@ Awb::Awb()
 {
 }
 
+int Awb::init(IPAContext &context, [[maybe_unused]] const YamlObject &tuningData)
+{
+	context.metadataPlan.set(controls::ColourGains);
+
+	return 0;
+}
+
 int Awb::configure([[maybe_unused]] IPAContext &context,
 		   [[maybe_unused]] const IPACameraSensorInfo &configInfo)
 {

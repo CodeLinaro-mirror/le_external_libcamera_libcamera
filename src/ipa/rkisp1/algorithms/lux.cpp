@@ -43,7 +43,13 @@ Lux::Lux()
  */
 int Lux::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
 {
-	return lux_.parseTuningData(tuningData);
+	int ret = lux_.parseTuningData(tuningData);
+	if (ret)
+		return ret;
+
+	context.metadataPlan.set(controls::Lux);
+
+	return 0;
 }
 
 /**

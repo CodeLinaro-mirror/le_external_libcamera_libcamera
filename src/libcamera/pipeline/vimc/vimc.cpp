@@ -590,6 +590,8 @@ int VimcCameraData::init()
 
 	controlInfo_ = ControlInfoMap(std::move(ctrls), controls::controls);
 
+	metadataPlan_.set(controls::SensorTimestamp);
+
 	/* Initialize the camera properties. */
 	properties_ = sensor_->properties();
 

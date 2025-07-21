@@ -66,6 +66,8 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
 		offsets_.setData({ { 0, Matrix<int16_t, 3, 1>({ 0, 0, 0 }) } });
 	}
 
+	context.metadataPlan.set(controls::ColourCorrectionMatrix);
+
 	return 0;
 }
 

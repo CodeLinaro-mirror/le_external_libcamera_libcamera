@@ -56,7 +56,8 @@ public:
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls,
-		 bool *ccmEnabled) override;
+		 bool *ccmEnabled,
+		 MetadataListPlan *metadataPlan) override;
 	int configure(const IPAConfigInfo &configInfo) override;
 
 	int start() override;
@@ -96,7 +97,8 @@ int IPASoftSimple::init(const IPASettings &settings,
 			const IPACameraSensorInfo &sensorInfo,
 			const ControlInfoMap &sensorControls,
 			ControlInfoMap *ipaControls,
-			bool *ccmEnabled)
+			bool *ccmEnabled,
+			MetadataListPlan *metadataPlan)
 {
 	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
 	if (!camHelper_) {
@@ -189,6 +191,8 @@ int IPASoftSimple::init(const IPASettings &settings,
 		LOG(IPASoft, Error) << "Don't have gain control";
 		return -EINVAL;
 	}
+
+	*metadataPlan = std::move(context_.metadataPlan);
 
 	return 0;
 }
