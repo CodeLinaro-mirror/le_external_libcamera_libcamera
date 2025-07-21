@@ -5,6 +5,7 @@ control_tests = [
     {'name': 'control_info_map', 'sources': ['control_info_map.cpp']},
     {'name': 'control_list', 'sources': ['control_list.cpp']},
     {'name': 'control_value', 'sources': ['control_value.cpp']},
+    {'name': 'metadata_list', 'sources': ['metadata_list.cpp']},
 ]
 
 foreach test : control_tests

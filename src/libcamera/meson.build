@@ -9,6 +9,7 @@ libcamera_public_sources = files([
     'framebuffer.cpp',
     'framebuffer_allocator.cpp',
     'geometry.cpp',
+    'metadata_list.cpp',
     'orientation.cpp',
     'pixel_format.cpp',
     'request.cpp',
