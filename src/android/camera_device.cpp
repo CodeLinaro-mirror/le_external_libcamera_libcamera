@@ -1423,7 +1423,7 @@ void CameraDevice::notifyError(uint32_t frameNumber, camera3_stream_t *stream,
 std::unique_ptr<CameraMetadata>
 CameraDevice::getResultMetadata(const Camera3RequestDescriptor &descriptor) const
 {
-	const ControlList &metadata = descriptor.request_->metadata();
+	const MetadataList &metadata = descriptor.request_->metadata();
 	const CameraMetadata &settings = descriptor.settings_;
 	camera_metadata_ro_entry_t entry;
 	bool found;

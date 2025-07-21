@@ -559,9 +559,9 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  */
 void PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
 {
-	request->metadata().merge(metadata);
+	request->metadata2().merge(metadata);
 
-	const auto d = request->metadata2().merge(metadata);
+	const auto d = request->metadata().merge(metadata);
 	if (d)
 		request->_d()->camera()->metadataAvailable.emit(request, d);
 }

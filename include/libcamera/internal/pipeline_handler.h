@@ -69,11 +69,11 @@ public:
 	void metadataAvailable(Request *request, const Control<T> &ctrl,
 			       const details::cxx20::type_identity_t<T> &value)
 	{
-		auto &m = request->metadata2();
+		auto &m = request->metadata();
 		const auto c = m.checkpoint();
 
 		m.set(ctrl, value);
-		request->metadata().set(ctrl, value);
+		request->metadata2().set(ctrl, value);
 
 		const auto d = c.diffSince();
 		if (d)
@@ -99,7 +99,7 @@ public:
 #endif
 	void metadataAvailable(Request *request, Func func)
 	{
-		const auto c = request->metadata2().checkpoint();
+		const auto c = request->metadata().checkpoint();
 
 		std::invoke(func, MetadataSetter{ request });
 
