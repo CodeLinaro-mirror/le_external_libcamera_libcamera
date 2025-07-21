@@ -524,10 +524,18 @@ void CameraSession::processRequest(Request *request)
 
 	if (printMetadata_) {
 		const ControlList &requestMetadata = request->metadata();
+		std::cout << "Metadata (" << requestMetadata.size() << " entries):\n";
 		for (const auto &[key, value] : requestMetadata) {
 			const ControlId *id = controls::controls.at(key);
 			std::cout << "\t" << id->name() << " = "
 				  << value.toString() << std::endl;
+		}
+
+		const auto &requestMetadata2 = request->metadata2();
+		std::cout << "Metadata2 (" << requestMetadata2.size() << " entries):\n";
+		for (const auto &[key, value] : requestMetadata2) {
+			const ControlId *id = controls::controls.at(key);
+			std::cout << '\t' << id->name() << " = " << value << std::endl;
 		}
 	}
 
