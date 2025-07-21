@@ -912,6 +912,60 @@ const std::string &Camera::id() const
 }
 
 /**
+ * \var Camera::metadataAvailable
+ * \brief Signal emitted when metadata for a request is available
+ *
+ * The metadataAvailable signal notifies applications about the availability
+ * of metadata for a request before the request completes.
+ *
+ * As metadata results could be large in size, the signal transports only a view
+ * object via which the newly completed metadata items can be accessed. Similarly
+ * to the metadata list itself, this object is thread-safe, and can be sent to other
+ * threads for deferred processing. The view object is valid until the request is
+ * destroyed or reused, whichever happens first.
+ *
+ * Applications can access the value of the newly available metadata results as follows:
+ *
+ * \code
+
+	void metadataAvailableHandler(Request *request, MetadataList::Diff update)
+	{
+		// The object can be iterated...
+		for (auto &&[id, data] : update) {
+			// `id` is the numeric identifier
+			// `data` is a `ControlValueView` object
+		}
+
+		// ...or individual items can be looked up.
+		if (auto x = update.get(controls::SensorTimestamp)) {
+			// `SensorTimestamp` will only be found if it is part of this
+			// particular update; metadata items completed earlier will
+			// not be found.
+		}
+	}
+   \endcode
+ *
+ * This signal is emitted multiple times for the same request, it is in fact
+ * emitted by libcamera every time a new set of metadata is made available
+ * by the Camera to the application.
+ *
+ * The sum of all metadata reported through this signal is equal to
+ * Request::metadata() list when the Request completes.
+ *
+ * Application can opt-in to handle this signal to receive fast notifications
+ * of metadata availability or can equally access the full metadata list
+ * at Request complete time through Request::metadata() if they have no interest
+ * in early metadata notification.
+ *
+ * \note The received MetadataList::Diff object is merely a view, it is only valid until
+ *       the associated Request is destroyed or \ref Request::reuse() "reused". However,
+ *       during its valid lifetime, an application is free to create copies and access the
+ *       completed metadata items from separate thread by iteration or MetadataList::Diff::get().
+ *
+ * \sa ControlValueView
+ */
+
+/**
  * \var Camera::bufferCompleted
  * \brief Signal emitted when a buffer for a request queued to the camera has
  * completed
