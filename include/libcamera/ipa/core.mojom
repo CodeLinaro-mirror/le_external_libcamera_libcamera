@@ -83,6 +83,7 @@ module libcamera;
 [skipSerdes, skipHeader] struct ControlInfoMap {};
 [skipSerdes, skipHeader] struct ControlList {};
 [skipSerdes, skipHeader] struct SharedFD {};
+[skipSerdes, skipHeader] struct MetadataListPlan {};
 
 [skipHeader] struct Point {
 	int32 x;
