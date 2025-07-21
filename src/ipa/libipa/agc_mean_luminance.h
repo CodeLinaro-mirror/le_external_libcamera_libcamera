@@ -42,6 +42,7 @@ public:
 		double yTarget;
 	};
 
+	void configure(utils::Duration lineLength, const CameraSensorHelper *sensorHelper);
 	int parseTuningData(const YamlObject &tuningData);
 
 	void setExposureCompensation(double gain)
