@@ -33,6 +33,7 @@ libcamera_base_private_headers = files([
 
 libcamera_base_details_headers = files([
     'details/cxx20.h',
+    'details/align.h',
 ])
 
 libcamera_base_headers = [
