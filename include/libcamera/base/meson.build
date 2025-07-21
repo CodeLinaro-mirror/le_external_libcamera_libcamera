@@ -31,10 +31,17 @@ libcamera_base_private_headers = files([
     'utils.h',
 ])
 
+libcamera_base_details_headers = files([
+    'details/cxx20.h',
+])
+
 libcamera_base_headers = [
     libcamera_base_public_headers,
     libcamera_base_private_headers,
+    libcamera_base_details_headers,
 ]
 
 install_headers(libcamera_base_public_headers,
                 subdir : libcamera_base_include_dir)
+install_headers(libcamera_base_details_headers,
+                subdir : libcamera_base_include_dir / 'details')
