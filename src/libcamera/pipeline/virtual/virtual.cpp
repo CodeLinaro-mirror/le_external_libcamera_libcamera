@@ -331,7 +331,7 @@ int PipelineHandlerVirtual::queueRequestDevice([[maybe_unused]] Camera *camera,
 		ASSERT(found);
 	}
 
-	request->metadata().set(controls::SensorTimestamp, timestamp);
+	metadataAvailable(request, controls::SensorTimestamp, timestamp);
 	completeRequest(request);
 
 	return 0;
