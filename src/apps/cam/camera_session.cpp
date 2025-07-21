@@ -228,6 +228,20 @@ void CameraSession::listControls() const
 			std::cout << std::endl;
 		}
 	}
+
+	for (const auto &[id, info] : camera_->metadata()) {
+		const auto *cid = controls::controls.at(id);
+
+		std::cout << "Metadata: [  out] " << cid->vendor() << "::" << cid->name()
+			  << " type:" << info.type
+			  << " size:";
+
+		if (info.isArray)
+			std::cout << info.numElements << "x";
+
+		std::cout << info.size << " alignment:" << info.alignment;
+		std::cout << std::endl;
+	}
 }
 
 void CameraSession::listProperties() const
