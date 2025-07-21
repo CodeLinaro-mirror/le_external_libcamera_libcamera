@@ -18,6 +18,7 @@
 #include <libcamera/base/class.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/metadata_list_plan.h>
 
 namespace libcamera {
 
@@ -40,6 +41,7 @@ public:
 	std::queue<Request *> waitingRequests_;
 	ControlInfoMap controlInfo_;
 	ControlList properties_;
+	MetadataListPlan metadataPlan_;
 
 	uint32_t requestSequence_;
 

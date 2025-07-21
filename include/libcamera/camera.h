@@ -131,6 +131,7 @@ public:
 
 	const ControlInfoMap &controls() const;
 	const ControlList &properties() const;
+	const MetadataListPlan &metadata() const;
 
 	const std::set<Stream *> &streams() const;
 
