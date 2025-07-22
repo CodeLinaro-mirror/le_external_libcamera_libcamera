@@ -107,6 +107,10 @@ struct IPAActiveState {
 	} ccm;
 
 	struct {
+		bool supported;
+	} compress;
+
+	struct {
 		int8_t brightness;
 		uint8_t contrast;
 		uint8_t saturation;
@@ -157,6 +161,11 @@ struct IPAFrameContext : public FrameContext {
 		uint8_t saturation;
 		bool update;
 	} cproc;
+
+	struct {
+		bool enable;
+		double gain;
+	} compress;
 
 	struct {
 		bool denoise;
