@@ -10,6 +10,8 @@
 
 #include <libcamera/control_ids.h>
 #include <libcamera/formats.h>
+#include <libcamera/orientation.h>
+#include <gst/video/video.h>
 
 using namespace libcamera;
 
@@ -658,4 +660,34 @@ gst_libcamera_get_camera_manager(int &ret)
 	G_UNLOCK(cm_singleton_lock);
 
 	return cm;
+}
+
+Orientation gst_video_orientation_to_libcamera_orientation(GstVideoOrientationMethod method)
+{
+    switch (method) {
+    case GST_VIDEO_ORIENTATION_IDENTITY:   return Orientation::Rotate0;
+    case GST_VIDEO_ORIENTATION_90R:        return Orientation::Rotate90;
+    case GST_VIDEO_ORIENTATION_180:        return Orientation::Rotate180;
+    case GST_VIDEO_ORIENTATION_90L:        return Orientation::Rotate270;
+    case GST_VIDEO_ORIENTATION_HORIZ:      return Orientation::Rotate0Mirror;
+    case GST_VIDEO_ORIENTATION_VERT:       return Orientation::Rotate180Mirror;
+    case GST_VIDEO_ORIENTATION_UL_LR:      return Orientation::Rotate90Mirror;
+    case GST_VIDEO_ORIENTATION_UR_LL:      return Orientation::Rotate270Mirror;
+    default:                               return Orientation::Rotate0;
+    }
+}
+
+GstVideoOrientationMethod libcamera_orientation_to_gst_video_orientation(Orientation orientation)
+{
+    switch (orientation) {
+    case Orientation::Rotate0:           return GST_VIDEO_ORIENTATION_IDENTITY;
+    case Orientation::Rotate90:          return GST_VIDEO_ORIENTATION_90R;
+    case Orientation::Rotate180:         return GST_VIDEO_ORIENTATION_180;
+    case Orientation::Rotate270:         return GST_VIDEO_ORIENTATION_90L;
+    case Orientation::Rotate0Mirror:     return GST_VIDEO_ORIENTATION_HORIZ;
+    case Orientation::Rotate180Mirror:   return GST_VIDEO_ORIENTATION_VERT;
+    case Orientation::Rotate90Mirror:    return GST_VIDEO_ORIENTATION_UL_LR;
+    case Orientation::Rotate270Mirror:   return GST_VIDEO_ORIENTATION_UR_LL;
+    default:                             return GST_VIDEO_ORIENTATION_IDENTITY;
+    }
 }

@@ -11,6 +11,7 @@
 #include <libcamera/camera_manager.h>
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
+#include <libcamera/orientation.h>
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -92,3 +93,6 @@ public:
 private:
 	GRecMutex *mutex_;
 };
+
+libcamera::Orientation gst_video_orientation_to_libcamera_orientation(GstVideoOrientationMethod method);
+GstVideoOrientationMethod libcamera_orientation_to_gst_video_orientation(libcamera::Orientation orientation);

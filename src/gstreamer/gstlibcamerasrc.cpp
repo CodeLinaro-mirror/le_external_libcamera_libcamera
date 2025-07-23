@@ -32,12 +32,14 @@
 #include <tuple>
 #include <utility>
 #include <vector>
+#include <sstream>
 
 #include <libcamera/camera.h>
 #include <libcamera/camera_manager.h>
 #include <libcamera/control_ids.h>
 
 #include <gst/base/base.h>
+#include <gst/video/video.h>
 
 #include "gstlibcamera-controls.h"
 #include "gstlibcamera-utils.h"
@@ -146,6 +148,7 @@ struct _GstLibcameraSrc {
 	GstTask *task;
 
 	gchar *camera_name;
+	GstVideoOrientationMethod orientation;
 
 	std::atomic<GstEvent *> pending_eos;
 
@@ -157,6 +160,7 @@ struct _GstLibcameraSrc {
 enum {
 	PROP_0,
 	PROP_CAMERA_NAME,
+	PROP_ORIENTATION,
 	PROP_LAST
 };
 
@@ -616,9 +620,110 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		gst_libcamera_get_framerate_from_caps(caps, element_caps);
 	}
 
+	/* Set orientation control. */
+	state->config_->orientation = gst_video_orientation_to_libcamera_orientation(self->orientation);
+
+	/* Save original configuration for comparison after validation */
+	std::vector<StreamConfiguration> orig_stream_cfgs;
+	for (gsize i = 0; i < state->config_->size(); i++)
+		orig_stream_cfgs.push_back(state->config_->at(i));
+	std::optional<SensorConfiguration> orig_sensor_cfg = state->config_->sensorConfig;
+	Orientation orig_orientation = state->config_->orientation;
+
 	/* Validate the configuration. */
-	if (state->config_->validate() == CameraConfiguration::Invalid)
+	switch(state->config_->validate()) {
+	case CameraConfiguration::Valid:
+		GST_DEBUG_OBJECT(self, "Camera configuration is valid");
+		break;
+	case CameraConfiguration::Adjusted:
+	{	
+		bool warned = false;
+		// Warn if number of StreamConfigurations changed
+		if (orig_stream_cfgs.size() != state->config_->size()) {
+			GST_WARNING_OBJECT(self, "Number of StreamConfiguration elements changed: requested=%zu, actual=%zu",
+				orig_stream_cfgs.size(), state->config_->size());
+			warned = true;
+		}
+		// Warn about changes in each StreamConfiguration
+		// TODO implement diffing in StreamConfiguration 
+		for (gsize i = 0; i < std::min(orig_stream_cfgs.size(), state->config_->size()); i++) {
+			if (orig_stream_cfgs[i].toString() != state->config_->at(i).toString()) {
+				GST_WARNING_OBJECT(self, "StreamConfiguration %zu changed: %s -> %s",
+					i, orig_stream_cfgs[i].toString().c_str(),
+					state->config_->at(i).toString().c_str());
+				warned = true;
+			}
+		}
+		// Warn about SensorConfiguration changes
+		// TODO implement diffing in SensorConfiguration
+		if (orig_sensor_cfg.has_value() || state->config_->sensorConfig.has_value()) {
+			const SensorConfiguration *orig = orig_sensor_cfg.has_value() ? &orig_sensor_cfg.value() : nullptr;
+			const SensorConfiguration *curr = state->config_->sensorConfig.has_value() ? &state->config_->sensorConfig.value() : nullptr;
+			bool sensor_changed = false;
+			std::ostringstream diff;
+			if ((orig == nullptr) != (curr == nullptr)) {
+				diff << "SensorConfiguration presence changed: "
+				     << (orig ? "was present" : "was absent")
+				     << " -> "
+				     << (curr ? "present" : "absent");
+				sensor_changed = true;
+			} else if (orig && curr) {
+				if (orig->bitDepth != curr->bitDepth) {
+					diff << "bitDepth: " << orig->bitDepth << " -> " << curr->bitDepth << "; ";
+					sensor_changed = true;
+				}
+				if (orig->analogCrop != curr->analogCrop) {
+					diff << "analogCrop: " << orig->analogCrop.toString() << " -> " << curr->analogCrop.toString() << "; ";
+					sensor_changed = true;
+				}
+				if (orig->binning.binX != curr->binning.binX ||
+				    orig->binning.binY != curr->binning.binY) {
+					diff << "binning: (" << orig->binning.binX << "," << orig->binning.binY << ") -> ("
+					     << curr->binning.binX << "," << curr->binning.binY << "); ";
+					sensor_changed = true;
+				}
+				if (orig->skipping.xOddInc != curr->skipping.xOddInc ||
+				    orig->skipping.xEvenInc != curr->skipping.xEvenInc ||
+				    orig->skipping.yOddInc != curr->skipping.yOddInc ||
+				    orig->skipping.yEvenInc != curr->skipping.yEvenInc) {
+					diff << "skipping: ("
+					     << orig->skipping.xOddInc << "," << orig->skipping.xEvenInc << ","
+					     << orig->skipping.yOddInc << "," << orig->skipping.yEvenInc << ") -> ("
+					     << curr->skipping.xOddInc << "," << curr->skipping.xEvenInc << ","
+					     << curr->skipping.yOddInc << "," << curr->skipping.yEvenInc << "); ";
+					sensor_changed = true;
+				}
+				if (orig->outputSize != curr->outputSize) {
+					diff << "outputSize: " << orig->outputSize.toString() << " -> " << curr->outputSize.toString() << "; ";
+					sensor_changed = true;
+				}
+			}
+			if (sensor_changed) {
+				GST_WARNING_OBJECT(self, "SensorConfiguration changed: %s", diff.str().c_str());
+				warned = true;
+			}
+		}
+		// Warn about orientation change
+		if (orig_orientation != state->config_->orientation) {
+			GEnumClass *enum_class = (GEnumClass *)g_type_class_ref(GST_TYPE_VIDEO_ORIENTATION_METHOD);
+			const char *orig_orientation_str = g_enum_get_value(enum_class, libcamera_orientation_to_gst_video_orientation(orig_orientation))->value_nick;
+			const char *new_orientation_str = g_enum_get_value(enum_class, libcamera_orientation_to_gst_video_orientation(state->config_->orientation))->value_nick;
+			GST_WARNING_OBJECT(self, "Orientation changed: %s -> %s", orig_orientation_str, new_orientation_str);
+			warned = true;
+		}
+		if (!warned) {
+			GST_DEBUG_OBJECT(self, "Camera configuration adjusted, but no significant changes detected.");
+		}
+		// Update Gst orientation property to match adjusted config
+		self->orientation = libcamera_orientation_to_gst_video_orientation(state->config_->orientation);
+		break;
+	}
+	case CameraConfiguration::Invalid:
+		GST_ELEMENT_ERROR(self, RESOURCE, SETTINGS,
+				  ("Camera configuration is not supported"),
+				  ("CameraConfiguration::validate() returned Invalid"));
 		return false;
+	}
 
 	int ret = state->cam_->configure(state->config_.get());
 	if (ret) {
@@ -926,6 +1031,9 @@ gst_libcamera_src_set_property(GObject *object, guint prop_id,
 		g_free(self->camera_name);
 		self->camera_name = g_value_dup_string(value);
 		break;
+	case PROP_ORIENTATION:
+		self->orientation = (GstVideoOrientationMethod)g_value_get_enum(value);
+		break;
 	default:
 		if (!state->controls_.setProperty(prop_id - PROP_LAST, value, pspec))
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -944,6 +1052,9 @@ gst_libcamera_src_get_property(GObject *object, guint prop_id, GValue *value,
 	switch (prop_id) {
 	case PROP_CAMERA_NAME:
 		g_value_set_string(value, self->camera_name);
+		break;
+	case PROP_ORIENTATION:
+		g_value_set_enum(value, (gint)self->orientation);
 		break;
 	default:
 		if (!state->controls_.getProperty(prop_id - PROP_LAST, value, pspec))
@@ -1153,6 +1264,17 @@ gst_libcamera_src_class_init(GstLibcameraSrcClass *klass)
 							     | G_PARAM_READWRITE
 							     | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property(object_class, PROP_CAMERA_NAME, spec);
+
+	/* Register the orientation enum type. */
+	spec = g_param_spec_enum("orientation", "Orientation",
+					       "Select the orientation of the camera.",
+					       GST_TYPE_VIDEO_ORIENTATION_METHOD,
+					       GST_VIDEO_ORIENTATION_IDENTITY,
+					       (GParamFlags)(GST_PARAM_MUTABLE_READY
+							     | G_PARAM_CONSTRUCT
+							     | G_PARAM_READWRITE
+							     | G_PARAM_STATIC_STRINGS));
+	g_object_class_install_property(object_class, PROP_ORIENTATION, spec);
 
 	GstCameraControls::installProperties(object_class, PROP_LAST);
 }
