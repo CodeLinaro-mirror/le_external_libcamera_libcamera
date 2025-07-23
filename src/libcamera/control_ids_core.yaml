@@ -1376,4 +1376,27 @@ controls:
         The nominal range is [-180, 180], where 0° leaves hues unchanged and the
         range wraps around continuously, with 180° == -180°.
 
+  - SyncAdjustment:
+      type: int32_t
+      direction: inout
+      description: |
+        This is an adjustment value that can be either positive or negative, in
+        microseconds, that tells the Camera how much to adjust the frame
+        duration by. This is meant to be used by the Sync layer, and any camera
+        that implements this control (and FrameDurationLimits) will be
+        supported by the sync layer. When reported in metadata, this reports
+        any frame duration adjustment that occurred based on the control value
+        that was passed in.
+
+  - SyncInterface:
+      type: string
+      direction: inout
+      description: |
+        This is the IP address of the network interface to use for the Sync
+        algorithm provided by the Sync layer. When set using the SyncMode
+        control to client mode, this will be the network interface to listen
+        on, and for server mode it will multicast from this network interface.
+        If no network interface is supplied by this control then INADDR_ANY
+        will be used.
+
 ...
