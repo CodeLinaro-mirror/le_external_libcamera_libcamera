@@ -68,6 +68,8 @@ namespace libcamera {
  * \brief Format uses PISP mode 1 compression
  * \var BayerFormat::Packing::PISP2
  * \brief Format uses PISP mode 2 compression
+ * \var BayerFormat::Packing::CRU
+ * \brief Format uses Renesas RZ/G2L CRU style packing
  */
 
 namespace {

@@ -37,6 +37,7 @@ public:
 		IPU3 = 2,
 		PISP1 = 3,
 		PISP2 = 4,
+		CRU = 5,
 	};
 
 	constexpr BayerFormat()
