@@ -61,13 +61,19 @@ public:
 		return unicam_[Unicam::Image].dev();
 	}
 
+	const std::string &target() const override
+	{
+		static const std::string target = "bcm2835";
+		return target;
+	}
+
 	void platformFreeBuffers() override
 	{
 	}
 
 	CameraConfiguration::Status platformValidate(RPi::RPiCameraConfiguration *rpiConfig) const override;
 
-	int platformPipelineConfigure(const std::unique_ptr<YamlObject> &root) override;
+	int platformPipelineConfigure(const YamlObject &phConfig) override;
 
 	void platformStart() override;
 	void platformStop() override;
@@ -493,30 +499,16 @@ CameraConfiguration::Status Vc4CameraData::platformValidate(RPi::RPiCameraConfig
 	return status;
 }
 
-int Vc4CameraData::platformPipelineConfigure(const std::unique_ptr<YamlObject> &root)
+int Vc4CameraData::platformPipelineConfigure(const YamlObject &phConfig)
 {
 	config_ = {
 		.minUnicamBuffers = 2,
 		.minTotalUnicamBuffers = 4,
 	};
 
-	if (!root)
+	if (!phConfig)
 		return 0;
 
-	std::optional<double> ver = (*root)["version"].get<double>();
-	if (!ver || *ver != 1.0) {
-		LOG(RPI, Error) << "Unexpected configuration file version reported";
-		return -EINVAL;
-	}
-
-	std::optional<std::string> target = (*root)["target"].get<std::string>();
-	if (target != "bcm2835") {
-		LOG(RPI, Error) << "Unexpected target reported: expected \"bcm2835\", got "
-				<< (target ? target->c_str() : "(unknown)");
-		return -EINVAL;
-	}
-
-	const YamlObject &phConfig = (*root)["pipeline_handler"];
 	config_.minUnicamBuffers =
 		phConfig["min_unicam_buffers"].get<unsigned int>(config_.minUnicamBuffers);
 	config_.minTotalUnicamBuffers =
