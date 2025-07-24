@@ -52,6 +52,9 @@ file structure:
             ...
       simple:
         copy_input_buffer: # true/false
+        measure:
+          skip: # non-negative integer, frames to skip initially
+          number: # non-negative integer, frames to measure
         supported_devices:
         - driver: # driver name, e.g. `mxc-isi`
           software_isp: # true/false
@@ -84,6 +87,9 @@ Configuration file example
              min_total_unicam_buffers: 2
        simple:
          copy_input_buffer: false
+         measure:
+           skip: 50
+           number: 30
          supported_devices:
          - driver: mxc-isi
            software_isp: true
