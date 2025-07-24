@@ -68,11 +68,6 @@ bool GlobalConfiguration::loadFile(const std::filesystem::path &fileName)
 
 void GlobalConfiguration::load()
 {
-	const std::vector<std::filesystem::path> globalConfigurationDirectories = {
-		std::filesystem::path(LIBCAMERA_SYSCONF_DIR),
-		std::filesystem::path(LIBCAMERA_DATA_DIR),
-	};
-
 	const char *libcameraConfigName =
 		utils::secure_getenv("LIBCAMERA_CONFIG_NAME");
 	if (libcameraConfigName && libcameraConfigName[0] == '\0')
@@ -90,6 +85,16 @@ void GlobalConfiguration::load()
 	if (configName.empty())
 		configName = std::filesystem::path("configuration.yaml");
 
+	std::vector<std::filesystem::path> configurationDirectories;
+
+	const char *configDir = utils::secure_getenv("LIBCAMERA_CONFIG_DIR");
+	if (configDir) {
+		for (auto const &path : utils::split(configDir, ":")) {
+			if (!path.empty())
+				configurationDirectories.push_back(path);
+		}
+	}
+
 	std::filesystem::path userConfigurationDirectory;
 	const char *xdgConfigHome = utils::secure_getenv("XDG_CONFIG_HOME");
 	if (xdgConfigHome) {
@@ -100,15 +105,14 @@ void GlobalConfiguration::load()
 			userConfigurationDirectory =
 				std::filesystem::path(home) / ".config";
 	}
+	if (!userConfigurationDirectory.empty())
+		configurationDirectories.push_back(
+			userConfigurationDirectory / "libcamera");
 
-	if (!userConfigurationDirectory.empty()) {
-		std::filesystem::path user_configuration_file =
-			userConfigurationDirectory / "libcamera" / configName;
-		if (loadFile(user_configuration_file))
-			return;
-	}
+	configurationDirectories.push_back(LIBCAMERA_SYSCONF_DIR);
+	configurationDirectories.push_back(LIBCAMERA_DATA_DIR);
 
-	for (const auto &path : globalConfigurationDirectories)
+	for (const auto &path : configurationDirectories)
 		if (loadFile(path / configName))
 			return;
 }
