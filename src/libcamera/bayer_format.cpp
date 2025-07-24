@@ -49,6 +49,9 @@ namespace libcamera {
  * \brief R then G on the first row, G then B on the second row.
  * \var BayerFormat::MONO
  * \brief Monochrome image data, there is no colour filter array.
+ * \var BayerFormat::NONE
+ * \brief Bayer-formatted data but without a specific order, which will have to
+ * be discerned through other means.
  */
 
 /**

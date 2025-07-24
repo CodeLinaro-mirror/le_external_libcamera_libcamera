@@ -641,6 +641,12 @@ int CameraSensorLegacy::initProperties()
 		case BayerFormat::MONO:
 			cfa = properties::draft::MONO;
 			break;
+		case BayerFormat::NONE:
+			LOG(CameraSensor, Warning)
+				<< "Sensor declares no CFA pattern. This is extremely unlikely "
+				<< "and should be investigated as a likely error.";
+			cfa = properties::draft::MONO;
+			break;
 		}
 
 		properties_.set(properties::draft::ColorFilterArrangement, cfa);
