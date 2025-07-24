@@ -1817,6 +1817,45 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 	return true;
 }
 
+bool PipelineHandlerMaliC55::registerMemoryInputCamera()
+{
+	MediaEntity *sensorEntity;
+	int ret;
+
+	std::unique_ptr<MaliC55CameraData> data = std::make_unique<MaliC55CameraData>(this);
+
+	data->cru_ = std::make_unique<RZG2LCRU>();
+	ret = data->cru_->init(cruMedia_, &sensorEntity);
+	if (ret)
+		return false;
+
+	if (data->init(sensorEntity))
+		return false;
+
+	data->cru_->setSensorAndCSI2Pointers(data->sensor_, data->csi_);
+
+	data->properties_ = data->sensor_->properties();
+
+	const CameraSensorProperties::SensorDelays &delays = data->sensor_->sensorDelays();
+	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
+		{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
+		{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
+	};
+
+	data->delayedCtrls_ =
+		std::make_unique<DelayedControls>(data->sensor_->device(),
+						  params);
+	isp_->frameStart.connect(data->delayedCtrls_.get(),
+				 &DelayedControls::applyControls);
+	data->cru_->output()->bufferReady.connect(this, &PipelineHandlerMaliC55::cruBufferReady);
+	input_->bufferReady.connect(data->cru_.get(), &RZG2LCRU::cruReturnBuffer);
+
+	if (!registerMaliCamera(std::move(data), sensorEntity->name()))
+		return false;
+
+	return true;
+}
+
 bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 {
 	const MediaPad *ispSink;
@@ -1826,14 +1865,14 @@ bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 	 * The TPG and the downscale pipe are both optional blocks and may not
 	 * be fitted.
 	 */
-	DeviceMatch dm("mali-c55");
-	dm.add("mali-c55 isp");
-	dm.add("mali-c55 resizer fr");
-	dm.add("mali-c55 fr");
-	dm.add("mali-c55 3a stats");
-	dm.add("mali-c55 3a params");
+	DeviceMatch c55_dm("mali-c55");
+	c55_dm.add("mali-c55 isp");
+	c55_dm.add("mali-c55 resizer fr");
+	c55_dm.add("mali-c55 fr");
+	c55_dm.add("mali-c55 3a stats");
+	c55_dm.add("mali-c55 3a params");
 
-	media_ = acquireMediaDevice(enumerator, dm);
+	media_ = acquireMediaDevice(enumerator, c55_dm);
 	if (!media_)
 		return false;
 
@@ -1893,6 +1932,22 @@ bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 	stats_->bufferReady.connect(this, &PipelineHandlerMaliC55::statsBufferReady);
 	params_->bufferReady.connect(this, &PipelineHandlerMaliC55::paramsBufferReady);
 
+	/*
+	 * We also need to search for the rzg2l-cru CSI-2 receiver. If we find
+	 * that then we need to work in memory input mode instead of the inline
+	 * mode. The absence of this match is not necessarily a failure at this
+	 * point...it depends on the media links that we investigate momentarily.
+	 *
+	 * This is a bit hacky, because there could be multiple of these media
+	 * devices and we're just taking the first. We need modular pipelines to
+	 * properly solve the issue.
+	 */
+	DeviceMatch cru_dm("rzg2l_cru");
+	cru_dm.add(std::regex("csi-[0-9a-f]{8}.csi2"));
+	cru_dm.add(std::regex("cru-ip-[0-9a-f]{8}.cru[0-9]"));
+	cru_dm.add("CRU output");
+	cruMedia_ = acquireMediaDevice(enumerator, cru_dm);
+
 	ispSink = isp_->entity()->getPadByIndex(0);
 	if (!ispSink || ispSink->links().empty()) {
 		LOG(MaliC55, Error) << "ISP sink pad error";
@@ -1907,12 +1962,13 @@ bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 	 * MEDIA_ENT_F_VID_IF_BRIDGE - A CSI-2 receiver
 	 * MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER - An input device
 	 *
-	 * The last one will be unsupported for now. The TPG is relatively easy,
-	 * we just register a Camera for it. If we have a CSI-2 receiver we need
-	 * to check its sink pad and register Cameras for anything connected to
-	 * it (probably...there are some complex situations in which that might
-	 * not be true but let's pretend they don't exist until we come across
-	 * them)
+	 * The TPG is relatively easy, we just register a Camera for it. If we
+	 * have a CSI-2 receiver we need to check its sink pad and register
+	 * Cameras for anything connected to it (probably...there are some
+	 * complex situations in which that might not be true but let's pretend
+	 * they don't exist until we come across them). If we have an input
+	 * device then we need to acquire the V4L2 infrastructure for it and
+	 * confirm that we found the rzg2l-cru media device too.
 	 */
 	bool registered;
 	for (MediaLink *link : ispSink->links()) {
@@ -1932,7 +1988,21 @@ bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 
 			break;
 		case MEDIA_ENT_F_PROC_VIDEO_PIXEL_FORMATTER:
-			LOG(MaliC55, Warning) << "Memory input not yet supported";
+			if (!cruMedia_)
+				return false;
+
+			ivc_ = V4L2Subdevice::fromEntityName(media_, "rzv2h ivc block");
+			if (ivc_->open() < 0)
+				return false;
+
+			input_ = V4L2VideoDevice::fromEntityName(media_, "rzv2h-ivc");
+			if (input_->open() < 0)
+				return false;
+
+			registered = registerMemoryInputCamera();
+			if (!registered)
+				return registered;
+
 			break;
 		default:
 			LOG(MaliC55, Error) << "Unsupported entity function";
