@@ -333,6 +333,33 @@ bare_structure_from_format(const PixelFormat &format)
 	}
 }
 
+static const struct {
+	ControlType c_type;
+	GType g_type;
+} control_type_gtype_map[]{
+	{ ControlTypeBool, G_TYPE_BOOLEAN },
+	{ ControlTypeByte, G_TYPE_UINT },
+	{ ControlTypeUnsigned16, G_TYPE_UINT },
+	{ ControlTypeUnsigned32, G_TYPE_UINT },
+	{ ControlTypeInteger32, G_TYPE_LONG },
+	{ ControlTypeInteger64, G_TYPE_INT64 },
+	{ ControlTypeFloat, G_TYPE_FLOAT },
+	{ ControlTypeString, G_TYPE_STRING },
+	{ ControlTypeRectangle, GST_TYPE_ARRAY },
+	{ ControlTypeSize, GST_TYPE_ARRAY },
+	{ ControlTypePoint, GST_TYPE_ARRAY },
+};
+
+static GType
+control_type_to_gtype(const ControlType &type)
+{
+	for (auto &a : control_type_gtype_map) {
+		if (a.c_type == type)
+			return a.g_type;
+	}
+	return G_TYPE_INVALID;
+}
+
 GstCaps *
 gst_libcamera_stream_formats_to_caps(const StreamFormats &formats)
 {
@@ -705,4 +732,176 @@ gst_libcamera_get_camera_manager(int &ret)
 	G_UNLOCK(cm_singleton_lock);
 
 	return cm;
+}
+
+int gst_libcamera_set_structure_field(GstStructure *structure, GString *field,
+				      const ControlId *id, const ControlValue &value)
+{
+	GValue v = G_VALUE_INIT;
+	GValue x = G_VALUE_INIT;
+	gboolean is_array = value.isArray();
+
+	GType type = control_type_to_gtype(value.type());
+	if (type == G_TYPE_INVALID)
+		return -EINVAL;
+
+	if (is_array || type == GST_TYPE_ARRAY) {
+		g_value_init(&v, GST_TYPE_ARRAY);
+		g_value_init(&x, type);
+	}
+
+	switch (value.type()) {
+	case ControlTypeBool:
+		if (is_array) {
+			Span<const bool> data = value.get<Span<const bool>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_boolean(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			gst_structure_set(structure, field->str, G_TYPE_BOOLEAN,
+					  value.get<const bool>(), nullptr);
+		}
+		break;
+	case ControlTypeByte:
+		if (is_array) {
+			Span<const uint8_t> data = value.get<Span<const uint8_t>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_uint(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			gst_structure_set(structure, field->str, G_TYPE_UINT,
+					  value.get<const uint8_t>(), nullptr);
+		}
+		break;
+	case ControlTypeUnsigned16:
+		if (is_array) {
+			Span<const uint16_t> data = value.get<Span<const uint16_t>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_uint(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			gst_structure_set(structure, field->str, G_TYPE_UINT,
+					  value.get<const uint16_t>(), nullptr);
+		}
+		break;
+	case ControlTypeUnsigned32:
+		if (is_array) {
+			Span<const uint32_t> data = value.get<Span<const uint32_t>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_ulong(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			gst_structure_set(structure, field->str, G_TYPE_ULONG,
+					  value.get<const uint32_t>(), nullptr);
+		}
+		break;
+	case ControlTypeInteger32:
+		if (is_array) {
+			Span<const int32_t> data = value.get<Span<const int32_t>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_long(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			if (!id->enumerators().empty()) {
+				int32_t val = value.get<int32_t>();
+				const auto &iter = id->enumerators().find(val);
+				if (iter != id->enumerators().end()) {
+					gst_structure_set(structure, field->str,
+							  G_TYPE_STRING,
+							  iter->second.c_str(),
+							  nullptr);
+				} else {
+					return -EINVAL;
+				}
+			} else {
+				gst_structure_set(structure, field->str, G_TYPE_LONG,
+						  value.get<const int32_t>(), nullptr);
+			}
+		}
+		break;
+	case ControlTypeInteger64:
+		if (is_array) {
+			Span<const int64_t> data = value.get<Span<const int64_t>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_int64(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			gst_structure_set(structure, field->str, G_TYPE_INT64,
+					  value.get<const int64_t>(), nullptr);
+		}
+		break;
+	case ControlTypeFloat:
+		if (is_array) {
+			Span<const float> data = value.get<Span<const float>>();
+			for (auto it = data.begin(); it != data.end(); ++it) {
+				g_value_set_float(&x, *it);
+				gst_value_array_append_and_take_value(&v, &x);
+				g_value_init(&x, type);
+			}
+		} else {
+			gst_structure_set(structure, field->str, G_TYPE_FLOAT,
+					  value.get<const float>(), nullptr);
+		}
+		break;
+	case ControlTypeString:
+		gst_structure_set(structure, field->str, G_TYPE_STRING,
+				  value.toString().c_str(), nullptr);
+		break;
+	case ControlTypeSize:
+		if (is_array) {
+			Span<const Size> data = value.get<Span<const Size>>();
+			for (auto it = data.begin(); it != data.end(); ++it)
+				gst_libcamera_gvalue_set_size(&v, *it);
+		} else {
+			gst_libcamera_gvalue_set_size(&v, value.get<const Size>());
+		}
+		break;
+	case ControlTypePoint:
+		if (is_array) {
+			Span<const Point> data = value.get<Span<const Point>>();
+			for (auto it = data.begin(); it != data.end(); ++it)
+				gst_libcamera_gvalue_set_point(&v, *it);
+		} else {
+			gst_libcamera_gvalue_set_point(&v, value.get<const Point>());
+		}
+		break;
+	case ControlTypeRectangle:
+		if (is_array) {
+			Span<const Rectangle> data = value.get<Span<const Rectangle>>();
+			for (auto it = data.begin(); it != data.end(); ++it)
+				gst_libcamera_gvalue_set_rectangle(&v, *it);
+		} else {
+			gst_libcamera_gvalue_set_rectangle(&v, value.get<const Rectangle>());
+		}
+		break;
+	case ControlTypeNone:
+		[[fallthrough]];
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * Set values for array types with the only exception of strings which
+	 * is handled by ControlValue::toString() helper directly above.
+	 */
+	if ((is_array || type == GST_TYPE_ARRAY) &&
+	    (value.type() != ControlTypeString))
+		gst_structure_set_value(structure, field->str, &v);
+
+	g_value_unset(&v);
+	g_value_unset(&x);
+
+	return 0;
 }
