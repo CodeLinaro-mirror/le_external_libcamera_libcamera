@@ -92,12 +92,12 @@ struct MaliC55FrameInfo {
 class MaliC55CameraData : public Camera::Private
 {
 public:
-	MaliC55CameraData(PipelineHandler *pipe, MediaEntity *entity)
-		: Camera::Private(pipe), entity_(entity)
+	MaliC55CameraData(PipelineHandler *pipe)
+		: Camera::Private(pipe)
 	{
 	}
 
-	int init();
+	int init(MediaEntity *entity);
 	int loadIPA();
 
 	/* Deflect these functionalities to either TPG or CameraSensor. */
@@ -134,9 +134,11 @@ private:
 	Size tpgResolution_;
 };
 
-int MaliC55CameraData::init()
+int MaliC55CameraData::init(MediaEntity *entity)
 {
 	int ret;
+
+	entity_ = entity;
 
 	sd_ = std::make_unique<V4L2Subdevice>(entity_);
 	ret = sd_->open();
@@ -1567,9 +1569,9 @@ bool PipelineHandlerMaliC55::registerTPGCamera(MediaLink *link)
 	}
 
 	std::unique_ptr<MaliC55CameraData> data =
-		std::make_unique<MaliC55CameraData>(this, link->source()->entity());
+		std::make_unique<MaliC55CameraData>(this);
 
-	if (data->init())
+	if (data->init(link->source()->entity()))
 		return false;
 
 	return registerMaliCamera(std::move(data), name);
@@ -1594,8 +1596,8 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 			continue;
 
 		std::unique_ptr<MaliC55CameraData> data =
-			std::make_unique<MaliC55CameraData>(this, sensor);
-		if (data->init())
+			std::make_unique<MaliC55CameraData>(this);
+		if (data->init(sensor))
 			return false;
 
 		data->properties_ = data->sensor_->properties();
