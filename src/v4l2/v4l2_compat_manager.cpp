@@ -43,10 +43,14 @@ V4L2CompatManager::V4L2CompatManager()
 	: cm_(nullptr)
 {
 	get_symbol(fops_.openat, "openat64");
+	if (!fops_.openat)
+		get_symbol(fops_.openat, "openat");
 	get_symbol(fops_.dup, "dup");
 	get_symbol(fops_.close, "close");
 	get_symbol(fops_.ioctl, "ioctl");
 	get_symbol(fops_.mmap, "mmap64");
+	if (!fops_.mmap)
+		get_symbol(fops_.mmap, "mmap");
 	get_symbol(fops_.munmap, "munmap");
 }
 
