@@ -140,6 +140,8 @@ public:
 		return formats({ pad, 0 });
 	}
 
+	int bindContext(unsigned int context);
+
 	int getFormat(const Stream &stream, V4L2SubdeviceFormat *format,
 		      Whence whence = ActiveFormat);
 	int getFormat(unsigned int pad, V4L2SubdeviceFormat *format,

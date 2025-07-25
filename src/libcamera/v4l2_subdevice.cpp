@@ -1352,6 +1352,24 @@ std::optional<ColorSpace> V4L2Subdevice::toColorSpace(const v4l2_mbus_framefmt &
 }
 
 /**
+ * \brief Bind a subdevice to a media device context
+ * \param[in] context The file descriptor that identifies the media device
+ * context
+ * \return 0 on success or a negative error code otherwise
+ */
+int V4L2Subdevice::bindContext(unsigned int context)
+{
+	struct v4l2_subdev_bind_context c = {};
+	c.context_fd = context;
+
+	int ret = ioctl(VIDIOC_SUBDEV_BIND_CONTEXT, &c);
+	if (ret)
+		LOG(V4L2, Error) << "Unable to bind context: " << strerror(-ret);
+
+	return ret;
+}
+
+/**
  * \brief Retrieve the image format set on one of the V4L2 subdevice streams
  * \param[in] stream The stream the format is to be retrieved from
  * \param[out] format The image bus format
