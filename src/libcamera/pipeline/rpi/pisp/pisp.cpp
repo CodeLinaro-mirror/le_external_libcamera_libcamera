@@ -740,6 +740,16 @@ public:
 		return cfe_[Cfe::Output0].dev();
 	}
 
+	int bindDevice(V4L2VideoDevice *dev)
+	{
+		return mediaContext_->bindDevice(dev);
+	}
+
+	int bindDevice(V4L2Subdevice *dev)
+	{
+		return mediaContext_->bindDevice(dev);
+	}
+
 	CameraConfiguration::Status
 	platformValidate(RPi::RPiCameraConfiguration *rpiConfig) const override;
 
@@ -775,6 +785,8 @@ public:
 	std::vector<FrameBuffer *> stitchBuffers_;
 	unsigned int tdnInputIndex_;
 	unsigned int stitchInputIndex_;
+
+	std::unique_ptr<MediaContext> mediaContext_;
 
 	struct Config {
 		/*
@@ -935,6 +947,7 @@ bool PipelineHandlerPiSP::match(DeviceEnumerator *enumerator)
 					("pisp_frontend", true, pisp->pispVariant_);
 			pisp->be_ = SharedMemObject<BackEnd>
 					("pisp_backend", BackEnd::Config({}), pisp->pispVariant_);
+			pisp->mediaContext_ = ispDevice->createContext();
 
 			if (!pisp->fe_.fd().isValid() || !pisp->be_.fd().isValid()) {
 				LOG(RPI, Error) << "Failed to create ISP shared objects";
@@ -1154,6 +1167,16 @@ int PipelineHandlerPiSP::platformRegister(std::unique_ptr<RPi::CameraData> &came
 		if (ret)
 			return ret;
 	}
+
+	/* Bind devices to the media device. */
+	data->bindDevice(data->isp_[Isp::Input].dev());
+	data->bindDevice(data->isp_[Isp::Output0].dev());
+	data->bindDevice(data->isp_[Isp::Output1].dev());
+	data->bindDevice(data->isp_[Isp::Config].dev());
+	data->bindDevice(data->isp_[Isp::TdnInput].dev());
+	data->bindDevice(data->isp_[Isp::TdnOutput].dev());
+	data->bindDevice(data->isp_[Isp::StitchInput].dev());
+	data->bindDevice(data->isp_[Isp::StitchOutput].dev());
 
 	/* Write up all the IPA connections. */
 	data->ipa_->prepareIspComplete.connect(data, &PiSPCameraData::prepareIspComplete);
