@@ -21,6 +21,9 @@
 
 #include <libcamera/base/log.h>
 
+#include "libcamera/internal/v4l2_subdevice.h"
+#include "libcamera/internal/v4l2_videodevice.h"
+
 /**
  * \file media_device.h
  * \brief Provide a representation of a Linux kernel Media Controller device
@@ -79,6 +82,99 @@ MediaDeviceFactory::createMediaDevice(const std::string &deviceNode)
 			(new SharedMediaDevice(deviceNode));
 
 	return std::unique_ptr<MediaDevice>(new MediaDevice(deviceNode));
+}
+
+/**
+ * \class MediaContext
+ * \brief Represents a media device context
+ *
+ * A media device context is obtained from a MediaDevice or a SharedMediaDevice
+ * instance with the MediaDevice::createContext() and
+ * SharedMediaDevice::createContext() functions.
+ *
+ * MediaContext instances obtained from a MediaDevice that does not support
+ * multi-context operations will not have a valid file descriptor associated as
+ * the media device they are created from doesn't support multiple open. For
+ * this reason binding a device to a context that is obtained from a MediaDevice
+ * is a nop.
+ *
+ * MediaContext instances obtained from a SharedMediaDevice that supports
+ * multi-context operations owns the file descriptor that identifies the media
+ * context, obtained by opening the media device multiple times and provided to
+ * the context at creation time. Binding devices to a context obtained from a
+ * SharedMediaDevice associates the devices to an execution context which
+ * remains valid until the last bound device stays valid.
+ *
+ * Users of this class can bind devices on valid and invalid MultiContext
+ * instances alike. If the kernel driver supports multi-context operations
+ * then the device can be opened multiple times and multiple contexts can be
+ * created to which devices can be bound to. If the kernel driver doesn't
+ * support multi-context operations then it can be opened a single time only
+ * and a creating contexts and bindings devices to it is effectively a nop.
+ */
+
+/**
+ * \brief Constructs a MediaContext not associated to any media device context
+ *
+ * Constructs a media device context not associated to any valid media device
+ * context file descriptor. Binding devices to such media device context
+ * is effectively a nop.
+ */
+MediaContext::MediaContext()
+{
+}
+
+/**
+ * \brief Construct a MediaContext associated to a valid media device context
+ * \param[in] fd The file descriptor that identifies a media device context
+ *
+ * Construct a media device context to which devices can be bound to.
+ *
+ * Constructing a MediaContext with an associated valid media device context
+ * allows to create isolated execution contexts by binding devices to it.
+ *
+ * The file descriptor \a fd obtained by opening the media device and that
+ * identifies the media device context is moved in the newly constructed
+ * MediaContext which maintains its ownership and automatically closes it at
+ * destruction time.
+ */
+MediaContext::MediaContext(UniqueFD &&fd)
+	: fd_(std::move(fd))
+{
+}
+
+/**
+ * \brief Bind a V4L2 video device to a media device context
+ * \param[in] dev The video device to bind
+ *
+ * If the MediaContext has been created by a MediaDevice that does not
+ * support multi-context operations, this function is effectively a nop.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaContext::bindDevice(V4L2VideoDevice *dev)
+{
+	if (fd_.get() == -1)
+		return 0;
+
+	return dev->bindContext(fd_.get());
+}
+
+/**
+ * \brief Bind a V4L2 subdevice to a media device context
+ * \param[in] dev The subdevice to bind
+ *
+ * If the MediaContext has been created by a MediaDevice that does not
+ * support multi-context operations, this function is effectively a nop.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int MediaContext::bindDevice(V4L2Subdevice *dev)
+{
+	if (fd_.get() == -1)
+		return 0;
+
+	return dev->bindContext(fd_.get());
 }
 
 /**
@@ -601,6 +697,45 @@ int MediaDevice::disableLinks()
  * device has been removed from the system. For hot-pluggable devices this is
  * usually caused by physical device disconnection, but can also result from
  * driver unloading for most devices. The media device is passed as a parameter.
+ */
+
+/**
+ * \brief Create a MediaContext not associated with a media device context
+ * \return A MediaContext to which bindings devices is a nop
+ */
+std::unique_ptr<MediaContext> MediaDevice::createContext()
+{
+	return std::make_unique<MediaContext>();
+}
+
+/**
+ * \brief Create a MediaContext associated with a media device context
+ *
+ * Create a MediaContext by opening the media device and create a media
+ * device context using the obtained file descriptor.
+ *
+ * The open file descriptor is moved to the MediaContext whose ownership is
+ * moved to the caller of this function.
+ *
+ * \return A MediaContext to which is possible to bind devices to
+ */
+std::unique_ptr<MediaContext> SharedMediaDevice::createContext()
+{
+	auto fd = UniqueFD(::open(deviceNode_.c_str(), O_RDWR | O_CLOEXEC));
+	if (!fd.isValid()) {
+		int ret = -errno;
+		LOG(MediaDevice, Error)
+			<< "Failed to open media device at "
+			<< deviceNode_ << ": " << strerror(-ret);
+		return {};
+	}
+
+	return std::make_unique<MediaContext>(std::move(fd));
+}
+
+/**
+ * \var MediaDevice::deviceNode_
+ * \brief The media device device node path
  */
 
 /**

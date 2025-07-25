@@ -21,11 +21,27 @@
 
 namespace libcamera {
 
+class V4L2VideoDevice;
+class V4L2Subdevice;
+
 class MediaDeviceFactory
 {
 public:
 	static std::unique_ptr<MediaDevice>
 	createMediaDevice(const std::string &deviceNode);
+};
+
+class MediaContext
+{
+public:
+	MediaContext();
+	MediaContext(UniqueFD &&fd);
+
+	int bindDevice(V4L2VideoDevice *dev);
+	int bindDevice(V4L2Subdevice *dev);
+
+private:
+	UniqueFD fd_;
 };
 
 class MediaDevice : protected Loggable
@@ -63,9 +79,13 @@ public:
 
 	std::vector<MediaEntity *> locateEntities(unsigned int function);
 
+	virtual std::unique_ptr<MediaContext> createContext();
+
 protected:
 	MediaDevice(const std::string &deviceNode);
 	std::string logPrefix() const override;
+
+	std::string deviceNode_;
 
 private:
 	friend class MediaDeviceFactory;
@@ -88,7 +108,6 @@ private:
 	int setupLink(const MediaLink *link, unsigned int flags);
 
 	std::string driver_;
-	std::string deviceNode_;
 	std::string model_;
 	unsigned int version_;
 	unsigned int hwRevision_;
@@ -110,6 +129,8 @@ public:
 
 	bool lock() override;
 	void unlock() override;
+
+	std::unique_ptr<MediaContext> createContext() override;
 
 private:
 	friend class MediaDeviceFactory;
