@@ -780,6 +780,7 @@ public:
 
 	std::unique_ptr<V4L2Subdevice> csi2Subdev_;
 	std::unique_ptr<V4L2Subdevice> feSubdev_;
+	std::unique_ptr<V4L2Subdevice> ispSubdev_;
 
 	std::vector<FrameBuffer *> tdnBuffers_;
 	std::vector<FrameBuffer *> stitchBuffers_;
@@ -1136,8 +1137,14 @@ int PipelineHandlerPiSP::platformRegister(std::unique_ptr<RPi::CameraData> &came
 
 	data->csi2Subdev_ = std::make_unique<V4L2Subdevice>(cfe->getEntityByName("csi2"));
 	data->feSubdev_ = std::make_unique<V4L2Subdevice>(cfe->getEntityByName("pisp-fe"));
+	data->ispSubdev_ = std::make_unique<V4L2Subdevice>(isp->getEntityByName("pispbe"));
 	data->csi2Subdev_->open();
 	data->feSubdev_->open();
+	if (data->ispSubdev_->open()) {
+		/* Depends on an out-of-tree patch. */
+		LOG(RPI, Error) << "Make sure to have V4L2_SUBDEV_FL_HAS_DEVNODE in the pispbe driver";
+		return -EINVAL;
+	}
 
 	/*
 	 * Open all CFE and ISP streams. The exception is the embedded data
@@ -1177,6 +1184,7 @@ int PipelineHandlerPiSP::platformRegister(std::unique_ptr<RPi::CameraData> &came
 	data->bindDevice(data->isp_[Isp::TdnOutput].dev());
 	data->bindDevice(data->isp_[Isp::StitchInput].dev());
 	data->bindDevice(data->isp_[Isp::StitchOutput].dev());
+	data->bindDevice(data->ispSubdev_.get());
 
 	/* Write up all the IPA connections. */
 	data->ipa_->prepareIspComplete.connect(data, &PiSPCameraData::prepareIspComplete);
@@ -2188,6 +2196,10 @@ int PiSPCameraData::configureEntities(V4L2SubdeviceFormat sensorFormat,
 	constexpr unsigned int feVideo1SourcePad = 3;
 	constexpr unsigned int feStatsSourcePad = 4;
 
+	constexpr unsigned int ispInputPad = 0;
+	constexpr unsigned int ispOutput0Pad = 3;
+	constexpr unsigned int ispOutput1Pad = 4;
+
 	const MediaEntity *csi2 = csi2Subdev_->entity();
 	const MediaEntity *fe = feSubdev_->entity();
 
@@ -2253,8 +2265,43 @@ int PiSPCameraData::configureEntities(V4L2SubdeviceFormat sensorFormat,
 
 	feFormat.code = bayerToMbusCode(feOutputBayer);
 	ret = feSubdev_->setFormat(feVideo0SourcePad, &feFormat);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* Apply format on the ISP subdev pad #0 (matches the input image size). */
+	V4L2DeviceFormat ispVdevFormat;
+	isp_[Isp::Input].dev()->getFormat(&ispVdevFormat);
+
+	V4L2SubdeviceFormat ispSubdevFormat;
+	ispSubdevFormat.code = MEDIA_BUS_FMT_FIXED;
+	ispSubdevFormat.size = ispVdevFormat.size;
+	ret = ispSubdev_->setFormat(ispInputPad, &ispSubdevFormat);
+	if (ret)
+		return ret;
+
+	/* Apply format on the ISP subdev pads connected to active inputs. */
+	pisp_be_global_config global;
+	be_->GetGlobal(global);
+	unsigned int beEnabled = global.rgb_enables;
+
+	if (beEnabled & PISP_BE_RGB_ENABLE_OUTPUT0) {
+		isp_[Isp::Output0].dev()->getFormat(&ispVdevFormat);
+
+		ispSubdevFormat.size = ispVdevFormat.size;
+		ret = ispSubdev_->setFormat(ispOutput0Pad, &ispSubdevFormat);
+		if (ret)
+			return ret;
+	}
+	if (beEnabled & PISP_BE_RGB_ENABLE_OUTPUT1) {
+		isp_[Isp::Output1].dev()->getFormat(&ispVdevFormat);
+
+		ispSubdevFormat.size = ispVdevFormat.size;
+		ret = ispSubdev_->setFormat(ispOutput1Pad, &ispSubdevFormat);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 void PiSPCameraData::prepareCfe()
