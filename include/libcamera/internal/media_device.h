@@ -21,18 +21,24 @@
 
 namespace libcamera {
 
+class MediaDeviceFactory
+{
+public:
+	static std::unique_ptr<MediaDevice>
+	createMediaDevice(const std::string &deviceNode);
+};
+
 class MediaDevice : protected Loggable
 {
 public:
-	MediaDevice(const std::string &deviceNode);
-	~MediaDevice();
+	virtual ~MediaDevice();
 
-	bool acquire();
-	void release();
-	bool busy() const { return acquired_; }
+	virtual bool acquire();
+	virtual void release();
+	virtual bool busy() const { return acquired_; }
 
-	bool lock();
-	void unlock();
+	virtual bool lock();
+	virtual void unlock();
 
 	int populate();
 	bool isValid() const { return valid_; }
@@ -58,9 +64,12 @@ public:
 	std::vector<MediaEntity *> locateEntities(unsigned int function);
 
 protected:
+	MediaDevice(const std::string &deviceNode);
 	std::string logPrefix() const override;
 
 private:
+	friend class MediaDeviceFactory;
+
 	int open();
 	void close();
 
@@ -90,6 +99,22 @@ private:
 
 	std::map<unsigned int, MediaObject *> objects_;
 	std::vector<MediaEntity *> entities_;
+};
+
+class SharedMediaDevice : public MediaDevice
+{
+public:
+	bool acquire() override;
+	void release() override;
+	bool busy() const override { return false; }
+
+	bool lock() override;
+	void unlock() override;
+
+private:
+	friend class MediaDeviceFactory;
+
+	SharedMediaDevice(const std::string &deviceNode);
 };
 
 } /* namespace libcamera */

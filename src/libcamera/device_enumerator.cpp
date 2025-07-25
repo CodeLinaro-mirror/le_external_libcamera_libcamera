@@ -217,7 +217,13 @@ DeviceEnumerator::~DeviceEnumerator()
  */
 std::unique_ptr<MediaDevice> DeviceEnumerator::createDevice(const std::string &deviceNode)
 {
-	std::unique_ptr<MediaDevice> media = std::make_unique<MediaDevice>(deviceNode);
+	std::unique_ptr<MediaDevice> media = MediaDeviceFactory::createMediaDevice(deviceNode);
+	if (!media) {
+		LOG(DeviceEnumerator, Info)
+			<< "Unable to create a media device for " << deviceNode
+			<< ", skipping";
+		return nullptr;
+	}
 
 	int ret = media->populate();
 	if (ret < 0) {

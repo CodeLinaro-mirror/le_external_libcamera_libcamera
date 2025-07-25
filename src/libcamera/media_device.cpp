@@ -32,6 +32,56 @@ namespace libcamera {
 LOG_DEFINE_CATEGORY(MediaDevice)
 
 /**
+ * \class MediaDeviceFactory
+ * \brief Factory class that instantiates a MediaDevice or SharedMediaDevice
+ *
+ * The MediaDevice and SharedMediaDevice classes cannot be instantiated
+ * directly, but instead the MediaDeviceFactory shall be used to create
+ * an instance of these classes using the MediaDeviceFactory::createMediaDevice
+ * function.
+ */
+
+/**
+ * \brief Create an instance of the MediaDevice class hierarchy
+ * \param[in] deviceNode The media device node path
+ *
+ * If a media device supports multi-context operations and advertise it through
+ * the presence of the MEDIA_DEVICE_FL_CONTEXT flag in the
+ * media_device_info.flags field an instance of SharedMediaDevice will be
+ * created and returned. If instead the media device doesn's support
+ * multi-context operations an instance of the MediaDevice class is created and
+ * returned.
+ *
+ * \return A unique_ptr<> that wraps an instance of SharedMediaDevice or
+ * MediaDevice
+ */
+std::unique_ptr<MediaDevice>
+MediaDeviceFactory::createMediaDevice(const std::string &deviceNode)
+{
+	/*
+	 * Inspect the media device info flags to decide which class to
+	 * instantiate.
+	 */
+	auto fd = UniqueFD(::open(deviceNode.c_str(), O_RDWR | O_CLOEXEC));
+	if (!fd.isValid())
+		return {};
+
+	struct media_device_info info = {};
+	int ret = ioctl(fd.get(), MEDIA_IOC_DEVICE_INFO, &info);
+	if (ret) {
+		LOG(MediaDevice, Error)
+			<< "Failed to get media device info " << strerror(-ret);
+		return {};
+	}
+
+	if (info.flags & MEDIA_DEVICE_FL_CONTEXT)
+		return std::unique_ptr<SharedMediaDevice>
+			(new SharedMediaDevice(deviceNode));
+
+	return std::unique_ptr<MediaDevice>(new MediaDevice(deviceNode));
+}
+
+/**
  * \class MediaDevice
  * \brief The MediaDevice represents a Media Controller device with its full
  * graph of connected objects.
@@ -39,6 +89,9 @@ LOG_DEFINE_CATEGORY(MediaDevice)
  * A MediaDevice instance is associated with a media controller device node when
  * created, and that association is kept for the lifetime of the MediaDevice
  * instance.
+ *
+ * Instances of MediaDevice are created by the MediaDeviceFactory
+ * createMediaDevice() function and cannot be directly instantiated.
  *
  * The instance is created with an empty media graph. Before performing any
  * other operation, it must be populate by calling populate(). Instances of
@@ -57,6 +110,30 @@ LOG_DEFINE_CATEGORY(MediaDevice)
  */
 
 /**
+ * \class SharedMediaDevice
+ * \brief The SharedMediaDevice represents a Media Controller device that
+ * supports multi-context operations
+ *
+ * \sa MediaDevice
+ * \sa MediaDeviceFactory
+ *
+ * A SharedMediaDevice is associated with a media controller device node that
+ * supports multi-context operations. Compared to the MediaDevice base class a
+ * SharedMediaDevice allows multiple open() calls to happen and is never
+ * uniquely owned as each time the media device gets open a new context gets
+ * created. This means that the acquire() and release() operations are
+ * effectively nop (and as a consequence busy() always return false).
+ *
+ * Instances of MediaDevice are created by the MediaDeviceFactory
+ * createMediaDevice() function and cannot be directly instantiated.
+ *
+ * Similarly to the MediaDevice class, instances of SharedMediaDevice are
+ * created with an empty media graph and needs to be populated using the
+ * populate() function. Media entities enumerated in the graph can be accessed
+ * through the same functions as the ones provided by the MediaDevice class.
+ */
+
+/**
  * \brief Construct a MediaDevice
  * \param[in] deviceNode The media device node path
  *
@@ -65,6 +142,17 @@ LOG_DEFINE_CATEGORY(MediaDevice)
  */
 MediaDevice::MediaDevice(const std::string &deviceNode)
 	: deviceNode_(deviceNode), valid_(false), acquired_(false)
+{
+}
+
+/**
+ * \brief Construct a SharedMediaDevice
+ * \param[in] deviceNode The media device node path
+ *
+ * \copydoc MediaDevice::MediaDevice
+ */
+SharedMediaDevice::SharedMediaDevice(const std::string &deviceNode)
+	: MediaDevice(deviceNode)
 {
 }
 
@@ -114,6 +202,19 @@ bool MediaDevice::acquire()
 }
 
 /**
+ * \brief Acquiring a SharedMediaDevice is a nop
+ *
+ * A SharedMediaDevice is designed to be opened multiple times. Acquiring
+ * a SharedMediaDevice is effectively a nop.
+ *
+ * \return Always return true
+ */
+bool SharedMediaDevice::acquire()
+{
+	return true;
+}
+
+/**
  * \brief Release a device previously claimed for exclusive use
  * \sa acquire(), busy()
  */
@@ -121,6 +222,15 @@ void MediaDevice::release()
 {
 	close();
 	acquired_ = false;
+}
+
+/**
+ * \brief Releasing a SharedMediaDevice is a nop
+ *
+ * As acquiring a SharedMediaDevice is a nop, releasing it is a nop as well.
+ */
+void SharedMediaDevice::release()
+{
 }
 
 /**
@@ -152,6 +262,19 @@ bool MediaDevice::lock()
 }
 
 /**
+ * \brief Locking a SharedMediaDevice is a nop
+ *
+ * As SharedMediaDevice is designed to be opened multiple times locking
+ * a SharedMediaDevice is effectively a nop.
+ *
+ * \return Always return true
+ */
+bool SharedMediaDevice::lock()
+{
+	return true;
+}
+
+/**
  * \brief Unlock the device and free it for use for libcamera instances
  *
  * This function shall not be called from a pipeline handler implementation
@@ -169,11 +292,27 @@ void MediaDevice::unlock()
 }
 
 /**
+ * \brief Unlocking a SharedMediaDevice is a nop
+ *
+ * As locking a SharedMediaDevice is a nop, unlocking it is a nop as well.
+ */
+void SharedMediaDevice::unlock()
+{
+}
+
+/**
  * \fn MediaDevice::busy()
  * \brief Check if a device is in use
  * \return true if the device has been claimed for exclusive use, or false if it
  * is available
  * \sa acquire(), release()
+ */
+
+/**
+ * \fn SharedMediaDevice::busy()
+ * \brief As SharedMediaDevice is designed to be opened multiple times, for this
+ * reason it is never marked as busy
+ * \return Always returns false
  */
 
 /**
