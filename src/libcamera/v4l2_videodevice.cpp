@@ -1646,6 +1646,7 @@ int V4L2VideoDevice::releaseBuffers()
 int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer)
 {
 	struct v4l2_plane v4l2Planes[VIDEO_MAX_PLANES] = {};
+	utils::ScopeExitActions actions;
 	struct v4l2_buffer buf = {};
 	int ret;
 
@@ -1668,6 +1669,8 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer)
 	if (ret < 0)
 		return ret;
 
+	actions += [&]() { cache_->put(buf.index); };
+
 	buf.index = ret;
 	buf.type = bufferType_;
 	buf.memory = memoryType_;
@@ -1683,15 +1686,11 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer)
 	 */
 	if (planes.size() < numV4l2Planes) {
 		LOG(V4L2, Error) << "Frame buffer has too few planes";
-		cache_->put(buf.index);
-
 		return -EINVAL;
 	}
 
 	if (planes.size() != numV4l2Planes && !buffer->_d()->isContiguous()) {
 		LOG(V4L2, Error) << "Device format requires contiguous buffer";
-		cache_->put(buf.index);
-
 		return -EINVAL;
 	}
 
@@ -1734,8 +1733,6 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer)
 				if (i != planes.size() - 1 && bytesused != length) {
 					LOG(V4L2, Error)
 						<< "Holes in multi-planar buffer not supported";
-					cache_->put(buf.index);
-
 					return -EINVAL;
 				}
 			}
@@ -1785,8 +1782,6 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer)
 		LOG(V4L2, Error)
 			<< "Failed to queue buffer " << buf.index << ": "
 			<< strerror(-ret);
-		cache_->put(buf.index);
-
 		return ret;
 	}
 
@@ -1798,6 +1793,7 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer)
 
 	queuedBuffers_[buf.index] = buffer;
 
+	actions.release();
 	return 0;
 }
 
