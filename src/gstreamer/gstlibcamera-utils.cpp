@@ -10,6 +10,9 @@
 
 #include <libcamera/control_ids.h>
 #include <libcamera/formats.h>
+#include <libcamera/orientation.h>
+
+#include <gst/video/video.h>
 
 using namespace libcamera;
 
@@ -20,7 +23,7 @@ static struct {
 	/* Compressed */
 	{ GST_VIDEO_FORMAT_ENCODED, formats::MJPEG },
 
-	/* Bayer formats, gstreamer only supports 8-bit */
+	/* Bayer formats */
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SBGGR8 },
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SGBRG8 },
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SGRBG8 },
@@ -317,20 +320,15 @@ bare_structure_from_format(const PixelFormat &format)
 		return gst_structure_new("video/x-raw", "format", G_TYPE_STRING,
 					 gst_video_format_to_string(gst_format), nullptr);
 
-	switch (format) {
-	case formats::MJPEG:
+	if (format == formats::MJPEG)
 		return gst_structure_new_empty("image/jpeg");
 
-	case formats::SBGGR8:
-	case formats::SGBRG8:
-	case formats::SGRBG8:
-	case formats::SRGGB8:
-		return gst_structure_new("video/x-bayer", "format", G_TYPE_STRING,
-					 bayer_format_to_string(format), nullptr);
-
-	default:
+	const gchar *s = bayer_format_to_string(format);
+	if (s)
+		return gst_structure_new("video/x-bayer", "format",
+					 G_TYPE_STRING, s, nullptr);
+	else
 		return nullptr;
-	}
 }
 
 GstCaps *
@@ -658,4 +656,40 @@ gst_libcamera_get_camera_manager(int &ret)
 	G_UNLOCK(cm_singleton_lock);
 
 	return cm;
+}
+
+static const struct {
+	Orientation orientation;
+	GstVideoOrientationMethod method;
+} orientation_map[]{
+	{ Orientation::Rotate0, GST_VIDEO_ORIENTATION_IDENTITY },
+	{ Orientation::Rotate90, GST_VIDEO_ORIENTATION_90R },
+	{ Orientation::Rotate180, GST_VIDEO_ORIENTATION_180 },
+	{ Orientation::Rotate270, GST_VIDEO_ORIENTATION_90L },
+	{ Orientation::Rotate0Mirror, GST_VIDEO_ORIENTATION_HORIZ },
+	{ Orientation::Rotate180Mirror, GST_VIDEO_ORIENTATION_VERT },
+	{ Orientation::Rotate90Mirror, GST_VIDEO_ORIENTATION_UL_LR },
+	{ Orientation::Rotate270Mirror, GST_VIDEO_ORIENTATION_UR_LL },
+};
+
+Orientation
+gst_video_orientation_to_libcamera_orientation(GstVideoOrientationMethod method)
+{
+	for (auto &b : orientation_map) {
+		if (b.method == method)
+			return b.orientation;
+	}
+
+	return Orientation::Rotate0;
+}
+
+GstVideoOrientationMethod
+libcamera_orientation_to_gst_video_orientation(Orientation orientation)
+{
+	for (auto &a : orientation_map) {
+		if (a.orientation == orientation)
+			return a.method;
+	}
+
+	return GST_VIDEO_ORIENTATION_IDENTITY;
 }
