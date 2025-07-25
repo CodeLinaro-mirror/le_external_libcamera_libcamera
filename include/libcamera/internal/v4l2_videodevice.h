@@ -202,6 +202,8 @@ public:
 
 	const V4L2Capability &caps() const { return caps_; }
 
+	int bindContext(unsigned int context);
+
 	int getFormat(V4L2DeviceFormat *format);
 	int tryFormat(V4L2DeviceFormat *format);
 	int setFormat(V4L2DeviceFormat *format);

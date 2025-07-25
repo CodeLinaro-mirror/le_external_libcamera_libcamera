@@ -796,6 +796,24 @@ std::string V4L2VideoDevice::logPrefix() const
 }
 
 /**
+ * \brief Bind a video device to a media device context
+ * \param[in] context The file descriptor that identifies the media device
+ * context
+ * \return 0 on success or a negative error code otherwise
+ */
+int V4L2VideoDevice::bindContext(unsigned int context)
+{
+	struct v4l2_context c = {};
+	c.context_fd = context;
+
+	int ret = ioctl(VIDIOC_BIND_CONTEXT, &c);
+	if (ret)
+		LOG(V4L2, Error) << "Unable to bind context: " << strerror(-ret);
+
+	return ret;
+}
+
+/**
  * \brief Retrieve the image format set on the V4L2 video device
  * \param[out] format The image format applied on the video device
  * \return 0 on success or a negative error code otherwise
