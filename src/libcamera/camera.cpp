@@ -18,6 +18,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/thread.h>
 
+#include <libcamera/camera_manager.h>
 #include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
 #include <libcamera/framebuffer_allocator.h>
@@ -27,6 +28,8 @@
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_controls.h"
+#include "libcamera/internal/camera_manager.h"
+#include "libcamera/internal/layer_manager.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
 
@@ -774,18 +777,21 @@ void Camera::Private::setState(State state)
 void Camera::Private::emitBufferCompleted(Request *request, FrameBuffer *buffer)
 {
 	Camera *camera = _o<Camera>();
+	layers_->bufferCompleted(request, buffer);
 	camera->bufferCompleted.emit(request, buffer);
 }
 
 void Camera::Private::emitRequestCompleted(Request *request)
 {
 	Camera *camera = _o<Camera>();
+	layers_->requestCompleted(request);
 	camera->requestCompleted.emit(request);
 }
 
 void Camera::Private::emitDisconnected()
 {
 	Camera *camera = _o<Camera>();
+	layers_->disconnected();
 	camera->disconnected.emit();
 }
 
@@ -976,6 +982,10 @@ Camera::Camera(std::unique_ptr<Private> d, const std::string &id,
 	_d()->id_ = id;
 	_d()->streams_ = streams;
 	_d()->validator_ = std::make_unique<CameraControlValidator>(this);
+	_d()->layers_ =
+		_d()->pipe()->cameraManager()->_d()->layerManager()->createController(this,
+										      _d()->properties_,
+										      _d()->controlInfo_);
 }
 
 Camera::~Camera()
@@ -1065,6 +1075,8 @@ int Camera::acquire()
 		return -EBUSY;
 	}
 
+	d->layers_->acquire();
+
 	d->setState(Private::CameraAcquired);
 
 	return 0;
@@ -1097,6 +1109,8 @@ int Camera::release()
 		d->pipe_->invokeMethod(&PipelineHandler::release,
 				       ConnectionTypeBlocking, this);
 
+	d->layers_->release();
+
 	d->setState(Private::CameraAvailable);
 
 	return 0;
@@ -1114,7 +1128,7 @@ int Camera::release()
  */
 const ControlInfoMap &Camera::controls() const
 {
-	return _d()->controlInfo_;
+	return _d()->layers_->controls();
 }
 
 /**
@@ -1127,7 +1141,7 @@ const ControlInfoMap &Camera::controls() const
  */
 const ControlList &Camera::properties() const
 {
-	return _d()->properties_;
+	return _d()->layers_->properties();
 }
 
 /**
@@ -1276,6 +1290,8 @@ int Camera::configure(CameraConfiguration *config)
 		d->activeStreams_.insert(stream);
 	}
 
+	d->layers_->configure(config, d->controlInfo_);
+
 	d->setState(Private::CameraConfigured);
 
 	return 0;
@@ -1315,6 +1331,8 @@ std::unique_ptr<Request> Camera::createRequest(uint64_t cookie)
 
 	/* Associate the request with the pipeline handler. */
 	d->pipe_->registerRequest(request.get());
+
+	d->layers_->createRequest(cookie, request.get());
 
 	return request;
 }
@@ -1411,6 +1429,8 @@ int Camera::queueRequest(Request *request)
 	/* Pre-process AeEnable. */
 	patchControlList(request->controls());
 
+	d->layers_->queueRequest(request);
+
 	d->pipe_->invokeMethod(&PipelineHandler::queueRequest,
 			       ConnectionTypeQueued, request);
 
@@ -1447,8 +1467,10 @@ int Camera::start(const ControlList *controls)
 
 	ASSERT(d->requestSequence_ == 0);
 
+	ControlList *newControls = d->layers_->start(controls);
+
 	if (controls) {
-		ControlList copy(*controls);
+		ControlList copy(*newControls);
 		patchControlList(copy);
 		ret = d->pipe_->invokeMethod(&PipelineHandler::start,
 					     ConnectionTypeBlocking, this, &copy);
@@ -1498,6 +1520,8 @@ int Camera::stop()
 	LOG(Camera, Debug) << "Stopping capture";
 
 	d->setState(Private::CameraStopping);
+
+	d->layers_->stop();
 
 	d->pipe_->invokeMethod(&PipelineHandler::stop, ConnectionTypeBlocking,
 			       this);
