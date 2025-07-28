@@ -1338,33 +1338,6 @@ std::unique_ptr<Request> Camera::createRequest(uint64_t cookie)
 }
 
 /**
- * \brief Patch a control list that contains the AeEnable control
- * \param[inout] controls The control list to be patched
- *
- * The control list is patched in place, turning the AeEnable control into
- * the equivalent ExposureTimeMode/AnalogueGainMode controls.
- */
-void Camera::patchControlList(ControlList &controls)
-{
-	const auto &aeEnable = controls.get(controls::AeEnable);
-	if (aeEnable) {
-		if (_d()->controlInfo_.count(controls::AnalogueGainMode.id()) &&
-		    !controls.contains(controls::AnalogueGainMode.id())) {
-			controls.set(controls::AnalogueGainMode,
-				     *aeEnable ? controls::AnalogueGainModeAuto
-					       : controls::AnalogueGainModeManual);
-		}
-
-		if (_d()->controlInfo_.count(controls::ExposureTimeMode.id()) &&
-		    !controls.contains(controls::ExposureTimeMode.id())) {
-			controls.set(controls::ExposureTimeMode,
-				     *aeEnable ? controls::ExposureTimeModeAuto
-					       : controls::ExposureTimeModeManual);
-		}
-	}
-}
-
-/**
  * \brief Queue a request to the camera
  * \param[in] request The request to queue to the camera
  *
@@ -1426,9 +1399,6 @@ int Camera::queueRequest(Request *request)
 		}
 	}
 
-	/* Pre-process AeEnable. */
-	patchControlList(request->controls());
-
 	d->layers_->queueRequest(request);
 
 	d->pipe_->invokeMethod(&PipelineHandler::queueRequest,
@@ -1469,16 +1439,8 @@ int Camera::start(const ControlList *controls)
 
 	ControlList *newControls = d->layers_->start(controls);
 
-	if (controls) {
-		ControlList copy(*newControls);
-		patchControlList(copy);
-		ret = d->pipe_->invokeMethod(&PipelineHandler::start,
-					     ConnectionTypeBlocking, this, &copy);
-	} else {
-		ret = d->pipe_->invokeMethod(&PipelineHandler::start,
-					     ConnectionTypeBlocking, this, nullptr);
-	}
-
+	ret = d->pipe_->invokeMethod(&PipelineHandler::start,
+				     ConnectionTypeBlocking, this, newControls);
 	if (ret)
 		return ret;
 

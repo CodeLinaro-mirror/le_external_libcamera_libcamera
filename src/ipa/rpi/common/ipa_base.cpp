@@ -55,8 +55,6 @@ constexpr Duration controllerMinFrameDuration = 1.0s / 30.0;
 
 /* List of controls handled by the Raspberry Pi IPA */
 const ControlInfoMap::Map ipaControls{
-	/* \todo Move this to the Camera class */
-	{ &controls::AeEnable, ControlInfo(false, true, true) },
 	{ &controls::ExposureTimeMode,
 	  ControlInfo({ { ControlValue(controls::ExposureTimeModeAuto),
 			  ControlValue(controls::ExposureTimeModeManual) } },
