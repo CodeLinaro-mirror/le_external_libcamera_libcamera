@@ -15,6 +15,7 @@
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/layer_manager.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/pipeline_handler.h"
 
@@ -41,6 +42,7 @@ CameraManager::Private::Private()
 	: initialized_(false)
 {
 	ipaManager_ = std::make_unique<IPAManager>();
+	layerManager_ = std::make_unique<LayerManager>();
 }
 
 int CameraManager::Private::start()
