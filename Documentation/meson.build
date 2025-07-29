@@ -167,6 +167,8 @@ if sphinx.found()
        '../README.rst',
     ]
 
+    py_modules += ['sphinxcontrib.doxylink']
+
     release = 'release=v' + libcamera_git_version
 
     custom_target('documentation',
