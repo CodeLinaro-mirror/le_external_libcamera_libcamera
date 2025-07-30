@@ -428,6 +428,44 @@ private:
 	std::vector<std::function<void()>> actions_;
 };
 
+#ifndef __DOXYGEN__
+template<typename EF>
+class scope_exit
+{
+public:
+	template<typename Fn,
+		 std::enable_if_t<!std::is_same_v<std::remove_cv_t<std::remove_reference_t<Fn>>, scope_exit> &&
+				  std::is_constructible_v<EF, Fn>> * = nullptr>
+	explicit scope_exit(Fn &&fn)
+		: exitFunction_(std::forward<Fn>(fn))
+	{
+		static_assert(std::is_nothrow_constructible_v<EF, Fn>);
+	}
+
+	scope_exit(scope_exit &&other) = delete;
+	scope_exit(const scope_exit &) = delete;
+
+	~scope_exit()
+	{
+		if (active_)
+			exitFunction_();
+	}
+
+	void release()
+	{
+		active_ = false;
+	}
+
+private:
+	EF exitFunction_;
+	bool active_ = true;
+};
+
+template<typename EF>
+scope_exit(EF) -> scope_exit<EF>;
+
+#endif /* __DOXYGEN__ */
+
 } /* namespace utils */
 
 #ifndef __DOXYGEN__
