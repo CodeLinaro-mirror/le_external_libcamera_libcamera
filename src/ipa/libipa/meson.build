@@ -18,6 +18,7 @@ libipa_headers = files([
     'module.h',
     'pwl.h',
     'quantized.h',
+    'sync_helper.h',
     'v4l2_params.h',
 ])
 
@@ -39,6 +40,7 @@ libipa_sources = files([
     'module.cpp',
     'pwl.cpp',
     'quantized.cpp',
+    'sync_helper.cpp',
     'v4l2_params.cpp',
 ])
 
