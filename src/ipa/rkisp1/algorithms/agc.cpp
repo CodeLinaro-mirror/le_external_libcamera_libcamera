@@ -156,6 +156,15 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 				ControlValue(controls::AnalogueGainModeManual) } },
 			    ControlValue(controls::AnalogueGainModeAuto));
 	context.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
+	/*
+	 * Insert the controlInfo for sync. Since FrameDurationLimits is only
+	 * set *after* the algorithms are initialized, we have no information
+	 * on it here. Use a sensible default here and update it later in
+	 * configure().
+	 * \todo Move FrameDurationLimits from the base IPA to AGC
+	 */
+	context.ctrlMap[&controls::SyncAdjustment] = SyncHelper::controlInfo(120'000);
+	/* Insert the controls for agc */
 	context.ctrlMap.merge(controls());
 
 	return 0;
@@ -208,7 +217,11 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 
 	context.activeState.agc.automatic.yTarget = effectiveYTarget();
 
+	context.ctrlMap[&controls::SyncAdjustment] =
+		SyncHelper::controlInfo(frameDurationLimits.max().get<int64_t>());
+
 	resetFrameCount();
+	sync_.resetSync();
 
 	return 0;
 }
@@ -334,6 +347,10 @@ void Agc::queueRequest(IPAContext &context,
 	}
 	frameContext.agc.minFrameDuration = agc.minFrameDuration;
 	frameContext.agc.maxFrameDuration = agc.maxFrameDuration;
+
+	const auto &sync = controls.get(controls::SyncAdjustment);
+	if (sync)
+		sync_.setSync(*sync, frameContext.agc.minFrameDuration);
 }
 
 /**
@@ -453,6 +470,7 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 	metadata.set(controls::AeExposureMode, frameContext.agc.exposureMode);
 	metadata.set(controls::AeConstraintMode, frameContext.agc.constraintMode);
 	metadata.set(controls::ExposureValue, frameContext.agc.exposureValue);
+	metadata.set(controls::SyncAdjustment, frameContext.agc.syncAdjustment.count());
 }
 
 /**
@@ -511,7 +529,9 @@ void Agc::processFrameDuration(IPAContext &context,
 	IPACameraSensorInfo &sensorInfo = context.sensorInfo;
 	utils::Duration lineDuration = context.configuration.sensor.lineDuration;
 
-	frameContext.agc.vblank = (frameDuration / lineDuration) - sensorInfo.outputSize.height;
+	utils::Duration sync = sync_.getSync();
+	frameContext.agc.vblank = ((frameDuration + sync) / lineDuration) - sensorInfo.outputSize.height;
+	frameContext.agc.syncAdjustment = sync;
 
 	/* Update frame duration accounting for line length quantization. */
 	frameContext.agc.frameDuration = (sensorInfo.outputSize.height + frameContext.agc.vblank) * lineDuration;

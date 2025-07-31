@@ -172,6 +172,7 @@ struct IPAFrameContext : public FrameContext {
 		bool updateMetering;
 		bool autoExposureModeChange;
 		bool autoGainModeChange;
+		utils::Duration syncAdjustment;
 	} agc;
 
 	struct {

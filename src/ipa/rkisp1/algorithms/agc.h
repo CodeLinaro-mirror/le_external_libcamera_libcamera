@@ -15,6 +15,7 @@
 #include <libcamera/geometry.h>
 
 #include "libipa/agc_mean_luminance.h"
+#include "libipa/sync_helper.h"
 
 #include "algorithm.h"
 
@@ -58,6 +59,8 @@ private:
 	Span<const uint8_t> weights_;
 
 	std::map<int32_t, std::vector<uint8_t>> meteringModes_;
+
+	SyncHelper sync_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
