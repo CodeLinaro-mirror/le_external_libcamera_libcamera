@@ -42,7 +42,13 @@ public:
 		if (!m)
 			return nullptr;
 
-		std::unique_ptr<T> proxy = std::make_unique<T>(m, !self->isSignatureValid(m));
+		auto proxy = [&]() -> std::unique_ptr<T> {
+			if (self->isSignatureValid(m))
+				return std::make_unique<typename T::Local>(m);
+			else
+				return std::make_unique<typename T::Remote>(m);
+		} ();
+
 		if (!proxy->isValid()) {
 			LOG(IPAManager, Error) << "Failed to load proxy";
 			return nullptr;
