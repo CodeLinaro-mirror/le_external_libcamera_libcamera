@@ -1789,6 +1789,16 @@ bool SimplePipelineHandler::matchDevice(MediaDevice *media,
 		}
 	}
 
+	if (info.swIspEnabled) {
+		/*
+		 * When the software ISP is enabled, the simple pipeline handler
+		 * exposes the raw stream, giving a total of two streams. This
+		 * is mutally exclusive with the presence of a converter.
+		 */
+		ASSERT(!converter_);
+		numStreams = 2;
+	}
+
 	swIspEnabled_ = info.swIspEnabled;
 
 	/* Locate the sensors. */
