@@ -51,7 +51,7 @@ public:
 
 protected:
 	int parseModeConfigs(const YamlObject &tuningData,
-			     const ControlValue &def = {});
+			     const ControlStorage &def = {});
 
 	struct ModeConfig {
 		double ctHi;

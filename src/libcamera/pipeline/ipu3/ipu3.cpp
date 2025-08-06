@@ -955,7 +955,7 @@ int PipelineHandlerIPU3::updateControls(IPU3CameraData *data)
 	const std::vector<controls::draft::TestPatternModeEnum>
 		&testPatternModes = sensor->testPatternModes();
 	if (!testPatternModes.empty()) {
-		std::vector<ControlValue> values;
+		std::vector<ControlStorage> values;
 		values.reserve(testPatternModes.size());
 
 		for (auto pattern : testPatternModes)
@@ -1209,7 +1209,7 @@ void IPU3CameraData::setSensorControls([[maybe_unused]] unsigned int id,
 	if (!lensControls.contains(V4L2_CID_FOCUS_ABSOLUTE))
 		return;
 
-	const ControlValue &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
+	const ControlStorage &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
 
 	focusLens->setFocusPosition(focusValue.get<int32_t>());
 }

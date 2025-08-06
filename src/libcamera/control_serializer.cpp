@@ -36,7 +36,7 @@ LOG_DEFINE_CATEGORY(Serializer)
  * \brief Serializer and deserializer for control-related classes
  *
  * The control serializer is a helper to serialize and deserialize
- * ControlInfoMap and ControlValue instances for the purpose of communication
+ * ControlInfoMap and ControlStorage instances for the purpose of communication
  * with IPA modules.
  *
  * Neither the ControlInfoMap nor the ControlList are self-contained data
@@ -142,7 +142,7 @@ void ControlSerializer::reset()
 	controlIdMaps_.clear();
 }
 
-size_t ControlSerializer::binarySize(const ControlValue &value)
+size_t ControlSerializer::binarySize(const ControlStorage &value)
 {
 	return sizeof(ControlType) + value.data().size_bytes();
 }
@@ -192,7 +192,7 @@ size_t ControlSerializer::binarySize(const ControlList &list)
 	return size;
 }
 
-void ControlSerializer::store(const ControlValue &value,
+void ControlSerializer::store(const ControlStorage &value,
 			      ByteStreamBuffer &buffer)
 {
 	const ControlType type = value.type();
@@ -363,7 +363,7 @@ int ControlSerializer::serialize(const ControlList &list,
 	/* Serialize all entries. */
 	for (const auto &ctrl : list) {
 		unsigned int id = ctrl.first;
-		const ControlValue &value = ctrl.second;
+		const ControlStorage &value = ctrl.second;
 
 		struct ipa_control_value_entry entry;
 		entry.id = id;
@@ -382,14 +382,14 @@ int ControlSerializer::serialize(const ControlList &list,
 	return 0;
 }
 
-ControlValue ControlSerializer::loadControlValue(ByteStreamBuffer &buffer,
+ControlStorage ControlSerializer::loadControlValue(ByteStreamBuffer &buffer,
 						 bool isArray,
 						 unsigned int count)
 {
 	ControlType type;
 	buffer.read(&type);
 
-	ControlValue value;
+	ControlStorage value;
 
 	value.reserve(type, isArray, count);
 	buffer.read(value.data());
@@ -399,9 +399,9 @@ ControlValue ControlSerializer::loadControlValue(ByteStreamBuffer &buffer,
 
 ControlInfo ControlSerializer::loadControlInfo(ByteStreamBuffer &b)
 {
-	ControlValue min = loadControlValue(b);
-	ControlValue max = loadControlValue(b);
-	ControlValue def = loadControlValue(b);
+	ControlStorage min = loadControlValue(b);
+	ControlStorage max = loadControlValue(b);
+	ControlStorage def = loadControlValue(b);
 
 	return ControlInfo(min, max, def);
 }

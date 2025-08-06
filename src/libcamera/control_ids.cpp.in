@@ -79,7 +79,7 @@ namespace {{vendor}} {
 
 {%- for ctrl in ctrls %}
 {% if ctrl.is_enum -%}
-extern const std::array<const ControlValue, {{ctrl.enum_values_count}}> {{ctrl.name}}Values = {
+extern const std::array<const ControlStorage, {{ctrl.enum_values_count}}> {{ctrl.name}}Values = {
 {%- for enum in ctrl.enum_values %}
 	static_cast<{{ctrl.type}}>({{enum.name}}),
 {%- endfor %}

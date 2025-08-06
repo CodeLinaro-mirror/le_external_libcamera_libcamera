@@ -369,7 +369,7 @@ void IpaVc4::applyCCM(const struct CcmStatus *ccmStatus, ControlList &ctrls)
 	ccm.enabled = 1;
 	ccm.ccm.offsets[0] = ccm.ccm.offsets[1] = ccm.ccm.offsets[2] = 0;
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&ccm),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&ccm),
 					    sizeof(ccm) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_CC_MATRIX, c);
 }
@@ -383,7 +383,7 @@ void IpaVc4::applyBlackLevel(const struct BlackLevelStatus *blackLevelStatus, Co
 	blackLevel.black_level_g = blackLevelStatus->blackLevelG;
 	blackLevel.black_level_b = blackLevelStatus->blackLevelB;
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&blackLevel),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&blackLevel),
 					    sizeof(blackLevel) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_BLACK_LEVEL, c);
 }
@@ -405,7 +405,7 @@ void IpaVc4::applyGamma(const struct ContrastStatus *contrastStatus, ControlList
 	gamma.y[numGammaPoints - 1] = 65535;
 	gamma.enabled = 1;
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&gamma),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&gamma),
 					    sizeof(gamma) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_GAMMA, c);
 }
@@ -419,7 +419,7 @@ void IpaVc4::applyGEQ(const struct GeqStatus *geqStatus, ControlList &ctrls)
 	geq.slope.den = 1000;
 	geq.slope.num = 1000 * geqStatus->slope;
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&geq),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&geq),
 					    sizeof(geq) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_GEQ, c);
 }
@@ -453,11 +453,11 @@ void IpaVc4::applyDenoise(const struct DenoiseStatus *denoiseStatus, ControlList
 		cdn.enabled = 0;
 	}
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&denoise),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&denoise),
 					    sizeof(denoise) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_DENOISE, c);
 
-	c = ControlValue(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&cdn),
+	c = ControlStorage(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&cdn),
 					      sizeof(cdn) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_CDN, c);
 }
@@ -474,7 +474,7 @@ void IpaVc4::applySharpen(const struct SharpenStatus *sharpenStatus, ControlList
 	sharpen.limit.num = 1000 * sharpenStatus->limit;
 	sharpen.limit.den = 1000;
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&sharpen),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&sharpen),
 					    sizeof(sharpen) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_SHARPEN, c);
 }
@@ -486,7 +486,7 @@ void IpaVc4::applyDPC(const struct DpcStatus *dpcStatus, ControlList &ctrls)
 	dpc.enabled = 1;
 	dpc.strength = dpcStatus->strength;
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&dpc),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&dpc),
 					    sizeof(dpc) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_DPC, c);
 }
@@ -543,7 +543,7 @@ void IpaVc4::applyLS(const struct AlscStatus *lsStatus, ControlList &ctrls)
 		resampleTable(grid + 3 * w * h, lsStatus->b, w, h);
 	}
 
-	ControlValue c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&ls),
+	ControlStorage c(Span<const uint8_t>{ reinterpret_cast<uint8_t *>(&ls),
 					    sizeof(ls) });
 	ctrls.set(V4L2_CID_USER_BCM2835_ISP_LENS_SHADING, c);
 }
@@ -551,7 +551,7 @@ void IpaVc4::applyLS(const struct AlscStatus *lsStatus, ControlList &ctrls)
 void IpaVc4::applyAF(const struct AfStatus *afStatus, ControlList &lensCtrls)
 {
 	if (afStatus->lensSetting) {
-		ControlValue v(afStatus->lensSetting.value());
+		ControlStorage v(afStatus->lensSetting.value());
 		lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, v);
 	}
 }

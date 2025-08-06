@@ -138,7 +138,7 @@ void DebugMetadata::moveEntries(ControlList &list)
  */
 
 /**
- * \fn DebugMetadata::set(unsigned int id, const ControlValue &value)
+ * \fn DebugMetadata::set(unsigned int id, const ControlStorage &value)
  * \brief Set the value of control \a id to \a value
  * \param[in] id The id of the control
  * \param[in] value The control value
@@ -148,7 +148,7 @@ void DebugMetadata::moveEntries(ControlList &list)
  *
  * \sa enable()
  */
-void DebugMetadata::set(unsigned int id, const ControlValue &value)
+void DebugMetadata::set(unsigned int id, const ControlStorage &value)
 {
 	if (parent_) {
 		parent_->set(id, value);

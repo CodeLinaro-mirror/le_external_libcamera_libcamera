@@ -186,7 +186,7 @@ void AgcMeanLuminance::parseConstraint(const YamlObject &modeDict, int32_t id)
 
 int AgcMeanLuminance::parseConstraintModes(const YamlObject &tuningData)
 {
-	std::vector<ControlValue> availableConstraintModes;
+	std::vector<ControlStorage> availableConstraintModes;
 
 	const YamlObject &yamlConstraintModes = tuningData[controls::AeConstraintMode.name()];
 	if (yamlConstraintModes.isDictionary()) {
@@ -238,7 +238,7 @@ int AgcMeanLuminance::parseConstraintModes(const YamlObject &tuningData)
 
 int AgcMeanLuminance::parseExposureModes(const YamlObject &tuningData)
 {
-	std::vector<ControlValue> availableExposureModes;
+	std::vector<ControlStorage> availableExposureModes;
 
 	const YamlObject &yamlExposureModes = tuningData[controls::AeExposureMode.name()];
 	if (yamlExposureModes.isDictionary()) {

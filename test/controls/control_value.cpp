@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2019, Google Inc.
  *
- * ControlValue tests
+ * ControlStorage tests
  */
 
 #include <algorithm>
@@ -15,7 +15,7 @@
 using namespace std;
 using namespace libcamera;
 
-class ControlValueTest : public Test
+class ControlStorageTest : public Test
 {
 protected:
 	int run()
@@ -23,7 +23,7 @@ protected:
 		/*
 		 * None type.
 		 */
-		ControlValue value;
+		ControlStorage value;
 		if (!value.isNone() || value.isArray()) {
 			cerr << "Empty value is non-null" << endl;
 			return TestFail;
@@ -341,4 +341,4 @@ protected:
 	}
 };
 
-TEST_REGISTER(ControlValueTest)
+TEST_REGISTER(ControlStorageTest)

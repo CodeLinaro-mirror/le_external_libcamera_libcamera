@@ -163,9 +163,9 @@ namespace ipa {
  * \return Zero on success, negative error code otherwise
  */
 int AwbAlgorithm::parseModeConfigs(const YamlObject &tuningData,
-				   const ControlValue &def)
+				   const ControlStorage &def)
 {
-	std::vector<ControlValue> availableModes;
+	std::vector<ControlStorage> availableModes;
 
 	const YamlObject &yamlModes = tuningData[controls::AwbMode.name()];
 	if (!yamlModes.isDictionary()) {

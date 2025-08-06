@@ -35,7 +35,7 @@ public:
 		cache_.set(ctrl, value);
 	}
 
-	void set(unsigned int id, const ControlValue &value);
+	void set(unsigned int id, const ControlStorage &value);
 
 private:
 	bool enabled_ = false;

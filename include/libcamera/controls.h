@@ -132,17 +132,17 @@ struct control_type<T, std::enable_if_t<std::is_enum_v<T> && sizeof(T) == sizeof
 
 } /* namespace details */
 
-class ControlValue
+class ControlStorage
 {
 public:
-	ControlValue();
+	ControlStorage();
 
 #ifndef __DOXYGEN__
 	template<typename T, std::enable_if_t<!details::is_span<T>::value &&
 					      details::control_type<T>::value &&
 					      !std::is_same<std::string, std::remove_cv_t<T>>::value,
 					      std::nullptr_t> = nullptr>
-	ControlValue(const T &value)
+	ControlStorage(const T &value)
 		: type_(ControlTypeNone), numElements_(0)
 	{
 		set(details::control_type<std::remove_cv_t<T>>::value, false,
@@ -155,19 +155,19 @@ public:
 #else
 	template<typename T>
 #endif
-	ControlValue(const T &value)
+	ControlStorage(const T &value)
 		: type_(ControlTypeNone), numElements_(0)
 	{
 		set(details::control_type<std::remove_cv_t<T>>::value, true,
 		    value.data(), value.size(), sizeof(typename T::value_type));
 	}
 
-	explicit ControlValue(const ControlValueView &cvv);
+	explicit ControlStorage(const ControlValueView &cvv);
 
-	~ControlValue();
+	~ControlStorage();
 
-	ControlValue(const ControlValue &other);
-	ControlValue &operator=(const ControlValue &other);
+	ControlStorage(const ControlStorage &other);
+	ControlStorage &operator=(const ControlStorage &other);
 
 	ControlType type() const { return type_; }
 	bool isNone() const { return type_ == ControlTypeNone; }
@@ -178,8 +178,8 @@ public:
 
 	std::string toString() const;
 
-	bool operator==(const ControlValue &other) const;
-	bool operator!=(const ControlValue &other) const
+	bool operator==(const ControlStorage &other) const;
+	bool operator!=(const ControlStorage &other) const
 	{
 		return !(*this == other);
 	}
@@ -259,7 +259,7 @@ public:
 	{
 	}
 
-	ControlValueView(const ControlValue &cv) noexcept
+	ControlValueView(const ControlStorage &cv) noexcept
 		: ControlValueView(cv.type(), cv.isArray(), cv.numElements(),
 				   reinterpret_cast<const std::byte *>(cv.data().data()))
 	{
@@ -397,18 +397,18 @@ private:
 class ControlInfo
 {
 public:
-	explicit ControlInfo(const ControlValue &min = {},
-			     const ControlValue &max = {},
-			     const ControlValue &def = {});
-	explicit ControlInfo(Span<const ControlValue> values,
-			     const ControlValue &def = {});
+	explicit ControlInfo(const ControlStorage &min = {},
+			     const ControlStorage &max = {},
+			     const ControlStorage &def = {});
+	explicit ControlInfo(Span<const ControlStorage> values,
+			     const ControlStorage &def = {});
 	explicit ControlInfo(std::set<bool> values, bool def);
 	explicit ControlInfo(bool value);
 
-	const ControlValue &min() const { return min_; }
-	const ControlValue &max() const { return max_; }
-	const ControlValue &def() const { return def_; }
-	const std::vector<ControlValue> &values() const { return values_; }
+	const ControlStorage &min() const { return min_; }
+	const ControlStorage &max() const { return max_; }
+	const ControlStorage &def() const { return def_; }
+	const std::vector<ControlStorage> &values() const { return values_; }
 
 	std::string toString() const;
 
@@ -423,10 +423,10 @@ public:
 	}
 
 private:
-	ControlValue min_;
-	ControlValue max_;
-	ControlValue def_;
-	std::vector<ControlValue> values_;
+	ControlStorage min_;
+	ControlStorage max_;
+	ControlStorage def_;
+	std::vector<ControlStorage> values_;
 };
 
 using ControlIdMap = std::unordered_map<unsigned int, const ControlId *>;
@@ -478,7 +478,7 @@ private:
 class ControlList
 {
 private:
-	using ControlListMap = std::unordered_map<unsigned int, ControlValue>;
+	using ControlListMap = std::unordered_map<unsigned int, ControlStorage>;
 
 public:
 	enum class MergePolicy {
@@ -513,14 +513,14 @@ public:
 		if (entry == controls_.end())
 			return std::nullopt;
 
-		const ControlValue &val = entry->second;
+		const ControlStorage &val = entry->second;
 		return val.get<T>();
 	}
 
 	template<typename T, typename V>
 	void set(const Control<T> &ctrl, const V &value)
 	{
-		ControlValue *val = find(ctrl.id());
+		ControlStorage *val = find(ctrl.id());
 		if (!val)
 			return;
 
@@ -530,22 +530,22 @@ public:
 	template<typename T, typename V, size_t Size>
 	void set(const Control<Span<T, Size>> &ctrl, const std::initializer_list<V> &value)
 	{
-		ControlValue *val = find(ctrl.id());
+		ControlStorage *val = find(ctrl.id());
 		if (!val)
 			return;
 
 		val->set(Span<const typename std::remove_cv_t<V>, Size>{ value.begin(), value.size() });
 	}
 
-	const ControlValue &get(unsigned int id) const;
-	void set(unsigned int id, const ControlValue &value);
+	const ControlStorage &get(unsigned int id) const;
+	void set(unsigned int id, const ControlStorage &value);
 
 	const ControlInfoMap *infoMap() const { return infoMap_; }
 	const ControlIdMap *idMap() const { return idmap_; }
 
 private:
-	const ControlValue *find(unsigned int id) const;
-	ControlValue *find(unsigned int id);
+	const ControlStorage *find(unsigned int id) const;
+	ControlStorage *find(unsigned int id);
 
 	const ControlValidator *validator_;
 	const ControlIdMap *idmap_;

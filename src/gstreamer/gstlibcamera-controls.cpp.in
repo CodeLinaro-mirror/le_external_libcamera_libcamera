@@ -159,7 +159,7 @@ bool GstCameraControls::getProperty(guint propId, GValue *value,
 			    controls::controls.at(propId)->name().c_str());
 		return true;
 	}
-	const ControlValue &cv = controls_acc_.get(propId);
+	const ControlStorage &cv = controls_acc_.get(propId);
 
 	switch (propId) {
 {%- for vendor, ctrls in controls %}
@@ -296,7 +296,7 @@ void GstCameraControls::setCamera(const std::shared_ptr<libcamera::Camera> &cam)
 	     control != controls_acc_.end();
 	     ++control) {
 		unsigned int id = control->first;
-		ControlValue value = control->second;
+		ControlStorage value = control->second;
 
 		const ControlId *cid = capabilities_.idmap().at(id);
 		auto info = capabilities_.find(cid);

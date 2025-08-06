@@ -16,7 +16,7 @@ namespace py = pybind11;
 using namespace libcamera;
 
 template<typename T>
-static py::object valueOrTuple(const ControlValue &cv)
+static py::object valueOrTuple(const ControlStorage &cv)
 {
 	if (cv.isArray()) {
 		const T *v = reinterpret_cast<const T *>(cv.data().data());
@@ -31,7 +31,7 @@ static py::object valueOrTuple(const ControlValue &cv)
 	return py::cast(cv.get<T>());
 }
 
-py::object controlValueToPy(const ControlValue &cv)
+py::object controlValueToPy(const ControlStorage &cv)
 {
 	switch (cv.type()) {
 	case ControlTypeNone:
@@ -57,28 +57,28 @@ py::object controlValueToPy(const ControlValue &cv)
 	case ControlTypePoint:
 		return valueOrTuple<Point>(cv);
 	default:
-		throw std::runtime_error("Unsupported ControlValue type");
+		throw std::runtime_error("Unsupported ControlStorage type");
 	}
 }
 
 template<typename T>
-static ControlValue controlValueMaybeArray(const py::object &ob)
+static ControlStorage controlValueMaybeArray(const py::object &ob)
 {
 	if (py::isinstance<py::list>(ob) || py::isinstance<py::tuple>(ob)) {
 		std::vector<T> vec = ob.cast<std::vector<T>>();
-		return ControlValue(Span<const T>(vec));
+		return ControlStorage(Span<const T>(vec));
 	}
 
-	return ControlValue(ob.cast<T>());
+	return ControlStorage(ob.cast<T>());
 }
 
-ControlValue pyToControlValue(const py::object &ob, ControlType type)
+ControlStorage pyToControlValue(const py::object &ob, ControlType type)
 {
 	switch (type) {
 	case ControlTypeNone:
-		return ControlValue();
+		return ControlStorage();
 	case ControlTypeBool:
-		return ControlValue(ob.cast<bool>());
+		return ControlStorage(ob.cast<bool>());
 	case ControlTypeByte:
 		return controlValueMaybeArray<uint8_t>(ob);
 	case ControlTypeInteger32:
@@ -88,11 +88,11 @@ ControlValue pyToControlValue(const py::object &ob, ControlType type)
 	case ControlTypeFloat:
 		return controlValueMaybeArray<float>(ob);
 	case ControlTypeString:
-		return ControlValue(ob.cast<std::string>());
+		return ControlStorage(ob.cast<std::string>());
 	case ControlTypeRectangle:
 		return controlValueMaybeArray<Rectangle>(ob);
 	case ControlTypeSize:
-		return ControlValue(ob.cast<Size>());
+		return ControlStorage(ob.cast<Size>());
 	case ControlTypePoint:
 		return controlValueMaybeArray<Point>(ob);
 	default:

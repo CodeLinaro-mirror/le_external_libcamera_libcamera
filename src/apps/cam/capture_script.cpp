@@ -311,7 +311,7 @@ int CaptureScript::parseControl(EventPtr event, ControlList &controls)
 
 	const ControlId *controlId = it->second;
 
-	ControlValue val = unpackControl(controlId);
+	ControlStorage val = unpackControl(controlId);
 	if (val.isNone()) {
 		std::cerr << "Error unpacking control '" << name << "'"
 			  << std::endl;
@@ -332,7 +332,7 @@ std::string CaptureScript::parseScalar()
 	return eventScalarValue(event);
 }
 
-ControlValue CaptureScript::parseRectangles()
+ControlStorage CaptureScript::parseRectangles()
 {
 	std::vector<libcamera::Rectangle> rectangles;
 
@@ -351,7 +351,7 @@ ControlValue CaptureScript::parseRectangles()
 		rectangles.push_back(rect);
 	}
 
-	ControlValue controlValue;
+	ControlStorage controlValue;
 	if (rectangles.size() == 1)
 		controlValue.set(rectangles.at(0));
 	else
@@ -458,10 +458,10 @@ void CaptureScript::unpackFailure(const ControlId *id, const std::string &repr)
 		  << typeName << " control " << id->name() << std::endl;
 }
 
-ControlValue CaptureScript::parseScalarControl(const ControlId *id,
+ControlStorage CaptureScript::parseScalarControl(const ControlId *id,
 					       const std::string repr)
 {
-	ControlValue value{};
+	ControlStorage value{};
 
 	switch (id->type()) {
 	case ControlTypeNone:
@@ -513,10 +513,10 @@ ControlValue CaptureScript::parseScalarControl(const ControlId *id,
 	return value;
 }
 
-ControlValue CaptureScript::parseArrayControl(const ControlId *id,
+ControlStorage CaptureScript::parseArrayControl(const ControlId *id,
 					      const std::vector<std::string> &repr)
 {
-	ControlValue value{};
+	ControlStorage value{};
 
 	switch (id->type()) {
 	case ControlTypeNone:
@@ -586,7 +586,7 @@ ControlValue CaptureScript::parseArrayControl(const ControlId *id,
 	return value;
 }
 
-ControlValue CaptureScript::unpackControl(const ControlId *id)
+ControlStorage CaptureScript::unpackControl(const ControlId *id)
 {
 	/* Parse complex types. */
 	switch (id->type()) {

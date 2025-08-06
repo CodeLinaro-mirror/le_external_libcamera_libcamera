@@ -45,7 +45,7 @@ enum {{ctrl.name}}Enum {
 	{{enum.name}} = {{enum.value}},
 {%- endfor %}
 };
-extern const std::array<const ControlValue, {{ctrl.enum_values_count}}> {{ctrl.name}}Values;
+extern const std::array<const ControlStorage, {{ctrl.enum_values_count}}> {{ctrl.name}}Values;
 extern const std::map<std::string, {{ctrl.type}}> {{ctrl.name}}NameValueMap;
 {% endif -%}
 extern const Control<{{ctrl.type}}> {{ctrl.name}};

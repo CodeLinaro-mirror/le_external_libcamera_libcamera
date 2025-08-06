@@ -205,7 +205,7 @@ ControlList V4L2Device::getControls(const std::vector<uint32_t> &ids)
 
 		if (info.flags & V4L2_CTRL_FLAG_HAS_PAYLOAD) {
 			ControlType type;
-			ControlValue &value = ctrl.second;
+			ControlStorage &value = ctrl.second;
 			Span<uint8_t> data;
 
 			switch (info.type) {
@@ -312,7 +312,7 @@ int V4L2Device::setControls(ControlList *ctrls)
 		v4l2Ctrl.id = id;
 
 		/* Set the v4l2_ext_control value for the write operation. */
-		ControlValue &value = ctrl->second;
+		ControlStorage &value = ctrl->second;
 		switch (iter->first->type()) {
 		case ControlTypeUnsigned16: {
 			if (value.isArray()) {
@@ -652,7 +652,7 @@ std::optional<ControlInfo> V4L2Device::v4l2ControlInfo(const v4l2_query_ext_ctrl
  */
 std::optional<ControlInfo> V4L2Device::v4l2MenuControlInfo(const struct v4l2_query_ext_ctrl &ctrl)
 {
-	std::vector<ControlValue> indices;
+	std::vector<ControlStorage> indices;
 	struct v4l2_querymenu menu = {};
 	menu.id = ctrl.id;
 
@@ -676,7 +676,7 @@ std::optional<ControlInfo> V4L2Device::v4l2MenuControlInfo(const struct v4l2_que
 		return std::nullopt;
 
 	return ControlInfo(indices,
-			   ControlValue(static_cast<int32_t>(ctrl.default_value)));
+			   ControlStorage(static_cast<int32_t>(ctrl.default_value)));
 }
 
 /*
@@ -790,11 +790,11 @@ void V4L2Device::updateControls(ControlList *ctrls,
 	for (const v4l2_ext_control &v4l2Ctrl : v4l2Ctrls) {
 		const unsigned int id = v4l2Ctrl.id;
 
-		ControlValue value = ctrls->get(id);
+		ControlStorage value = ctrls->get(id);
 		if (value.isArray()) {
 			/*
 			 * No action required, the VIDIOC_[GS]_EXT_CTRLS ioctl
-			 * accessed the ControlValue storage directly for array
+			 * accessed the ControlStorage storage directly for array
 			 * controls.
 			 */
 			continue;

@@ -191,7 +191,7 @@ static_assert(sizeof(ipa_controls_header) == 32,
 
 /**
  * \struct ipa_control_value_entry
- * \brief Description of a serialized ControlValue entry
+ * \brief Description of a serialized ControlStorage entry
  * \var ipa_control_value_entry::id
  * The numerical ID of the control
  * \var ipa_control_value_entry::type

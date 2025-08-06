@@ -927,7 +927,7 @@ void IpaPiSP::applyFocusStats(const NoiseStatus *noiseStatus)
 void IpaPiSP::applyAF(const struct AfStatus *afStatus, ControlList &lensCtrls)
 {
 	if (afStatus->lensSetting) {
-		ControlValue v(afStatus->lensSetting.value());
+		ControlStorage v(afStatus->lensSetting.value());
 		lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE, v);
 	}
 }

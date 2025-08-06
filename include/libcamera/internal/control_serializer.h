@@ -41,13 +41,13 @@ public:
 	bool isCached(const ControlInfoMap &infoMap);
 
 private:
-	static size_t binarySize(const ControlValue &value);
+	static size_t binarySize(const ControlStorage &value);
 	static size_t binarySize(const ControlInfo &info);
 
-	static void store(const ControlValue &value, ByteStreamBuffer &buffer);
+	static void store(const ControlStorage &value, ByteStreamBuffer &buffer);
 	static void store(const ControlInfo &info, ByteStreamBuffer &buffer);
 
-	ControlValue loadControlValue(ByteStreamBuffer &buffer,
+	ControlStorage loadControlValue(ByteStreamBuffer &buffer,
 				      bool isArray = false, unsigned int count = 1);
 	ControlInfo loadControlInfo(ByteStreamBuffer &buffer);
 

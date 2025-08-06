@@ -91,44 +91,44 @@ static constexpr size_t ControlValueSize[] = {
  */
 
 /**
- * \class ControlValue
+ * \class ControlStorage
  * \brief Abstract type representing the value of a control
  */
 
-/** \todo Revisit the ControlValue layout when stabilizing the ABI */
-static_assert(sizeof(ControlValue) == 16, "Invalid size of ControlValue class");
+/** \todo Revisit the ControlStorage layout when stabilizing the ABI */
+static_assert(sizeof(ControlStorage) == 16, "Invalid size of ControlStorage class");
 
 /**
- * \brief Construct an empty ControlValue.
+ * \brief Construct an empty ControlStorage
  */
-ControlValue::ControlValue()
+ControlStorage::ControlStorage()
 	: type_(ControlTypeNone), isArray_(false), numElements_(0)
 {
 }
 
 /**
- * \brief Construct a ControlValue from a ControlValueView
+ * \brief Construct a ControlStorage from a ControlValueView
  */
-ControlValue::ControlValue(const ControlValueView &cvv)
-	: ControlValue()
+ControlStorage::ControlStorage(const ControlValueView &cvv)
+	: ControlStorage()
 {
 	set(cvv.type(), cvv.isArray(), cvv.data().data(),
 	    cvv.numElements(), ControlValueSize[cvv.type()]);
 }
 
 /**
- * \fn template<typename T> T ControlValue::ControlValue(const T &value)
- * \brief Construct a ControlValue of type T
+ * \fn template<typename T> T ControlStorage::ControlStorage(const T &value)
+ * \brief Construct a ControlStorage of type T
  * \param[in] value Initial value
  *
- * This function constructs a new instance of ControlValue and stores the \a
+ * This function constructs a new instance of ControlStorage and stores the \a
  * value inside it. If the type \a T is equivalent to Span<R>, the instance
  * stores an array of values of type \a R. Otherwise the instance stores a
  * single value of type \a T. The numElements() and type() are updated to
  * reflect the stored value.
  */
 
-void ControlValue::release()
+void ControlStorage::release()
 {
 	std::size_t size = numElements_ * ControlValueSize[type_];
 
@@ -138,28 +138,28 @@ void ControlValue::release()
 	}
 }
 
-ControlValue::~ControlValue()
+ControlStorage::~ControlStorage()
 {
 	release();
 }
 
 /**
- * \brief Construct a ControlValue with the content of \a other
- * \param[in] other The ControlValue to copy content from
+ * \brief Construct a ControlStorage with the content of \a other
+ * \param[in] other The ControlStorage to copy content from
  */
-ControlValue::ControlValue(const ControlValue &other)
+ControlStorage::ControlStorage(const ControlStorage &other)
 	: type_(ControlTypeNone), numElements_(0)
 {
 	*this = other;
 }
 
 /**
- * \brief Replace the content of the ControlValue with a copy of the content
+ * \brief Replace the content of the ControlStorage with a copy of the content
  * of \a other
- * \param[in] other The ControlValue to copy content from
- * \return The ControlValue with its content replaced with the one of \a other
+ * \param[in] other The ControlStorage to copy content from
+ * \return The ControlStorage with its content replaced with the one of \a other
  */
-ControlValue &ControlValue::operator=(const ControlValue &other)
+ControlStorage &ControlStorage::operator=(const ControlStorage &other)
 {
 	set(other.type_, other.isArray_, other.data().data(),
 	    other.numElements_, ControlValueSize[other.type_]);
@@ -167,39 +167,39 @@ ControlValue &ControlValue::operator=(const ControlValue &other)
 }
 
 /**
- * \fn ControlValue::type()
+ * \fn ControlStorage::type()
  * \brief Retrieve the data type of the value
  * \return The value data type
  */
 
 /**
- * \fn ControlValue::isNone()
+ * \fn ControlStorage::isNone()
  * \brief Determine if the value is not initialised
  * \return True if the value type is ControlTypeNone, false otherwise
  */
 
 /**
- * \fn ControlValue::isArray()
+ * \fn ControlStorage::isArray()
  * \brief Determine if the value stores an array
  * \return True if the value stores an array, false otherwise
  */
 
 /**
- * \fn ControlValue::numElements()
- * \brief Retrieve the number of elements stored in the ControlValue
+ * \fn ControlStorage::numElements()
+ * \brief Retrieve the number of elements stored in the ControlStorage
  *
  * For instances storing an array, this function returns the number of elements
  * in the array. For instances storing a string, it returns the length of the
  * string, not counting the terminating '\0'. Otherwise, it returns 1.
  *
- * \return The number of elements stored in the ControlValue
+ * \return The number of elements stored in the ControlStorage
  */
 
 /**
  * \brief Retrieve the raw data of a control value
  * \return The raw data of the control value as a span of uint8_t
  */
-Span<const uint8_t> ControlValue::data() const
+Span<const uint8_t> ControlStorage::data() const
 {
 	std::size_t size = numElements_ * ControlValueSize[type_];
 	const uint8_t *data = size > sizeof(value_)
@@ -209,28 +209,28 @@ Span<const uint8_t> ControlValue::data() const
 }
 
 /**
- * \copydoc ControlValue::data() const
+ * \copydoc ControlStorage::data() const
  */
-Span<uint8_t> ControlValue::data()
+Span<uint8_t> ControlStorage::data()
 {
-	Span<const uint8_t> data = const_cast<const ControlValue *>(this)->data();
+	Span<const uint8_t> data = const_cast<const ControlStorage *>(this)->data();
 	return { const_cast<uint8_t *>(data.data()), data.size() };
 }
 
 /**
  * \brief Assemble and return a string describing the value
- * \return A string describing the ControlValue
+ * \return A string describing the ControlStorage
  */
-std::string ControlValue::toString() const
+std::string ControlStorage::toString() const
 {
 	return static_cast<std::ostringstream&&>(std::ostringstream{} << ControlValueView(*this)).str();
 }
 
 /**
- * \brief Compare ControlValue instances for equality
+ * \brief Compare ControlStorage instances for equality
  * \return True if the values have identical types and values, false otherwise
  */
-bool ControlValue::operator==(const ControlValue &other) const
+bool ControlStorage::operator==(const ControlStorage &other) const
 {
 	if (type_ != other.type_)
 		return false;
@@ -245,22 +245,22 @@ bool ControlValue::operator==(const ControlValue &other) const
 }
 
 /**
- * \fn bool ControlValue::operator!=()
- * \brief Compare ControlValue instances for non equality
+ * \fn bool ControlStorage::operator!=()
+ * \brief Compare ControlStorage instances for non equality
  * \return False if the values have identical types and values, true otherwise
  */
 
 /**
- * \fn template<typename T> T ControlValue::get() const
+ * \fn template<typename T> T ControlStorage::get() const
  * \brief Get the control value
  *
  * This function returns the contained value as an instance of \a T. If the
- * ControlValue instance stores a single value, the type \a T shall match the
+ * ControlStorage instance stores a single value, the type \a T shall match the
  * stored value type(). If the instance stores an array of values, the type
  * \a T should be equal to Span<const R>, and the type \a R shall match the
  * stored value type(). The behaviour is undefined otherwise.
  *
- * Note that a ControlValue instance that stores a non-array value is not
+ * Note that a ControlStorage instance that stores a non-array value is not
  * equivalent to an instance that stores an array value containing a single
  * element. The latter shall be accessed through a Span<const R> type, while
  * the former shall be accessed through a type \a T corresponding to type().
@@ -269,7 +269,7 @@ bool ControlValue::operator==(const ControlValue &other) const
  */
 
 /**
- * \fn template<typename T> void ControlValue::set(const T &value)
+ * \fn template<typename T> void ControlStorage::set(const T &value)
  * \brief Set the control value to \a value
  * \param[in] value The control value
  *
@@ -283,14 +283,14 @@ bool ControlValue::operator==(const ControlValue &other) const
  * operation for Span<> values that refer to large arrays.
  */
 
-void ControlValue::set(ControlType type, bool isArray, const void *data,
+void ControlStorage::set(ControlType type, bool isArray, const void *data,
 		       std::size_t numElements, std::size_t elementSize)
 {
 	ASSERT(elementSize == ControlValueSize[type]);
 
 	reserve(type, isArray, numElements);
 
-	Span<uint8_t> storage = ControlValue::data();
+	Span<uint8_t> storage = ControlStorage::data();
 	memcpy(storage.data(), data, storage.size());
 }
 
@@ -306,7 +306,7 @@ void ControlValue::set(ControlType type, bool isArray, const void *data,
  * Otherwise the instance becomes a simple control, numElements is ignored, and
  * storage for the single element is reserved.
  */
-void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElements)
+void ControlStorage::reserve(ControlType type, bool isArray, std::size_t numElements)
 {
 	if (!isArray)
 		numElements = 1;
@@ -336,17 +336,17 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
 /**
  * \fn ControlValueView::ControlValueView()
  * \brief Construct an empty view
- * \sa ControlValue::ControlValue()
+ * \sa ControlStorage::ControlStorage()
  */
 
 /**
- * \fn ControlValueView::ControlValueView(const ControlValue &v)
+ * \fn ControlValueView::ControlValueView(const ControlStorage &v)
  * \brief Construct a view referring to \a v
  *
  * The constructed view will refer to the value stored by \a v, and
  * thus \a v must not be modified or destroyed before the view.
  *
- * \sa ControlValue::ControlValue()
+ * \sa ControlStorage::ControlStorage()
  */
 
 /**
@@ -357,31 +357,31 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
 
 /**
  * \fn ControlType ControlValueView::type() const
- * \copydoc ControlValue::type()
- * \sa ControlValue::type()
+ * \copydoc ControlStorage::type()
+ * \sa ControlStorage::type()
  */
 
 /**
  * \fn ControlValueView::isNone() const
- * \copydoc ControlValue::isNone()
- * \sa ControlValue::isNone()
+ * \copydoc ControlStorage::isNone()
+ * \sa ControlStorage::isNone()
  */
 
 /**
  * \fn ControlValueView::isArray() const
- * \copydoc ControlValue::isArray()
- * \sa ControlValue::isArray()
+ * \copydoc ControlStorage::isArray()
+ * \sa ControlStorage::isArray()
  */
 
 /**
  * \fn ControlValueView::numElements() const
- * \copydoc ControlValue::numElements()
- * \sa ControlValue::numElements()
+ * \copydoc ControlStorage::numElements()
+ * \sa ControlStorage::numElements()
  */
 
 /**
- * \copydoc ControlValue::data()
- * \sa ControlValue::data()
+ * \copydoc ControlStorage::data()
+ * \sa ControlStorage::data()
  */
 Span<const std::byte> ControlValueView::data() const
 {
@@ -389,8 +389,8 @@ Span<const std::byte> ControlValueView::data() const
 }
 
 /**
- * \copydoc ControlValue::operator==()
- * \sa ControlValue::operator==()
+ * \copydoc ControlStorage::operator==()
+ * \sa ControlStorage::operator==()
  * \sa ControlValueView::operator!=()
  */
 bool ControlValueView::operator==(const ControlValueView &other) const
@@ -411,20 +411,20 @@ bool ControlValueView::operator==(const ControlValueView &other) const
 
 /**
  * \fn ControlValueView::operator!=() const
- * \copydoc ControlValue::operator!=()
- * \sa ControlValue::operator!=()
+ * \copydoc ControlStorage::operator!=()
+ * \sa ControlStorage::operator!=()
  * \sa ControlValueView::operator==()
  */
 
 /**
  * \fn template<typename T> T ControlValueView::get() const
- * \copydoc ControlValue::get()
- * \sa ControlValue::get()
+ * \copydoc ControlStorage::get()
+ * \sa ControlStorage::get()
  */
 
 /**
  * \brief Insert a text representation of a value into an output stream
- * \sa ControlValue::toString()
+ * \sa ControlStorage::toString()
  */
 std::ostream &operator<<(std::ostream &s, const ControlValueView &v)
 {
@@ -713,9 +713,9 @@ ControlId::ControlId(unsigned int id, const std::string &name,
  * \param[in] max The control maximum value
  * \param[in] def The control default value
  */
-ControlInfo::ControlInfo(const ControlValue &min,
-			 const ControlValue &max,
-			 const ControlValue &def)
+ControlInfo::ControlInfo(const ControlStorage &min,
+			 const ControlStorage &max,
+			 const ControlStorage &def)
 	: min_(min), max_(max), def_(def)
 {
 }
@@ -730,15 +730,15 @@ ControlInfo::ControlInfo(const ControlValue &min,
  * values list respectively. The default value is set to \a def if provided, or
  * to the minimum value otherwise.
  */
-ControlInfo::ControlInfo(Span<const ControlValue> values,
-			 const ControlValue &def)
+ControlInfo::ControlInfo(Span<const ControlStorage> values,
+			 const ControlStorage &def)
 {
 	min_ = values.front();
 	max_ = values.back();
 	def_ = !def.isNone() ? def : values.front();
 
 	values_.reserve(values.size());
-	for (const ControlValue &value : values)
+	for (const ControlStorage &value : values)
 		values_.push_back(value);
 }
 
@@ -779,7 +779,7 @@ ControlInfo::ControlInfo(bool value)
  * the terminating '\0'. For all other control types, this is the minimum value
  * of each element.
  *
- * \return A ControlValue with the minimum value for the control
+ * \return A ControlStorage with the minimum value for the control
  */
 
 /**
@@ -790,13 +790,13 @@ ControlInfo::ControlInfo(bool value)
  * the terminating '\0'. For all other control types, this is the maximum value
  * of each element.
  *
- * \return A ControlValue with the maximum value for the control
+ * \return A ControlStorage with the maximum value for the control
  */
 
 /**
  * \fn ControlInfo::def()
  * \brief Retrieve the default value of the control
- * \return A ControlValue with the default value for the control
+ * \return A ControlStorage with the default value for the control
  */
 
 /**
@@ -804,10 +804,10 @@ ControlInfo::ControlInfo(bool value)
  * \brief Retrieve the list of valid values
  *
  * For controls that support a pre-defined number of values, the enumeration of
- * those is reported through a vector of ControlValue instances accessible with
+ * those is reported through a vector of ControlStorage instances accessible with
  * this function.
  *
- * \return A vector of ControlValue representing the control valid values
+ * \return A vector of ControlStorage representing the control valid values
  */
 
 /**
@@ -1234,11 +1234,11 @@ bool ControlList::contains(unsigned int id) const
  *
  * \return The control value
  */
-const ControlValue &ControlList::get(unsigned int id) const
+const ControlStorage &ControlList::get(unsigned int id) const
 {
-	static const ControlValue zero;
+	static const ControlStorage zero;
 
-	const ControlValue *val = find(id);
+	const ControlStorage *val = find(id);
 	if (!val)
 		return zero;
 
@@ -1257,9 +1257,9 @@ const ControlValue &ControlList::get(unsigned int id) const
  * The behaviour is undefined if the control \a id is not supported by the
  * object that the list refers to.
  */
-void ControlList::set(unsigned int id, const ControlValue &value)
+void ControlList::set(unsigned int id, const ControlStorage &value)
 {
-	ControlValue *val = find(id);
+	ControlStorage *val = find(id);
 	if (!val)
 		return;
 
@@ -1284,7 +1284,7 @@ void ControlList::set(unsigned int id, const ControlValue &value)
  * nullptr is returned in that case.
  */
 
-const ControlValue *ControlList::find(unsigned int id) const
+const ControlStorage *ControlList::find(unsigned int id) const
 {
 	const auto iter = controls_.find(id);
 	if (iter == controls_.end()) {
@@ -1297,7 +1297,7 @@ const ControlValue *ControlList::find(unsigned int id) const
 	return &iter->second;
 }
 
-ControlValue *ControlList::find(unsigned int id)
+ControlStorage *ControlList::find(unsigned int id)
 {
 	if (validator_ && !validator_->validate(id)) {
 		LOG(Controls, Error)

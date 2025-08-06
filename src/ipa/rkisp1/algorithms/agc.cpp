@@ -73,11 +73,11 @@ int Agc::parseMeteringModes(IPAContext &context, const YamlObject &tuningData)
 		meteringModes_[controls::MeteringMatrix] = weights;
 	}
 
-	std::vector<ControlValue> meteringModes;
+	std::vector<ControlStorage> meteringModes;
 	std::vector<int> meteringModeKeys = utils::map_keys(meteringModes_);
 	std::transform(meteringModeKeys.begin(), meteringModeKeys.end(),
 		       std::back_inserter(meteringModes),
-		       [](int x) { return ControlValue(x); });
+		       [](int x) { return ControlStorage(x); });
 	context.ctrlMap[&controls::AeMeteringMode] = ControlInfo(meteringModes);
 
 	return 0;
@@ -148,13 +148,13 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 		return ret;
 
 	context.ctrlMap[&controls::ExposureTimeMode] =
-		ControlInfo({ { ControlValue(controls::ExposureTimeModeAuto),
-				ControlValue(controls::ExposureTimeModeManual) } },
-			    ControlValue(controls::ExposureTimeModeAuto));
+		ControlInfo({ { ControlStorage(controls::ExposureTimeModeAuto),
+				ControlStorage(controls::ExposureTimeModeManual) } },
+			    ControlStorage(controls::ExposureTimeModeAuto));
 	context.ctrlMap[&controls::AnalogueGainMode] =
-		ControlInfo({ { ControlValue(controls::AnalogueGainModeAuto),
-				ControlValue(controls::AnalogueGainModeManual) } },
-			    ControlValue(controls::AnalogueGainModeAuto));
+		ControlInfo({ { ControlStorage(controls::AnalogueGainModeAuto),
+				ControlStorage(controls::AnalogueGainModeManual) } },
+			    ControlStorage(controls::AnalogueGainModeAuto));
 	/* \todo Move this to the Camera class */
 	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true, true);
 	context.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);

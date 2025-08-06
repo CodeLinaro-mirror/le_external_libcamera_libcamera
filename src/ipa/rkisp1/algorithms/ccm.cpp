@@ -45,9 +45,9 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
 {
 	auto &cmap = context.ctrlMap;
 	cmap[&controls::ColourCorrectionMatrix] = ControlInfo(
-		ControlValue(-8.0f),
-		ControlValue(7.993f),
-		ControlValue(kIdentity3x3.data()));
+		ControlStorage(-8.0f),
+		ControlStorage(7.993f),
+		ControlStorage(kIdentity3x3.data()));
 
 	int ret = ccm_.readYaml(tuningData["ccms"], "ct", "ccm");
 	if (ret < 0) {

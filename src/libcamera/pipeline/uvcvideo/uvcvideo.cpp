@@ -99,7 +99,7 @@ public:
 
 private:
 	int processControl(const UVCCameraData *data, ControlList *controls,
-			   unsigned int id, const ControlValue &value);
+			   unsigned int id, const ControlStorage &value);
 	int processControls(UVCCameraData *data, const ControlList &reqControls);
 
 	bool acquireDevice(Camera *camera) override;
@@ -322,7 +322,7 @@ void PipelineHandlerUVC::stopDevice(Camera *camera)
 }
 
 int PipelineHandlerUVC::processControl(const UVCCameraData *data, ControlList *controls,
-				       unsigned int id, const ControlValue &value)
+				       unsigned int id, const ControlStorage &value)
 {
 	uint32_t cid;
 
@@ -721,7 +721,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 	}
 
 	/* Map the control info. */
-	const std::vector<ControlValue> &v4l2Values = v4l2Info.values();
+	const std::vector<ControlStorage> &v4l2Values = v4l2Info.values();
 	int32_t min = v4l2Info.min().get<int32_t>();
 	int32_t max = v4l2Info.max().get<int32_t>();
 	int32_t def = v4l2Info.def().get<int32_t>();
@@ -793,7 +793,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 		> exposureModes;
 		std::optional<controls::ExposureTimeModeEnum> lcDef;
 
-		for (const ControlValue &value : v4l2Values) {
+		for (const ControlStorage &value : v4l2Values) {
 			const auto x = value.get<int32_t>();
 
 			if (0 <= x && static_cast<std::size_t>(x) < exposureModes.size()) {
@@ -814,7 +814,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 		else if (exposureModes[V4L2_EXPOSURE_MANUAL])
 			manualExposureMode_ = V4L2_EXPOSURE_MANUAL;
 
-		std::array<ControlValue, 2> values;
+		std::array<ControlStorage, 2> values;
 		std::size_t count = 0;
 
 		if (autoExposureMode_)
@@ -827,7 +827,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 			return;
 
 		info = ControlInfo{
-			Span<const ControlValue>{ values.data(), count },
+			Span<const ControlStorage>{ values.data(), count },
 			!lcDef ? values.front() : *lcDef,
 		};
 		break;

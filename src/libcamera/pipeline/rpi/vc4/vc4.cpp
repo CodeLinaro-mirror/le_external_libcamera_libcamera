@@ -886,8 +886,8 @@ void Vc4CameraData::setIspControls(const ControlList &controls)
 	ControlList ctrls = controls;
 
 	if (ctrls.contains(V4L2_CID_USER_BCM2835_ISP_LENS_SHADING)) {
-		ControlValue &value =
-			const_cast<ControlValue &>(ctrls.get(V4L2_CID_USER_BCM2835_ISP_LENS_SHADING));
+		ControlStorage &value =
+			const_cast<ControlStorage &>(ctrls.get(V4L2_CID_USER_BCM2835_ISP_LENS_SHADING));
 		Span<uint8_t> s = value.data();
 		bcm2835_isp_lens_shading *ls =
 			reinterpret_cast<bcm2835_isp_lens_shading *>(s.data());

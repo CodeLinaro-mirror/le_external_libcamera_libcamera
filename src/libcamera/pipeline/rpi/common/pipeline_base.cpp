@@ -1250,7 +1250,7 @@ void CameraData::setLensControls(const ControlList &controls)
 	CameraLens *lens = sensor_->focusLens();
 
 	if (lens && controls.contains(V4L2_CID_FOCUS_ABSOLUTE)) {
-		ControlValue const &focusValue = controls.get(V4L2_CID_FOCUS_ABSOLUTE);
+		ControlStorage const &focusValue = controls.get(V4L2_CID_FOCUS_ABSOLUTE);
 		lens->setFocusPosition(focusValue.get<int32_t>());
 	}
 }

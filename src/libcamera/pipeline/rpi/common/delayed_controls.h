@@ -40,7 +40,7 @@ public:
 	void applyControls(uint32_t sequence);
 
 private:
-	class Info : public ControlValue
+	class Info : public ControlStorage
 	{
 	public:
 		Info()
@@ -48,8 +48,8 @@ private:
 		{
 		}
 
-		Info(const ControlValue &v, bool updated_ = true)
-			: ControlValue(v), updated(updated_)
+		Info(const ControlStorage &v, bool updated_ = true)
+			: ControlStorage(v), updated(updated_)
 		{
 		}
 

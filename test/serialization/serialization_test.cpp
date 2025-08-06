@@ -56,17 +56,17 @@ bool SerializationTest::equals(const ControlInfoMap &lhs, const ControlInfoMap &
 
 bool SerializationTest::equals(const ControlList &lhs, const ControlList &rhs)
 {
-	std::map<unsigned int, ControlValue> rlhs;
+	std::map<unsigned int, ControlStorage> rlhs;
 	std::transform(lhs.begin(), lhs.end(), std::inserter(rlhs, rlhs.end()),
-			[](const std::pair<unsigned int, ControlValue> &v)
+			[](const std::pair<unsigned int, ControlStorage> &v)
 				-> decltype(rlhs)::value_type
 			{
 				return { v.first, v.second };
 			});
 
-	std::map<unsigned int, ControlValue> rrhs;
+	std::map<unsigned int, ControlStorage> rrhs;
 	std::transform(rhs.begin(), rhs.end(), std::inserter(rrhs, rrhs.end()),
-			[](const std::pair<unsigned int, ControlValue> &v)
+			[](const std::pair<unsigned int, ControlStorage> &v)
 				-> decltype(rrhs)::value_type
 			{
 				return { v.first, v.second };
