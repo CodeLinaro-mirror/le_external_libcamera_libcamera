@@ -142,7 +142,7 @@ void ControlSerializer::reset()
 	controlIdMaps_.clear();
 }
 
-size_t ControlSerializer::binarySize(const ControlStorage &value)
+size_t ControlSerializer::binarySize(const ControlValue &value)
 {
 	return sizeof(ControlType) + value.data().size_bytes();
 }
@@ -192,7 +192,7 @@ size_t ControlSerializer::binarySize(const ControlList &list)
 	return size;
 }
 
-void ControlSerializer::store(const ControlStorage &value,
+void ControlSerializer::store(const ControlValue &value,
 			      ByteStreamBuffer &buffer)
 {
 	const ControlType type = value.type();

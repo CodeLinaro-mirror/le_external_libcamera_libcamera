@@ -538,7 +538,7 @@ void CameraSensorLegacy::initTestPatternModes()
 	for (const auto &it : testPatternModes)
 		indexToTestPatternMode[it.second] = it.first;
 
-	for (const ControlStorage &value : v4l2TestPattern->second.values()) {
+	for (const ControlValue value : v4l2TestPattern->second.values()) {
 		const int32_t index = value.get<int32_t>();
 
 		const auto it = indexToTestPatternMode.find(index);

@@ -189,7 +189,7 @@ ControlList V4L2Device::getControls(const std::vector<uint32_t> &ids)
 			return {};
 		}
 
-		ctrls.set(id, {});
+		ctrls.set(id, ControlStorage{});
 	}
 
 	std::vector<v4l2_ext_control> v4l2Ctrls(ids.size());

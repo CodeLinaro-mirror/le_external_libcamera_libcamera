@@ -107,9 +107,9 @@ ControlStorage::ControlStorage()
 }
 
 /**
- * \brief Construct a ControlStorage from a ControlValueView
+ * \brief Construct a ControlStorage from a ControlValue
  */
-ControlStorage::ControlStorage(const ControlValueView &cvv)
+ControlStorage::ControlStorage(const ControlValue &cvv)
 	: ControlStorage()
 {
 	set(cvv.type(), cvv.isArray(), cvv.data().data(),
@@ -223,7 +223,7 @@ Span<uint8_t> ControlStorage::data()
  */
 std::string ControlStorage::toString() const
 {
-	return static_cast<std::ostringstream&&>(std::ostringstream{} << ControlValueView(*this)).str();
+	return static_cast<std::ostringstream&&>(std::ostringstream{} << ControlValue(*this)).str();
 }
 
 /**
@@ -329,18 +329,18 @@ void ControlStorage::reserve(ControlType type, bool isArray, std::size_t numElem
 }
 
 /**
- * \class ControlValueView
+ * \class ControlValue
  * \brief A non-owning view-like type to the value of a control
  */
 
 /**
- * \fn ControlValueView::ControlValueView()
+ * \fn ControlValue::ControlValue()
  * \brief Construct an empty view
  * \sa ControlStorage::ControlStorage()
  */
 
 /**
- * \fn ControlValueView::ControlValueView(const ControlStorage &v)
+ * \fn ControlValue::ControlValue(const ControlStorage &v)
  * \brief Construct a view referring to \a v
  *
  * The constructed view will refer to the value stored by \a v, and
@@ -350,31 +350,31 @@ void ControlStorage::reserve(ControlType type, bool isArray, std::size_t numElem
  */
 
 /**
- * \fn ControlValueView::operator bool() const
+ * \fn ControlValue::operator bool() const
  * \brief Determine if the referred value is valid
- * \sa ControlValueView::isNone()
+ * \sa ControlValue::isNone()
  */
 
 /**
- * \fn ControlType ControlValueView::type() const
+ * \fn ControlType ControlValue::type() const
  * \copydoc ControlStorage::type()
  * \sa ControlStorage::type()
  */
 
 /**
- * \fn ControlValueView::isNone() const
+ * \fn ControlValue::isNone() const
  * \copydoc ControlStorage::isNone()
  * \sa ControlStorage::isNone()
  */
 
 /**
- * \fn ControlValueView::isArray() const
+ * \fn ControlValue::isArray() const
  * \copydoc ControlStorage::isArray()
  * \sa ControlStorage::isArray()
  */
 
 /**
- * \fn ControlValueView::numElements() const
+ * \fn ControlValue::numElements() const
  * \copydoc ControlStorage::numElements()
  * \sa ControlStorage::numElements()
  */
@@ -383,7 +383,7 @@ void ControlStorage::reserve(ControlType type, bool isArray, std::size_t numElem
  * \copydoc ControlStorage::data()
  * \sa ControlStorage::data()
  */
-Span<const std::byte> ControlValueView::data() const
+Span<const std::byte> ControlValue::data() const
 {
 	return { data_, numElements_ * ControlValueSize[type_] };
 }
@@ -391,9 +391,9 @@ Span<const std::byte> ControlValueView::data() const
 /**
  * \copydoc ControlStorage::operator==()
  * \sa ControlStorage::operator==()
- * \sa ControlValueView::operator!=()
+ * \sa ControlValue::operator!=()
  */
-bool ControlValueView::operator==(const ControlValueView &other) const
+bool ControlValue::operator==(const ControlValue &other) const
 {
 	if (type_ != other.type_)
 		return false;
@@ -410,14 +410,14 @@ bool ControlValueView::operator==(const ControlValueView &other) const
 }
 
 /**
- * \fn ControlValueView::operator!=() const
+ * \fn ControlValue::operator!=() const
  * \copydoc ControlStorage::operator!=()
  * \sa ControlStorage::operator!=()
- * \sa ControlValueView::operator==()
+ * \sa ControlValue::operator==()
  */
 
 /**
- * \fn template<typename T> T ControlValueView::get() const
+ * \fn template<typename T> T ControlValue::get() const
  * \copydoc ControlStorage::get()
  * \sa ControlStorage::get()
  */
@@ -426,7 +426,7 @@ bool ControlValueView::operator==(const ControlValueView &other) const
  * \brief Insert a text representation of a value into an output stream
  * \sa ControlStorage::toString()
  */
-std::ostream &operator<<(std::ostream &s, const ControlValueView &v)
+std::ostream &operator<<(std::ostream &s, const ControlValue &v)
 {
 	const auto type = v.type();
 	if (type == ControlTypeNone)
@@ -1234,7 +1234,7 @@ bool ControlList::contains(unsigned int id) const
  *
  * \return The control value
  */
-const ControlStorage &ControlList::get(unsigned int id) const
+const ControlValue ControlList::get(unsigned int id) const
 {
 	static const ControlStorage zero;
 
@@ -1257,7 +1257,7 @@ const ControlStorage &ControlList::get(unsigned int id) const
  * The behaviour is undefined if the control \a id is not supported by the
  * object that the list refers to.
  */
-void ControlList::set(unsigned int id, const ControlStorage &value)
+void ControlList::set(unsigned int id, const ControlValue &value)
 {
 	ControlStorage *val = find(id);
 	if (!val)
@@ -1266,6 +1266,18 @@ void ControlList::set(unsigned int id, const ControlStorage &value)
 	*val = value;
 }
 
+/**
+ * \brief Set the value of control \a id to \a value
+ * \copydoc ControlList::set(unsigned int id, const ControlValue &value)
+ */
+void ControlList::set(unsigned int id, const ControlStorage &value)
+{
+	ControlStorage *val = find(id);
+	if (!val)
+		return;
+
+	*val = value;
+}
 /**
  * \fn ControlList::infoMap()
  * \brief Retrieve the ControlInfoMap used to construct the ControlList

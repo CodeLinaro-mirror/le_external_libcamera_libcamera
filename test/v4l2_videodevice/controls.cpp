@@ -86,7 +86,7 @@ protected:
 		 * The VIVID_CID_INTEGER64 control can take any value, just test
 		 * that its value can be retrieved and has the right type.
 		 */
-		ctrls.get(VIVID_CID_INTEGER64).get<int64_t>();
+		(void)ctrls.get(VIVID_CID_INTEGER64).get<int64_t>();
 
 		uint8_t u8Min = u8.min().get<uint8_t>();
 		uint8_t u8Max = u8.max().get<uint8_t>();
@@ -129,7 +129,7 @@ protected:
 
 		if (ctrls.get(V4L2_CID_BRIGHTNESS) != brightness.min() ||
 		    ctrls.get(V4L2_CID_CONTRAST) != contrast.max() ||
-		    ctrls.get(V4L2_CID_SATURATION) != saturation.min().get<int32_t>() + 1) {
+		    ctrls.get(V4L2_CID_SATURATION).get<int32_t>() != saturation.min().get<int32_t>() + 1) {
 			cerr << "Controls not updated when set" << endl;
 			return TestFail;
 		}

@@ -721,7 +721,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 	}
 
 	/* Map the control info. */
-	const std::vector<ControlStorage> &v4l2Values = v4l2Info.values();
+	const std::vector<ControlValue> &v4l2Values = v4l2Info.values();
 	int32_t min = v4l2Info.min().get<int32_t>();
 	int32_t max = v4l2Info.max().get<int32_t>();
 	int32_t def = v4l2Info.def().get<int32_t>();
@@ -793,7 +793,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 		> exposureModes;
 		std::optional<controls::ExposureTimeModeEnum> lcDef;
 
-		for (const ControlStorage &value : v4l2Values) {
+		for (const ControlValue value : v4l2Values) {
 			const auto x = value.get<int32_t>();
 
 			if (0 <= x && static_cast<std::size_t>(x) < exposureModes.size()) {

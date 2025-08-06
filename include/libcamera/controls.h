@@ -26,7 +26,7 @@
 namespace libcamera {
 
 class ControlValidator;
-class ControlValueView;
+class ControlValue;
 
 enum ControlType {
 	ControlTypeNone,
@@ -162,7 +162,7 @@ public:
 		    value.data(), value.size(), sizeof(typename T::value_type));
 	}
 
-	explicit ControlStorage(const ControlValueView &cvv);
+	ControlStorage(const ControlValue &cvv);
 
 	~ControlStorage();
 
@@ -251,23 +251,23 @@ private:
 		 std::size_t numElements, std::size_t elementSize);
 };
 
-class ControlValueView
+class ControlValue
 {
 public:
-	constexpr ControlValueView() noexcept
+	constexpr ControlValue() noexcept
 		: type_(ControlTypeNone)
 	{
 	}
 
-	ControlValueView(const ControlStorage &cv) noexcept
-		: ControlValueView(cv.type(), cv.isArray(), cv.numElements(),
+	ControlValue(const ControlStorage &cv) noexcept
+		: ControlValue(cv.type(), cv.isArray(), cv.numElements(),
 				   reinterpret_cast<const std::byte *>(cv.data().data()))
 	{
 	}
 
 #ifndef __DOXYGEN__
 	// TODO: should have restricted access?
-	ControlValueView(ControlType type, bool isArray, std::size_t numElements,
+	ControlValue(ControlType type, bool isArray, std::size_t numElements,
 			 const std::byte *data) noexcept
 		: type_(type), isArray_(isArray), numElements_(numElements),
 		  data_(data)
@@ -283,9 +283,9 @@ public:
 	[[nodiscard]] std::size_t numElements() const { return numElements_; }
 	[[nodiscard]] Span<const std::byte> data() const;
 
-	[[nodiscard]] bool operator==(const ControlValueView &other) const;
+	[[nodiscard]] bool operator==(const ControlValue &other) const;
 
-	[[nodiscard]] bool operator!=(const ControlValueView &other) const
+	[[nodiscard]] bool operator!=(const ControlValue &other) const
 	{
 		return !(*this == other);
 	}
@@ -313,7 +313,7 @@ private:
 	const std::byte *data_ = nullptr;
 };
 
-std::ostream &operator<<(std::ostream &s, const ControlValueView &v);
+std::ostream &operator<<(std::ostream &s, const ControlValue &v);
 
 class ControlId
 {
@@ -405,10 +405,16 @@ public:
 	explicit ControlInfo(std::set<bool> values, bool def);
 	explicit ControlInfo(bool value);
 
-	const ControlStorage &min() const { return min_; }
-	const ControlStorage &max() const { return max_; }
-	const ControlStorage &def() const { return def_; }
-	const std::vector<ControlStorage> &values() const { return values_; }
+	const ControlValue min() const { return min_; }
+	const ControlValue max() const { return max_; }
+	const ControlValue def() const { return def_; }
+
+	const std::vector<ControlValue> values() const {
+		std::vector<ControlValue> values;
+		for (const auto &val : values_)
+			values.emplace_back(val);
+		return values;
+	}
 
 	std::string toString() const;
 
@@ -513,7 +519,7 @@ public:
 		if (entry == controls_.end())
 			return std::nullopt;
 
-		const ControlStorage &val = entry->second;
+		const ControlValue val = entry->second;
 		return val.get<T>();
 	}
 
@@ -537,7 +543,8 @@ public:
 		val->set(Span<const typename std::remove_cv_t<V>, Size>{ value.begin(), value.size() });
 	}
 
-	const ControlStorage &get(unsigned int id) const;
+	const ControlValue get(unsigned int id) const;
+	void set(unsigned int id, const ControlValue &value);
 	void set(unsigned int id, const ControlStorage &value);
 
 	const ControlInfoMap *infoMap() const { return infoMap_; }

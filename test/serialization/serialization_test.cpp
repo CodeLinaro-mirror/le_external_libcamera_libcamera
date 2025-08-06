@@ -78,12 +78,12 @@ bool SerializationTest::equals(const ControlList &lhs, const ControlList &rhs)
 	cerr << "lhs:" << endl;
 	for (const auto &value : rlhs)
 		cerr << "- " << value.first << ": "
-		     << value.second.toString() << endl;
+		     << value.second << endl;
 
 	cerr << "rhs:" << endl;
 	for (const auto &value : rrhs)
 		cerr << "- " << value.first << ": "
-		     << value.second.toString() << endl;
+		     << value.second << endl;
 
 	return false;
 }

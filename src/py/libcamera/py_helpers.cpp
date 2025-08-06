@@ -16,7 +16,7 @@ namespace py = pybind11;
 using namespace libcamera;
 
 template<typename T>
-static py::object valueOrTuple(const ControlStorage &cv)
+static py::object valueOrTuple(const ControlValue &cv)
 {
 	if (cv.isArray()) {
 		const T *v = reinterpret_cast<const T *>(cv.data().data());
@@ -31,7 +31,7 @@ static py::object valueOrTuple(const ControlStorage &cv)
 	return py::cast(cv.get<T>());
 }
 
-py::object controlValueToPy(const ControlStorage &cv)
+py::object controlValueToPy(const ControlValue &cv)
 {
 	switch (cv.type()) {
 	case ControlTypeNone:
