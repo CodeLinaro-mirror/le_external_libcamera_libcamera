@@ -39,6 +39,12 @@ public:
 {%- endfor %}
 	{
 	}
+
+	{{struct.mojom_name}}(const {{struct.mojom_name}} &) = default;
+	{{struct.mojom_name}} &operator=(const {{struct.mojom_name}} &) = default;
+	{{struct.mojom_name}}({{struct.mojom_name}} &&) = default;
+	{{struct.mojom_name}} &operator=({{struct.mojom_name}} &&) = default;
+	~{{struct.mojom_name}}() = default;
 #endif
 
 {% for field in struct.fields %}
