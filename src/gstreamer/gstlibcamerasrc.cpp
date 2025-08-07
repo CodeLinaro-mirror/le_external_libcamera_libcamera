@@ -346,9 +346,6 @@ int GstLibcameraSrcState::processRequest()
 			wrap = std::move(completedRequests_.front());
 			completedRequests_.pop();
 		}
-
-		if (completedRequests_.empty())
-			err = -ENOBUFS;
 	}
 
 	if (!wrap)
