@@ -199,6 +199,9 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.configuration.agc.measureWindow.h_size = configInfo.outputSize.width;
 	context.configuration.agc.measureWindow.v_size = configInfo.outputSize.height;
 
+	AgcMeanLuminance::configure(context.configuration.sensor.lineDuration,
+				    context.camHelper.get());
+
 	setLimits(context.configuration.sensor.minExposureTime,
 		  context.configuration.sensor.maxExposureTime,
 		  context.configuration.sensor.minAnalogueGain,
@@ -283,6 +286,10 @@ void Agc::queueRequest(IPAContext &context,
 	if (!frameContext.agc.autoGainEnabled)
 		frameContext.agc.gain = agc.manual.gain;
 
+	if (!frameContext.agc.autoExposureEnabled &&
+	    !frameContext.agc.autoGainEnabled)
+		frameContext.agc.quantizationGain = 1.0;
+
 	const auto &meteringMode = controls.get(controls::AeMeteringMode);
 	if (meteringMode) {
 		frameContext.agc.updateMetering = agc.meteringMode != *meteringMode;
@@ -336,12 +343,17 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 {
 	uint32_t activeAutoExposure = context.activeState.agc.automatic.exposure;
 	double activeAutoGain = context.activeState.agc.automatic.gain;
+	double activeAutoQGain = context.activeState.agc.automatic.quantizationGain;
 
 	/* Populate exposure and gain in auto mode */
-	if (frameContext.agc.autoExposureEnabled)
+	if (frameContext.agc.autoExposureEnabled) {
 		frameContext.agc.exposure = activeAutoExposure;
-	if (frameContext.agc.autoGainEnabled)
+		frameContext.agc.quantizationGain = activeAutoQGain;
+	}
+	if (frameContext.agc.autoGainEnabled) {
 		frameContext.agc.gain = activeAutoGain;
+		frameContext.agc.quantizationGain = activeAutoQGain;
+	}
 
 	/*
 	 * Populate manual exposure and gain from the active auto values when
@@ -354,6 +366,12 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 	if (!frameContext.agc.autoGainEnabled && frameContext.agc.autoGainModeChange) {
 		context.activeState.agc.manual.gain = activeAutoGain;
 		frameContext.agc.gain = activeAutoGain;
+		frameContext.agc.quantizationGain = activeAutoQGain;
+	}
+
+	if (context.activeState.compress.supported) {
+		frameContext.compress.enable = true;
+		frameContext.compress.gain = frameContext.agc.quantizationGain;
 	}
 
 	if (frame > 0 && !frameContext.agc.updateMetering)
@@ -582,7 +600,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	/* Update the estimated exposure and gain. */
 	activeState.agc.automatic.exposure = newExposureTime / lineDuration;
 	activeState.agc.automatic.gain = aGain;
-
+	activeState.agc.automatic.quantizationGain = qGain;
 	/*
 	 * Expand the target frame duration so that we do not run faster than
 	 * the minimum frame duration when we have short exposures.
