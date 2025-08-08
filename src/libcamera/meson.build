@@ -45,6 +45,7 @@ libcamera_internal_sources = files([
     'media_device.cpp',
     'media_object.cpp',
     'media_pipeline.cpp',
+    'pid_controller.cpp',
     'pipeline_handler.cpp',
     'process.cpp',
     'pub_key.cpp',
