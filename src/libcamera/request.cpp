@@ -326,7 +326,8 @@ void Request::Private::timeout()
  * \var Request::Default
  * Don't reuse buffers
  * \var Request::ReuseBuffers
- * Reuse the buffers that were previously added by addBuffer()
+ * Reuse the buffers that were previously added by addBuffer().
+ * Buffers meant to be queued with a Fence, should not use this flag.
  */
 
 /**
