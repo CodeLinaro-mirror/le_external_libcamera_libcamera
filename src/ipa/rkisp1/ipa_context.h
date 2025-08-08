@@ -130,6 +130,10 @@ struct IPAActiveState {
 	struct {
 		double gamma;
 	} goc;
+
+	struct {
+		double exposureValue;
+	} wdr;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -198,6 +202,13 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		double lux;
 	} lux;
+
+	struct {
+		controls::draft::WdrModeEnum mode;
+		double wdrExposureValue;
+		double agcExposureValue;
+		double strength;
+	} wdr;
 };
 
 struct IPAContext {
