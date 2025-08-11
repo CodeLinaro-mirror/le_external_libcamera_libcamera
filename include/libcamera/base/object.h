@@ -43,6 +43,16 @@ public:
 		return method->activate(std::forward<Args>(args)..., true);
 	}
 
+	template<typename Func,
+		 std::enable_if_t<std::is_invocable_v<Func&>> * = nullptr>
+	auto invokeMethod(Func func, ConnectionType type)
+		-> std::invoke_result_t<Func&>
+	{
+		using R = std::invoke_result_t<Func&>;
+		auto *method = new BoundMethodFunctor<Object, R, Func>(this, this, std::move(func), type);
+		return method->activate(true);
+	}
+
 	Thread *thread() const { return thread_; }
 	void moveToThread(Thread *thread);
 

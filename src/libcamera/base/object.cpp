@@ -255,7 +255,7 @@ bool Object::assertThreadBound(const char *message)
 }
 
 /**
- * \fn R Object::invokeMethod()
+ * \fn Object::invokeMethod(R (T::*func)(FuncArgs...), ConnectionType type, Args &&...args)
  * \brief Invoke a method asynchronously on an Object instance
  * \param[in] func The object method to invoke
  * \param[in] type Connection type for method invocation
@@ -272,6 +272,28 @@ bool Object::assertThreadBound(const char *message)
  * Due to the asynchronous nature of threads, functions invoked asynchronously
  * with the ConnectionTypeQueued type are not guaranteed to be called before
  * the thread is stopped. See \ref thread-stop for additional information.
+ *
+ * \context This function is \threadsafe.
+ *
+ * \return For connection types ConnectionTypeDirect and
+ * ConnectionTypeBlocking, return the return value of the invoked method. For
+ * connection type ConnectionTypeQueued, return a default-constructed R value.
+ */
+
+/**
+ * \fn Object::invokeMethod(Func func, ConnectionType type)
+ * \brief Invoke a lambda in the thread of an Object instance
+ * \param[in] func The object method to invoke
+ * \param[in] type Connection type for method invocation
+ *
+ * This function invokes the lambda \a func without arguments, based on the
+ * connection \a type wrt. the Object instance. Depending on the type, the method
+ * will be called synchronously in the same thread or asynchronously in the
+ * object's thread.
+ *
+ * Due to the asynchronous nature of threads, asynchronous invocations with the
+ * ConnectionTypeQueued type are not guaranteed to be called before the thread
+ * is stopped. See \ref thread-stop for additional information.
  *
  * \context This function is \threadsafe.
  *
