@@ -468,6 +468,8 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 	metadata.set(controls::AeExposureMode, frameContext.agc.exposureMode);
 	metadata.set(controls::AeConstraintMode, frameContext.agc.constraintMode);
 	metadata.set(controls::ExposureValue, frameContext.agc.exposureValue);
+
+	metadata.set(controls::DigitalGain, frameContext.agc.quantizationGain);
 }
 
 /**
