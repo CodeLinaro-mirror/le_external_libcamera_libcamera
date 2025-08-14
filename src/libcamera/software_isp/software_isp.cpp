@@ -75,9 +75,9 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 ControlInfoMap *ipaControls)
-	: dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
-		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
-		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
+	: ispWorkerThread_("SWIspWorker"), dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
+						    DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
+						    DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
 {
 	/*
 	 * debayerParams_ must be initialized because the initial value is used for

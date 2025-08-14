@@ -10,6 +10,7 @@
 #include <atomic>
 #include <list>
 #include <optional>
+#include <pthread.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -140,6 +141,7 @@ class ThreadMain : public Thread
 {
 public:
 	ThreadMain()
+		: Thread("libcamera-main")
 	{
 		data_->running_ = true;
 	}
@@ -230,7 +232,8 @@ ThreadData *ThreadData::current()
 /**
  * \brief Create a thread
  */
-Thread::Thread()
+Thread::Thread(std::string name)
+	: name_(std::move(name))
 {
 	data_ = new ThreadData;
 	data_->thread_ = this;
@@ -285,6 +288,9 @@ void Thread::startThread()
 
 	data_->tid_ = syscall(SYS_gettid);
 	currentThreadData = data_;
+
+	if (!name_.empty())
+		pthread_setname_np(thread_.native_handle(), name_.substr(0, 15).c_str());
 
 	run();
 }
