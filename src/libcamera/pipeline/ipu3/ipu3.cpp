@@ -845,31 +845,32 @@ int PipelineHandlerIPU3::queueRequestDevice(Camera *camera, Request *request)
 
 bool PipelineHandlerIPU3::match(DeviceEnumerator *enumerator)
 {
+	static const DeviceMatch cio2_dm("ipu3-cio2", {
+		"ipu3-csi2 0",
+		"ipu3-cio2 0",
+		"ipu3-csi2 1",
+		"ipu3-cio2 1",
+		"ipu3-csi2 2",
+		"ipu3-cio2 2",
+		"ipu3-csi2 3",
+		"ipu3-cio2 3",
+	});
+	static const DeviceMatch imgu_dm("ipu3-imgu", {
+		"ipu3-imgu 0",
+		"ipu3-imgu 0 input",
+		"ipu3-imgu 0 parameters",
+		"ipu3-imgu 0 output",
+		"ipu3-imgu 0 viewfinder",
+		"ipu3-imgu 0 3a stat",
+		"ipu3-imgu 1",
+		"ipu3-imgu 1 input",
+		"ipu3-imgu 1 parameters",
+		"ipu3-imgu 1 output",
+		"ipu3-imgu 1 viewfinder",
+		"ipu3-imgu 1 3a stat",
+	});
+
 	int ret;
-
-	DeviceMatch cio2_dm("ipu3-cio2");
-	cio2_dm.add("ipu3-csi2 0");
-	cio2_dm.add("ipu3-cio2 0");
-	cio2_dm.add("ipu3-csi2 1");
-	cio2_dm.add("ipu3-cio2 1");
-	cio2_dm.add("ipu3-csi2 2");
-	cio2_dm.add("ipu3-cio2 2");
-	cio2_dm.add("ipu3-csi2 3");
-	cio2_dm.add("ipu3-cio2 3");
-
-	DeviceMatch imgu_dm("ipu3-imgu");
-	imgu_dm.add("ipu3-imgu 0");
-	imgu_dm.add("ipu3-imgu 0 input");
-	imgu_dm.add("ipu3-imgu 0 parameters");
-	imgu_dm.add("ipu3-imgu 0 output");
-	imgu_dm.add("ipu3-imgu 0 viewfinder");
-	imgu_dm.add("ipu3-imgu 0 3a stat");
-	imgu_dm.add("ipu3-imgu 1");
-	imgu_dm.add("ipu3-imgu 1 input");
-	imgu_dm.add("ipu3-imgu 1 parameters");
-	imgu_dm.add("ipu3-imgu 1 output");
-	imgu_dm.add("ipu3-imgu 1 viewfinder");
-	imgu_dm.add("ipu3-imgu 1 3a stat");
 
 	cio2MediaDev_ = acquireMediaDevice(enumerator, cio2_dm);
 	if (!cio2MediaDev_)

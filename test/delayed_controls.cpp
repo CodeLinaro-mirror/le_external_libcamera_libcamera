@@ -38,8 +38,9 @@ protected:
 			return TestFail;
 		}
 
-		DeviceMatch dm("vivid");
-		dm.add("vivid-000-vid-cap");
+		static const DeviceMatch dm("vivid", {
+			"vivid-000-vid-cap",
+		});
 
 		media_ = enumerator_->search(dm);
 		if (!media_) {

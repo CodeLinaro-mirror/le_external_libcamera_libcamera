@@ -1362,12 +1362,13 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 
 bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 {
-	DeviceMatch dm("rkisp1");
-	dm.add("rkisp1_isp");
-	dm.add("rkisp1_resizer_mainpath");
-	dm.add("rkisp1_mainpath");
-	dm.add("rkisp1_stats");
-	dm.add("rkisp1_params");
+	static const DeviceMatch dm("rkisp1", {
+		"rkisp1_isp",
+		"rkisp1_resizer_mainpath",
+		"rkisp1_mainpath",
+		"rkisp1_stats",
+		"rkisp1_params",
+	});
 
 	media_ = acquireMediaDevice(enumerator, dm);
 	if (!media_)
@@ -1409,9 +1410,10 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 	param_->bufferReady.connect(this, &PipelineHandlerRkISP1::paramBufferReady);
 
 	/* If dewarper is present, create its instance. */
-	DeviceMatch dwp("dw100");
-	dwp.add("dw100-source");
-	dwp.add("dw100-sink");
+	static const DeviceMatch dwp("dw100", {
+		"dw100-source",
+		"dw100-sink",
+	});
 
 	std::shared_ptr<MediaDevice> dwpMediaDevice = enumerator->search(dwp);
 	if (dwpMediaDevice) {

@@ -65,9 +65,10 @@ protected:
 			return TestFail;
 		}
 
-		DeviceMatch dm("vim2m");
-		dm.add("vim2m-source");
-		dm.add("vim2m-sink");
+		static const DeviceMatch dm("vim2m", {
+			"vim2m-source",
+			"vim2m-sink",
+		});
 
 		media_ = enumerator_->search(dm);
 		if (!media_) {

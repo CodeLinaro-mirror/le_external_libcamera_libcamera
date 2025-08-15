@@ -29,7 +29,7 @@ BufferSource::~BufferSource()
 int BufferSource::allocate(const StreamConfiguration &config)
 {
 	/* Locate and open the video device. */
-	std::string videoDeviceName = "vivid-000-vid-out";
+	static const std::string videoDeviceName = "vivid-000-vid-out";
 
 	std::unique_ptr<DeviceEnumerator> enumerator =
 		DeviceEnumerator::create();
@@ -43,8 +43,9 @@ int BufferSource::allocate(const StreamConfiguration &config)
 		return TestFail;
 	}
 
-	DeviceMatch dm("vivid");
-	dm.add(videoDeviceName);
+	static const DeviceMatch dm("vivid", {
+		videoDeviceName,
+	});
 
 	media_ = enumerator->search(dm);
 	if (!media_) {

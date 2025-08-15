@@ -464,17 +464,17 @@ int PipelineHandlerVimc::queueRequestDevice(Camera *camera, Request *request)
 
 bool PipelineHandlerVimc::match(DeviceEnumerator *enumerator)
 {
-	DeviceMatch dm("vimc");
-
-	dm.add("Raw Capture 0");
-	dm.add("Raw Capture 1");
-	dm.add("RGB/YUV Capture");
-	dm.add("Sensor A");
-	dm.add("Sensor B");
-	dm.add("Debayer A");
-	dm.add("Debayer B");
-	dm.add("RGB/YUV Input");
-	dm.add("Scaler");
+	static const DeviceMatch dm("vimc", {
+		"Raw Capture 0",
+		"Raw Capture 1",
+		"RGB/YUV Capture",
+		"Sensor A",
+		"Sensor B",
+		"Debayer A",
+		"Debayer B",
+		"RGB/YUV Input",
+		"Scaler",
+	});
 
 	MediaDevice *media = acquireMediaDevice(enumerator, dm);
 	if (!media)

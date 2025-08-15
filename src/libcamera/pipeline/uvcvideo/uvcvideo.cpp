@@ -466,8 +466,8 @@ int PipelineHandlerUVC::queueRequestDevice(Camera *camera, Request *request)
 
 bool PipelineHandlerUVC::match(DeviceEnumerator *enumerator)
 {
+	static const DeviceMatch dm("uvcvideo");
 	MediaDevice *media;
-	DeviceMatch dm("uvcvideo");
 
 	media = acquireMediaDevice(enumerator, dm);
 	if (!media)

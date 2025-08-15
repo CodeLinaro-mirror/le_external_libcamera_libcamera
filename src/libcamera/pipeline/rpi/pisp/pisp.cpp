@@ -880,10 +880,12 @@ bool PipelineHandlerPiSP::match(DeviceEnumerator *enumerator)
 	 * device nodes due to a sensor subdevice failure.
 	 */
 	for (unsigned int i = 0; i < numCfeDevices; i++) {
-		DeviceMatch cfe("rp1-cfe");
-		cfe.add("rp1-cfe-fe-image0");
-		cfe.add("rp1-cfe-fe-stats");
-		cfe.add("rp1-cfe-fe-config");
+		static const DeviceMatch cfe("rp1-cfe", {
+			"rp1-cfe-fe-image0",
+			"rp1-cfe-fe-stats",
+			"rp1-cfe-fe-config",
+		});
+
 		MediaDevice *cfeDevice = acquireMediaDevice(enumerator, cfe);
 
 		if (!cfeDevice) {
@@ -891,15 +893,17 @@ bool PipelineHandlerPiSP::match(DeviceEnumerator *enumerator)
 			break;
 		}
 
-		DeviceMatch isp("pispbe");
-		isp.add("pispbe-input");
-		isp.add("pispbe-config");
-		isp.add("pispbe-output0");
-		isp.add("pispbe-output1");
-		isp.add("pispbe-tdn_output");
-		isp.add("pispbe-tdn_input");
-		isp.add("pispbe-stitch_output");
-		isp.add("pispbe-stitch_input");
+		static const DeviceMatch isp("pispbe", {
+			"pispbe-input",
+			"pispbe-config",
+			"pispbe-output0",
+			"pispbe-output1",
+			"pispbe-tdn_output",
+			"pispbe-tdn_input",
+			"pispbe-stitch_output",
+			"pispbe-stitch_input",
+		});
+
 		MediaDevice *ispDevice = acquireMediaDevice(enumerator, isp);
 
 		if (!ispDevice) {

@@ -1630,12 +1630,13 @@ bool PipelineHandlerMaliC55::match(DeviceEnumerator *enumerator)
 	 * The TPG and the downscale pipe are both optional blocks and may not
 	 * be fitted.
 	 */
-	DeviceMatch dm("mali-c55");
-	dm.add("mali-c55 isp");
-	dm.add("mali-c55 resizer fr");
-	dm.add("mali-c55 fr");
-	dm.add("mali-c55 3a stats");
-	dm.add("mali-c55 3a params");
+	static const DeviceMatch dm("mali-c55", {
+		"mali-c55 isp",
+		"mali-c55 resizer fr",
+		"mali-c55 fr",
+		"mali-c55 3a stats",
+		"mali-c55 3a params",
+	});
 
 	media_ = acquireMediaDevice(enumerator, dm);
 	if (!media_)

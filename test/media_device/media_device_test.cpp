@@ -25,7 +25,7 @@ int MediaDeviceTest::init()
 		return TestFail;
 	}
 
-	DeviceMatch dm("vimc");
+	static const DeviceMatch dm("vimc");
 	media_ = enumerator_->search(dm);
 	if (!media_) {
 		cerr << "No VIMC media device found: skip test" << endl;
