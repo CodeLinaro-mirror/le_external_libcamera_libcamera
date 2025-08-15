@@ -13,6 +13,8 @@
 #include <signal.h>
 #include <string.h>
 
+#include <sys/signalfd.h>
+
 #include <libcamera/libcamera.h>
 #include <libcamera/property_ids.h>
 
@@ -27,15 +29,12 @@ using namespace libcamera;
 class CamApp
 {
 public:
-	CamApp();
-
-	static CamApp *instance();
+	CamApp(EventLoop &loop);
 
 	int init(int argc, char **argv);
 	void cleanup();
 
 	int exec();
-	void quit();
 
 private:
 	void cameraAdded(std::shared_ptr<Camera> cam);
@@ -46,26 +45,17 @@ private:
 
 	static std::string cameraName(const Camera *camera);
 
-	static CamApp *app_;
 	OptionsParser::Options options_;
 
 	std::unique_ptr<CameraManager> cm_;
 
 	std::atomic_uint loopUsers_;
-	EventLoop loop_;
+	EventLoop *loop_ = nullptr;
 };
 
-CamApp *CamApp::app_ = nullptr;
-
-CamApp::CamApp()
-	: loopUsers_(0)
+CamApp::CamApp(EventLoop &loop)
+	: loopUsers_(0), loop_(&loop)
 {
-	CamApp::app_ = this;
-}
-
-CamApp *CamApp::instance()
-{
-	return CamApp::app_;
 }
 
 int CamApp::init(int argc, char **argv)
@@ -101,11 +91,6 @@ int CamApp::exec()
 	cleanup();
 
 	return ret;
-}
-
-void CamApp::quit()
-{
-	loop_.exit();
 }
 
 int CamApp::parseOptions(int argc, char *argv[])
@@ -205,7 +190,7 @@ void CamApp::cameraRemoved(std::shared_ptr<Camera> cam)
 void CamApp::captureDone()
 {
 	if (--loopUsers_ == 0)
-		EventLoop::instance()->exit(0);
+		loop_->exit(0);
 }
 
 int CamApp::run()
@@ -290,7 +275,7 @@ int CamApp::run()
 	}
 
 	if (loopUsers_)
-		loop_.exec();
+		loop_->exec();
 
 	/* 6. Stop capture. */
 	for (const auto &session : sessions) {
@@ -345,28 +330,35 @@ std::string CamApp::cameraName(const Camera *camera)
 	return name;
 }
 
-namespace {
-
-void signalHandler([[maybe_unused]] int signal)
-{
-	std::cout << "Exiting" << std::endl;
-	CamApp::instance()->quit();
-}
-
-} /* namespace */
-
 int main(int argc, char **argv)
 {
-	CamApp app;
+	auto sigfd = [] {
+		sigset_t ss;
+
+		sigemptyset(&ss);
+		sigaddset(&ss, SIGINT);
+		sigprocmask(SIG_BLOCK, &ss, nullptr);
+
+		return UniqueFD(signalfd(-1, &ss, SFD_CLOEXEC | SFD_NONBLOCK));
+	}();
+	if (!sigfd.isValid())
+		return EXIT_FAILURE;
+
+	EventLoop loop;
+	CamApp app(loop);
 	int ret;
+
+	loop.addFdEvent(sigfd.get(), EventLoop::Read, [&] {
+		signalfd_siginfo si;
+		std::ignore = read(sigfd.get(), &si, sizeof(si));
+
+		std::cout << "Exiting" << std::endl;
+		loop.exit(0);
+	});
 
 	ret = app.init(argc, argv);
 	if (ret)
 		return ret == -EINTR ? 0 : EXIT_FAILURE;
-
-	struct sigaction sa = {};
-	sa.sa_handler = &signalHandler;
-	sigaction(SIGINT, &sa, nullptr);
 
 	if (app.exec())
 		return EXIT_FAILURE;
