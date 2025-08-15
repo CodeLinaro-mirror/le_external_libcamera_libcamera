@@ -7,8 +7,10 @@
 
 #pragma once
 
+#include <initializer_list>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include <libcamera/base/signal.h>
@@ -20,7 +22,8 @@ class MediaDevice;
 class DeviceMatch
 {
 public:
-	DeviceMatch(const std::string &driver);
+	DeviceMatch(const std::string &driver,
+		    std::initializer_list<std::string_view> entities = {});
 
 	void add(const std::string &entity);
 

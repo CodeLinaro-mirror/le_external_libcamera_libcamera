@@ -66,9 +66,12 @@ LOG_DEFINE_CATEGORY(DeviceEnumerator)
 /**
  * \brief Construct a media device search pattern
  * \param[in] driver The Linux device driver name that created the media device
+ * \param[in] entities The list of media graph entity names to search
  */
-DeviceMatch::DeviceMatch(const std::string &driver)
-	: driver_(driver)
+DeviceMatch::DeviceMatch(const std::string &driver,
+			 std::initializer_list<std::string_view> entities)
+	: driver_(driver),
+	  entities_(entities.begin(), entities.end())
 {
 }
 
