@@ -43,7 +43,7 @@ private:
 	unsigned int bIndex_;
 };
 
-class Agc : public Algorithm, public AgcMeanLuminance
+class Agc : public Algorithm
 {
 public:
 	Agc();
@@ -74,6 +74,7 @@ private:
 				      enum mali_c55_param_block_type type);
 
 	AgcStatistics statistics_;
+	AgcMeanLuminance agc_;
 };
 
 } /* namespace ipa::mali_c55::algorithms */

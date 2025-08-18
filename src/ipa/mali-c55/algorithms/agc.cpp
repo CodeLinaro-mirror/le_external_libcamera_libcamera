@@ -129,13 +129,12 @@ void AgcStatistics::parseStatistics(const mali_c55_stats_buffer *stats)
 }
 
 Agc::Agc()
-	: AgcMeanLuminance()
 {
 }
 
 int Agc::init(IPAContext &context, const YamlObject &tuningData)
 {
-	int ret = parseTuningData(tuningData);
+	int ret = agc_.parseTuningData(tuningData);
 	if (ret)
 		return ret;
 
@@ -145,7 +144,7 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 		static_cast<float>(kMaxDigitalGain),
 		static_cast<float>(kMinDigitalGain)
 	);
-	context.ctrlMap.merge(controls());
+	context.ctrlMap.merge(agc_.controls());
 
 	return 0;
 }
@@ -168,16 +167,16 @@ int Agc::configure(IPAContext &context,
 	context.activeState.agc.manual.sensorGain = context.configuration.agc.minAnalogueGain;
 	context.activeState.agc.manual.exposure = context.configuration.agc.defaultExposure;
 	context.activeState.agc.manual.ispGain = kMinDigitalGain;
-	context.activeState.agc.constraintMode = constraintModes().begin()->first;
-	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
+	context.activeState.agc.constraintMode = agc_.constraintModes().begin()->first;
+	context.activeState.agc.exposureMode = agc_.exposureModeHelpers().begin()->first;
 
 	/* \todo Run this again when FrameDurationLimits is passed in */
-	setLimits(context.configuration.agc.minShutterSpeed,
+	agc_.setLimits(context.configuration.agc.minShutterSpeed,
 		  context.configuration.agc.maxShutterSpeed,
 		  context.configuration.agc.minAnalogueGain,
 		  context.configuration.agc.maxAnalogueGain);
 
-	resetFrameCount();
+	agc_.resetFrameCount();
 
 	return 0;
 }
@@ -385,10 +384,10 @@ void Agc::process(IPAContext &context,
 	utils::Duration shutterTime;
 	double aGain, dGain;
 	std::tie(shutterTime, aGain, dGain) =
-		calculateNewEv(std::bind(&Agc::estimateLuminance, this, _1),
-			       activeState.agc.constraintMode,
-			       activeState.agc.exposureMode, statistics_.yHist,
-			       effectiveExposureValue);
+		agc_.calculateNewEv(std::bind(&Agc::estimateLuminance, this, _1),
+				    activeState.agc.constraintMode,
+				    activeState.agc.exposureMode, statistics_.yHist,
+				    effectiveExposureValue);
 
 	dGain = std::clamp(dGain, kMinDigitalGain, kMaxDigitalGain);
 
