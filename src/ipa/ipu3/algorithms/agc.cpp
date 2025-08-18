@@ -77,11 +77,11 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 {
 	int ret;
 
-	ret = parseTuningData(tuningData);
+	ret = agc_.parseTuningData(tuningData);
 	if (ret)
 		return ret;
 
-	context.ctrlMap.merge(controls());
+	context.ctrlMap.merge(agc_.controls());
 
 	return 0;
 }
@@ -113,13 +113,13 @@ int Agc::configure(IPAContext &context,
 	activeState.agc.gain = minAnalogueGain_;
 	activeState.agc.exposure = 10ms / configuration.sensor.lineDuration;
 
-	context.activeState.agc.constraintMode = constraintModes().begin()->first;
-	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
+	context.activeState.agc.constraintMode = agc_.constraintModes().begin()->first;
+	context.activeState.agc.exposureMode = agc_.exposureModeHelpers().begin()->first;
 
 	/* \todo Run this again when FrameDurationLimits is passed in */
-	setLimits(minExposureTime_, maxExposureTime_, minAnalogueGain_,
-		  maxAnalogueGain_);
-	resetFrameCount();
+	agc_.setLimits(minExposureTime_, maxExposureTime_, minAnalogueGain_,
+		       maxAnalogueGain_);
+	agc_.resetFrameCount();
 
 	return 0;
 }
@@ -225,10 +225,10 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	utils::Duration newExposureTime;
 	double aGain, dGain;
 	std::tie(newExposureTime, aGain, dGain) =
-		calculateNewEv(std::bind(&Agc::estimateLuminance, this, _1),
-			       context.activeState.agc.constraintMode,
-			       context.activeState.agc.exposureMode, hist,
-			       effectiveExposureValue);
+		agc_.calculateNewEv(std::bind(&Agc::estimateLuminance, this, _1),
+				    context.activeState.agc.constraintMode,
+				    context.activeState.agc.exposureMode, hist,
+				    effectiveExposureValue);
 
 	LOG(IPU3Agc, Debug)
 		<< "Divided up exposure time, analogue gain and digital gain are "
