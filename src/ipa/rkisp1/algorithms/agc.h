@@ -22,7 +22,7 @@ namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
 
-class Agc : public Algorithm, public AgcMeanLuminance
+class Agc : public Algorithm
 {
 public:
 	Agc();
@@ -55,6 +55,7 @@ private:
 				  IPAFrameContext &frameContext,
 				  utils::Duration frameDuration);
 
+	AgcMeanLuminance agc_;
 
 	std::map<int32_t, std::vector<uint8_t>> meteringModes_;
 };

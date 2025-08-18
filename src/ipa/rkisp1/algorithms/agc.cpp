@@ -138,7 +138,7 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 {
 	int ret;
 
-	ret = parseTuningData(tuningData);
+	ret = agc_.parseTuningData(tuningData);
 	if (ret)
 		return ret;
 
@@ -158,7 +158,7 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	/* \todo Move this to the Camera class */
 	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true, true);
 	context.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
-	context.ctrlMap.merge(controls());
+	context.ctrlMap.merge(agc_.controls());
 
 	return 0;
 }
@@ -183,9 +183,9 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.activeState.agc.exposureValue = 0.0;
 
 	context.activeState.agc.constraintMode =
-		static_cast<controls::AeConstraintModeEnum>(constraintModes().begin()->first);
+		static_cast<controls::AeConstraintModeEnum>(agc_.constraintModes().begin()->first);
 	context.activeState.agc.exposureMode =
-		static_cast<controls::AeExposureModeEnum>(exposureModeHelpers().begin()->first);
+		static_cast<controls::AeExposureModeEnum>(agc_.exposureModeHelpers().begin()->first);
 	context.activeState.agc.meteringMode =
 		static_cast<controls::AeMeteringModeEnum>(meteringModes_.begin()->first);
 
@@ -199,12 +199,12 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.configuration.agc.measureWindow.h_size = configInfo.outputSize.width;
 	context.configuration.agc.measureWindow.v_size = configInfo.outputSize.height;
 
-	setLimits(context.configuration.sensor.minExposureTime,
+	agc_.setLimits(context.configuration.sensor.minExposureTime,
 		  context.configuration.sensor.maxExposureTime,
 		  context.configuration.sensor.minAnalogueGain,
 		  context.configuration.sensor.maxAnalogueGain);
 
-	resetFrameCount();
+	agc_.resetFrameCount();
 
 	return 0;
 }
@@ -553,7 +553,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		maxAnalogueGain = frameContext.agc.gain;
 	}
 
-	setLimits(minExposureTime, maxExposureTime, minAnalogueGain, maxAnalogueGain);
+	agc_.setLimits(minExposureTime, maxExposureTime, minAnalogueGain, maxAnalogueGain);
 
 	/*
 	 * The Agc algorithm needs to know the effective exposure value that was
@@ -563,7 +563,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	double analogueGain = frameContext.sensor.gain;
 	utils::Duration effectiveExposureValue = exposureTime * analogueGain;
 
-	setExposureCompensation(pow(2.0, frameContext.agc.exposureValue));
+	agc_.setExposureCompensation(pow(2.0, frameContext.agc.exposureValue));
 
 	AgcMeanLuminance::EstimateLuminanceFn estimateLuminanceFn = std::bind(
 		&Agc::estimateLuminance, this,
@@ -574,10 +574,10 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	utils::Duration newExposureTime;
 	double aGain, dGain;
 	std::tie(newExposureTime, aGain, dGain) =
-		calculateNewEv(estimateLuminanceFn,
-			       frameContext.agc.constraintMode,
-			       frameContext.agc.exposureMode,
-			       hist, effectiveExposureValue);
+		agc_.calculateNewEv(estimateLuminanceFn,
+				    frameContext.agc.constraintMode,
+				    frameContext.agc.exposureMode,
+				    hist, effectiveExposureValue);
 
 	LOG(RkISP1Agc, Debug)
 		<< "Divided up exposure time, analogue gain and digital gain are "
