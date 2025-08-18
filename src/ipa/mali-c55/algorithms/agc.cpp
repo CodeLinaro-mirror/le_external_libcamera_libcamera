@@ -8,6 +8,7 @@
 #include "agc.h"
 
 #include <cmath>
+#include <functional>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
@@ -21,6 +22,7 @@
 namespace libcamera {
 
 using namespace std::literals::chrono_literals;
+using namespace std::placeholders;
 
 namespace ipa::mali_c55::algorithms {
 
@@ -383,7 +385,8 @@ void Agc::process(IPAContext &context,
 	utils::Duration shutterTime;
 	double aGain, dGain;
 	std::tie(shutterTime, aGain, dGain) =
-		calculateNewEv(activeState.agc.constraintMode,
+		calculateNewEv(std::bind(&Agc::estimateLuminance, this, _1),
+			       activeState.agc.constraintMode,
 			       activeState.agc.exposureMode, statistics_.yHist,
 			       effectiveExposureValue);
 

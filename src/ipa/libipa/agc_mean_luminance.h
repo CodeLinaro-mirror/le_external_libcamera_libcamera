@@ -31,6 +31,8 @@ public:
 	AgcMeanLuminance();
 	virtual ~AgcMeanLuminance();
 
+	using EstimateLuminanceFn = std::function<double(double)>;
+
 	struct AgcConstraint {
 		enum class Bound {
 			Lower = 0,
@@ -68,7 +70,8 @@ public:
 	}
 
 	std::tuple<utils::Duration, double, double>
-	calculateNewEv(uint32_t constraintModeIndex, uint32_t exposureModeIndex,
+	calculateNewEv(EstimateLuminanceFn estimateLuminance,
+		       uint32_t constraintModeIndex, uint32_t exposureModeIndex,
 		       const Histogram &yHist, utils::Duration effectiveExposureValue);
 
 	void resetFrameCount()
@@ -77,13 +80,11 @@ public:
 	}
 
 private:
-	virtual double estimateLuminance(const double gain) const = 0;
-
 	void parseRelativeLuminanceTarget(const YamlObject &tuningData);
 	void parseConstraint(const YamlObject &modeDict, int32_t id);
 	int parseConstraintModes(const YamlObject &tuningData);
 	int parseExposureModes(const YamlObject &tuningData);
-	double estimateInitialGain() const;
+	double estimateInitialGain(EstimateLuminanceFn estimateLuminance) const;
 	double constraintClampGain(uint32_t constraintModeIndex,
 				   const Histogram &hist,
 				   double gain);

@@ -43,19 +43,18 @@ public:
 		     ControlList &metadata) override;
 
 private:
+	double estimateLuminance(Span<const uint8_t> expMeans,
+				 Span<const uint8_t> weights, double gain);
 	int parseMeteringModes(IPAContext &context, const YamlObject &tuningData);
 	uint8_t computeHistogramPredivider(const Size &size,
 					   enum rkisp1_cif_isp_histogram_mode mode);
 
 	void fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 			  ControlList &metadata);
-	double estimateLuminance(double gain) const override;
 	void processFrameDuration(IPAContext &context,
 				  IPAFrameContext &frameContext,
 				  utils::Duration frameDuration);
 
-	Span<const uint8_t> expMeans_;
-	Span<const uint8_t> weights_;
 
 	std::map<int32_t, std::vector<uint8_t>> meteringModes_;
 };

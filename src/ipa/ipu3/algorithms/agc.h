@@ -38,7 +38,7 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	double estimateLuminance(double gain) const override;
+	double estimateLuminance(double gain) const;
 	Histogram parseStatistics(const ipu3_uapi_stats_3a *stats,
 				  const ipu3_uapi_grid_config &grid);
 

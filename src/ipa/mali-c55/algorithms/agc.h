@@ -64,7 +64,7 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	double estimateLuminance(const double gain) const override;
+	double estimateLuminance(const double gain) const;
 	size_t fillGainParamBlock(IPAContext &context,
 				  IPAFrameContext &frameContext,
 				  mali_c55_params_block block);

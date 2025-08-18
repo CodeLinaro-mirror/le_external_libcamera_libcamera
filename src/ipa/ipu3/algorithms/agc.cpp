@@ -27,6 +27,7 @@
 namespace libcamera {
 
 using namespace std::literals::chrono_literals;
+using namespace std::placeholders;
 
 namespace ipa::ipu3::algorithms {
 
@@ -224,7 +225,8 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	utils::Duration newExposureTime;
 	double aGain, dGain;
 	std::tie(newExposureTime, aGain, dGain) =
-		calculateNewEv(context.activeState.agc.constraintMode,
+		calculateNewEv(std::bind(&Agc::estimateLuminance, this, _1),
+			       context.activeState.agc.constraintMode,
 			       context.activeState.agc.exposureMode, hist,
 			       effectiveExposureValue);
 

@@ -440,16 +440,17 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
  *
  * \return The relative luminance
  */
-double Agc::estimateLuminance(double gain) const
+double Agc::estimateLuminance(Span<const uint8_t> expMeans,
+			      Span<const uint8_t> weights, double gain)
 {
-	ASSERT(expMeans_.size() == weights_.size());
+	ASSERT(expMeans.size() == weights.size());
 	double ySum = 0.0;
 	double wSum = 0.0;
 
 	/* Sum the averages, saturated to 255. */
-	for (unsigned i = 0; i < expMeans_.size(); i++) {
-		double w = weights_[i];
-		ySum += std::min(expMeans_[i] * gain, 255.0) * w;
+	for (unsigned i = 0; i < expMeans.size(); i++) {
+		double w = weights[i];
+		ySum += std::min(expMeans[i] * gain, 255.0) * w;
 		wSum += w;
 	}
 
@@ -522,9 +523,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	/* The lower 4 bits are fractional and meant to be discarded. */
 	Histogram hist({ params->hist.hist_bins, context.hw->numHistogramBins },
 		       [](uint32_t x) { return x >> 4; });
-	expMeans_ = { params->ae.exp_mean, context.hw->numAeCells };
 	std::vector<uint8_t> &modeWeights = meteringModes_.at(frameContext.agc.meteringMode);
-	weights_ = { modeWeights.data(), modeWeights.size() };
 
 	/*
 	 * Set the AGC limits using the fixed exposure time and/or gain in
@@ -566,10 +565,17 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 
 	setExposureCompensation(pow(2.0, frameContext.agc.exposureValue));
 
+	AgcMeanLuminance::EstimateLuminanceFn estimateLuminanceFn = std::bind(
+		&Agc::estimateLuminance, this,
+		Span<const uint8_t>(params->ae.exp_mean, context.hw->numAeCells),
+		Span<const uint8_t>(modeWeights.data(), modeWeights.size()),
+		std::placeholders::_1);
+
 	utils::Duration newExposureTime;
 	double aGain, dGain;
 	std::tie(newExposureTime, aGain, dGain) =
-		calculateNewEv(frameContext.agc.constraintMode,
+		calculateNewEv(estimateLuminanceFn,
+			       frameContext.agc.constraintMode,
 			       frameContext.agc.exposureMode,
 			       hist, effectiveExposureValue);
 
@@ -590,7 +596,6 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 			     std::max(frameContext.agc.minFrameDuration, newExposureTime));
 
 	fillMetadata(context, frameContext, metadata);
-	expMeans_ = {};
 }
 
 REGISTER_IPA_ALGORITHM(Agc, "Agc")

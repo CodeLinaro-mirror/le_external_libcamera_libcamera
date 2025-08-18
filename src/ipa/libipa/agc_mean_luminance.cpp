@@ -18,7 +18,7 @@ using namespace libcamera::controls;
 
 /**
  * \file agc_mean_luminance.h
- * \brief Base class implementing mean luminance AEGC
+ * \brief Class implementing mean luminance AEGC
  */
 
 namespace libcamera {
@@ -52,6 +52,21 @@ static constexpr double kDefaultRelativeLuminanceTarget = 0.16;
  * and the inability to regulate properly.
  */
 static constexpr double kMaxRelativeLuminanceTarget = 0.95;
+
+/**
+ * \fn AgcMeanLuminance::EstimateLuminanceFn
+ * \brief Function to estimate the mean luminance given a gain
+ * \param[in] gain The gain with which to adjust the luminance estimate
+ *
+ * Callback functions of this type are used within \a calculateNewEv to estimate
+ * the average relative luminance of the frame that would be output by the
+ * sensor if an additional \a gain was applied. It is a is implemented as
+ * callback function because estimation of luminance is a hardware-specific
+ * operation, which depends wholly on the format of the stats that are delivered
+ * to libcamera from the ISP.
+ *
+ * \return The normalised relative luminance of the image
+ */
 
 /**
  * \struct AgcMeanLuminance::AgcConstraint
@@ -133,13 +148,11 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  *    will determine the supportable precision of the constraints.
  *
  * IPA modules that want to use this class to implement their AEGC algorithm
- * should derive it and provide an overriding estimateLuminance() function for
- * this class to use. They must call parseTuningData() in init(), and must also
- * call setLimits() and resetFrameCounter() in configure(). They may then use
- * calculateNewEv() in process(). If the limits passed to setLimits() change for
- * any reason (for example, in response to a FrameDurationLimit control being
- * passed in queueRequest()) then setLimits() must be called again with the new
- * values.
+ * must call parseTuningData() in init(), and must also call setLimits() and
+ * resetFrameCounter() in configure(). They may then use calculateNewEv() in
+ * process(). If the limits passed to setLimits() change for any reason (for
+ * example, in response to a FrameDurationLimit control being passed in
+ * queueRequest()) then setLimits() must be called again with the new values.
  */
 
 AgcMeanLuminance::AgcMeanLuminance()
@@ -421,27 +434,11 @@ void AgcMeanLuminance::setLimits(utils::Duration minExposureTime,
  */
 
 /**
- * \fn AgcMeanLuminance::estimateLuminance(const double gain)
- * \brief Estimate the luminance of an image, adjusted by a given gain
- * \param[in] gain The gain with which to adjust the luminance estimate
- *
- * This function estimates the average relative luminance of the frame that
- * would be output by the sensor if an additional \a gain was applied. It is a
- * pure virtual function because estimation of luminance is a hardware-specific
- * operation, which depends wholly on the format of the stats that are delivered
- * to libcamera from the ISP. Derived classes must override this function with
- * one that calculates the normalised mean luminance value across the entire
- * image.
- *
- * \return The normalised relative luminance of the image
- */
-
-/**
  * \brief Estimate the initial gain needed to achieve a relative luminance
  * target
  * \return The calculated initial gain
  */
-double AgcMeanLuminance::estimateInitialGain() const
+double AgcMeanLuminance::estimateInitialGain(EstimateLuminanceFn estimateLuminance) const
 {
 	double yTarget = std::min(relativeLuminanceTarget_ * exposureCompensation_,
 				  kMaxRelativeLuminanceTarget);
@@ -542,6 +539,7 @@ utils::Duration AgcMeanLuminance::filterExposure(utils::Duration exposureValue)
 /**
  * \brief Calculate the new exposure value and splut it between exposure time
  * and gain
+ * \param[in] estimateLuminance A function to get luminance estimates
  * \param[in] constraintModeIndex The index of the current constraint mode
  * \param[in] exposureModeIndex The index of the current exposure mode
  * \param[in] yHist A Histogram from the ISP statistics to use in constraining
@@ -553,10 +551,15 @@ utils::Duration AgcMeanLuminance::filterExposure(utils::Duration exposureValue)
  * exposure value is filtered to prevent rapid changes from frame to frame, and
  * divided into exposure time, analogue and digital gain.
  *
+ * The \a estimateLuminance shall estimate the average relative luminance of the
+ * frame that would be output by the sensor if an additional \a gain was
+ * applied.
+ *
  * \return Tuple of exposure time, analogue gain, and digital gain
  */
 std::tuple<utils::Duration, double, double>
-AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
+AgcMeanLuminance::calculateNewEv(EstimateLuminanceFn estimateLuminance,
+				 uint32_t constraintModeIndex,
 				 uint32_t exposureModeIndex,
 				 const Histogram &yHist,
 				 utils::Duration effectiveExposureValue)
@@ -580,7 +583,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 		return exposureModeHelper->splitExposure(10ms);
 	}
 
-	double gain = estimateInitialGain();
+	double gain = estimateInitialGain(estimateLuminance);
 	gain = constraintClampGain(constraintModeIndex, yHist, gain);
 
 	/*
