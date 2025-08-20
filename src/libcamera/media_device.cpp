@@ -257,12 +257,13 @@ int MediaDevice::populate()
 	}
 
 	/* Populate entities, pads and links. */
-	if (populateEntities(topology) &&
-	    populatePads(topology) &&
-	    populateLinks(topology))
-		valid_ = true;
+	if (!(ret = populateEntities(topology))) {
+		if (populatePads(topology) && populateLinks(topology))
+			valid_ = true;
+		else
+			ret = -EINVAL;
+	}
 
-	ret = 0;
 done:
 	close();
 
@@ -271,10 +272,8 @@ done:
 	delete[] pads;
 	delete[] links;
 
-	if (!valid_) {
+	if (!valid_)
 		clear();
-		return -EINVAL;
-	}
 
 	return ret;
 }
@@ -618,7 +617,7 @@ struct media_v2_interface *MediaDevice::findInterface(const struct media_v2_topo
  * For each entity in the media graph create a MediaEntity and store a
  * reference in the media device objects map and entities list.
  */
-bool MediaDevice::populateEntities(const struct media_v2_topology &topology)
+int MediaDevice::populateEntities(const struct media_v2_topology &topology)
 {
 	struct media_v2_entity *mediaEntities = reinterpret_cast<struct media_v2_entity *>
 						(topology.ptr_entities);
@@ -639,17 +638,23 @@ bool MediaDevice::populateEntities(const struct media_v2_topology &topology)
 		 */
 		struct media_v2_interface *iface =
 			findInterface(topology, ent->id);
+		if (!iface) {
+			LOG(MediaDevice, Debug)
+				<< "Entity " << ent->name << " has no interface yet";
+			return -EAGAIN;
+		}
+
 		MediaEntity *entity = new MediaEntity(this, ent, iface);
 
 		if (!addObject(entity)) {
 			delete entity;
-			return false;
+			return -EINVAL;
 		}
 
 		entities_.push_back(entity);
 	}
 
-	return true;
+	return 0;
 }
 
 bool MediaDevice::populatePads(const struct media_v2_topology &topology)

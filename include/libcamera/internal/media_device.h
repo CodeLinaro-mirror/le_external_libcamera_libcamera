@@ -70,7 +70,7 @@ private:
 
 	struct media_v2_interface *findInterface(const struct media_v2_topology &topology,
 						 unsigned int entityId);
-	bool populateEntities(const struct media_v2_topology &topology);
+	int populateEntities(const struct media_v2_topology &topology);
 	bool populatePads(const struct media_v2_topology &topology);
 	bool populateLinks(const struct media_v2_topology &topology);
 	void fixupEntityFlags(struct media_v2_entity *entity);
