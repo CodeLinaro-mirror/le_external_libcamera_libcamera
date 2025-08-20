@@ -56,6 +56,7 @@ private:
 
 	int addUdevDevice(struct udev_device *dev);
 	int populateMediaDevice(MediaDevice *media, DependencyMap *deps);
+	int initMediaDevice(std::unique_ptr<MediaDevice> media);
 	std::string lookupDeviceNode(dev_t devnum);
 
 	int addV4L2Device(dev_t devnum);

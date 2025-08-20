@@ -82,32 +82,7 @@ int DeviceEnumeratorUdev::addUdevDevice(struct udev_device *dev)
 		if (!media)
 			return -ENODEV;
 
-		DependencyMap deps;
-		int ret = populateMediaDevice(media.get(), &deps);
-		if (ret < 0) {
-			LOG(DeviceEnumerator, Warning)
-				<< "Failed to populate media device "
-				<< media->deviceNode()
-				<< " (" << media->driver() << "), skipping";
-			return ret;
-		}
-
-		if (!deps.empty()) {
-			LOG(DeviceEnumerator, Debug)
-				<< "Defer media device " << media->deviceNode()
-				<< " due to " << deps.size()
-				<< " missing dependencies";
-
-			pending_.emplace_back(std::move(media), std::move(deps));
-			MediaDeviceDeps *mediaDeps = &pending_.back();
-			for (const auto &dep : mediaDeps->deps_)
-				devMap_[dep.first] = mediaDeps;
-
-			return 0;
-		}
-
-		addDevice(std::move(media));
-		return 0;
+		return initMediaDevice(std::move(media));
 	}
 
 	if (!strcmp(subsystem, "video4linux")) {
@@ -191,6 +166,37 @@ done:
 	notifier_ = new EventNotifier(fd, EventNotifier::Read);
 	notifier_->activated.connect(this, &DeviceEnumeratorUdev::udevNotify);
 
+	return 0;
+}
+
+int DeviceEnumeratorUdev::initMediaDevice(std::unique_ptr<MediaDevice> media)
+{
+	DependencyMap deps;
+
+	int ret = populateMediaDevice(media.get(), &deps);
+	if (ret < 0) {
+		LOG(DeviceEnumerator, Warning)
+			<< "Failed to populate media device "
+			<< media->deviceNode()
+			<< " (" << media->driver() << "), skipping";
+		return ret;
+	}
+
+	if (!deps.empty()) {
+		LOG(DeviceEnumerator, Debug)
+			<< "Defer media device " << media->deviceNode()
+			<< " due to " << deps.size()
+			<< " missing dependencies";
+
+		pending_.emplace_back(std::move(media), std::move(deps));
+		MediaDeviceDeps *mediaDeps = &pending_.back();
+		for (const auto &dep : mediaDeps->deps_)
+			devMap_[dep.first] = mediaDeps;
+
+		return 0;
+	}
+
+	addDevice(std::move(media));
 	return 0;
 }
 
