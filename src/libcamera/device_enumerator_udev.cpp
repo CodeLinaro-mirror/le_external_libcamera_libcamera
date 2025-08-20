@@ -82,6 +82,14 @@ int DeviceEnumeratorUdev::addUdevDevice(struct udev_device *dev)
 		if (!media)
 			return -ENODEV;
 
+		if (!media->isValid()) {
+			LOG(DeviceEnumerator, Debug)
+				<< "Defer media device " << media->deviceNode()
+				<< " due to an invalid topology";
+			topologyPending_.emplace_back(std::move(media));
+			return 0;
+		}
+
 		return initMediaDevice(std::move(media));
 	}
 
@@ -353,6 +361,35 @@ void DeviceEnumeratorUdev::udevNotify()
 		<< action << " device " << deviceNode;
 
 	if (action == "add") {
+		/*
+		* The addition of a new device may signal that a previously
+		* deferred media device has had its topology updated to the
+		* extent that it's now valid - retry devices deferred due to
+		* invalid topology to see if they're now ready.
+		*/
+
+		LOG(DeviceEnumerator, Debug)
+			<< "Re-evaluating " << topologyPending_.size()
+			<< " deferred media devices";
+
+		for (auto media = topologyPending_.begin();
+		     media != topologyPending_.end(); ++media) {
+			LOG(DeviceEnumerator, Debug)
+				<< "Evaluating media device " << (*media)->deviceNode()
+				<< " again...";
+
+			int ret = (*media)->populate();
+			if (ret == -EAGAIN) {
+				LOG(DeviceEnumerator, Debug)
+					<< "Media device " << (*media)->deviceNode()
+					<< " still has invalid topology";
+				continue;
+			}
+
+			initMediaDevice(std::move(*media));
+			topologyPending_.erase(media);
+		}
+
 		addUdevDevice(dev);
 	} else if (action == "remove") {
 		const char *subsystem = udev_device_get_subsystem(dev);

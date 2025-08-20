@@ -13,6 +13,7 @@
 #include <set>
 #include <string>
 #include <sys/types.h>
+#include <vector>
 
 #include "libcamera/internal/device_enumerator.h"
 
@@ -67,6 +68,7 @@ private:
 	EventNotifier *notifier_;
 
 	std::set<dev_t> orphans_;
+	std::vector<std::unique_ptr<MediaDevice>> topologyPending_;
 	std::list<MediaDeviceDeps> pending_;
 	std::map<dev_t, MediaDeviceDeps *> devMap_;
 };

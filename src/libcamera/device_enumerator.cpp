@@ -220,7 +220,7 @@ std::unique_ptr<MediaDevice> DeviceEnumerator::createDevice(const std::string &d
 	std::unique_ptr<MediaDevice> media = std::make_unique<MediaDevice>(deviceNode);
 
 	int ret = media->populate();
-	if (ret < 0) {
+	if (ret < 0 && ret != -EAGAIN) {
 		LOG(DeviceEnumerator, Info)
 			<< "Unable to populate media device " << deviceNode
 			<< " (" << strerror(-ret) << "), skipping";
