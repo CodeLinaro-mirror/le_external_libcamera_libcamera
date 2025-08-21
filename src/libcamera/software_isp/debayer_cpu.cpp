@@ -539,7 +539,17 @@ int DebayerCpu::configure(const StreamConfiguration &inputCfg,
 	window_.y = ((inputCfg.size.height - outputCfg.size.height) / 2) &
 		    ~(inputConfig_.patternSize.height - 1);
 	window_.width = outputCfg.size.width;
+	if (window_.width % inputConfig_.patternSize.width != 0) {
+		LOG(Debayer, Error)
+			<< "Output width is not a multiple of the bayer pattern width";
+		return -EINVAL;
+	}
 	window_.height = outputCfg.size.height;
+	if (window_.height % inputConfig_.patternSize.height != 0) {
+		LOG(Debayer, Error)
+			<< "Output height is not a multiple of the bayer pattern height";
+		return -EINVAL;
+	}
 
 	/*
 	 * Set the stats window to the whole processed window. Its coordinates are
