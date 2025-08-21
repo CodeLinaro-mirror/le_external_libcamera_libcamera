@@ -416,6 +416,22 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 /**
  * \brief Specify window coordinates over which to gather statistics
  * \param[in] window The window object.
+ *
+ * This method specifies the image area over which to gather the statistics.
+ * It must be called to set the area, otherwise the default zero-sized
+ * \a Rectangle is used and no statistics is gathered.
+ *
+ * The specified \a window is relative to what is passed to processLine*
+ * methods. Typically, this means processLine* methods get only data from the
+ * processed area and \a window is \a Rectangle with (0, 0) top-left point and
+ * of the same size as the processed area. But if statistics is gathered only
+ * from some part of the image, e.g. its centre, \a window should specify such a
+ * restriction accordingly.
+ *
+ * The method may adjust the window slightly if it is not aligned according to
+ * the bayer pattern determined in \a SwStatsCpu::configure(). Such an
+ * adjustment is guaranteed to not exceed the bounds of
+ * Rectangle(0, 0, window.width, window.height).
  */
 void SwStatsCpu::setWindow(const Rectangle &window)
 {
