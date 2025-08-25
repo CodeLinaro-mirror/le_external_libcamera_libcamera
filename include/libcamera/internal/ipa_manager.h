@@ -59,10 +59,6 @@ public:
 #endif
 
 private:
-	void parseDir(const char *libDir, unsigned int maxDepth,
-		      std::vector<std::string> &files);
-	unsigned int addDir(const char *libDir, unsigned int maxDepth = 0);
-
 	IPAModule *module(PipelineHandler *pipe, uint32_t minVersion,
 			  uint32_t maxVersion);
 
