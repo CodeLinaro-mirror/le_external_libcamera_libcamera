@@ -18,6 +18,7 @@
 #include <libcamera/base/thread.h>
 #include <libcamera/base/thread_annotations.h>
 
+#include "libcamera/internal/layer_manager.h"
 #include "libcamera/internal/process.h"
 
 namespace libcamera {
@@ -39,6 +40,7 @@ public:
 	void removeCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 
 	IPAManager *ipaManager() const { return ipaManager_.get(); }
+	const LayerManager *layerManager() const { return &layerManager_; }
 
 protected:
 	void run() override;
@@ -65,6 +67,7 @@ private:
 	std::unique_ptr<DeviceEnumerator> enumerator_;
 
 	std::unique_ptr<IPAManager> ipaManager_;
+	LayerManager layerManager_;
 };
 
 } /* namespace libcamera */
