@@ -218,7 +218,9 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	 */
 	if (frameContext.awb.autoEnabled) {
 		const auto &awb = context.activeState.awb;
-		frameContext.awb.gains = awb.automatic.gains;
+		const auto &agc = context.activeState.agc;
+
+		frameContext.awb.gains = awb.automatic.gains * agc.automatic.ispGain;
 		frameContext.awb.temperatureK = awb.automatic.temperatureK;
 	}
 

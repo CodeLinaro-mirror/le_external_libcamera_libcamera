@@ -174,9 +174,11 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 {
 	/* Configure the default exposure and gain. */
 	context.activeState.agc.automatic.gain = context.configuration.sensor.minAnalogueGain;
+	context.activeState.agc.automatic.ispGain = 1.0;
 	context.activeState.agc.automatic.exposure =
 		10ms / context.configuration.sensor.lineDuration;
 	context.activeState.agc.manual.gain = context.activeState.agc.automatic.gain;
+	context.activeState.agc.manual.ispGain = 1.0;
 	context.activeState.agc.manual.exposure = context.activeState.agc.automatic.exposure;
 	context.activeState.agc.autoExposureEnabled = !context.configuration.raw;
 	context.activeState.agc.autoGainEnabled = !context.configuration.raw;
@@ -280,8 +282,10 @@ void Agc::queueRequest(IPAContext &context,
 
 	if (!frameContext.agc.autoExposureEnabled)
 		frameContext.agc.exposure = agc.manual.exposure;
-	if (!frameContext.agc.autoGainEnabled)
+	if (!frameContext.agc.autoGainEnabled) {
 		frameContext.agc.gain = agc.manual.gain;
+		frameContext.agc.ispGain = agc.manual.ispGain;
+	}
 
 	const auto &meteringMode = controls.get(controls::AeMeteringMode);
 	if (meteringMode) {
@@ -336,12 +340,15 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 {
 	uint32_t activeAutoExposure = context.activeState.agc.automatic.exposure;
 	double activeAutoGain = context.activeState.agc.automatic.gain;
+	double activeAutoIspGain = context.activeState.agc.automatic.ispGain;
 
 	/* Populate exposure and gain in auto mode */
 	if (frameContext.agc.autoExposureEnabled)
 		frameContext.agc.exposure = activeAutoExposure;
-	if (frameContext.agc.autoGainEnabled)
+	if (frameContext.agc.autoGainEnabled) {
 		frameContext.agc.gain = activeAutoGain;
+		frameContext.agc.ispGain = activeAutoIspGain;
+	}
 
 	/*
 	 * Populate manual exposure and gain from the active auto values when
@@ -581,6 +588,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	/* Update the estimated exposure and gain. */
 	activeState.agc.automatic.exposure = newExposureTime / lineDuration;
 	activeState.agc.automatic.gain = aGain;
+	activeState.agc.automatic.ispGain = dGain;
 
 	/*
 	 * Expand the target frame duration so that we do not run faster than
