@@ -34,15 +34,9 @@ def extend_control(ctrl, mode):
     if not ctrl.is_enum:
         return ctrl
 
-    if mode == 'controls':
-        # Adjustments for controls
-        if ctrl.name == 'LensShadingMapMode':
-            prefix = 'LensShadingMapMode'
-        else:
-            prefix = find_common_prefix([e.name for e in ctrl.enum_values])
-    else:
-        # Adjustments for properties
-        prefix = find_common_prefix([e.name for e in ctrl.enum_values])
+    prefix = find_common_prefix([e.name for e in ctrl.enum_values])
+    if prefix.startswith(ctrl.name):
+        prefix = ctrl.name
 
     for enum in ctrl.enum_values:
         enum.py_name = enum.name[len(prefix):]
