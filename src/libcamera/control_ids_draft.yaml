@@ -294,4 +294,73 @@ controls:
         Currently identical to ANDROID_STATISTICS_FACE_IDS.
       size: [n]
 
+  - FlashMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash mode.
+      enum:
+        - name: FlashModeNone
+          value: 0
+          description: |
+            None.
+        - name: FlashModeFlash
+          value: 1
+          description: |
+            Flash.
+        - name: FlashModeTorch
+          value: 2
+          description: |
+            Torch.
+
+  - FlashIntensity:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash intensity in mA.
+
+  - FlashTimeout:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash timeout in us.
+
+  - FlashStrobeSource:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash mode.
+      enum:
+        - name: FlashStrobeSourceSoftware
+          value: 0
+          description: |
+            Software.
+        - name: FlashStrobeSourceExternal
+          value: 1
+          description: |
+            External.
+
+  - FlashStrobe:
+      type: int32_t
+      direction: in
+      description: |
+        Start/stop flash strobe.
+
+      enum:
+        - name: FlashStrobeStart
+          value: 0
+          description: |
+            Start flash strobe.
+
+        - name: FlashStrobeStop
+          value: 1
+          description: |
+            Stop flash strobe.
+
+  - FlashTorchIntensity:
+      type: int32_t
+      direction: inout
+      description: |
+        Torch intensity in mA.
+
 ...
