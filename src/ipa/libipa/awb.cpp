@@ -147,10 +147,10 @@ namespace ipa {
  * algorithms:
  *   - Awb:
  *     AwbMode:
- *       AwbAuto:
+ *       Auto:
  *         lo: 2500
  *         hi: 8000
- *       AwbIncandescent:
+ *       Incandescent:
  *         lo: 2500
  *         hi: 3000
  *       ...

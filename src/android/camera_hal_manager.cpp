@@ -125,7 +125,7 @@ void CameraHalManager::cameraAdded(std::shared_ptr<Camera> cam)
 		 * Now check if this is an external camera and assign
 		 * its id accordingly.
 		 */
-		if (cameraLocation(cam.get()) == properties::CameraLocationExternal) {
+		if (cameraLocation(cam.get()) == properties::LocationExternal) {
 			isCameraExternal = true;
 			id = nextExternalCameraId_;
 		} else {

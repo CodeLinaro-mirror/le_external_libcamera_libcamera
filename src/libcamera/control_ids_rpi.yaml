@@ -94,16 +94,16 @@ controls:
         \sa SyncFrames
 
       enum:
-        - name: SyncModeOff
+        - name: "Off"
           value: 0
           description: Disable sync mode.
-        - name: SyncModeServer
+        - name: Server
           value: 1
           description: |
             Enable sync mode, act as server. The server broadcasts timing
             messages to any clients that are listening, so that the clients can
             synchronise their camera frames with the server's.
-        - name: SyncModeClient
+        - name: Client
           value: 2
           description: |
             Enable sync mode, act as client. A client listens for any server
