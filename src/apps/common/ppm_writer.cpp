@@ -10,6 +10,7 @@
 #include <errno.h>
 #include <fstream>
 #include <iostream>
+#include <vector>
 
 #include <libcamera/formats.h>
 #include <libcamera/pixel_format.h>
@@ -20,9 +21,11 @@ int PPMWriter::write(const char *filename,
 		     const StreamConfiguration &config,
 		     const Span<uint8_t> &data)
 {
-	if (config.pixelFormat != formats::BGR888) {
-		std::cerr << "Only BGR888 output pixel format is supported ("
-			  << config.pixelFormat << " requested)" << std::endl;
+	if (config.pixelFormat != formats::BGR888 &&
+	    config.pixelFormat != formats::XBGR8888) {
+		std::cerr
+			<< "Only BGR888 and XBGR8888 output pixel formats are supported ("
+			<< config.pixelFormat << " requested)" << std::endl;
 		return -EINVAL;
 	}
 
@@ -42,8 +45,18 @@ int PPMWriter::write(const char *filename,
 
 	const unsigned int rowLength = config.size.width * 3;
 	const char *row = reinterpret_cast<const char *>(data.data());
+	const bool transform = config.pixelFormat == formats::XBGR8888;
+	std::vector<char> transformedRow(transform ? rowLength : 0);
+
 	for (unsigned int y = 0; y < config.size.height; y++, row += config.stride) {
-		output.write(row, rowLength);
+		if (transform)
+			for (unsigned int x = 0; x < config.size.width; x++) {
+				transformedRow[x * 3] = row[x * 4];
+				transformedRow[x * 3 + 1] = row[x * 4 + 1];
+				transformedRow[x * 3 + 2] = row[x * 4 + 2];
+			}
+
+		output.write((transform ? transformedRow.data() : row), rowLength);
 		if (!output) {
 			std::cerr << "Failed to write image data at row " << y << std::endl;
 			return -EIO;
