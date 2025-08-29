@@ -7,13 +7,10 @@
 
 #pragma once
 
-#include <map>
-#include <stdint.h>
-
 #include <linux/rkisp1-config.h>
+#include <linux/videodev2.h>
 
-#include <libcamera/base/class.h>
-#include <libcamera/base/span.h>
+#include <libipa/v4l2_params.h>
 
 namespace libcamera {
 
@@ -77,85 +74,72 @@ RKISP1_DEFINE_BLOCK_TYPE(CompandCompress, compand_curve)
 
 } /* namespace details */
 
-class RkISP1Params;
+template<typename T>
+class RkISP1ParamsBlock;
 
-class RkISP1ParamsBlockBase
+class RkISP1Params : public V4L2Params<BlockType>
 {
 public:
-	RkISP1ParamsBlockBase(RkISP1Params *params, BlockType type,
-			      const Span<uint8_t> &data);
+	static constexpr unsigned int kVersion = RKISP1_EXT_PARAM_BUFFER_V1;
 
-	Span<uint8_t> data() const { return data_; }
-
-	void setEnabled(bool enabled);
-
-private:
-	LIBCAMERA_DISABLE_COPY(RkISP1ParamsBlockBase)
-
-	RkISP1Params *params_;
-	BlockType type_;
-	Span<uint8_t> header_;
-	Span<uint8_t> data_;
-};
-
-template<BlockType B>
-class RkISP1ParamsBlock : public RkISP1ParamsBlockBase
-{
-public:
-	using Type = typename details::block_type<B>::type;
-
-	RkISP1ParamsBlock(RkISP1Params *params, const Span<uint8_t> &data)
-		: RkISP1ParamsBlockBase(params, B, data)
+	RkISP1Params(uint32_t format, Span<uint8_t> data)
+		: V4L2Params<BlockType>(data, kVersion), format_(format)
 	{
+		if (format_ == V4L2_META_FMT_RK_ISP1_PARAMS) {
+			memset(data.data(), 0, data.size());
+			used_ = sizeof(struct rkisp1_params_cfg);
+		}
 	}
-
-	const Type *operator->() const
-	{
-		return reinterpret_cast<const Type *>(data().data());
-	}
-
-	Type *operator->()
-	{
-		return reinterpret_cast<Type *>(data().data());
-	}
-
-	const Type &operator*() const &
-	{
-		return *reinterpret_cast<const Type *>(data().data());
-	}
-
-	Type &operator*() &
-	{
-		return *reinterpret_cast<Type *>(data().data());
-	}
-};
-
-class RkISP1Params
-{
-public:
-	RkISP1Params(uint32_t format, Span<uint8_t> data);
 
 	template<BlockType B>
-	RkISP1ParamsBlock<B> block()
+	auto block()
 	{
-		return RkISP1ParamsBlock<B>(this, block(B));
+		using Type = typename details::block_type<B>::type;
+
+		return RkISP1ParamsBlock<Type>(this, B, block(B));
 	}
 
 	uint32_t format() const { return format_; }
-	size_t size() const { return used_; }
-
-private:
-	friend class RkISP1ParamsBlockBase;
-
-	Span<uint8_t> block(BlockType type);
 	void setBlockEnabled(BlockType type, bool enabled);
 
+private:
+	Span<uint8_t> block(BlockType type);
+
 	uint32_t format_;
+};
 
+template<typename T>
+class RkISP1ParamsBlock : public V4L2ParamsBlock<T>
+{
+public:
+	RkISP1ParamsBlock(RkISP1Params *params, BlockType type,
+			  const Span<uint8_t> &data)
+		: V4L2ParamsBlock<T>(data)
+	{
+		params_ = params;
+		type_ = type;
+
+		/* Legacy param format has no header */
+		if (params_->format() == V4L2_META_FMT_RK_ISP1_PARAMS)
+			data_ = data;
+	}
+
+	void setEnabled(bool enabled)
+	{
+		/*
+		 * For the legacy fixed format, blocks are enabled in the
+		 * top-level header. Delegate to the RkISP1Params class.
+		 */
+		if (params_->format() == V4L2_META_FMT_RK_ISP1_PARAMS)
+			return params_->setBlockEnabled(type_, enabled);
+
+		return V4L2ParamsBlock<T>::setEnabled(enabled);
+	}
+
+private:
+	RkISP1Params *params_;
+	BlockType type_;
 	Span<uint8_t> data_;
-	size_t used_;
-
-	std::map<BlockType, Span<uint8_t>> blocks_;
 };
 
 } /* namespace ipa::rkisp1 */

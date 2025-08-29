@@ -1,0 +1,252 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/*
+ * Copyright (C) 2025, Ideas On Board
+ *
+ * V4L2 Parameters
+ */
+
+#include "v4l2_params.h"
+
+namespace libcamera {
+
+namespace ipa {
+
+/**
+ * \file v4l2_params.cpp
+ * \brief Helper class to populate a v4l2-params compatible parameters buffer
+ *
+ * The Linux kernel defines a generic buffer format for configuring ISP devices
+ * through a set of parameters in the form of V4L2 extensible parameters. The
+ * V4L2 extensible parameters define a serialization format for ISP parameters
+ * that allows userspace to populate a buffer of configuration data by appending
+ * them one after the other in a binary buffer.
+ *
+ * Each ISP driver compatible with the v4l2-params format will define its own
+ * meta-output format identifier and defines the types of the configuration data
+ * of each ISP block that usually match the registers layout.
+ *
+ * The V4L2Params class represent the V4L2 extensible parameters buffer and
+ * allows users to populate the ISP configuration blocks, represented by the
+ * V4L2ParamBlock class instances.
+ *
+ * IPA implementations using this helpers should define an enumeration of ISP
+ * blocks the IPA module supports and use a set of common abstraction to help
+ * their derived implementation of V4L2Params translate the enumerated ISP block
+ * identifier to the actual type of the configuration data as defined by the
+ * kernel interface.
+ *
+ * As an example of this see the RkISP1 and Mali-C55 implementations.
+ */
+
+/**
+ * \class V4L2ParamsBlock
+ * \brief Helper class that represents a ISP configuration block
+ *
+ * Each ISP function is associated with a set of configuration parameters
+ * defined by the kernel interface.
+ *
+ * This class represents an ISP block configuration entry. It is constructed
+ * with a reference to the memory area where the block configuration will be
+ * stored in the parameters buffer. The template parameter represents
+ * the underlying kernel-defined ISP block configuration type and allow its
+ * user to easily cast it to said type to populate and read the configuration
+ * parameters.
+ *
+ * \sa V4L2Params::block()
+ */
+
+/**
+ * \fn V4L2ParamsBlock::V4L2ParamsBlock()
+ * \brief Construct a V4L2ParamsBlock with memory represented by \a data
+ * \param[in] data A view on the memory area where the ISP block is located
+ */
+
+/**
+ * \fn V4L2ParamsBlock::setEnabled()
+ * \brief Enable/disable an ISP configuration block
+ * \param[in] enabled The enable flag
+ */
+
+/**
+ * \fn V4L2ParamsBlock::header()
+ * \brief Retrieve a reference to the header (struct v4l2_params_block_header)
+ * \return The block header
+ */
+
+/**
+ * \fn V4L2ParamsBlock::data()
+ * \brief Retrieve a reference to block configuration data memory area
+ * \return The block data
+ */
+
+/**
+ * \fn V4L2ParamsBlock::operator->()
+ * \brief Access the ISP configuration block casting it to the kernel-defined
+ * ISP configuration type
+ *
+ * The V4L2ParamsBlock is templated with the kernel defined ISP configuration
+ * block type. This function allows users to easily cast a V4L2ParamsBlock to
+ * the underlying kernel-defined type in order to easily populate or read
+ * the ISP configuration data.
+ *
+ * \code{.cpp}
+ *
+ * // The kernel header defines the ISP configuration types, in example
+ * // struct my_isp_awb_config_data {
+ * //		u16 gain_ch00;
+ * //		u16 gain_ch01;
+ * //		u16 gain_ch10;
+ * //		u16 gain_ch11;
+ * //
+ * //  }
+ *
+ * template<> V4L2ParamsBlock<struct my_isp_awb_config_data> awbBlock
+ *
+ * awbBlock->gain_ch00 = ...;
+ * awbBlock->gain_ch01 = ...;
+ * awbBlock->gain_ch10 = ...;
+ * awbBlock->gain_ch11 = ...;
+ *
+ * \endcode
+ *
+ * Users of this class are not expected to create a V4L2ParamsBlock manually but
+ * should rather use V4L2Params::block() to retrieve a reference to the memory
+ * area used to construct a V4L2ParamsBlock<T> in their overloaded
+ * implementation of V4L2Params::block().
+ */
+
+/**
+ * \fn V4L2ParamsBlock::operator->() const
+ * \copydoc V4L2ParamsBlock::operator->()
+ */
+
+/**
+ * \fn V4L2ParamsBlock::operator*() const
+ * \copydoc V4L2ParamsBlock::operator->()
+ */
+
+/**
+ * \fn V4L2ParamsBlock::operator*()
+ * \copydoc V4L2ParamsBlock::operator->()
+ */
+
+ /**
+  * \class V4L2Params
+  * \brief Helper class that represent an ISP configuration buffer
+  *
+ * ISP implementation compatible with v4l2-params define their ISP configuration
+ * buffer types compatible with the struct v4l2_params_buffer type.
+ *
+ * This class represents an ISP configuration buffer. It is constructed
+ * with a reference to the memory mapped buffer that will be queued to the ISP.
+ *
+ * This class is templated with the  type of the enumeration of ISP blocks that
+ * each IPA module is expected to support. IPA modules are expected to derive
+ * this class and use the V4L2Params::block() function to retrieve the memory
+ * area for each ISP configuration block and use it to construct a
+ * V4L2ParamsBlock<T> with it before returning it to the user.
+ *
+ * \code{.cpp}
+ *
+ * enum class myISPBlocks {
+ *	Agc,
+ *	Awb,
+ *	...
+ * };
+ *
+ * template<myISPBlocks B>
+ * struct block_type {
+ * };
+ *
+ * template<>
+ * struct block_type<myISPBlock::Agc> {
+ *	using type = struct my_isp_kernel_config_type_agc;
+ * };
+ *
+ * template<>
+ * struct block_type<myISPBlock::Awb> {
+ *	using type = struct my_isp_kernel_config_type_awb;
+ * };
+ *
+ * ...
+ *
+ * class MyISPParams : public V4L2Params<myISPBlocks>
+ * {
+ * public:
+ * 	template<myISPBlocks B>
+ * 	auto block()
+ * 	{
+ *
+ * 		// Use the kernel defined configuration type as template
+ * 		// argument to V4L2ParamsBlock.
+ * 		using Type = typename details::block_type<B>::type;
+ *
+ * 		// Each IPA module should provide the information required
+ * 		// to populate the block header
+ *
+ * 		...
+ *
+ * 		auto data = V4L2Params::block(B, blockType, blockSize);
+ *
+ * 		return V4L2ParamsBlock<Type>(data);
+ * 	}
+ * };
+ *
+ * \endcode
+ *
+ * As an example, see the RkISP1Params and MaliC55Params implementations.
+ */
+
+/**
+ * \fn V4L2Params::V4L2Params()
+ * \brief Construct a V4L2Params
+ * \param[in] data Reference to the v4l2-buffer memory mapped area
+ * \param[in] version The ISP parameters version the implementation supports
+ */
+
+/**
+ * \fn V4L2Params::size()
+ * \brief Retrieve the used size of the parameters buffer (in bytes)
+ *
+ * The parameters buffer size is mostly used to populate the v4l2_buffer
+ * bytesused field before queueing the buffer to the ISP.
+ *
+ * \return The number of bytes occupied by the ISP configuration parameters
+ */
+
+/**
+ * \fn V4L2Params::block()
+ * \brief Populate an ISP configuration block a returns a reference to its
+ * memory
+ * \param[in] type The ISP block identifier enumerated by the IPA module
+ * \param[in] blockType The kernel-defined ISP block identifier, used to
+ * populate the block header
+ * \param[in] blockSize The ISP block size, used to populate the block header
+ *
+ *
+ * Initialize the block header with \a blockType and \a blockSize and
+ * returns a reference to the memory used to store an ISP configuration block.
+ *
+ * IPA modules that derive the V4L2Params class shall use this function to
+ * retrieve the memory area that will be used to construct a V4L2ParamsBlock<T>
+ * before returning it to the caller.
+ */
+
+/**
+ * \var V4L2Params::data_
+ * \brief The ISP parameters buffer memory
+ */
+
+/**
+ * \var V4L2Params::used_
+ * \brief The number of bytes used in the parameters buffer
+ */
+
+/**
+ * \var V4L2Params::blocks_
+ * \brief Cache of ISP configuration blocks
+ */
+
+} /* namespace ipa */
+
+} /* namespace libcamera */
