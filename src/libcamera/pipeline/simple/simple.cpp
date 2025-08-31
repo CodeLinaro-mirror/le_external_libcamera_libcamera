@@ -375,6 +375,9 @@ public:
 	const Transform &combinedTransform() const { return combinedTransform_; }
 
 private:
+	static constexpr unsigned int kNumBuffersDefault = 4;
+	static constexpr unsigned int kNumBuffersSwISPMax = 16;
+
 	/*
 	 * The SimpleCameraData instance is guaranteed to be valid as long as
 	 * the corresponding Camera instance is valid. In order to borrow a
@@ -1246,6 +1249,31 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 									    cfg.size);
 			if (cfg.stride == 0)
 				return Invalid;
+
+			if (data_->converter_) {
+				if (cfg.bufferCount != kNumBuffersDefault) {
+					LOG(SimplePipeline, Debug)
+						<< "Adjusting bufferCount from " << cfg.bufferCount
+						<< " to " << kNumBuffersDefault;
+					cfg.bufferCount = kNumBuffersDefault;
+					status = Adjusted;
+				}
+			} else {
+				if (cfg.bufferCount == 0) {
+					LOG(SimplePipeline, Debug)
+						<< "Adjusting bufferCount from " << cfg.bufferCount
+						<< " to " << kNumBuffersDefault;
+					cfg.bufferCount = kNumBuffersDefault;
+					status = Adjusted;
+				}
+				if (cfg.bufferCount > kNumBuffersSwISPMax) {
+					LOG(SimplePipeline, Debug)
+						<< "Adjusting bufferCount from " << cfg.bufferCount
+						<< " to " << kNumBuffersSwISPMax;
+					cfg.bufferCount = kNumBuffersSwISPMax;
+					status = Adjusted;
+				}
+			}
 		} else {
 			V4L2DeviceFormat format;
 			format.fourcc = data_->video_->toV4L2PixelFormat(cfg.pixelFormat);
@@ -1257,9 +1285,15 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 
 			cfg.stride = format.planes[0].bpl;
 			cfg.frameSize = format.planes[0].size;
-		}
 
-		cfg.bufferCount = 4;
+			if (cfg.bufferCount != kNumBuffersDefault) {
+				LOG(SimplePipeline, Debug)
+					<< "Adjusting bufferCount from " << cfg.bufferCount
+					<< " to " << kNumBuffersDefault;
+				cfg.bufferCount = kNumBuffersDefault;
+				status = Adjusted;
+			}
+		}
 	}
 
 	return status;
