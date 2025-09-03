@@ -383,6 +383,12 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 
 	frameContext.agc.yTarget = context.activeState.agc.automatic.yTarget;
 
+	/*
+	 * Expand the target frame duration so that we do not run faster than
+	 * the minimum frame duration when we have short exposures.
+	 */
+	processFrameDuration(context, frameContext);
+
 	if (frame > 0 && !frameContext.agc.updateMetering)
 		return;
 
@@ -511,11 +517,13 @@ double Agc::estimateLuminance(double gain) const
  * Compute and populate vblank from the target frame duration.
  */
 void Agc::processFrameDuration(IPAContext &context,
-			       IPAFrameContext &frameContext,
-			       utils::Duration frameDuration)
+			       IPAFrameContext &frameContext)
 {
 	IPACameraSensorInfo &sensorInfo = context.sensorInfo;
 	utils::Duration lineDuration = context.configuration.sensor.lineDuration;
+	utils::Duration frameDuration = frameContext.agc.exposure * lineDuration;
+
+	frameDuration = std::max(frameDuration, frameContext.agc.minFrameDuration);
 
 	frameContext.agc.vblank = (frameDuration / lineDuration) - sensorInfo.outputSize.height;
 
@@ -539,8 +547,6 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  ControlList &metadata)
 {
 	if (!stats) {
-		processFrameDuration(context, frameContext,
-				     frameContext.agc.minFrameDuration);
 		fillMetadata(context, frameContext, metadata);
 		return;
 	}
@@ -641,12 +647,6 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	activeState.agc.automatic.gain = aGain;
 	activeState.agc.automatic.quantizationGain = qGain;
 	activeState.agc.automatic.yTarget = effectiveYTarget();
-	/*
-	 * Expand the target frame duration so that we do not run faster than
-	 * the minimum frame duration when we have short exposures.
-	 */
-	processFrameDuration(context, frameContext,
-			     std::max(frameContext.agc.minFrameDuration, newExposureTime));
 
 	fillMetadata(context, frameContext, metadata);
 	expMeans_ = {};
