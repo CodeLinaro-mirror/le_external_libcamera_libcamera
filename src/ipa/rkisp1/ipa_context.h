@@ -79,6 +79,7 @@ struct IPAActiveState {
 		struct {
 			uint32_t exposure;
 			double gain;
+			double digitalGain;
 		} manual;
 		struct {
 			uint32_t exposure;
@@ -160,6 +161,7 @@ struct IPAFrameContext : public FrameContext {
 		bool updateMetering;
 		bool autoExposureModeChange;
 		bool autoGainModeChange;
+		double digitalGain;
 	} agc;
 
 	struct {

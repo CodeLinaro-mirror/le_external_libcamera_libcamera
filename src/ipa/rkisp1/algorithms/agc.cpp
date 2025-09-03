@@ -158,6 +158,7 @@ int Agc::init(IPAContext &context, const YamlObject &tuningData)
 	/* \todo Move this to the Camera class */
 	context.ctrlMap[&controls::AeEnable] = ControlInfo(false, true, true);
 	context.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
+	context.ctrlMap[&controls::DigitalGain] = ControlInfo(1.0f, 64.0f, 1.0f);
 	context.ctrlMap.merge(controls());
 
 	return 0;
@@ -179,6 +180,7 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.activeState.agc.automatic.quantizationGain = 1.0;
 	context.activeState.agc.manual.gain = context.activeState.agc.automatic.gain;
 	context.activeState.agc.manual.exposure = context.activeState.agc.automatic.exposure;
+	context.activeState.agc.manual.digitalGain = 1.0;
 	context.activeState.agc.autoExposureEnabled = !context.configuration.raw;
 	context.activeState.agc.autoGainEnabled = !context.configuration.raw;
 	context.activeState.agc.exposureValue = 0.0;
@@ -281,6 +283,15 @@ void Agc::queueRequest(IPAContext &context,
 		LOG(RkISP1Agc, Debug) << "Set gain to " << agc.manual.gain;
 	}
 
+	const auto &digitalGain = controls.get(controls::DigitalGain);
+	if (digitalGain) {
+		agc.manual.digitalGain = *digitalGain;
+
+		LOG(RkISP1Agc, Debug) << "Set digital gain to " << agc.manual.digitalGain;
+	}
+
+	frameContext.agc.digitalGain = agc.manual.digitalGain;
+
 	frameContext.agc.autoExposureEnabled = agc.autoExposureEnabled;
 	frameContext.agc.autoGainEnabled = agc.autoGainEnabled;
 
@@ -381,7 +392,7 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 
 	if (context.configuration.compress.supported) {
 		frameContext.compress.enable = true;
-		frameContext.compress.gain = frameContext.agc.quantizationGain;
+		frameContext.compress.gain = frameContext.agc.quantizationGain * frameContext.agc.digitalGain;
 	}
 
 	frameContext.agc.yTarget = context.activeState.agc.automatic.yTarget;
@@ -469,7 +480,14 @@ void Agc::fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
 	metadata.set(controls::AeConstraintMode, frameContext.agc.constraintMode);
 	metadata.set(controls::ExposureValue, frameContext.agc.exposureValue);
 
-	metadata.set(controls::DigitalGain, frameContext.agc.quantizationGain);
+	/*
+	 * \todo Add the quantization gain to the digital gain metadata, so that
+	 * we don't apply any hidden gains. This might however create issues
+	 * with applications trying to match a digital gain control with the
+	 * metadata.
+	 */
+	metadata.set(controls::DigitalGain,
+		     frameContext.agc.quantizationGain * frameContext.agc.digitalGain);
 }
 
 /**
