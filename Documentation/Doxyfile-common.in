@@ -69,3 +69,8 @@ PREDEFINED             = __DOXYGEN__ \
 			 @PREDEFINED@
 
 HAVE_DOT               = YES
+
+GENERATE_TREEVIEW      = YES
+HTML_EXTRA_STYLESHEET  = "@CURRENT_SRCDIR@/doxygen-awesome-css/doxygen-awesome.css" \
+                         "@CURRENT_SRCDIR@/doxygen-awesome-css/doxygen-awesome-sidebar-only.css"
+HTML_COLORSTYLE        = LIGHT # required with Doxygen >= 1.9.5
