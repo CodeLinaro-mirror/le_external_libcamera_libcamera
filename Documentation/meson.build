@@ -13,6 +13,7 @@ if doxygen.found() and dot.found()
     cdata = configuration_data()
     cdata.set('VERSION', 'v@0@'.format(libcamera_git_version))
     cdata.set('TOP_SRCDIR', meson.project_source_root())
+    cdata.set('CURRENT_SRCDIR', meson.current_source_dir())
     cdata.set('TOP_BUILDDIR', meson.project_build_root())
     cdata.set('OUTPUT_DIR', meson.current_build_dir())
     cdata.set('WARN_AS_ERROR', get_option('doc_werror') ? 'YES' : 'NO')
@@ -150,6 +151,7 @@ if sphinx.found()
     sphinx_conf_dir = fs.parent(sphinx_conf)
 
     docs_sources = [
+        'api-html/index.rst',
         'camera-sensor-model.rst',
         'code-of-conduct.rst',
         'coding-style.rst',
@@ -164,6 +166,7 @@ if sphinx.found()
         'guides/pipeline-handler.rst',
         'guides/tracing.rst',
         'index.rst',
+        'internal-api-html/index.rst',
         'introduction.rst',
         'lens_driver_requirements.rst',
         'libcamera_architecture.rst',
@@ -176,17 +179,27 @@ if sphinx.found()
 
     release = 'release=v' + libcamera_git_version
 
-    custom_target('documentation',
+
+
+    documentation_sphinx = custom_target('documentation-sphinx',
                   command : [sphinx, '-D', release, '-q', '-W', '-b', 'html',
                              '-c', sphinx_conf_dir,
-                             meson.current_source_dir(), '@OUTPUT@'],
+                             meson.current_source_dir(), '@OUTDIR@/html'],
                   input : docs_sources,
-                  output : 'html',
+                  output: 'sphinx-build',
                   build_by_default : true,
                   depends : [
                       doxygen_public,
                       doxygen_internal,
-                  ],
+                  ])
+
+    custom_target('documentation',
+                  command : ['cp', '-r', '@OUTDIR@/api-html', '@OUTDIR@/internal-api-html', '@OUTDIR@/html'],
+                  output : 'html',
+                  depends: [documentation_sphinx],
+                  build_by_default : true,
+                  build_always_stale : true,
+                  output: 'html',
                   install : true,
                   install_dir : doc_install_dir,
                   install_tag : 'doc')
