@@ -49,7 +49,8 @@ private:
 
 	ControlValue loadControlValue(ByteStreamBuffer &buffer,
 				      bool isArray = false, unsigned int count = 1);
-	ControlInfo loadControlInfo(ByteStreamBuffer &buffer);
+	ControlInfo loadControlInfo(ByteStreamBuffer &buffer,
+				    bool isArray, unsigned int count);
 
 	unsigned int serial_;
 	unsigned int serialSeed_;

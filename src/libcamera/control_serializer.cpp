@@ -397,11 +397,14 @@ ControlValue ControlSerializer::loadControlValue(ByteStreamBuffer &buffer,
 	return value;
 }
 
-ControlInfo ControlSerializer::loadControlInfo(ByteStreamBuffer &b)
+ControlInfo ControlSerializer::loadControlInfo(ByteStreamBuffer &b,
+					       bool isArray,
+					       unsigned int count)
 {
+	/* min and max are scalars */
 	ControlValue min = loadControlValue(b);
 	ControlValue max = loadControlValue(b);
-	ControlValue def = loadControlValue(b);
+	ControlValue def = loadControlValue(b, isArray, count);
 
 	return ControlInfo(min, max, def);
 }
@@ -519,7 +522,7 @@ ControlInfoMap ControlSerializer::deserialize<ControlInfoMap>(ByteStreamBuffer &
 		}
 
 		/* Create and store the ControlInfo. */
-		ctrls.emplace(controlId, loadControlInfo(values));
+		ctrls.emplace(controlId, loadControlInfo(values, controlId->isArray(), controlId->size()));
 	}
 
 	/*
