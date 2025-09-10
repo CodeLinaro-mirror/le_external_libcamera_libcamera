@@ -7,6 +7,7 @@
 
 #include "ipa_base.h"
 
+#include <array>
 #include <cmath>
 
 #include <libcamera/base/log.h>
@@ -243,10 +244,14 @@ int32_t IpaBase::configure(const IPACameraSensorInfo &sensorInfo, const ConfigPa
 	 * based on the current sensor mode.
 	 */
 	ControlInfoMap::Map ctrlMap = ipaControls;
+	std::array<int64_t, 2> defFrameDurations = {
+		static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>()),
+		static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>())
+	};
 	ctrlMap[&controls::FrameDurationLimits] =
 		ControlInfo(static_cast<int64_t>(mode_.minFrameDuration.get<std::micro>()),
 			    static_cast<int64_t>(mode_.maxFrameDuration.get<std::micro>()),
-			    static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>()));
+			    Span<const int64_t, 2>{ defFrameDurations });
 
 	ctrlMap[&controls::AnalogueGain] =
 		ControlInfo(static_cast<float>(mode_.minAnalogueGain),

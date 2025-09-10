@@ -430,10 +430,12 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 		uint64_t frameSize = lineLength * frameHeights[i];
 		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
 	}
+	std::array<int64_t, 2> defFrameDurations = { frameDurations[2], frameDurations[2] };
 
 	/* \todo Move this (and other agc-related controls) to agc */
 	context_.ctrlMap[&controls::FrameDurationLimits] =
-		ControlInfo(frameDurations[0], frameDurations[1], frameDurations[2]);
+		ControlInfo(frameDurations[0], frameDurations[1],
+			    ControlValue(Span<const int64_t, 2>{ defFrameDurations }));
 
 	ctrlMap.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
