@@ -69,23 +69,23 @@ pygments_style = None
 
 doxylink = {
     'doxy-pub': (
-        '@TOP_BUILDDIR@/Documentation/api-html/tagfile.xml',
-        'api-html/',
+        '@TOP_BUILDDIR@/Documentation/public-api/tagfile.xml',
+        'public-api/',
     ),
     'doxy-int': (
-        '@TOP_BUILDDIR@/Documentation/internal-api-html/tagfile.xml',
-        'internal-api-html/',
+        '@TOP_BUILDDIR@/Documentation/internal-api/tagfile.xml',
+        'internal-api/',
     ),
 }
 
 doxygen_links = [
     [
-        '@TOP_BUILDDIR@/Documentation/html/api-html',
-        '@TOP_BUILDDIR@/Documentation/api-html',
+        '@TOP_BUILDDIR@/Documentation/html/public-api',
+        '@TOP_BUILDDIR@/Documentation/public-api',
     ],
     [
-        '@TOP_BUILDDIR@/Documentation/html/internal-api-html',
-        '@TOP_BUILDDIR@/Documentation/internal-api-html',
+        '@TOP_BUILDDIR@/Documentation/html/internal-api',
+        '@TOP_BUILDDIR@/Documentation/internal-api',
     ],
 ]
 
