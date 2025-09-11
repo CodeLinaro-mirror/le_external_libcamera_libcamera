@@ -161,7 +161,6 @@ if sphinx.found()
         sphinx_conf,
         'contributing.rst',
         'design/ae.rst',
-        'documentation-contents.rst',
         'environment_variables.rst',
         'feature_requirements.rst',
         'guides/application-developer.rst',
