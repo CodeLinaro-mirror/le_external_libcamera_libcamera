@@ -9,14 +9,8 @@
 
 # -- Path setup --------------------------------------------------------------
 
-# If extensions (or modules to document with autodoc) are in another directory,
-# add these directories to sys.path here. If the directory is relative to the
-# documentation root, use os.path.abspath to make it absolute, like shown here.
-#
-# import os
-# import sys
-# sys.path.insert(0, os.path.abspath('.'))
-
+import sys
+sys.path.insert(0, "@CURRENT_SRCDIR@/extensions")
 
 # -- Project information -----------------------------------------------------
 
@@ -39,6 +33,7 @@ author = 'The libcamera documentation authors'
 extensions = [
     'sphinx.ext.graphviz',
     'sphinxcontrib.doxylink',
+    'doxygen-link',
 ]
 
 graphviz_output_format = 'svg'
@@ -75,13 +70,24 @@ pygments_style = None
 doxylink = {
     'doxy-pub': (
         '@TOP_BUILDDIR@/Documentation/api-html/tagfile.xml',
-        '../api-html/',
+        'api-html/',
     ),
     'doxy-int': (
         '@TOP_BUILDDIR@/Documentation/internal-api-html/tagfile.xml',
-        '../internal-api-html/',
+        'internal-api-html/',
     ),
 }
+
+doxygen_links = [
+    [
+        '@TOP_BUILDDIR@/Documentation/html/api-html',
+        '@TOP_BUILDDIR@/Documentation/api-html',
+    ],
+    [
+        '@TOP_BUILDDIR@/Documentation/html/internal-api-html',
+        '@TOP_BUILDDIR@/Documentation/internal-api-html',
+    ],
+]
 
 # -- Options for HTML output -------------------------------------------------
 

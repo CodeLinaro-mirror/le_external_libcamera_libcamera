@@ -12,6 +12,7 @@ dot = find_program('dot', required : get_option('documentation'))
 if doxygen.found() and dot.found()
     cdata = configuration_data()
     cdata.set('VERSION', 'v@0@'.format(libcamera_git_version))
+    cdata.set('CURRENT_SRCDIR', meson.current_source_dir())
     cdata.set('TOP_SRCDIR', meson.project_source_root())
     cdata.set('TOP_BUILDDIR', meson.project_build_root())
     cdata.set('OUTPUT_DIR', meson.current_build_dir())
@@ -89,7 +90,7 @@ if doxygen.found() and dot.found()
                                    output : 'api-html',
                                    command : [doxygen, doxyfile],
                                    install : true,
-                                   install_dir : doc_install_dir,
+                                   install_dir : doc_install_dir / 'html',
                                    install_tag : 'doc')
 
     # This is the internal documentation, which hard-codes a list of directories
@@ -109,7 +110,7 @@ if doxygen.found() and dot.found()
                                      output : 'internal-api-html',
                                      command : [doxygen, doxyfile],
                                      install : true,
-                                     install_dir : doc_install_dir,
+                                     install_dir : doc_install_dir / 'html',
                                      install_tag : 'doc-internal')
 endif
 
@@ -149,7 +150,11 @@ if sphinx.found()
     fs = import('fs')
     sphinx_conf_dir = fs.parent(sphinx_conf)
 
+    sphinx_env = environment()
+    sphinx_env.set('PYTHONDONTWRITEBYTECODE', '1')
+
     docs_sources = [
+        'api-html/index.rst',
         'camera-sensor-model.rst',
         'code-of-conduct.rst',
         'coding-style.rst',
@@ -164,6 +169,7 @@ if sphinx.found()
         'guides/pipeline-handler.rst',
         'guides/tracing.rst',
         'index.rst',
+        'internal-api-html/index.rst',
         'introduction.rst',
         'lens_driver_requirements.rst',
         'libcamera_architecture.rst',
@@ -183,10 +189,14 @@ if sphinx.found()
                   input : docs_sources,
                   output : 'html',
                   build_by_default : true,
+                  depend_files : [
+                      'extensions/doxygen-link.py',
+                  ],
                   depends : [
                       doxygen_public,
                       doxygen_internal,
                   ],
+                  env : sphinx_env,
                   install : true,
                   install_dir : doc_install_dir,
                   install_tag : 'doc')
@@ -195,7 +205,8 @@ if sphinx.found()
                   command : [sphinx, '-W', '-b', 'linkcheck',
                              '-c', sphinx_conf_dir,
                              meson.current_source_dir(), '@OUTPUT@'],
-                  build_always_stale : true,
                   input : docs_sources,
-                  output : 'linkcheck')
+                  output : 'linkcheck',
+                  build_always_stale : true,
+                  env : sphinx_env)
 endif
