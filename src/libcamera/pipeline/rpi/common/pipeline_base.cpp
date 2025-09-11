@@ -20,8 +20,10 @@
 #include <libcamera/property_ids.h>
 
 #include "libcamera/internal/camera_lens.h"
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/v4l2_subdevice.h"
+#include "libcamera/internal/yaml_parser.h"
 
 using namespace std::chrono_literals;
 
@@ -1093,35 +1095,46 @@ int CameraData::loadPipelineConfiguration()
 	/* Initial configuration of the platform, in case no config file is present */
 	platformPipelineConfigure({});
 
+	std::unique_ptr<YamlObject> root;
 	char const *configFromEnv = utils::secure_getenv("LIBCAMERA_RPI_CONFIG_FILE");
-	if (!configFromEnv || *configFromEnv == '\0')
-		return 0;
+	if (configFromEnv && *configFromEnv != '\0') {
+		std::string filename = std::string(configFromEnv);
+		File file(filename);
 
-	std::string filename = std::string(configFromEnv);
-	File file(filename);
+		if (!file.open(File::OpenModeFlag::ReadOnly)) {
+			LOG(RPI, Warning) << "Failed to open configuration file '" << filename << "'"
+					  << ", using defaults";
+			return 0;
+		}
 
-	if (!file.open(File::OpenModeFlag::ReadOnly)) {
-		LOG(RPI, Warning) << "Failed to open configuration file '" << filename << "'"
-				  << ", using defaults";
-		return 0;
+		LOG(RPI, Info) << "Using configuration file '" << filename << "'";
+
+		root = YamlParser::parse(file);
+		if (!root) {
+			LOG(RPI, Warning) << "Failed to parse configuration file, using defaults";
+			return 0;
+		}
+
+		std::optional<double> ver = (*root)["version"].get<double>();
+		if (!ver || *ver != 1.0) {
+			LOG(RPI, Warning) << "Unexpected configuration file version reported: "
+					  << *ver;
+			return 0;
+		}
+
+		std::optional<std::string> t = (*root)["target"].get<std::string>();
+		if (t != target()) {
+			LOG(RPI, Error) << "Unexpected target reported: expected \""
+					<< target() << "\", got " << (t ? t->c_str() : "(unknown)");
+			return -EINVAL;
+		}
 	}
 
-	LOG(RPI, Info) << "Using configuration file '" << filename << "'";
-
-	std::unique_ptr<YamlObject> root = YamlParser::parse(file);
-	if (!root) {
-		LOG(RPI, Warning) << "Failed to parse configuration file, using defaults";
-		return 0;
-	}
-
-	std::optional<double> ver = (*root)["version"].get<double>();
-	if (!ver || *ver != 1.0) {
-		LOG(RPI, Warning) << "Unexpected configuration file version reported: "
-				  << *ver;
-		return 0;
-	}
-
-	const YamlObject &phConfig = (*root)["pipeline_handler"];
+	GlobalConfiguration::Configuration config =
+		pipe()->cameraManager()->_d()->configuration().configuration()["pipelines"]["rpi"];
+	const YamlObject &phConfig = (root
+					      ? (*root)["pipeline_handler"]
+					      : config[target()]["pipeline_handler"]);
 
 	if (phConfig.contains("disable_startup_frame_drops"))
 		LOG(RPI, Warning)
@@ -1137,7 +1150,7 @@ int CameraData::loadPipelineConfiguration()
 		frontendDevice()->setDequeueTimeout(config_.cameraTimeoutValue * 1ms);
 	}
 
-	return platformPipelineConfigure(root);
+	return platformPipelineConfigure(phConfig);
 }
 
 int CameraData::loadIPA(ipa::RPi::InitResult *result)
