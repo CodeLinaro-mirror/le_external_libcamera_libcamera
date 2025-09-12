@@ -1284,4 +1284,82 @@ controls:
 
         The FrameWallClock control can only be returned in metadata.
 
+  - FlashMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash operation mode.
+      enum:
+        - name: FlashModeNone
+          value: 0
+          description: |
+            Flash is off and inactive.
+        - name: FlashModeFlash
+          value: 1
+          description: |
+            The flash is active, but will only be switched on for a short time
+            by means of a trigger (software or external strobe). The maximum
+            switch-on time is limited by the FlashTimeout setting.
+        - name: FlashModeTorch
+          value: 2
+          description: |
+            The flash is continuously on and active. Commonly referred to as
+            torch or video light mode.
+
+  - FlashIntensity:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash intensity in mA. Used when the flash is operated in flash mode.
+
+  - FlashTimeout:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash timeout in us. Determines the maximum flash switch-on time. After
+        this time has elapsed, the flash is switched off by the hardware, even
+        if a strobe is still active.
+
+  - FlashStrobeSource:
+      type: int32_t
+      direction: inout
+      description: |
+        Flash strobe source.
+      enum:
+        - name: FlashStrobeSourceSoftware
+          value: 0
+          description: |
+            The strobe signal is controlled via software using the FlashStrobe
+            control.
+        - name: FlashStrobeSourceExternal
+          value: 1
+          description: |
+            The strobe signal is controlled by an external source. Typically,
+            this is done on the hardware by connecting the strobe source
+            directly to the flash controller.
+
+  - FlashStrobe:
+      type: int32_t
+      direction: in
+      description: |
+        Start/stop flash strobe. Only possible if FlashStrobeSourceSoftware is
+        selcted as FlashStrobeSource.
+
+      enum:
+        - name: FlashStrobeStart
+          value: 0
+          description: |
+            Start flash strobe.
+
+        - name: FlashStrobeStop
+          value: 1
+          description: |
+            Stop flash strobe.
+
+  - FlashTorchIntensity:
+      type: int32_t
+      direction: inout
+      description: |
+        Torch intensity in mA. Used when the flash is operated in torch mode.
+
 ...
