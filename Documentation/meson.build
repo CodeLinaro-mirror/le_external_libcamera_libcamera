@@ -159,6 +159,7 @@ if sphinx.found()
         'documentation-contents.rst',
         'environment_variables.rst',
         'feature_requirements.rst',
+        'flash_driver_requirements.rst',
         'guides/application-developer.rst',
         'guides/ipa.rst',
         'guides/pipeline-handler.rst',

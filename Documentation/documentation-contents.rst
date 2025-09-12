@@ -22,6 +22,7 @@
    * :doc:`/internal-api-html/index`
    * |
    * **Documentation for System Integrators**
+   * :doc:`/flash_driver_requirements`
    * :doc:`/lens_driver_requirements`
    * :doc:`/sensor_driver_requirements`
 

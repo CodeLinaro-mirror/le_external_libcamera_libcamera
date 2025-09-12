@@ -14,6 +14,7 @@
    Camera Sensor Model <camera-sensor-model>
    Environment variables <environment_variables>
    Feature Requirements <feature_requirements>
+   Flash driver requirements <flash_driver_requirements>
    IPA Writer's guide <guides/ipa>
    Lens driver requirements <lens_driver_requirements>
    libcamera Architecture <libcamera_architecture>
