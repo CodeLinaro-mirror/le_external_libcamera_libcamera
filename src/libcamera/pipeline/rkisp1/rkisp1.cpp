@@ -39,6 +39,7 @@
 #include "libcamera/internal/converter/converter_v4l2_m2m.h"
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/flash_control.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/ipa_manager.h"
 #include "libcamera/internal/media_device.h"
@@ -1296,6 +1297,8 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 		activeCrop_ = scalerMaxCrop_;
 	}
 
+	FlashControl::updateFlashControls(data->sensor_->flash(), controls);
+
 	/* Add the IPA registered controls to list of camera controls. */
 	for (const auto &ipaControl : data->ipaControls_)
 		controls[ipaControl.first] = ipaControl.second;
@@ -1502,6 +1505,8 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		if (isRaw_)
 			info->metadataProcessed = true;
 	}
+
+	FlashControl::handleFlashControls(data->sensor_->flash(), request->controls(), request->metadata());
 
 	if (!useDewarper_) {
 		completeBuffer(request, buffer);
