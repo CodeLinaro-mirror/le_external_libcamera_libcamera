@@ -7,8 +7,6 @@
 
 #pragma once
 
-#include <libcamera/camera_manager.h>
-
 #include <memory>
 #include <sys/types.h>
 #include <vector>
@@ -18,6 +16,9 @@
 #include <libcamera/base/thread.h>
 #include <libcamera/base/thread_annotations.h>
 
+#include <libcamera/camera_manager.h>
+
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/process.h"
 
 namespace libcamera {
@@ -37,6 +38,11 @@ public:
 	int start();
 	void addCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 	void removeCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
+
+	const GlobalConfiguration &configuration() const
+	{
+		return configuration_;
+	}
 
 	IPAManager *ipaManager() const { return ipaManager_.get(); }
 
@@ -65,6 +71,8 @@ private:
 	std::unique_ptr<DeviceEnumerator> enumerator_;
 
 	std::unique_ptr<IPAManager> ipaManager_;
+
+	const GlobalConfiguration configuration_;
 };
 
 } /* namespace libcamera */
