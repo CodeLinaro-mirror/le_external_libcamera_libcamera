@@ -2,14 +2,95 @@
 
 .. include:: documentation-contents.rst
 
-Environment variables
+Runtime configuration
 =====================
 
-The libcamera behaviour can be tuned through environment variables. This
-document lists all the available variables and describes their usage.
+The libcamera behaviour can be tuned through a configuration file or
+environment variables. This document lists all the configuration options
+and describes their usage.
 
-List of variables
------------------
+General rules
+-------------
+
+The configuration file is looked up in the following locations, in this
+order:
+
+- $XDG_CONFIG_HOME/libcamera/configuration.yaml
+- LIBCAMERA_SYSCONF_DIR/configuration.yaml
+- LIBCAMERA_DATA_DIR/libcamera/configuration.yaml
+
+The first configuration file found wins, configuration files in other
+locations are ignored.
+
+Settings in environment variables take precedence over settings in
+configuration files. This allows overriding behaviour temporarily
+without the need to modify configuration files.
+
+Configuration options
+---------------------
+
+Here is an overview of the available configuration options, in the YAML
+file structure:
+
+::
+
+  configuration:
+    ipa:
+      force_isolation: # true/false
+      config_paths:
+      - ... # full path to a directory
+      module_paths:
+      - ... # full path to a directory
+    pipelines_match_list:
+    - ... # pipeline name
+    pipelines:
+      rpi:
+        bcm2835:
+          pipeline_handler:
+            ...
+        pisp:
+          pipeline_handler:
+            ...
+      simple:
+        supported_devices:
+        - driver: # driver name, e.g. `mxc-isi`
+          software_isp: # true/false
+
+Configuration file example
+--------------------------
+
+::
+
+   ---
+   version: 1
+   configuration:
+     ipa:
+       config_paths:
+       - /home/user/.libcamera/share/ipa
+       - /opt/libcamera/vendor/share/ipa
+       module_paths:
+       - /home/user/.libcamera/lib
+       - /opt/libcamera/vendor/lib
+       proxy_paths:
+       - /home/user/.libcamera/proxy/worker
+       - /opt/libcamera/vendor/proxy/worker
+       force_isolation: true
+     pipelines_match_list:
+     - rkisp1
+     - simple
+     pipelines:
+       rpi:
+         bcm2835:
+           pipeline_handler:
+             min_unicam_buffers: 2
+             min_total_unicam_buffers: 2
+       simple:
+         supported_devices:
+         - driver: mxc-isi
+           software_isp: true
+
+List of variables and configuration options
+-------------------------------------------
 
 LIBCAMERA_LOG_FILE
    The custom destination for log output.
@@ -24,27 +105,27 @@ LIBCAMERA_LOG_LEVELS
 LIBCAMERA_LOG_NO_COLOR
    Disable coloring of log messages (`more <Notes about debugging_>`__).
 
-LIBCAMERA_IPA_CONFIG_PATH
+LIBCAMERA_IPA_CONFIG_PATH, ipa.config_paths
    Define custom search locations for IPA configurations (`more <IPA configuration_>`__).
 
    Example value: ``${HOME}/.libcamera/share/ipa:/opt/libcamera/vendor/share/ipa``
 
-LIBCAMERA_IPA_FORCE_ISOLATION
+LIBCAMERA_IPA_FORCE_ISOLATION, ipa.force_isolation
    When set to a non-empty string, force process isolation of all IPA modules.
 
    Example value: ``1``
 
-LIBCAMERA_IPA_MODULE_PATH
+LIBCAMERA_IPA_MODULE_PATH, ipa.module_paths
    Define custom search locations for IPA modules (`more <IPA module_>`__).
 
    Example value: ``${HOME}/.libcamera/lib:/opt/libcamera/vendor/lib``
 
-LIBCAMERA_IPA_PROXY_PATH
+LIBCAMERA_IPA_PROXY_PATH, ipa.proxy_paths
    Define custom full path for a proxy worker for a given executable name.
 
    Example value: ``${HOME}/.libcamera/proxy/worker:/opt/libcamera/vendor/proxy/worker``
 
-LIBCAMERA_PIPELINES_MATCH_LIST
+LIBCAMERA_PIPELINES_MATCH_LIST, pipelines_match_list
    Define an ordered list of pipeline names to be used to match the media
    devices in the system. The pipeline handler names used to populate the
    variable are the ones passed to the REGISTER_PIPELINE_HANDLER() macro in the
@@ -55,12 +136,23 @@ LIBCAMERA_PIPELINES_MATCH_LIST
 LIBCAMERA_RPI_CONFIG_FILE
    Define a custom configuration file to use in the Raspberry Pi pipeline handler.
 
+   Instead of using a separate configuration file, the whole
+   configuration can be put directly into the global configuration file as
+   outlined above.
+
    Example value: ``/usr/local/share/libcamera/pipeline/rpi/vc4/minimal_mem.yaml``
 
 LIBCAMERA_<NAME>_TUNING_FILE
    Define a custom IPA tuning file to use with the pipeline handler `NAME`.
 
    Example value: ``/usr/local/share/libcamera/ipa/rpi/vc4/custom_sensor.json``
+
+pipelines.simple.supported_devices.driver, pipelines.simple.supported_devices.software_isp
+   Override whether software ISP is enabled for the given driver.
+
+   Example `driver` value: ``mxc-isi``
+
+   Example `software_isp` value: ``true``
 
 Further details
 ---------------
@@ -156,7 +248,7 @@ code.
 IPA configuration
 ~~~~~~~~~~~~~~~~~
 
-IPA modules use configuration files to store parameters. The format and
+IPA modules use their own configuration files to store parameters. The format and
 contents of the configuration files is specific to the IPA module. They usually
 contain tuning parameters for the algorithms, in JSON format.
 
