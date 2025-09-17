@@ -34,7 +34,7 @@ namespace ipa {
  * Number of frames for which to run the algorithm at full speed, before slowing
  * down to prevent large and jarring changes in exposure from frame to frame.
  */
-static constexpr uint32_t kNumStartupFrames = 10;
+static constexpr uint32_t kDefaultNumStartupFrames = 10;
 
 /*
  * Default relative luminance target
@@ -144,7 +144,8 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  */
 
 AgcMeanLuminance::AgcMeanLuminance()
-	: exposureCompensation_(1.0), frameCount_(0), filteredExposure_(0s),
+	: numStartupFrames_(kDefaultNumStartupFrames), regulationSpeed_(0.2),
+	  exposureCompensation_(1.0), frameCount_(0), filteredExposure_(0s),
 	  relativeLuminanceTarget_(0)
 {
 }
@@ -554,10 +555,10 @@ double AgcMeanLuminance::effectiveYTarget() const
  */
 utils::Duration AgcMeanLuminance::filterExposure(utils::Duration exposureValue)
 {
-	double speed = 0.2;
+	double speed = regulationSpeed_;
 
 	/* Adapt instantly if we are in startup phase. */
-	if (frameCount_ < kNumStartupFrames)
+	if (frameCount_ < numStartupFrames_)
 		speed = 1.0;
 
 	/*
@@ -647,6 +648,22 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
  * algorithm decide whether it should respond instantly or not. The expectation
  * is for derived classes to call this function before each camera start call in
  * their configure() function.
+ */
+
+/**
+ * \var AgcMeanLuminance::numStartupFrames_
+ * \brief The number of startup frames
+ *
+ * During this number of frames after startup, the regulation is very aggressive
+ * to reach the target value within one or two cycles.
+ *
+ * \var AgcMeanLuminance::regulationSpeed_
+ * The regulation speed. This controls the speed at which new target values are
+ * applied. The new target value is calculated as:
+ *
+ * \code{.unparsed}
+ * value = target * speed + oldValue * (1.0 - speed)
+ * \endcode
  */
 
 } /* namespace ipa */

@@ -42,6 +42,7 @@ public:
 		double yTarget;
 	};
 
+protected:
 	void configure(utils::Duration lineDuration, const CameraSensorHelper *sensorHelper);
 	int parseTuningData(const YamlObject &tuningData);
 
@@ -78,6 +79,9 @@ public:
 	{
 		frameCount_ = 0;
 	}
+
+	uint32_t numStartupFrames_;
+	double regulationSpeed_;
 
 private:
 	virtual double estimateLuminance(const double gain) const = 0;
