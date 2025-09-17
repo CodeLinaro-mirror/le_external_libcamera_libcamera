@@ -262,6 +262,15 @@ namespace agc {
  * control only, without automatic adjustments. In this mode statistics
  * must not be provided to AgcAlgorithm::process(), and ExposureTimeMode
  * and AnalogueGainMode will only advertise manual control.
+ *
+ * \var AgcAlgorithm::ConfigurationParams::numStartupFrames
+ * \brief Number of startup frames
+ *
+ * During these frame the regulation speed is set to 1.0 to reach faster
+ * convergence.
+ *
+ * \var AgcAlgorithm::ConfigurationParams::regulationSpeed
+ * \brief The regulation speed
  */
 
 /**
@@ -513,6 +522,11 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 			state.automatic.yTarget = impl.effectiveYTarget(0, 1);
 
 			impl.configure(session.lineDuration, sensor_);
+			if (config.numStartupFrames)
+				impl.numStartupFrames_ = config.numStartupFrames.value();
+
+			if (config.regulationSpeed)
+				impl.regulationSpeed_ = config.regulationSpeed.value();
 
 			if (!session.autoAllowed)
 				return;

@@ -79,6 +79,9 @@ public:
 
 	double effectiveYTarget(double lux, double exposureCompensation) const;
 
+	uint32_t numStartupFrames_;
+	double regulationSpeed_;
+
 private:
 	int parseRelativeLuminanceTarget(const ValueNode &tuningData);
 	int parseConstraint(const ValueNode &modeDict, int32_t id);
