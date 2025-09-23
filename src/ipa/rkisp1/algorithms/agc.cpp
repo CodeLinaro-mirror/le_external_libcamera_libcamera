@@ -340,6 +340,9 @@ void Agc::queueRequest(IPAContext &context,
 	}
 	frameContext.agc.minFrameDuration = agc.minFrameDuration;
 	frameContext.agc.maxFrameDuration = agc.maxFrameDuration;
+
+	/* V-blank needs to be valid for the start controls handling. Update it. */
+	processFrameDuration(context, frameContext);
 }
 
 /**
