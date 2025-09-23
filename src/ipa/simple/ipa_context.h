@@ -38,6 +38,12 @@ struct IPASessionConfiguration {
 
 struct IPAActiveState {
 	struct {
+		int32_t skipFrames;
+		int32_t exposure;
+		double again;
+	} agc;
+
+	struct {
 		uint8_t level;
 		int32_t lastExposure;
 		double lastGain;

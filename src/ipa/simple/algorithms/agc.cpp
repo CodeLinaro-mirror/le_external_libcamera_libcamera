@@ -41,7 +41,15 @@ Agc::Agc()
 {
 }
 
-void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, double exposureMSV)
+int Agc::configure(IPAContext &context,
+		   [[maybe_unused]] const IPAConfigInfo &configInfo)
+{
+	context.activeState.agc.skipFrames = 0;
+
+	return 0;
+}
+
+void Agc::updateExposure(IPAContext &context, const uint32_t frame, IPAFrameContext &frameContext, double exposureMSV)
 {
 	/*
 	 * kExpDenominator of 10 gives ~10% increment/decrement;
@@ -51,8 +59,18 @@ void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, dou
 	static constexpr uint8_t kExpNumeratorUp = kExpDenominator + 1;
 	static constexpr uint8_t kExpNumeratorDown = kExpDenominator - 1;
 
-	int32_t &exposure = frameContext.sensor.exposure;
-	double &again = frameContext.sensor.gain;
+	int32_t &skipFrames = context.activeState.agc.skipFrames;
+	int32_t &exposure = context.activeState.agc.exposure;
+	double &again = context.activeState.agc.again;
+
+	/* Set initial-gain values from sensor on first frame */
+	if (frame == 0) {
+		exposure = frameContext.sensor.exposure;
+		again = frameContext.sensor.gain;
+	}
+
+	if (skipFrames && --skipFrames)
+		return;
 
 	if (exposureMSV < kExposureOptimal - kExposureSatisfactory) {
 		if (exposure < context.configuration.agc.exposureMax) {
@@ -68,6 +86,7 @@ void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, dou
 			else
 				again = next;
 		}
+		skipFrames = 3;
 	}
 
 	if (exposureMSV > kExposureOptimal + kExposureSatisfactory) {
@@ -84,6 +103,7 @@ void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, dou
 			else
 				exposure = next;
 		}
+		skipFrames = 3;
 	}
 
 	exposure = std::clamp(exposure, context.configuration.agc.exposureMin,
@@ -97,7 +117,7 @@ void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, dou
 }
 
 void Agc::process(IPAContext &context,
-		  [[maybe_unused]] const uint32_t frame,
+		  const uint32_t frame,
 		  IPAFrameContext &frameContext,
 		  const SwIspStats *stats,
 		  ControlList &metadata)
@@ -135,7 +155,7 @@ void Agc::process(IPAContext &context,
 	}
 
 	float exposureMSV = (denom == 0 ? 0 : static_cast<float>(num) / denom);
-	updateExposure(context, frameContext, exposureMSV);
+	updateExposure(context, frame, frameContext, exposureMSV);
 }
 
 REGISTER_IPA_ALGORITHM(Agc, "Agc")

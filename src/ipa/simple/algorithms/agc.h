@@ -19,13 +19,14 @@ public:
 	Agc();
 	~Agc() = default;
 
+	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const SwIspStats *stats,
 		     ControlList &metadata) override;
 
 private:
-	void updateExposure(IPAContext &context, IPAFrameContext &frameContext, double exposureMSV);
+	void updateExposure(IPAContext &context, const uint32_t frame, IPAFrameContext &frameContext, double exposureMSV);
 };
 
 } /* namespace ipa::soft::algorithms */
