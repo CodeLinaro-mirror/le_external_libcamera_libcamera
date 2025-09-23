@@ -28,7 +28,7 @@ struct IPASessionConfiguration {
 	float gamma;
 	struct {
 		int32_t exposureMin, exposureMax;
-		double againMin, againMax, againMinStep;
+		double againMin, againMax, againDef, againMinStep;
 		utils::Duration lineDuration;
 	} agc;
 	struct {
