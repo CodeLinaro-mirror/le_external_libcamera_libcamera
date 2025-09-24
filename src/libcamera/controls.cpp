@@ -1005,9 +1005,6 @@ ControlList::ControlList(const ControlInfoMap &infoMap,
  *
  * Only control lists created from the same ControlIdMap or ControlInfoMap may
  * be merged. Attempting to do otherwise results in undefined behaviour.
- *
- * \todo Reimplement or implement an overloaded version which internally uses
- * std::unordered_map::merge() and accepts a non-const argument.
  */
 void ControlList::merge(const ControlList &source, MergePolicy policy)
 {
@@ -1032,6 +1029,45 @@ void ControlList::merge(const ControlList &source, MergePolicy policy)
 		}
 
 		set(ctrl.first, ctrl.second);
+	}
+}
+
+/**
+ * \brief Merge the \a source into the ControlList
+ * \param[in] source The ControlList to merge into this object
+ * \param[in] policy Controls if existing elements in *this shall be
+ * overwritten
+ *
+ * Merging two control lists moves elements from the \a source and inserts
+ * them in *this. If the \a source contains elements whose key is already
+ * present in *this, then those elements are only overwritten if
+ * \a policy is MergePolicy::OverwriteExisting.
+ *
+ * Only control lists created from the same ControlIdMap or ControlInfoMap may
+ * be merged. Attempting to do otherwise results in undefined behaviour.
+ */
+void ControlList::merge(ControlList &&source, MergePolicy policy)
+{
+	/**
+	 * \todo ASSERT that the current and source ControlList are derived
+	 * from a compatible ControlIdMap, to prevent undefined behaviour due to
+	 * id collisions.
+	 *
+	 * This can not currently be a direct pointer comparison due to the
+	 * duplication of the ControlIdMaps in the isolated IPA use cases.
+	 * Furthermore, manually checking each entry of the id map is identical
+	 * is expensive.
+	 * See https://bugs.libcamera.org/show_bug.cgi?id=31 for further details
+	 */
+
+	switch (policy) {
+	case MergePolicy::KeepExisting:
+		controls_.merge(source.controls_);
+		break;
+	case MergePolicy::OverwriteExisting:
+		source.controls_.merge(controls_);
+		controls_.swap(source.controls_);
+		break;
 	}
 }
 
