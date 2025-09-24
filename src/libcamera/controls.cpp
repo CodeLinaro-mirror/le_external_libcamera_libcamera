@@ -1157,6 +1157,23 @@ void ControlList::set(unsigned int id, const ControlValue &value)
 }
 
 /**
+ * \brief Remove the value of control \a id
+ * \param[in] id The control ID
+ * \return \a true if \a id was present, \a false otherwise
+ */
+bool ControlList::erase(unsigned int id)
+{
+	return controls_.erase(id);
+}
+
+/**
+ * \fn ControlList::erase(const ControlId &ctrl)
+ * \brief Remove the value of control \a ctrl
+ * \param[in] ctrl The control
+ * \return \a true if \a ctrl was present, \a false otherwise
+ */
+
+/**
  * \fn ControlList::infoMap()
  * \brief Retrieve the ControlInfoMap used to construct the ControlList
  *

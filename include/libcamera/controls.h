@@ -470,6 +470,9 @@ public:
 	const ControlValue &get(unsigned int id) const;
 	void set(unsigned int id, const ControlValue &value);
 
+	bool erase(unsigned int id);
+	bool erase(const ControlId &ctrl) { return erase(ctrl.id()); }
+
 	const ControlInfoMap *infoMap() const { return infoMap_; }
 	const ControlIdMap *idMap() const { return idmap_; }
 
