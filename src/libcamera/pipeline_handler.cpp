@@ -387,6 +387,12 @@ void PipelineHandler::stop(Camera *camera)
 	ASSERT(data->queuedRequests_.empty());
 	ASSERT(data->waitingRequests_.empty());
 
+	/*
+	 * \todo Or not? This probably needs discussions regarding
+	 * the expected state of controls after a stop-start sequence.
+	 */
+	data->pendingControls_.clear();
+
 	data->requestSequence_ = 0;
 }
 
@@ -467,6 +473,54 @@ void PipelineHandler::queueRequest(Request *request)
 }
 
 /**
+ * \brief Apply controls immediately
+ * \param[in] camera The camera
+ * \param[in] controls The controls to apply
+ *
+ * This function tries to apply \a controls immediately to the device by
+ * calling applyControlsDevice(). If that fails, then a fallback mechanism
+ * is used to ensure that \a controls will be merged into the control list
+ * of the next request submitted to the pipeline handler.
+ *
+ * This function also ensures that requests in Camera::Private::waitingRequests_
+ * will not override the fast-tracked controls.
+ *
+ * \context This function is called from the CameraManager thread.
+ */
+int PipelineHandler::applyControls(Camera *camera, ControlList &&controls)
+{
+	Camera::Private *data = camera->_d();
+	int res = applyControlsDevice(camera, controls);
+
+	/*
+	 * Prevent later requests from overriding the fast-tracked controls.
+	 * \todo This is unfortunately slow.
+	 */
+	for (const auto &[k, v] : controls) {
+		for (Request *r : data->waitingRequests_)
+			r->controls().erase(k);
+	}
+
+	if (res < 0) {
+		/*
+		 * \todo Always fall back or only if EOPNOTSUPP is returned?
+		 *       Possibly there could be some way for the user to influence
+		 *       the fallback logic (e.g. `flags` argument for `Camera::applyControls()`).
+		 */
+		if (res != -EOPNOTSUPP)
+			LOG(Pipeline, Debug) << "Fast tracking controls failed: " << res;
+
+		/*
+		 * Fall back to adding the controls to the next request that enters the
+		 * pipeline handler. See PipelineHandler::doQueueRequest().
+		 */
+		data->pendingControls_.merge(std::move(controls), ControlList::MergePolicy::OverwriteExisting);
+	}
+
+	return 0;
+}
+
+/**
  * \brief Queue one requests to the device
  */
 void PipelineHandler::doQueueRequest(Request *request)
@@ -484,9 +538,49 @@ void PipelineHandler::doQueueRequest(Request *request)
 		return;
 	}
 
+	if (!data->pendingControls_.empty()) {
+		/*
+		 * Note that `ControlList::MergePolicy::KeepExisting` is used. This is
+		 * needed to ensure that if `request` is newer than pendingControls_,
+		 * then its controls take precedence.
+		 *
+		 * For older requests, `PipelineHandler::applyControls()` has already removed
+		 * the controls that should be overridden.
+		 *
+		 * \todo How to handle (if at all) conflicting controls?
+		 * \todo How to handle failure of `queueRequestDevice()`?
+		 *	 After the merge it becomes impossible to retrieve the pending controls
+		 *	 from `request->controls()`. Making a copy in such a hot-path is not ideal.
+		 */
+		request->controls().merge(std::move(data->pendingControls_), ControlList::MergePolicy::KeepExisting);
+		data->pendingControls_.clear();
+	}
+
 	int ret = queueRequestDevice(camera, request);
-	if (ret)
+	if (ret) {
+		/*
+		 * \todo What to do now?
+		 *
+		 * The original `pendingControls_` is not easily recoverable.
+		 *
+		 * Initially
+		 *     request->controls() = A u B
+		 *     pendingControls_ = A' u C
+		 *
+		 * then after the above merge
+		 *     request->controls() = A u B u C
+		 *     pendingControls_ = A'
+		 *
+		 * so recovering `pendingControls_` without a copy of at least
+		 * `B` or `C` does not appear easy.
+		 *
+		 * But sometimes recovering is not even desirable: assume that the controls
+		 * in `pendingControls_` causes the failure. In that case keeping them around
+		 * will cause every single subsequent request to fail.
+		 */
+
 		cancelRequest(request);
+	}
 }
 
 /**
@@ -530,6 +624,20 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  * \context This function is called from the CameraManager thread.
  *
  * \return 0 on success or a negative error code otherwise
+ */
+
+/**
+ * \fn PipelineHandler::applyControlsDevice()
+ * \brief Apply controls immediately
+ * \param[in] camera The camera
+ * \param[in] controls The controls to apply
+ *
+ * This function applies \a controls to \a camera immediately.
+ *
+ * \context This function is called from the CameraManager thread.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \return -EOPNOTSUPP if fast-tracking controls is not supported
  */
 
 /**

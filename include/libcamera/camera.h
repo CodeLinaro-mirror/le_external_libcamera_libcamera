@@ -147,6 +147,7 @@ public:
 
 	std::unique_ptr<Request> createRequest(uint64_t cookie = 0);
 	int queueRequest(Request *request);
+	int applyControls(ControlList &&controls);
 
 	int start(const ControlList *controls = nullptr);
 	int stop();

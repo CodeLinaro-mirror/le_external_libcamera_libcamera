@@ -57,6 +57,7 @@ public:
 
 	void registerRequest(Request *request);
 	void queueRequest(Request *request);
+	int applyControls(Camera *camera, ControlList &&controls);
 
 	bool completeBuffer(Request *request, FrameBuffer *buffer);
 	void completeRequest(Request *request);
@@ -75,6 +76,12 @@ protected:
 	void hotplugMediaDevice(MediaDevice *media);
 
 	virtual int queueRequestDevice(Camera *camera, Request *request) = 0;
+
+	virtual int applyControlsDevice([[maybe_unused]] Camera *camera, [[maybe_unused]] const ControlList &controls)
+	{
+		return -EOPNOTSUPP;
+	}
+
 	virtual void stopDevice(Camera *camera) = 0;
 
 	virtual bool acquireDevice(Camera *camera);

@@ -638,6 +638,14 @@ Camera::Private::~Private()
  */
 
 /**
+ * \var Camera::Private::pendingControls_
+ * \brief The list of pending controls
+ *
+ * This list tracks the controls that need to be applied to the device with the
+ * next request going to PipelineHandler::queueRequestDevice().
+ */
+
+/**
  * \var Camera::Private::controlInfo_
  * \brief The set of controls supported by the camera
  *
@@ -1370,6 +1378,51 @@ int Camera::queueRequest(Request *request)
 
 	d->pipe_->invokeMethod(&PipelineHandler::queueRequest,
 			       ConnectionTypeQueued, request);
+
+	return 0;
+}
+
+/**
+ * \brief Apply controls immediately
+ * \param[in] controls The list of controls to apply
+ *
+ * This function tries to ensure that the controls in \a controls are applied
+ * to the camera as soon as possible.
+ *
+ * The exact guarantees are camera dependent, but it is guaranteed that the
+ * controls will be applied no later than if they were part of the next \ref Request "request"
+ * that the application \ref Camera::queueRequest() "queues".
+ *
+ * \context This function is \threadsafe. It may only be called when the camera
+ * is in the Running state as defined in \ref camera_operation.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \retval -ENODEV The camera has been disconnected from the system
+ * \retval -EACCES The camera is not running
+ */
+int Camera::applyControls(ControlList &&controls)
+{
+	Private *const d = _d();
+
+	/*
+	 * \todo What to do if not running? Should it be stored and merged into the "start" `ControlList`?
+	 *       If yes, should that list of pending controls be overwritten/updated when stopped?
+	 *       And should it be cleared in `Camera::release()`?
+	 */
+
+	int ret = d->isAccessAllowed(Private::CameraRunning);
+	if (ret < 0)
+		return ret;
+
+	if (controls.empty())
+		return 0;
+
+	patchControlList(controls);
+
+	/*
+	 * \todo Or `ConnectionTypeBlocking` to get the return value?
+	 */
+	d->pipe_->invokeMethod(&PipelineHandler::applyControls, ConnectionTypeQueued, this, std::move(controls));
 
 	return 0;
 }
