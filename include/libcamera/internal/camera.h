@@ -37,7 +37,7 @@ public:
 	const PipelineHandler *pipe() const { return pipe_.get(); }
 
 	std::list<Request *> queuedRequests_;
-	std::queue<Request *> waitingRequests_;
+	std::deque<Request *> waitingRequests_;
 	ControlInfoMap controlInfo_;
 	ControlList properties_;
 

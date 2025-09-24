@@ -370,7 +370,7 @@ void PipelineHandler::stop(Camera *camera)
 	 * after the device to keep them in order.
 	 */
 	Camera::Private *data = camera->_d();
-	std::queue<Request *> waitingRequests;
+	std::deque<Request *> waitingRequests;
 	waitingRequests.swap(data->waitingRequests_);
 
 	/* Stop the pipeline handler and let the queued requests complete. */
@@ -379,7 +379,7 @@ void PipelineHandler::stop(Camera *camera)
 	/* Cancel and signal as complete all waiting requests. */
 	while (!waitingRequests.empty()) {
 		Request *request = waitingRequests.front();
-		waitingRequests.pop();
+		waitingRequests.pop_front();
 		cancelRequest(request);
 	}
 
@@ -461,7 +461,7 @@ void PipelineHandler::queueRequest(Request *request)
 
 	Camera *camera = request->_d()->camera();
 	Camera::Private *data = camera->_d();
-	data->waitingRequests_.push(request);
+	data->waitingRequests_.push_back(request);
 
 	request->_d()->prepare(300ms);
 }
@@ -510,7 +510,7 @@ void PipelineHandler::doQueueRequests(Camera *camera)
 		 * Pop the request first, in case doQueueRequests() is called
 		 * recursively from within doQueueRequest()
 		 */
-		data->waitingRequests_.pop();
+		data->waitingRequests_.pop_front();
 		doQueueRequest(request);
 	}
 }
