@@ -109,6 +109,11 @@ private:
 	{
 		return static_cast<UVCCameraData *>(camera->_d());
 	}
+
+	int applyControlsDevice(Camera *camera, const ControlList &controls) override
+	{
+		return processControls(cameraData(camera), controls);
+	}
 };
 
 namespace {
