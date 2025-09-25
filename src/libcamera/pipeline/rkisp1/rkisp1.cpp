@@ -1618,6 +1618,10 @@ void PipelineHandlerRkISP1::frameStart(uint32_t sequence)
 
 	RkISP1CameraData *data = cameraData(activeCamera_);
 	data->delayedCtrls_->applyControls(sequence);
+
+	if (isRaw_) {
+		data->ipa_->computeParams(sequence + 1, 0);
+	}
 }
 
 bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
