@@ -764,7 +764,7 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
  */
 
 PipelineHandlerRkISP1::PipelineHandlerRkISP1(CameraManager *manager)
-	: PipelineHandler(manager), hasSelfPath_(true)
+	: PipelineHandler(manager, kRkISP1MinBufferCount), hasSelfPath_(true)
 {
 }
 
