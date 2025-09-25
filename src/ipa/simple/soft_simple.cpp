@@ -318,6 +318,9 @@ void IPASoftSimple::processStats(const uint32_t frame,
 		algo->process(context_, frame, frameContext, stats_, metadata);
 	metadataReady.emit(frame, metadata);
 
+	if (!stats_->valid)
+		return;
+
 	/* Sanity check */
 	if (!sensorControls.contains(V4L2_CID_EXPOSURE) ||
 	    !sensorControls.contains(V4L2_CID_ANALOGUE_GAIN)) {

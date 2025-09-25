@@ -21,6 +21,10 @@ namespace libcamera {
  */
 struct SwIspStats {
 	/**
+	 * \brief Indicates if the statistics buffer contains valid data
+	 */
+	bool valid;
+	/**
 	 * \brief Holds the sum of all sampled red pixels
 	 */
 	uint64_t sumR_;

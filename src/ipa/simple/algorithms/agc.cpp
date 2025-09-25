@@ -107,6 +107,9 @@ void Agc::process(IPAContext &context,
 	metadata.set(controls::ExposureTime, exposureTime.get<std::micro>());
 	metadata.set(controls::AnalogueGain, frameContext.sensor.gain);
 
+	if (!stats->valid)
+		return;
+
 	/*
 	 * Calculate Mean Sample Value (MSV) according to formula from:
 	 * https://www.araa.asn.au/acra/acra2007/papers/paper84final.pdf
