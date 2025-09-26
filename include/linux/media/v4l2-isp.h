@@ -12,6 +12,24 @@
 #include <linux/stddef.h>
 #include <linux/types.h>
 
+/*
+ * Provide __counted_by() if not available in linux/stddef.h
+ *
+ * The Linux macro __counted_by() has been introduced in kernel v6.5 and
+ * is not available in older kernel version.
+ *
+ * See commit dd06e72e68bc ("Compiler Attributes: Add __counted_by macro")
+ *
+ * Provide it here if not available.
+ */
+#if not defined(__counted_by)
+#if __has_attribute(__counted_by__)
+# define __counted_by(member)		__attribute__((__counted_by__(member)))
+#else
+# define __counted_by(member)
+#endif
+#endif
+
 #define V4L2_PARAMS_FL_BLOCK_DISABLE	(1U << 0)
 #define V4L2_PARAMS_FL_BLOCK_ENABLE	(1U << 1)
 
