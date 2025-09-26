@@ -64,7 +64,7 @@ public:
 		 * an error condition ?
 		 */
 		if (frame != 0 && frame <= frameContext.frame_)
-			LOG(FCQueue, Warning)
+			LOG(FCQueue, Debug)
 				<< "Frame " << frame << " already initialised";
 		else
 			init(fc, frame);
@@ -112,12 +112,12 @@ public:
 		 * The frame context has been retrieved before it was
 		 * initialised through the initialise() call. This indicates an
 		 * algorithm attempted to access a Frame context before it was
-		 * queued to the IPA. Controls applied for this request may be
-		 * left unhandled.
-		 *
-		 * \todo Set an error flag for per-frame control errors.
+		 * queued to the IPA. This can happen when a frame was dropped
+		 * in the kernel. Then one frame will not be queued for the
+		 * requests to catch up, but the pipeline will still call
+		 * prepare on that frame.
 		 */
-		LOG(FCQueue, Warning)
+		LOG(FCQueue, Debug)
 			<< "Obtained an uninitialised FrameContext for " << frame;
 
 		init(fc, frame);
