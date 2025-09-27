@@ -378,6 +378,9 @@ public:
 	const Transform &combinedTransform() const { return combinedTransform_; }
 
 private:
+	static constexpr unsigned int kNumBuffersDefault = 4;
+	static constexpr unsigned int kNumBuffersMax = 32;
+
 	/*
 	 * The SimpleCameraData instance is guaranteed to be valid as long as
 	 * the corresponding Camera instance is valid. In order to borrow a
@@ -417,7 +420,7 @@ protected:
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
 private:
-	static constexpr unsigned int kNumInternalBuffers = 3;
+	static constexpr unsigned int kNumInternalBuffers = 4;
 
 	struct EntityData {
 		std::unique_ptr<V4L2VideoDevice> video;
@@ -1239,7 +1242,7 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		    cfg.size != pipeConfig_->captureSize)
 			needConversion_ = true;
 
-		/* Set the stride, frameSize and bufferCount. */
+		/* Set the stride and frameSize. */
 		if (needConversion_) {
 			std::tie(cfg.stride, cfg.frameSize) =
 				data_->converter_
@@ -1262,7 +1265,19 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 			cfg.frameSize = format.planes[0].size;
 		}
 
-		cfg.bufferCount = 4;
+		if (cfg.bufferCount == 0) {
+			LOG(SimplePipeline, Debug)
+				<< "Adjusting bufferCount from " << cfg.bufferCount
+				<< " to " << kNumBuffersDefault;
+			cfg.bufferCount = kNumBuffersDefault;
+			status = Adjusted;
+		} else if (cfg.bufferCount > kNumBuffersMax) {
+			LOG(SimplePipeline, Debug)
+				<< "Adjusting bufferCount from " << cfg.bufferCount
+				<< " to " << kNumBuffersMax;
+			cfg.bufferCount = kNumBuffersMax;
+			status = Adjusted;
+		}
 	}
 
 	return status;
