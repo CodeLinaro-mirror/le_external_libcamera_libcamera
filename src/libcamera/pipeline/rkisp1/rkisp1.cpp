@@ -44,6 +44,7 @@
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/media_pipeline.h"
 #include "libcamera/internal/pipeline_handler.h"
+#include "libcamera/internal/v4l2_request.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -210,6 +211,7 @@ private:
 	void imageBufferReady(FrameBuffer *buffer);
 	void paramBufferReady(FrameBuffer *buffer);
 	void statBufferReady(FrameBuffer *buffer);
+	void dewarpRequestReady(V4L2Request *request);
 	void dewarpBufferReady(FrameBuffer *buffer);
 	void frameStart(uint32_t sequence);
 
@@ -238,6 +240,9 @@ private:
 	/* Internal buffers used when dewarper is being used */
 	std::vector<std::unique_ptr<FrameBuffer>> mainPathBuffers_;
 	std::queue<FrameBuffer *> availableMainPathBuffers_;
+
+	std::vector<std::unique_ptr<V4L2Request>> dewarpRequests_;
+	std::queue<V4L2Request *> availableDewarpRequests_;
 
 	std::vector<std::unique_ptr<FrameBuffer>> paramBuffers_;
 	std::vector<std::unique_ptr<FrameBuffer>> statBuffers_;
@@ -1034,6 +1039,18 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 
 		for (std::unique_ptr<FrameBuffer> &buffer : mainPathBuffers_)
 			availableMainPathBuffers_.push(buffer.get());
+
+		if (dewarper_->supportsRequests()) {
+			ret = dewarper_->allocateRequests(kRkISP1MinBufferCount,
+							  &dewarpRequests_);
+			if (ret < 0)
+				LOG(RkISP1, Error) << "Failed to allocate requests.";
+		}
+
+		for (std::unique_ptr<V4L2Request> &request : dewarpRequests_) {
+			request->requestDone.connect(this, &PipelineHandlerRkISP1::dewarpRequestReady);
+			availableDewarpRequests_.push(request.get());
+		}
 	}
 
 	auto pushBuffers = [&](const std::vector<std::unique_ptr<FrameBuffer>> &buffers,
@@ -1074,6 +1091,11 @@ int PipelineHandlerRkISP1::freeBuffers(Camera *camera)
 	paramBuffers_.clear();
 	statBuffers_.clear();
 	mainPathBuffers_.clear();
+
+	while (!availableDewarpRequests_.empty())
+		availableDewarpRequests_.pop();
+
+	dewarpRequests_.clear();
 
 	std::vector<unsigned int> ids;
 	for (IPABuffer &ipabuf : data->ipaBuffers_)
@@ -1565,6 +1587,14 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		return;
 	}
 
+	V4L2Request *dewarpRequest = nullptr;
+	if (!dewarpRequests_.empty()) {
+		/* If we have requests support, there must be one available */
+		ASSERT(!availableDewarpRequests_.empty());
+		dewarpRequest = availableDewarpRequests_.front();
+		availableDewarpRequests_.pop();
+	}
+
 	/* Handle scaler crop control. */
 	const auto &crop = request->controls().get(controls::ScalerCrop);
 	if (crop) {
@@ -1602,12 +1632,35 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 	 * buffers for the dewarper are the buffers of the request, supplied
 	 * by the application.
 	 */
-	int ret = dewarper_->queueBuffers(buffer, request->buffers());
-	if (ret < 0)
-		LOG(RkISP1, Error) << "Cannot queue buffers to dewarper: "
-				   << strerror(-ret);
+	int ret = dewarper_->queueBuffers(buffer, request->buffers(), dewarpRequest);
+	if (ret < 0) {
+		LOG(RkISP1, Error) << "Failed to queue buffers to dewarper: -"
+				   << strerrorname_np(-ret);
+
+		/* Push it back into the queue. */
+		if (dewarpRequest)
+			dewarpRequestReady(dewarpRequest);
+
+		return;
+	}
+
+	if (dewarpRequest) {
+		ret = dewarpRequest->queue();
+		if (ret < 0) {
+			LOG(RkISP1, Error) << "Failed to queue dewarp request: -"
+					   << strerrorname_np(-ret);
+			/* Push it back into the queue. */
+			dewarpRequestReady(dewarpRequest);
+		}
+	}
 
 	request->metadata().set(controls::ScalerCrop, activeCrop_.value());
+}
+
+void PipelineHandlerRkISP1::dewarpRequestReady(V4L2Request *request)
+{
+	request->reinit();
+	availableDewarpRequests_.push(request);
 }
 
 void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
