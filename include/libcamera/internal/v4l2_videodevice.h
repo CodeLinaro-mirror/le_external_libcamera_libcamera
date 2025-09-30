@@ -228,6 +228,8 @@ public:
 
 	static std::unique_ptr<V4L2VideoDevice>
 	fromEntityName(const MediaDevice *media, const std::string &entity);
+	static std::unique_ptr<V4L2VideoDevice>
+	fromEntityName(std::shared_ptr<const MediaDevice>, const std::string &entity);
 
 	V4L2PixelFormat toV4L2PixelFormat(const PixelFormat &pixelFormat) const;
 

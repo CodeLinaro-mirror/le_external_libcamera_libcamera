@@ -2115,6 +2115,21 @@ V4L2VideoDevice::fromEntityName(const MediaDevice *media,
 }
 
 /**
+ * \brief Create a new video device instance from \a entity in media device
+ * \a media
+ * \param[in] media The media device where the entity is registered
+ * \param[in] entity The media entity name
+ *
+ * \return A newly created V4L2VideoDevice on success, nullptr otherwise
+ */
+std::unique_ptr<V4L2VideoDevice>
+V4L2VideoDevice::fromEntityName(std::shared_ptr<const MediaDevice> media,
+				const std::string &entity)
+{
+	return fromEntityName(media.get(), entity);
+}
+
+/**
  * \brief Convert \a PixelFormat to a V4L2PixelFormat supported by the device
  * \param[in] pixelFormat The PixelFormat to convert
  *
