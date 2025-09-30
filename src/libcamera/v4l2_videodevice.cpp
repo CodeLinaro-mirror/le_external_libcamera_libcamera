@@ -2104,7 +2104,7 @@ void V4L2VideoDevice::watchdogExpired()
  * \return A newly created V4L2VideoDevice on success, nullptr otherwise
  */
 std::unique_ptr<V4L2VideoDevice>
-V4L2VideoDevice::fromEntityName(const MediaDevice *media,
+V4L2VideoDevice::fromEntityName(std::shared_ptr<const MediaDevice> media,
 				const std::string &entity)
 {
 	MediaEntity *mediaEntity = media->getEntityByName(entity);
@@ -2112,21 +2112,6 @@ V4L2VideoDevice::fromEntityName(const MediaDevice *media,
 		return nullptr;
 
 	return std::make_unique<V4L2VideoDevice>(mediaEntity);
-}
-
-/**
- * \brief Create a new video device instance from \a entity in media device
- * \a media
- * \param[in] media The media device where the entity is registered
- * \param[in] entity The media entity name
- *
- * \return A newly created V4L2VideoDevice on success, nullptr otherwise
- */
-std::unique_ptr<V4L2VideoDevice>
-V4L2VideoDevice::fromEntityName(std::shared_ptr<const MediaDevice> media,
-				const std::string &entity)
-{
-	return fromEntityName(media.get(), entity);
 }
 
 /**
