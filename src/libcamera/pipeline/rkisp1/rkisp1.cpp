@@ -550,11 +550,6 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 		status = Adjusted;
 	}
 
-	Orientation requestedOrientation = orientation;
-	combinedTransform_ = data_->sensor_->computeTransform(&orientation);
-	if (orientation != requestedOrientation)
-		status = Adjusted;
-
 	/*
 	 * Simultaneous capture of raw and processed streams isn't possible. If
 	 * there is any raw stream, cap the number of streams to one.
@@ -570,6 +565,12 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 		}
 	}
 
+	/*
+	 * If the dewarper supports orientation adjustments, apply that completely
+	 * there. Even if the sensor supports flips, it is beneficial to do that
+	 * in the dewarper so that lens dewarping happens on the unflipped image
+	 */
+	bool transposeAfterIsp = false;
 	bool useDewarper = false;
 	if (pipe->dewarper_) {
 		/*
@@ -580,6 +581,14 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 			     PixelFormatInfo::ColourEncodingRAW;
 		if (!isRaw)
 			useDewarper = true;
+		combinedTransform_ = orientation / data_->sensor_->mountingOrientation();
+		if (!!(combinedTransform_ & Transform::Transpose))
+			transposeAfterIsp = true;
+	} else {
+		Orientation requestedOrientation = orientation;
+		combinedTransform_ = data_->sensor_->computeTransform(&orientation);
+		if (orientation != requestedOrientation)
+			status = Adjusted;
 	}
 
 	/*
@@ -609,6 +618,9 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 		if (!useDewarper &&
 		    (expectedStatus == Valid && ret == Adjusted))
 			return false;
+
+		if (transposeAfterIsp)
+			tryCfg.size.transpose();
 
 		if (useDewarper) {
 			/*
@@ -694,6 +706,9 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 		maxSize = std::max(maxSize, cfg.size);
 	}
 
+	if (transposeAfterIsp)
+		maxSize.transpose();
+
 	std::vector<unsigned int> mbusCodes;
 
 	if (rawFormat.isValid()) {
@@ -739,6 +754,22 @@ PipelineHandlerRkISP1::generateConfiguration(Camera *camera,
 	if (roles.empty())
 		return config;
 
+	Transform transform = Transform::Identity;
+	Size previewSize = kRkISP1PreviewSize;
+	bool transposeAfterIsp = false;
+	if (data->canUseDewarper_) {
+		transform = Orientation::Rotate0 / data->sensor_->mountingOrientation();
+		if (!!(transform & Transform::Transpose))
+			transposeAfterIsp = true;
+	}
+
+	/*
+	 * In case of a transpose transform we need to create a path for the
+	 * transposed size.
+	 */
+	if (transposeAfterIsp)
+		previewSize.transpose();
+
 	/*
 	 * As the ISP can't output different color spaces for the main and self
 	 * path, pick a sensible default color space based on the role of the
@@ -767,7 +798,7 @@ PipelineHandlerRkISP1::generateConfiguration(Camera *camera,
 			if (!colorSpace)
 				colorSpace = ColorSpace::Sycc;
 
-			size = kRkISP1PreviewSize;
+			size = previewSize;
 			break;
 
 		case StreamRole::VideoRecording:
@@ -775,7 +806,7 @@ PipelineHandlerRkISP1::generateConfiguration(Camera *camera,
 			if (!colorSpace)
 				colorSpace = ColorSpace::Rec709;
 
-			size = kRkISP1PreviewSize;
+			size = previewSize;
 			break;
 
 		case StreamRole::Raw:
@@ -817,6 +848,9 @@ PipelineHandlerRkISP1::generateConfiguration(Camera *camera,
 		if (!cfg.pixelFormat.isValid())
 			return nullptr;
 
+		if (transposeAfterIsp && role != StreamRole::Raw)
+			cfg.size.transpose();
+
 		cfg.colorSpace = colorSpace;
 		cfg.bufferCount = kRkISP1MinBufferCount;
 		config->addConfiguration(cfg);
@@ -839,6 +873,19 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 	if (ret)
 		return ret;
 
+	const PixelFormat &streamFormat = config->at(0).pixelFormat;
+	const PixelFormatInfo &info = PixelFormatInfo::info(streamFormat);
+	isRaw_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
+	data->usesDewarper_ = data->canUseDewarper_ && !isRaw_;
+
+	Transform transform = config->combinedTransform();
+	bool transposeAfterIsp = false;
+	if (data->usesDewarper_) {
+		if (!!(transform & Transform::Transpose))
+			transposeAfterIsp = true;
+		transform = Transform::Identity;
+	}
+
 	/*
 	 * Configure the format on the sensor output and propagate it through
 	 * the pipeline.
@@ -848,10 +895,10 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 
 	if (config->sensorConfig)
 		ret = sensor->applyConfiguration(*config->sensorConfig,
-						 config->combinedTransform(),
+						 transform,
 						 &format);
 	else
-		ret = sensor->setFormat(&format, config->combinedTransform());
+		ret = sensor->setFormat(&format, transform);
 
 	if (ret < 0)
 		return ret;
@@ -878,10 +925,6 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 		<< " crop " << inputCrop;
 
 	Rectangle outputCrop = inputCrop;
-	const PixelFormat &streamFormat = config->at(0).pixelFormat;
-	const PixelFormatInfo &info = PixelFormatInfo::info(streamFormat);
-	isRaw_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
-	data->usesDewarper_ = dewarper_ && !isRaw_;
 
 	/* YUYV8_2X8 is required on the ISP source path pad for YUV output. */
 	if (!isRaw_)
@@ -973,15 +1016,19 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 					inputCrop, sensorInfo.analogCrop);
 				auto &vertexMap = dewarper_->vertexMap(cfg.stream());
 				vertexMap.setSensorCrop(sensorCrop);
+				vertexMap.setTransform(config->combinedTransform());
 				data->properties_.set(properties::ScalerCropMaximum, sensorCrop);
 
 				/*
 				 * Apply a default sensor crop that keeps the
 				 * aspect ratio.
 				 */
-				Size crop = format.size.boundedToAspectRatio(cfg.size);
-				vertexMap.setScalerCrop(crop.centeredTo(
-					Rectangle(format.size).center()));
+				Size size = cfg.size;
+				if (transposeAfterIsp)
+					size.transpose();
+				size = sensorCrop.size().boundedToAspectRatio(size);
+				vertexMap.setScalerCrop(
+					size.centeredTo(sensorCrop.center()));
 			}
 
 			ret = mainPath_.configure(ispCfg, format);
