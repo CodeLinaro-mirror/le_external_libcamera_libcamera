@@ -208,6 +208,7 @@ private:
 	int initLinks(Camera *camera, const RkISP1CameraConfiguration &config);
 	int createCamera(MediaEntity *sensor);
 	void tryCompleteRequest(RkISP1FrameInfo *info);
+	void cancelDewarpRequest(RkISP1FrameInfo *info);
 	void imageBufferReady(FrameBuffer *buffer);
 	void paramBufferReady(FrameBuffer *buffer);
 	void statBufferReady(FrameBuffer *buffer);
@@ -1526,6 +1527,31 @@ void PipelineHandlerRkISP1::tryCompleteRequest(RkISP1FrameInfo *info)
 	completeRequest(request);
 }
 
+void PipelineHandlerRkISP1::cancelDewarpRequest(RkISP1FrameInfo *info)
+{
+	RkISP1CameraData *data = cameraData(activeCamera_);
+	Request *request = info->request;
+	/*
+	 * i.MX8MP is the only known platform with dewarper. It has
+	 * no self path. Hence, only main path buffer completion is
+	 * required.
+	 *
+	 * Also, we cannot completeBuffer(request, buffer) as buffer
+	 * here, is an internal buffer (between ISP and dewarper) and
+	 * is not associated to the any specific request. The request
+	 * buffer associated with main path stream is the one that
+	 * is required to be completed (not the internal buffer).
+	 */
+	for (auto [stream, buffer] : request->buffers()) {
+		if (stream == &data->mainPathStream_) {
+			buffer->_d()->cancel();
+			completeBuffer(request, buffer);
+		}
+	}
+
+	tryCompleteRequest(info);
+}
+
 void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 {
 	ASSERT(activeCamera_);
@@ -1567,23 +1593,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 
 	/* Do not queue cancelled frames to dewarper. */
 	if (metadata.status == FrameMetadata::FrameCancelled) {
-		/*
-		 * i.MX8MP is the only known platform with dewarper. It has
-		 * no self path. Hence, only main path buffer completion is
-		 * required.
-		 *
-		 * Also, we cannot completeBuffer(request, buffer) as buffer
-		 * here, is an internal buffer (between ISP and dewarper) and
-		 * is not associated to the any specific request. The request
-		 * buffer associated with main path stream is the one that
-		 * is required to be completed (not the internal buffer).
-		 */
-		for (auto it : request->buffers()) {
-			if (it.first == &data->mainPathStream_)
-				completeBuffer(request, it.second);
-		}
-
-		tryCompleteRequest(info);
+		cancelDewarpRequest(info);
 		return;
 	}
 
@@ -1641,6 +1651,8 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		if (dewarpRequest)
 			dewarpRequestReady(dewarpRequest);
 
+		cancelDewarpRequest(info);
+
 		return;
 	}
 
@@ -1651,6 +1663,8 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 					   << strerrorname_np(-ret);
 			/* Push it back into the queue. */
 			dewarpRequestReady(dewarpRequest);
+
+			cancelDewarpRequest(info);
 		}
 	}
 
