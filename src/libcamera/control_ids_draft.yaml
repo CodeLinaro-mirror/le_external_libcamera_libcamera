@@ -206,7 +206,44 @@ controls:
             available only on this camera device are at least this numeric
             value. All of the custom test patterns will be static (that is the
             raw image must not vary from frame to frame).
-
+  - Dw100ScaleMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Scale mode of the dewarper.
+      enum:
+        - name: Fill
+          value: 0
+          description: |
+            Fills the given output size with the largest rectangle possible. 
+            Aspect ratio is not preserved. Dw100Scale and Dw100Offset are 
+            ignored.
+        - name: Crop
+          value: 1
+          description: |
+            Crops to the given output size. The scale factor can be specified 
+            using Dw100Scale. Aspect ratio is preserved.
+  - Dw100Scale:
+      type: float
+      direction: inout
+      description: |
+        Scale factor applied to the image when Dw100ScaleMode is set to Crop. 
+        This value is clamped, so that all pixels have valid input data. 
+        Therefore a value of 0 always provides the largest possible field of 
+        view.
+  - Dw100Rotation:
+      type: float
+      direction: inout
+      description: |
+        Rotates the image by the given angle in degrees.
+  - Dw100Offset:
+      type: Point
+      direction: inout
+      description: |
+        Moves the image by the given values in x and y direction in output 
+        coordinate space. This is clamped, so that all output pixels contain 
+        valid data. The offset is therefore ignored when Dw100ScaleMode is set 
+        to 'Fit' or the Dw100Scale value is too small.
   - FaceDetectMode:
       type: int32_t
       direction: inout

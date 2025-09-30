@@ -1364,6 +1364,17 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 							      scalerMaxCrop_);
 		data->properties_.set(properties::ScalerCropMaximum, scalerMaxCrop_);
 		activeCrop_ = scalerMaxCrop_;
+
+		if (dewarper_->supportsRequests()) {
+			controls[&controls::draft::Dw100Scale] = ControlInfo(0.2f, 8.0f, 1.0f);
+			controls[&controls::draft::Dw100Rotation] = ControlInfo(-180.0f, 180.0f, 0.0f);
+			controls[&controls::draft::Dw100Offset] = ControlInfo(Point(-10000, -10000), Point(10000, 10000), Point(0, 0));
+			controls[&controls::draft::Dw100ScaleMode] = ControlInfo(controls::draft::Dw100ScaleModeValues, controls::draft::Fill);
+		} else {
+			LOG(RkISP1, Warning)
+				<< "dw100 kernel driver has no requests support."
+				   " No dynamic configuration possible.";
+		}
 	}
 
 	/* Add the IPA registered controls to list of camera controls. */
@@ -1637,6 +1648,37 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		availableDewarpRequests_.pop();
 	}
 
+	bool update = false;
+	auto &vertexMap = dewarper_->vertexMap(&data->mainPathStream_);
+
+	const auto &scale = request->controls().get(controls::draft::Dw100Scale);
+	if (scale) {
+		vertexMap.setScale(*scale);
+		update = true;
+	}
+
+	const auto &rotation = request->controls().get(controls::draft::Dw100Rotation);
+	if (rotation) {
+		vertexMap.setRotation(*rotation);
+		update = true;
+	}
+
+	const auto &offset = request->controls().get(controls::draft::Dw100Offset);
+	if (offset) {
+		vertexMap.setOffset(*offset);
+		update = true;
+	}
+
+	const auto &scaleMode = request->controls().get(controls::draft::Dw100ScaleMode);
+	if (scaleMode) {
+		vertexMap.setMode(static_cast<Dw100VertexMap::ScaleMode>(*scaleMode));
+		update = true;
+	}
+
+	if (update || info->frame == 0) {
+		dewarper_->applyVertexMap(&data->mainPathStream_, dewarpRequest);
+	}
+
 	/* Handle scaler crop control. */
 	const auto &crop = request->controls().get(controls::ScalerCrop);
 	if (crop) {
@@ -1700,7 +1742,11 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		}
 	}
 
-	request->metadata().set(controls::ScalerCrop, activeCrop_.value());
+	auto &meta = request->metadata();
+	meta.set(controls::draft::Dw100Scale, vertexMap.effectiveScale());
+	meta.set(controls::draft::Dw100Rotation, vertexMap.rotation());
+	meta.set(controls::draft::Dw100Offset, vertexMap.effectiveOffset());
+	meta.set(controls::ScalerCrop, activeCrop_.value());
 }
 
 void PipelineHandlerRkISP1::dewarpRequestReady(V4L2Request *request)
