@@ -18,6 +18,7 @@
 #include <libcamera/base/signal.h>
 #include <libcamera/base/utils.h>
 
+#include <libcamera/controls.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/geometry.h>
 #include <libcamera/stream.h>
@@ -250,6 +251,12 @@ void V4L2M2MConverter::V4L2M2MStream::captureBufferReady(FrameBuffer *buffer)
 {
 	converter_->outputBufferReady.emit(buffer);
 }
+
+int V4L2M2MConverter::V4L2M2MStream::applyControls(ControlList &ctrls,
+						   const V4L2Request *request)
+{
+	return m2m_->capture()->setControls(&ctrls, request);
+};
 
 /* -----------------------------------------------------------------------------
  * V4L2M2MConverter
@@ -742,6 +749,18 @@ int V4L2M2MConverter::queueBuffers(FrameBuffer *input,
 		       std::forward_as_tuple(outputs.size()));
 
 	return 0;
+}
+
+/**
+ * libcamera::Converter::applyControls
+ */
+int V4L2M2MConverter::applyControls(const Stream *stream, ControlList &ctrls, const V4L2Request *request)
+{
+	auto iter = streams_.find(stream);
+	if (iter == streams_.end())
+		return -EINVAL;
+
+	return iter->second->applyControls(ctrls, request);
 }
 
 /**
