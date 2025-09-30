@@ -12,6 +12,9 @@
 #include <libcamera/geometry.h>
 #include <libcamera/transform.h>
 
+#include "libcamera/internal/matrix.h"
+#include "libcamera/internal/vector.h"
+
 namespace libcamera {
 
 class Dw100VertexMap
@@ -57,10 +60,19 @@ public:
 	void setMode(const ScaleMode mode) { mode_ = mode; }
 	ScaleMode mode() const { return mode_; }
 
+	int loadDewarpParams(const YamlObject &dict);
+	int setDewarpParams(const Matrix<double, 3, 3> &cm, const Span<const double> &coeffs);
+	bool dewarpParamsValid() { return dewarpParamsValid_; }
+
+	void setLensDewarpEnable(bool enable) { lensDewarpEnable_ = enable; }
+	bool lensDewarpEnable() { return lensDewarpEnable_; }
+
 	std::vector<uint32_t> getVertexMap();
 
 private:
 	int getVerticesForLength(const int length);
+
+	Vector<double, 2> dewarpPoint(const Vector<double, 2> &p);
 
 	Rectangle scalerCrop_;
 	Rectangle sensorCrop_;
@@ -75,6 +87,11 @@ private:
 	double effectiveScaleY_;
 	Point effectiveOffset_;
 	Rectangle effectiveScalerCrop_;
+
+	Matrix<double, 3, 3> dewarpM_ = Matrix<double, 3, 3>::identity();
+	std::array<double, 12> dewarpCoeffs_;
+	bool lensDewarpEnable_ = true;
+	bool dewarpParamsValid_ = false;
 };
 
 } /* namespace libcamera */

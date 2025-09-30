@@ -66,6 +66,14 @@ Vector2d point2Vec2d(const Point &p)
 	return { { static_cast<double>(p.x), static_cast<double>(p.y) } };
 }
 
+void transformPoint(const Rectangle &from, const Rectangle &to, Vector2d &p)
+{
+	double sx = to.width / static_cast<double>(from.width);
+	double sy = to.height / static_cast<double>(from.height);
+	p.x() = (p.x() - from.x) * sx + to.x;
+	p.y() = (p.y() - from.y) * sy + to.y;
+}
+
 } /* namespace */
 
 /**
@@ -344,6 +352,17 @@ std::vector<uint32_t> Dw100VertexMap::getVertexMap()
 			p.x() += localScalerCrop.x;
 			p.y() += localScalerCrop.y;
 
+			if (dewarpParamsValid_ && lensDewarpEnable_) {
+				/*
+				 * We are in localScalerCrop coordinates.
+				 * Tranform to sensor coordinates.
+				 */
+				transformPoint(localScalerCrop, effectiveScalerCrop_, p);
+				p = dewarpPoint(p);
+				/* tarnsform back to localScalerCrop */
+				transformPoint(effectiveScalerCrop_, localScalerCrop, p);
+			}
+
 			/* Convert to fixed point */
 			uint32_t v = static_cast<uint32_t>(p.y() * 16) << 16 |
 				     (static_cast<uint32_t>(p.x() * 16) & 0xffff);
@@ -352,6 +371,74 @@ std::vector<uint32_t> Dw100VertexMap::getVertexMap()
 	}
 
 	return res;
+}
+
+int Dw100VertexMap::loadDewarpParams(const YamlObject &dict)
+{
+	Matrix<double, 3, 3> m;
+	const auto &cm = dict["cm"].get<Matrix<double, 3, 3>>();
+	if (!cm) {
+		LOG(Converter, Error) << "Dewarp parameters are missing 'cm' value";
+		return -EINVAL;
+	}
+
+	m = *cm;
+
+	const auto &coeffs = dict["coefficients"].getList<double>();
+	if (!coeffs) {
+		LOG(Converter, Error) << "Dewarp parameters 'coefficients' value is not a list";
+		return -EINVAL;
+	}
+
+	const Span<const double> span{ *coeffs };
+	return setDewarpParams(m, span);
+}
+
+int Dw100VertexMap::setDewarpParams(const Matrix<double, 3, 3> &cm, const Span<const double> &coeffs)
+{
+	dewarpM_ = cm;
+	dewarpCoeffs_.fill(0.0);
+
+	if (coeffs.size() != 4 && coeffs.size() != 5 &&
+	    coeffs.size() != 8 && coeffs.size() != 12) {
+		LOG(Converter, Error) << "Dewarp 'coefficients' must have 4, 5, 8 or 12 values";
+		dewarpParamsValid_ = false;
+		return -EINVAL;
+	}
+	std::copy(coeffs.begin(), coeffs.end(), dewarpCoeffs_.begin());
+
+	dewarpParamsValid_ = true;
+	return 0;
+}
+
+Vector2d Dw100VertexMap::dewarpPoint(const Vector2d &p)
+{
+	double x, y;
+	double k1 = dewarpCoeffs_[0];
+	double k2 = dewarpCoeffs_[1];
+	double p1 = dewarpCoeffs_[2];
+	double p2 = dewarpCoeffs_[3];
+	double k3 = dewarpCoeffs_[4];
+	double k4 = dewarpCoeffs_[5];
+	double k5 = dewarpCoeffs_[6];
+	double k6 = dewarpCoeffs_[7];
+	double s1 = dewarpCoeffs_[8];
+	double s2 = dewarpCoeffs_[9];
+	double s3 = dewarpCoeffs_[10];
+	double s4 = dewarpCoeffs_[11];
+
+	y = (p.y() - dewarpM_[1][2]) / dewarpM_[1][1];
+	x = (p.x() - dewarpM_[0][2] - y * dewarpM_[0][1]) / dewarpM_[0][0];
+
+	double r2 = x * x + y * y;
+	double d = (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) /
+		   (1 + k4 * r2 + k5 * r2 * r2 + k6 * r2 * r2 * r2);
+	x = x * d + 2 * p1 * x * y + p2 * (r2 + 2 * x * x) + s1 * r2 + s2 * r2 * r2;
+	y = y * d + 2 * p2 * x * y + p1 * (r2 + 2 * y * y) + s3 * r2 + s4 * r2 * r2;
+
+	Vector2d ret{ { x * dewarpM_[0][0] + y * dewarpM_[0][1] + dewarpM_[0][2],
+			y * dewarpM_[1][1] + dewarpM_[1][2] } };
+	return ret;
 }
 
 int Dw100VertexMap::getVerticesForLength(const int length)
