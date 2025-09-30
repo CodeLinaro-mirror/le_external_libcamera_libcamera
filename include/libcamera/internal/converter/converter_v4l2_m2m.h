@@ -127,6 +127,8 @@ protected:
 	Size adjustSizes(const Size &size, const std::vector<SizeRange> &ranges,
 			 Alignment align);
 
+	virtual std::unique_ptr<V4L2M2MStream> makeStream(const Stream *stream);
+
 	std::unique_ptr<V4L2M2MDevice> m2m_;
 
 	std::map<const Stream *, std::unique_ptr<V4L2M2MStream>> streams_;
