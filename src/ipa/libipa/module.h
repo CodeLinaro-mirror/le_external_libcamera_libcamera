@@ -74,6 +74,10 @@ private:
 	int createAlgorithm(Context &context, const YamlObject &data)
 	{
 		const auto &[name, algoData] = *data.asDict().begin();
+
+		if (name == "Dewarp")
+			return 0;
+
 		std::unique_ptr<Algorithm<Module>> algo = createAlgorithm(name);
 		if (!algo) {
 			LOG(IPAModuleAlgo, Error)
