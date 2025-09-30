@@ -18,6 +18,7 @@
 #include <libcamera/base/unique_fd.h>
 
 #include "libcamera/internal/media_object.h"
+#include "libcamera/internal/v4l2_request.h"
 
 namespace libcamera {
 
@@ -57,6 +58,11 @@ public:
 
 	std::vector<MediaEntity *> locateEntities(unsigned int function);
 
+	int allocateRequests(unsigned int count,
+			     std::vector<std::unique_ptr<V4L2Request>> *requests);
+
+	bool supportsRequests();
+
 protected:
 	std::string logPrefix() const override;
 
@@ -87,6 +93,7 @@ private:
 	UniqueFD fd_;
 	bool valid_;
 	bool acquired_;
+	std::optional<bool> supportsRequests_;
 
 	std::map<unsigned int, MediaObject *> objects_;
 	std::vector<MediaEntity *> entities_;
