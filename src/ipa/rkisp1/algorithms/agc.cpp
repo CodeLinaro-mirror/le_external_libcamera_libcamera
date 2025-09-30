@@ -70,7 +70,7 @@ int Agc::parseMeteringModes(IPAContext &context, const YamlObject &tuningData)
 			<< "No metering modes read from tuning file; defaulting to matrix";
 		std::vector<uint8_t> weights(context.hw.numHistogramWeights, 1);
 
-		meteringModes_[controls::MeteringMatrix] = weights;
+		meteringModes_[controls::AeMeteringModeMatrix] = weights;
 	}
 
 	std::vector<ControlValue> meteringModes;
@@ -595,7 +595,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	}
 
 	std::vector<AgcMeanLuminance::AgcConstraint> additionalConstraints;
-	if (context.activeState.wdr.mode != controls::WdrOff)
+	if (context.activeState.wdr.mode != controls::WdrModeOff)
 		additionalConstraints.push_back(context.activeState.wdr.constraint);
 
 	setLimits(minExposureTime, maxExposureTime, minAnalogueGain, maxAnalogueGain,

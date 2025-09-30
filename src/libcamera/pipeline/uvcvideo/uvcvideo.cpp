@@ -581,7 +581,7 @@ int UVCCameraData::init(MediaDevice *media)
 	 * come from the ACPI _PLD, but that may be even more unreliable than
 	 * the _UPC.
 	 */
-	properties::LocationEnum location = properties::CameraLocationExternal;
+	properties::LocationEnum location = properties::LocationExternal;
 	std::ifstream file(video_->devicePath() + "/../removable");
 	if (file.is_open()) {
 		std::string value;
@@ -589,7 +589,7 @@ int UVCCameraData::init(MediaDevice *media)
 		file.close();
 
 		if (value == "fixed")
-			location = properties::CameraLocationFront;
+			location = properties::LocationFront;
 	}
 
 	properties_.set(properties::Location, location);
