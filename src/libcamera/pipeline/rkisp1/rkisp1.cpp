@@ -1514,12 +1514,13 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 								      maxCrop);
 		}
 
-
 		if (dewarper_->supportsRequests()) {
 			controls[&controls::draft::Dw100Scale] = ControlInfo(0.2f, 8.0f, 1.0f);
 			controls[&controls::draft::Dw100Rotation] = ControlInfo(-180.0f, 180.0f, 0.0f);
 			controls[&controls::draft::Dw100Offset] = ControlInfo(Point(-10000, -10000), Point(10000, 10000), Point(0, 0));
 			controls[&controls::draft::Dw100ScaleMode] = ControlInfo(controls::draft::Dw100ScaleModeValues, controls::draft::Fill);
+			if (data->dewarpParams_.has_value())
+				controls[&controls::LensDewarpEnable] = ControlInfo(false, true, true);
 		} else {
 			LOG(RkISP1, Warning)
 				<< "dw100 kernel driver has no requests support."
@@ -1873,6 +1874,9 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 	meta.set(controls::draft::Dw100Rotation, vertexMap.rotation());
 	meta.set(controls::draft::Dw100Offset, vertexMap.effectiveOffset());
 	meta.set(controls::ScalerCrop, vertexMap.effectiveScalerCrop());
+
+	if (vertexMap.dewarpParamsValid())
+		meta.set(controls::LensDewarpEnable, vertexMap.lensDewarpEnable());
 }
 
 void PipelineHandlerRkISP1::dewarpRequestReady(V4L2Request *request)
