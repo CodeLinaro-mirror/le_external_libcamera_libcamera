@@ -139,7 +139,7 @@ private:
 
 	void bufferReady(FrameBuffer *buffer);
 
-	MediaDevice *isiDev_;
+	std::shared_ptr<MediaDevice> isiDev_;
 
 	std::unique_ptr<V4L2Subdevice> crossbar_;
 	std::vector<Pipe> pipes_;
