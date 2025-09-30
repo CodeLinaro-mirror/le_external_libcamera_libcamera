@@ -183,6 +183,13 @@ static constexpr unsigned int kRkISP1MaxQueuedRequests = 4;
  */
 static constexpr unsigned int kRkISP1MinBufferCount = 4;
 
+/*
+ * This flag allows to use dynamic dewarp maps to support pan, zoom, rotate when
+ * the kernel driver doesn't support requests. Only needed for legacy customer
+ * kernels.
+ */
+static constexpr bool kAllowDynamicDewarpMapsWithoutRequests = true;
+
 } /* namespace */
 
 class PipelineHandlerRkISP1 : public PipelineHandler
@@ -1514,7 +1521,7 @@ int PipelineHandlerRkISP1::updateControls(RkISP1CameraData *data)
 								      maxCrop);
 		}
 
-		if (dewarper_->supportsRequests()) {
+		if (dewarper_->supportsRequests() || kAllowDynamicDewarpMapsWithoutRequests) {
 			controls[&controls::draft::Dw100Scale] = ControlInfo(0.2f, 8.0f, 1.0f);
 			controls[&controls::draft::Dw100Rotation] = ControlInfo(-180.0f, 180.0f, 0.0f);
 			controls[&controls::draft::Dw100Offset] = ControlInfo(Point(-10000, -10000), Point(10000, 10000), Point(0, 0));
