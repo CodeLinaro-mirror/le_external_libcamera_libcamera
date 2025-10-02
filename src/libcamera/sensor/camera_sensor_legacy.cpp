@@ -389,7 +389,7 @@ int CameraSensorLegacy::validateSensorDriver()
 	 * test platforms have been updated.
 	 */
 	Rectangle rect;
-	int ret = subdev_->getSelection(pad_, V4L2_SEL_TGT_CROP_BOUNDS, &rect);
+	int ret = subdev_->getSelection(pad_, V4L2_SEL_TGT_NATIVE_SIZE, &rect);
 	if (ret) {
 		/*
 		 * Default the pixel array size to the largest size supported

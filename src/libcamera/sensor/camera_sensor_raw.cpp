@@ -419,10 +419,10 @@ std::optional<int> CameraSensorRaw::init()
 	 */
 
 	Rectangle rect;
-	ret = subdev_->getSelection(streams_.image.sink, V4L2_SEL_TGT_CROP_BOUNDS,
+	ret = subdev_->getSelection(streams_.image.sink, V4L2_SEL_TGT_NATIVE_SIZE,
 				    &rect);
 	if (ret) {
-		LOG(CameraSensor, Error) << "No pixel array crop bounds";
+		LOG(CameraSensor, Error) << "No pixel array native size";
 		return { ret };
 	}
 
