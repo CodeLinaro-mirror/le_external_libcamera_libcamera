@@ -144,7 +144,12 @@ void ControlSerializer::reset()
 
 size_t ControlSerializer::binarySize(const ControlValue &value)
 {
-	return sizeof(ControlType) + value.data().size_bytes();
+	/*
+	 * Allocate extra space to save isArray and the number of elements, to
+	 * support array-type ControlValues.
+	 */
+	return sizeof(ControlType) + sizeof(ControlValueHeader) +
+	       value.data().size_bytes();
 }
 
 size_t ControlSerializer::binarySize(const ControlInfo &info)
@@ -197,6 +202,13 @@ void ControlSerializer::store(const ControlValue &value,
 {
 	const ControlType type = value.type();
 	buffer.write(&type);
+
+	ControlValueHeader cvh = {
+		value.isArray(),
+		value.numElements(),
+	};
+	buffer.write(&cvh);
+
 	buffer.write(value.data());
 }
 
@@ -368,6 +380,10 @@ int ControlSerializer::serialize(const ControlList &list,
 		struct ipa_control_value_entry entry;
 		entry.id = id;
 		entry.type = value.type();
+		/*
+		 * .is_array and .count are now unused as these have been moved
+		 * to ControlSerializer::store(const ControlValue &, ByteStreamBuffer &)
+		 */
 		entry.is_array = value.isArray();
 		entry.count = value.numElements();
 		entry.offset = values.offset();
@@ -382,16 +398,16 @@ int ControlSerializer::serialize(const ControlList &list,
 	return 0;
 }
 
-ControlValue ControlSerializer::loadControlValue(ByteStreamBuffer &buffer,
-						 bool isArray,
-						 unsigned int count)
+ControlValue ControlSerializer::loadControlValue(ByteStreamBuffer &buffer)
 {
 	ControlType type;
 	buffer.read(&type);
 
-	ControlValue value;
+	ControlValueHeader cvh;
+	buffer.read(&cvh);
 
-	value.reserve(type, isArray, count);
+	ControlValue value;
+	value.reserve(type, cvh.isArray, cvh.numElements);
 	buffer.read(value.data());
 
 	return value;
@@ -633,7 +649,7 @@ ControlList ControlSerializer::deserialize<ControlList>(ByteStreamBuffer &buffer
 		}
 
 		ctrls.set(entry->id,
-			  loadControlValue(values, entry->is_array, entry->count));
+			  loadControlValue(values));
 	}
 
 	return ctrls;

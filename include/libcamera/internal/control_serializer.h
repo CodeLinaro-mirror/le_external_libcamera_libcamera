@@ -41,14 +41,18 @@ public:
 	bool isCached(const ControlInfoMap &infoMap);
 
 private:
+	struct ControlValueHeader {
+		bool isArray;
+		std::size_t numElements;
+	};
+
 	static size_t binarySize(const ControlValue &value);
 	static size_t binarySize(const ControlInfo &info);
 
 	static void store(const ControlValue &value, ByteStreamBuffer &buffer);
 	static void store(const ControlInfo &info, ByteStreamBuffer &buffer);
 
-	ControlValue loadControlValue(ByteStreamBuffer &buffer,
-				      bool isArray = false, unsigned int count = 1);
+	ControlValue loadControlValue(ByteStreamBuffer &buffer);
 	ControlInfo loadControlInfo(ByteStreamBuffer &buffer);
 
 	unsigned int serial_;
