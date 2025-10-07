@@ -20,6 +20,7 @@
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
+#include <libcamera/base/span.h>
 #include <libcamera/base/utils.h>
 
 #include <libcamera/control_ids.h>
@@ -280,10 +281,11 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 		uint64_t frameSize = lineLength * frameHeights[i];
 		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
 	}
+	std::array<int64_t, 2> defFrameDurations = { frameDurations[2], frameDurations[2] };
 
 	controls[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							       frameDurations[1],
-							       frameDurations[2]);
+							       Span<const int64_t, 2>{ defFrameDurations });
 
 	controls.merge(context_.ctrlMap);
 	*ipaControls = ControlInfoMap(std::move(controls), controls::controls);
