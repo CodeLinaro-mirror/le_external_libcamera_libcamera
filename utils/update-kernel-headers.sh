@@ -56,6 +56,7 @@ headers="
 	linux/udmabuf.h
 	linux/v4l2-common.h
 	linux/v4l2-controls.h
+	linux/v4l2-isp.h
 	linux/v4l2-mediabus.h
 	linux/v4l2-subdev.h
 	linux/videodev2.h
