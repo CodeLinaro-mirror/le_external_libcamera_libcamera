@@ -16,6 +16,7 @@ libipa_headers = files([
     'lsc_polynomial.h',
     'lux.h',
     'module.h',
+    'v4l2_params.h',
     'pwl.h',
 ])
 
@@ -35,6 +36,7 @@ libipa_sources = files([
     'lsc_polynomial.cpp',
     'lux.cpp',
     'module.cpp',
+    'v4l2_params.cpp',
     'pwl.cpp',
 ])
 
