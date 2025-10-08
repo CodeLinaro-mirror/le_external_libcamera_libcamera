@@ -122,6 +122,9 @@ uint8_t Agc::computeHistogramPredivider(const Size &size,
 Agc::Agc()
 {
 	supportsRaw_ = true;
+	/* rkisp1 is well synchronized, increase the speed. */
+	regulationSpeed_ = 0.6;
+	numStartupFrames_ = 7;
 }
 
 /**
