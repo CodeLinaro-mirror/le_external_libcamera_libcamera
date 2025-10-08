@@ -17,6 +17,7 @@ struct IPAConfigInfo {
 struct StartResult {
 	libcamera.ControlList controls;
 	int32 code;
+	uint32 paramBufferBytesUsed;
 };
 
 interface IPARkISP1Interface {
@@ -25,7 +26,9 @@ interface IPARkISP1Interface {
 	     libcamera.IPACameraSensorInfo sensorInfo,
 	     libcamera.ControlInfoMap sensorControls)
 		=> (int32 ret, libcamera.ControlInfoMap ipaControls);
-	start(libcamera.ControlList controls) => (StartResult result);
+	start(libcamera.ControlList controls,
+	      uint32 paramBufferId)
+		=> (StartResult result);
 	stop();
 
 	configure(IPAConfigInfo configInfo,
