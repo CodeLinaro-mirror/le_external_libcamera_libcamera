@@ -137,11 +137,13 @@ int Agc::init(IPAContext &context, const ValueNode &tuningData)
 {
 	int ret;
 
-	ret = agc_.init(tuningData, context.camHelper.get(), {
-		.sensorInfo = context.sensorInfo,
-		.sensorControls = context.sensorControls,
-		.ctrlMap = context.ctrlMap,
-	});
+	ret = agc_.init(tuningData, context.camHelper.get(),
+			{ .sensorInfo = context.sensorInfo,
+			  .sensorControls = context.sensorControls,
+			  .ctrlMap = context.ctrlMap,
+			  /* rkisp1 is well synchronized, increase the speed. */
+			  .numStartupFrames = 7,
+			  .regulationSpeed = 0.6 });
 	if (ret)
 		return ret;
 
