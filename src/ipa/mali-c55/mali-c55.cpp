@@ -5,6 +5,7 @@
  * Mali-C55 ISP image processing algorithms
  */
 
+#include <array>
 #include <map>
 #include <string.h>
 #include <vector>
@@ -14,6 +15,7 @@
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
+#include <libcamera/base/span.h>
 
 #include <libcamera/control_ids.h>
 #include <libcamera/ipa/ipa_interface.h>
@@ -234,9 +236,10 @@ void IPAMaliC55::updateControls(const IPACameraSensorInfo &sensorInfo,
 		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
 	}
 
+	std::array<int64_t, 2> defFrameDurations = { frameDurations[2], frameDurations[2] };
 	ctrlMap[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							      frameDurations[1],
-							      frameDurations[2]);
+							      Span<const int64_t, 2>{ defFrameDurations });
 
 	/*
 	 * Compute exposure time limits from the V4L2_CID_EXPOSURE control
