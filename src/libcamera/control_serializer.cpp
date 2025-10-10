@@ -164,7 +164,8 @@ size_t ControlSerializer::binarySize(const ControlInfo &info)
 size_t ControlSerializer::binarySize(const ControlInfoMap &infoMap)
 {
 	size_t size = sizeof(struct ipa_controls_header)
-		    + infoMap.size() * sizeof(struct ipa_control_info_entry);
+		    + infoMap.size() * (sizeof(struct ipa_control_info_entry) +
+					3 * sizeof(struct ipa_control_value_entry));
 
 	for (const auto &ctrl : infoMap)
 		size += binarySize(ctrl.second);
@@ -197,14 +198,20 @@ void ControlSerializer::store(const ControlValue &value,
 {
 	const ControlType type = value.type();
 	buffer.write(&type);
+
 	buffer.write(value.data());
 }
 
-void ControlSerializer::store(const ControlInfo &info, ByteStreamBuffer &buffer)
+void ControlSerializer::populateControlValueEntry(struct ipa_control_value_entry &entry,
+						  unsigned int id,
+						  const ControlValue &value,
+						  uint32_t offset)
 {
-	store(info.min(), buffer);
-	store(info.max(), buffer);
-	store(info.def(), buffer);
+	entry.id = id;
+	entry.type = value.type();
+	entry.is_array = value.isArray();
+	entry.count = value.numElements();
+	entry.offset = offset;
 }
 
 /**
@@ -232,7 +239,8 @@ int ControlSerializer::serialize(const ControlInfoMap &infoMap,
 
 	/* Compute entries and data required sizes. */
 	size_t entriesSize = infoMap.size()
-			   * sizeof(struct ipa_control_info_entry);
+			   * (sizeof(struct ipa_control_info_entry) +
+			      3 * sizeof(struct ipa_control_value_entry));
 	size_t valuesSize = 0;
 	for (const auto &ctrl : infoMap)
 		valuesSize += binarySize(ctrl.second);
@@ -284,7 +292,29 @@ int ControlSerializer::serialize(const ControlInfoMap &infoMap,
 		entry.direction = static_cast<ControlId::DirectionFlags::Type>(id->direction());
 		entries.write(&entry);
 
-		store(info, values);
+		/*
+		 * Write the metadata for the ControlValue entries as well,
+		 * since we need type, isArray, and numElements information for
+		 * min/max/def of the ControlInfo. Doing it this way is the
+		 * least intrusive in terms of changing the structs in
+		 * ipa_controls.h
+		 */
+		struct ipa_control_value_entry valueEntry;
+
+		populateControlValueEntry(valueEntry, id->id(), info.min(),
+					  values.offset());
+		entries.write(&valueEntry);
+		store(info.min(), values);
+
+		populateControlValueEntry(valueEntry, id->id(), info.max(),
+					  values.offset());
+		entries.write(&valueEntry);
+		store(info.max(), values);
+
+		populateControlValueEntry(valueEntry, id->id(), info.def(),
+					  values.offset());
+		entries.write(&valueEntry);
+		store(info.def(), values);
 	}
 
 	if (buffer.overflow())
@@ -366,11 +396,7 @@ int ControlSerializer::serialize(const ControlList &list,
 		const ControlValue &value = ctrl.second;
 
 		struct ipa_control_value_entry entry;
-		entry.id = id;
-		entry.type = value.type();
-		entry.is_array = value.isArray();
-		entry.count = value.numElements();
-		entry.offset = values.offset();
+		populateControlValueEntry(entry, id, value, values.offset());
 		entries.write(&entry);
 
 		store(value, values);
@@ -395,15 +421,6 @@ ControlValue ControlSerializer::loadControlValue(ByteStreamBuffer &buffer,
 	buffer.read(value.data());
 
 	return value;
-}
-
-ControlInfo ControlSerializer::loadControlInfo(ByteStreamBuffer &b)
-{
-	ControlValue min = loadControlValue(b);
-	ControlValue max = loadControlValue(b);
-	ControlValue def = loadControlValue(b);
-
-	return ControlInfo(min, max, def);
 }
 
 /**
@@ -485,7 +502,13 @@ ControlInfoMap ControlSerializer::deserialize<ControlInfoMap>(ByteStreamBuffer &
 	for (unsigned int i = 0; i < hdr->entries; ++i) {
 		const struct ipa_control_info_entry *entry =
 			entries.read<decltype(*entry)>();
-		if (!entry) {
+		const struct ipa_control_value_entry *min_entry =
+			entries.read<decltype(*min_entry)>();
+		const struct ipa_control_value_entry *max_entry =
+			entries.read<decltype(*max_entry)>();
+		const struct ipa_control_value_entry *def_entry =
+			entries.read<decltype(*def_entry)>();
+		if (!entry || !min_entry || !max_entry || !def_entry) {
 			LOG(Serializer, Error) << "Out of data";
 			return {};
 		}
@@ -518,8 +541,15 @@ ControlInfoMap ControlSerializer::deserialize<ControlInfoMap>(ByteStreamBuffer &
 			return {};
 		}
 
+		ControlValue min = loadControlValue(values, min_entry->is_array,
+						    min_entry->count);
+		ControlValue max = loadControlValue(values, max_entry->is_array,
+						    max_entry->count);
+		ControlValue def = loadControlValue(values, def_entry->is_array,
+						    def_entry->count);
+
 		/* Create and store the ControlInfo. */
-		ctrls.emplace(controlId, loadControlInfo(values));
+		ctrls.emplace(controlId, ControlInfo(min, max, def));
 	}
 
 	/*
