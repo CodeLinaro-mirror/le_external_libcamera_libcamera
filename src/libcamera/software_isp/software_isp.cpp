@@ -255,11 +255,12 @@ SoftwareIsp::strideAndFrameSize(const PixelFormat &outputFormat, const Size &siz
  */
 int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 			   const std::vector<std::reference_wrapper<StreamConfiguration>> &outputCfgs,
-			   const ipa::soft::IPAConfigInfo &configInfo)
+			   const ipa::soft::IPAConfigInfo &configInfo,
+			   ControlInfoMap *ipaControls)
 {
 	ASSERT(ipa_ && debayer_);
 
-	int ret = ipa_->configure(configInfo);
+	int ret = ipa_->configure(configInfo, ipaControls);
 	if (ret < 0)
 		return ret;
 

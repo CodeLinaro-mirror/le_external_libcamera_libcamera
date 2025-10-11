@@ -57,7 +57,8 @@ public:
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls,
 		 bool *ccmEnabled) override;
-	int configure(const IPAConfigInfo &configInfo) override;
+	int configure(const IPAConfigInfo &configInfo,
+		      ControlInfoMap *ipaControls) override;
 
 	int start() override;
 	void stop() override;
@@ -193,7 +194,8 @@ int IPASoftSimple::init(const IPASettings &settings,
 	return 0;
 }
 
-int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
+int IPASoftSimple::configure(const IPAConfigInfo &configInfo,
+			     [[maybe_unused]] ControlInfoMap *ipaControls)
 {
 	sensorInfoMap_ = configInfo.sensorControls;
 
