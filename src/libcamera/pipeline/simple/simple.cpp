@@ -1412,8 +1412,14 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	if (data->converter_) {
 		return data->converter_->configure(inputCfg, outputCfgs);
 	} else {
-		ipa::soft::IPAConfigInfo configInfo;
-		configInfo.sensorControls = data->sensor_->controls();
+		IPACameraSensorInfo sensorInfo;
+		ret = data->sensor_->sensorInfo(&sensorInfo);
+		if (ret)
+			return ret;
+
+		ipa::soft::IPAConfigInfo configInfo{ sensorInfo,
+						     data->sensor_->controls() };
+
 		return data->swIsp_->configure(inputCfg, outputCfgs, configInfo, &data->controlInfo_);
 	}
 }
