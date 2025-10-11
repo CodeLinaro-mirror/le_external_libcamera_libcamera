@@ -190,16 +190,6 @@ void IPAMaliC55::updateSessionConfiguration(const IPACameraSensorInfo &info,
 	context_.configuration.agc.defaultExposure = defExposure;
 	context_.configuration.agc.minAnalogueGain = context_.camHelper->gain(minGain);
 	context_.configuration.agc.maxAnalogueGain = context_.camHelper->gain(maxGain);
-
-	if (context_.camHelper->blackLevel().has_value()) {
-		/*
-		 * The black level from CameraSensorHelper is a 16-bit value.
-		 * The Mali-C55 ISP expects 20-bit settings, so we shift it to
-		 * the appropriate width
-		 */
-		context_.configuration.sensor.blackLevel =
-			context_.camHelper->blackLevel().value() << 4;
-	}
 }
 
 void IPAMaliC55::updateControls(const IPACameraSensorInfo &sensorInfo,

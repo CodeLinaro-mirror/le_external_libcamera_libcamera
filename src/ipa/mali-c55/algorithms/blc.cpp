@@ -64,17 +64,23 @@ int BlackLevelCorrection::init([[maybe_unused]] IPAContext &context,
 int BlackLevelCorrection::configure(IPAContext &context,
 				    [[maybe_unused]] const IPACameraSensorInfo &configInfo)
 {
+	if (!context.camHelper->blackLevel().has_value())
+		return 0;
+
+	/*
+	 * The black level from CameraSensorHelper is a 16-bit value.
+	 * The Mali-C55 ISP expects 20-bit settings, so we shift it to
+	 * the appropriate width
+	 */
+	uint32_t blackLevel = context.camHelper->blackLevel().value() << 4;
+
 	/*
 	 * If no Black Levels were passed in through tuning data then we could
 	 * use the value from the CameraSensorHelper if one is available.
 	 */
-	if (context.configuration.sensor.blackLevel &&
-	    !(offset00_ + offset01_ + offset10_ + offset11_)) {
-		offset00_ = context.configuration.sensor.blackLevel;
-		offset01_ = context.configuration.sensor.blackLevel;
-		offset10_ = context.configuration.sensor.blackLevel;
-		offset11_ = context.configuration.sensor.blackLevel;
-	}
+	if (blackLevel &&
+	    !(offset00_ + offset01_ + offset10_ + offset11_))
+		offset00_ = offset01_ = offset10_ = offset11_ = blackLevel;
 
 	return 0;
 }
