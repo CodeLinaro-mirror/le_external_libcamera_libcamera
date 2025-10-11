@@ -16,6 +16,7 @@
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
 
+#include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
 #include "core_ipa_interface.h"
@@ -103,6 +104,8 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 	ControlInfoMap::Map ctrlMap;
 	bool ccmEnabled = false;
+
+	std::unique_ptr<CameraSensorHelper> camHelper;
 };
 
 } /* namespace ipa::soft */
