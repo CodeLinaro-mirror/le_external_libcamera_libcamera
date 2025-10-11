@@ -32,10 +32,10 @@ private:
 	static constexpr uint32_t kMaxOffset = 0xfffff;
 
 	bool tuningParameters_;
-	uint32_t offset00;
-	uint32_t offset01;
-	uint32_t offset10;
-	uint32_t offset11;
+	uint32_t offset00_;
+	uint32_t offset01_;
+	uint32_t offset10_;
+	uint32_t offset11_;
 };
 
 } /* namespace ipa::mali_c55::algorithms */

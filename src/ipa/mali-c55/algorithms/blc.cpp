@@ -38,13 +38,13 @@ BlackLevelCorrection::BlackLevelCorrection()
 int BlackLevelCorrection::init([[maybe_unused]] IPAContext &context,
 			       const YamlObject &tuningData)
 {
-	offset00 = tuningData["offset00"].get<uint32_t>(0);
-	offset01 = tuningData["offset01"].get<uint32_t>(0);
-	offset10 = tuningData["offset10"].get<uint32_t>(0);
-	offset11 = tuningData["offset11"].get<uint32_t>(0);
+	offset00_ = tuningData["offset00"].get<uint32_t>(0);
+	offset01_ = tuningData["offset01"].get<uint32_t>(0);
+	offset10_ = tuningData["offset10"].get<uint32_t>(0);
+	offset11_ = tuningData["offset11"].get<uint32_t>(0);
 
-	if (offset00 > kMaxOffset || offset01 > kMaxOffset ||
-	    offset10 > kMaxOffset || offset11 > kMaxOffset) {
+	if (offset00_ > kMaxOffset || offset01_ > kMaxOffset ||
+	    offset10_ > kMaxOffset || offset11_ > kMaxOffset) {
 		LOG(MaliC55Blc, Error) << "Invalid black level offsets";
 		return -EINVAL;
 	}
@@ -52,8 +52,8 @@ int BlackLevelCorrection::init([[maybe_unused]] IPAContext &context,
 	tuningParameters_ = true;
 
 	LOG(MaliC55Blc, Debug)
-		<< "Black levels: 00 " << offset00 << ", 01 " << offset01
-		<< ", 10 " << offset10 << ", 11 " << offset11;
+		<< "Black levels: 00 " << offset00_ << ", 01 " << offset01_
+		<< ", 10 " << offset10_ << ", 11 " << offset11_;
 
 	return 0;
 }
@@ -69,11 +69,11 @@ int BlackLevelCorrection::configure(IPAContext &context,
 	 * use the value from the CameraSensorHelper if one is available.
 	 */
 	if (context.configuration.sensor.blackLevel &&
-	    !(offset00 + offset01 + offset10 + offset11)) {
-		offset00 = context.configuration.sensor.blackLevel;
-		offset01 = context.configuration.sensor.blackLevel;
-		offset10 = context.configuration.sensor.blackLevel;
-		offset11 = context.configuration.sensor.blackLevel;
+	    !(offset00_ + offset01_ + offset10_ + offset11_)) {
+		offset00_ = context.configuration.sensor.blackLevel;
+		offset01_ = context.configuration.sensor.blackLevel;
+		offset10_ = context.configuration.sensor.blackLevel;
+		offset11_ = context.configuration.sensor.blackLevel;
 	}
 
 	return 0;
@@ -100,10 +100,10 @@ void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
 	block.header->flags = MALI_C55_PARAM_BLOCK_FL_NONE;
 	block.header->size = sizeof(mali_c55_params_sensor_off_preshading);
 
-	block.sensor_offs->chan00 = offset00;
-	block.sensor_offs->chan01 = offset01;
-	block.sensor_offs->chan10 = offset10;
-	block.sensor_offs->chan11 = offset11;
+	block.sensor_offs->chan00 = offset00_;
+	block.sensor_offs->chan01 = offset01_;
+	block.sensor_offs->chan10 = offset10_;
+	block.sensor_offs->chan11 = offset11_;
 
 	params->total_size += block.header->size;
 }
@@ -126,10 +126,10 @@ void BlackLevelCorrection::process([[maybe_unused]] IPAContext &context,
 	 * \todo Account for bayer order.
 	 */
 	metadata.set(controls::SensorBlackLevels, {
-		static_cast<int32_t>(offset00 >> 4),
-		static_cast<int32_t>(offset01 >> 4),
-		static_cast<int32_t>(offset10 >> 4),
-		static_cast<int32_t>(offset11 >> 4),
+		static_cast<int32_t>(offset00_ >> 4),
+		static_cast<int32_t>(offset01_ >> 4),
+		static_cast<int32_t>(offset10_ >> 4),
+		static_cast<int32_t>(offset11_ >> 4),
 	});
 }
 
