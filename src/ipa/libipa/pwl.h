@@ -45,6 +45,7 @@ public:
 	Pwl();
 	Pwl(const std::vector<Point> &points);
 	Pwl(std::vector<Point> &&points);
+	Pwl(std::initializer_list<double> data);
 
 	void append(double x, double y, double eps = 1e-6);
 

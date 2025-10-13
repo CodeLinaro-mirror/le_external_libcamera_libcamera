@@ -123,6 +123,25 @@ Pwl::Pwl(std::vector<Point> &&points)
 }
 
 /**
+ * \brief Construct a piecewise linear function from a initializer list
+ * \param[in] data initializer list of doubles
+ *
+ * This constructor takes a even number of doubles and treats them as
+ * x0,y0,x1,y1,...,xn,yn coordinates for the PWL.
+ */
+Pwl::Pwl(std::initializer_list<double> data)
+{
+	ASSERT((data.size() % 2) == 0);
+
+	auto iter = data.begin();
+	while (iter != data.end()) {
+		double x = *iter++;
+		double y = *iter++;
+		append(x, y);
+	}
+}
+
+/**
  * \brief Append a point to the end of the piecewise linear function
  * \param[in] x x-coordinate of the point to add to the piecewise linear function
  * \param[in] y y-coordinate of the point to add to the piecewise linear function
