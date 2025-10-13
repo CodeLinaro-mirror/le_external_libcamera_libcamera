@@ -195,7 +195,7 @@ int GstLibcameraSrcState::queueRequest()
 		std::make_unique<RequestWrap>(std::move(request));
 
 	for (GstPad *srcpad : srcpads_) {
-		Stream *stream = gst_libcamera_pad_get_stream(srcpad);
+		Stream *stream = (Stream *)gst_pad_get_element_private(srcpad);
 		GstLibcameraPool *pool = gst_libcamera_pad_get_pool(srcpad);
 		GstBuffer *buffer;
 		GstFlowReturn ret;
@@ -359,11 +359,11 @@ int GstLibcameraSrcState::processRequest()
 
 	for (gsize i = 0; i < srcpads_.size(); i++) {
 		GstPad *srcpad = srcpads_[i];
-		Stream *stream = gst_libcamera_pad_get_stream(srcpad);
+		Stream *stream = (Stream *)gst_pad_get_element_private(srcpad);
 		GstBuffer *buffer = wrap->detachBuffer(stream);
 
 		FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
-		const StreamConfiguration &stream_cfg = config_->at(i);
+		const StreamConfiguration &stream_cfg = stream->configuration();
 		GstBufferPool *video_pool = gst_libcamera_pad_get_video_pool(srcpad);
 
 		if (video_pool) {
@@ -698,6 +698,9 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		gst_libcamera_pad_set_pool(srcpad, pool);
 		gst_libcamera_pad_set_video_pool(srcpad, video_pool);
 
+		/* Associate the configured stream with the src pad. */
+		gst_pad_set_element_private(srcpad, (gpointer)stream_cfg.stream());
+
 		/* Clear all reconfigure flags. */
 		gst_pad_check_reconfigure(srcpad);
 	}
@@ -894,6 +897,7 @@ gst_libcamera_src_task_leave([[maybe_unused]] GstTask *task,
 		for (GstPad *srcpad : state->srcpads_) {
 			gst_libcamera_pad_set_latency(srcpad, GST_CLOCK_TIME_NONE);
 			gst_libcamera_pad_set_pool(srcpad, nullptr);
+			gst_pad_set_element_private(srcpad, nullptr);
 		}
 	}
 

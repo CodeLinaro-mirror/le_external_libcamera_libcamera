@@ -189,17 +189,6 @@ void gst_libcamera_pad_set_video_info(GstPad *pad, const GstVideoInfo *info)
 	self->info = *info;
 }
 
-Stream *
-gst_libcamera_pad_get_stream(GstPad *pad)
-{
-	auto *self = GST_LIBCAMERA_PAD(pad);
-
-	if (self->pool)
-		return gst_libcamera_pool_get_stream(self->pool);
-
-	return nullptr;
-}
-
 void
 gst_libcamera_pad_set_latency(GstPad *pad, GstClockTime latency)
 {
