@@ -645,7 +645,7 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		GstPad *srcpad = state->srcpads_[i];
 		const StreamConfiguration &stream_cfg = state->config_->at(i);
 
-		g_autoptr(GstCaps) caps = gst_libcamera_stream_configuration_to_caps(stream_cfg, transfer[i]);
+		g_autoptr(GstCaps) caps = gst_libcamera_stream_cfg_to_caps(stream_cfg, transfer[i]);
 		gst_libcamera_framerate_to_caps(caps, element_caps);
 
 		if (status == CameraConfiguration::Adjusted &&
@@ -673,7 +673,7 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		GstBufferPool *video_pool = nullptr;
 		GstVideoInfo info;
 
-		g_autoptr(GstCaps) caps = gst_libcamera_stream_configuration_to_caps(stream_cfg, transfer[i]);
+		g_autoptr(GstCaps) caps = gst_libcamera_stream_cfg_to_caps(stream_cfg, transfer[i]);
 
 		gst_video_info_from_caps(&info, caps);
 		gst_libcamera_pad_set_video_info(srcpad, &info);

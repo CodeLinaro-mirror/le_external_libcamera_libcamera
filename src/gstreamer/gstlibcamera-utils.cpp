@@ -408,8 +408,8 @@ gst_libcamera_stream_formats_to_caps(const StreamFormats &formats)
 }
 
 GstCaps *
-gst_libcamera_stream_configuration_to_caps(const StreamConfiguration &stream_cfg,
-					   GstVideoTransferFunction transfer)
+gst_libcamera_stream_cfg_to_caps(const StreamConfiguration &stream_cfg,
+				 GstVideoTransferFunction transfer)
 {
 	GstCaps *caps = gst_caps_new_empty();
 	GstStructure *s = bare_structure_from_format(stream_cfg.pixelFormat);
