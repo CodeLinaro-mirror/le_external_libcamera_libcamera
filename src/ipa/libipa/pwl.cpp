@@ -170,6 +170,12 @@ void Pwl::prepend(double x, double y, const double eps)
  */
 
 /**
+ * \fn Pwl::swap(Pwl &other)
+ * \brief Swap the contents with another PWL
+ * \param[in] other The PWL to swap with
+ */
+
+/**
  * \brief Get the domain of the piecewise linear function
  * \return An interval representing the domain
  */

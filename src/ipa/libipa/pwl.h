@@ -51,6 +51,7 @@ public:
 	bool empty() const { return points_.empty(); }
 	void clear() { points_.clear(); }
 	size_t size() const { return points_.size(); }
+	void swap(Pwl &other) { points_.swap(other.points_); }
 
 	Interval domain() const;
 	Interval range() const;
