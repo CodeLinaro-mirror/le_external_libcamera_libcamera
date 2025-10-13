@@ -54,6 +54,14 @@ static constexpr double kDefaultRelativeLuminanceTarget = 0.16;
  */
 static constexpr double kMaxRelativeLuminanceTarget = 0.95;
 
+/*
+ * Default lux level
+ *
+ * If no lux level or a zero lux level is specified, but PWLs are used to
+ * specify luminance targets, this default level is used.
+ */
+static constexpr unsigned int kDefaultLuxLevel = 500;
+
 /**
  * \struct AgcMeanLuminance::AgcConstraint
  * \brief The boundaries and target for an AeConstraintMode constraint
@@ -145,16 +153,32 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
 
 AgcMeanLuminance::AgcMeanLuminance()
 	: exposureCompensation_(1.0), frameCount_(0), filteredExposure_(0s),
-	  relativeLuminanceTarget_(0)
+	  lux_(0)
 {
 }
 
 AgcMeanLuminance::~AgcMeanLuminance() = default;
 
-void AgcMeanLuminance::parseRelativeLuminanceTarget(const YamlObject &tuningData)
+int AgcMeanLuminance::parseRelativeLuminanceTarget(const YamlObject &tuningData)
 {
-	relativeLuminanceTarget_ =
-		tuningData["relativeLuminanceTarget"].get<double>(kDefaultRelativeLuminanceTarget);
+	relativeLuminanceTarget_.clear();
+
+	auto &target = tuningData["relativeLuminanceTarget"];
+	if (target.isValue()) {
+		double t = target.get<double>(kDefaultRelativeLuminanceTarget);
+		relativeLuminanceTarget_.append(0, t);
+		return 0;
+	}
+
+	std::optional<Pwl> pwl = target.get<Pwl>();
+	if (!pwl) {
+		LOG(AgcMeanLuminance, Error)
+			<< "Failed to load relative luminance target.";
+		return -EINVAL;
+	}
+
+	relativeLuminanceTarget_.swap(*pwl);
+	return 0;
 }
 
 void AgcMeanLuminance::parseConstraint(const YamlObject &modeDict, int32_t id)
@@ -385,7 +409,9 @@ int AgcMeanLuminance::parseTuningData(const YamlObject &tuningData)
 {
 	int ret;
 
-	parseRelativeLuminanceTarget(tuningData);
+	ret = parseRelativeLuminanceTarget(tuningData);
+	if (ret)
+		return ret;
 
 	ret = parseConstraintModes(tuningData);
 	if (ret)
@@ -401,6 +427,16 @@ int AgcMeanLuminance::parseTuningData(const YamlObject &tuningData)
  *
  * This function sets the exposure compensation value to be used in the
  * AGC calculations. It is expressed as gain instead of EV.
+ */
+
+/**
+ * \fn AgcMeanLuminance::setLux(int lux)
+ * \brief Set the lux level
+ * \param[in] lux The lux level
+ *
+ * This function sets the lux level to be used in the AGC calculations. A value
+ * of 0 means no measurement and a default value of \a kDefaultLuxLevel is used
+ * if necessary.
  */
 
 /**
@@ -538,7 +574,18 @@ double AgcMeanLuminance::constraintClampGain(uint32_t constraintModeIndex,
  */
 double AgcMeanLuminance::effectiveYTarget() const
 {
-	return std::min(relativeLuminanceTarget_ * exposureCompensation_,
+	double lux = lux_;
+	if (relativeLuminanceTarget_.size() > 1 && lux_ == 0) {
+		LOG(AgcMeanLuminance, Debug)
+			<< "Missing lux value for luminance target calculation, default to "
+			<< kDefaultLuxLevel;
+		lux = kDefaultLuxLevel;
+	}
+
+	double luminanceTarget = relativeLuminanceTarget_.eval(
+		relativeLuminanceTarget_.domain().clamp(lux));
+
+	return std::min(luminanceTarget * exposureCompensation_,
 			kMaxRelativeLuminanceTarget);
 }
 
