@@ -229,7 +229,7 @@ void Dpf::prepare(IPAContext &context, const uint32_t frame,
 		*config = config_;
 
 		const auto &awb = context.configuration.awb;
-		const auto &lsc = context.configuration.lsc;
+		const auto &lsc = context.activeState.lsc;
 
 		auto &mode = config->gain.mode;
 

@@ -366,6 +366,8 @@ LensShadingCorrection::LensShadingCorrection()
 int LensShadingCorrection::init([[maybe_unused]] IPAContext &context,
 				const YamlObject &tuningData)
 {
+	context.ctrlMap[&controls::LensShadingEnable] = ControlInfo(false, true, true);
+
 	xSize_ = parseSizes(tuningData, "x-size");
 	ySize_ = parseSizes(tuningData, "y-size");
 
@@ -449,7 +451,7 @@ int LensShadingCorrection::configure(IPAContext &context,
 
 	sets_.setData(std::move(shadingData));
 
-	context.configuration.lsc.enabled = true;
+	context.activeState.lsc.enabled = true;
 	return 0;
 }
 
@@ -471,6 +473,27 @@ void LensShadingCorrection::copyTable(rkisp1_cif_isp_lsc_config &config,
 }
 
 /**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void LensShadingCorrection::queueRequest(IPAContext &context,
+					 [[maybe_unused]] const uint32_t frame,
+					 IPAFrameContext &frameContext,
+					 const ControlList &controls)
+{
+	auto &lsc = context.activeState.lsc;
+
+	const auto &lscEnable = controls.get(controls::LensShadingEnable);
+	if (lscEnable && *lscEnable != lsc.enabled) {
+		lsc.enabled = *lscEnable;
+
+		LOG(RkISP1Lsc, Debug)
+			<< (*lscEnable ? "Enabling" : "Disabling") << " Lsc";
+
+		frameContext.lsc.update = true;
+	}
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
@@ -479,16 +502,26 @@ void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
 				    RkISP1Params *params)
 {
 	uint32_t ct = frameContext.awb.temperatureK;
-	if (std::abs(static_cast<int>(ct) - static_cast<int>(lastAppliedCt_)) <
+
+	if (!frameContext.lsc.update && !context.activeState.lsc.enabled)
+		return;
+
+	if (!frameContext.lsc.update &&
+	    std::abs(static_cast<int>(ct) - static_cast<int>(lastAppliedCt_)) <
 	    kColourTemperatureChangeThreshhold)
 		return;
+
 	unsigned int quantizedCt;
 	const Components &set = sets_.getInterpolated(ct, &quantizedCt);
-	if (lastAppliedQuantizedCt_ == quantizedCt)
+	if (!frameContext.lsc.update && lastAppliedQuantizedCt_ == quantizedCt)
 		return;
 
 	auto config = params->block<BlockType::Lsc>();
-	config.setEnabled(true);
+	config.setEnabled(context.activeState.lsc.enabled);
+
+	if (!context.activeState.lsc.enabled)
+		return;
+
 	setParameters(*config);
 	copyTable(*config, set);
 

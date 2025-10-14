@@ -56,10 +56,6 @@ struct IPASessionConfiguration {
 	} compress;
 
 	struct {
-		bool enabled;
-	} lsc;
-
-	struct {
 		utils::Duration minExposureTime;
 		utils::Duration maxExposureTime;
 		double minAnalogueGain;
@@ -139,6 +135,10 @@ struct IPAActiveState {
 		double gain;
 		double strength;
 	} wdr;
+
+	struct {
+		bool enabled;
+	} lsc;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -214,6 +214,10 @@ struct IPAFrameContext : public FrameContext {
 		double strength;
 		double gain;
 	} wdr;
+
+	struct {
+		bool update;
+	} lsc;
 };
 
 struct IPAContext {

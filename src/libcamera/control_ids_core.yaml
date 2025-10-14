@@ -1352,4 +1352,7 @@ controls:
       description: |
         Enable or disable the lens shading algorithm.
 
+        This control is only available when there are valid lens shading
+        correction parameters available in the tuning file.
+
 ...
