@@ -51,6 +51,7 @@ headers="
 	linux/dma-heap.h
 	linux/media-bus-format.h
 	linux/media.h
+	linux/media/v4l2-isp.h
 	linux/rkisp1-config.h
 	linux/stddef.h
 	linux/udmabuf.h
