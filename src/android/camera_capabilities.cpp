@@ -1223,10 +1223,10 @@ int CameraCapabilities::initializeStaticMetadata()
 	{
 		std::vector<uint8_t> data;
 		data.reserve(2);
-		const auto &infoMap = controlsInfo.find(&controls::draft::LensShadingMapMode);
+		const auto &infoMap = controlsInfo.find(&controls::LensShadingEnable);
 		if (infoMap != controlsInfo.end()) {
 			for (const auto &value : infoMap->second.values())
-				data.push_back(value.get<int32_t>());
+				data.push_back(value.get<bool>());
 		} else {
 			data.push_back(ANDROID_STATISTICS_LENS_SHADING_MAP_MODE_OFF);
 		}
