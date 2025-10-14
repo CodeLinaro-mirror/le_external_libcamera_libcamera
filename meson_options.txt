@@ -59,6 +59,7 @@ option('pipelines',
             'vimc',
             'virtual',
             'v4l2-loopback',
+            'vivid',
 
         ],
         description : 'Select which pipeline handlers to build. If this is set to "auto", all the pipelines applicable to the target architecture will be built. If this is set to "all", all the pipelines will be built. If both are selected then "all" will take precedence.')
