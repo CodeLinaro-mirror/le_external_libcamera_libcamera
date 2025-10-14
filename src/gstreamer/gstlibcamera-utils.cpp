@@ -357,6 +357,42 @@ control_type_to_gtype(const ControlType &type)
 	return G_TYPE_INVALID;
 }
 
+static const struct {
+	Orientation orientation;
+	GstVideoOrientationMethod method;
+} orientation_map[]{
+	{ Orientation::Rotate0, GST_VIDEO_ORIENTATION_IDENTITY },
+	{ Orientation::Rotate90, GST_VIDEO_ORIENTATION_90R },
+	{ Orientation::Rotate180, GST_VIDEO_ORIENTATION_180 },
+	{ Orientation::Rotate270, GST_VIDEO_ORIENTATION_90L },
+	{ Orientation::Rotate0Mirror, GST_VIDEO_ORIENTATION_HORIZ },
+	{ Orientation::Rotate180Mirror, GST_VIDEO_ORIENTATION_VERT },
+	{ Orientation::Rotate90Mirror, GST_VIDEO_ORIENTATION_UL_LR },
+	{ Orientation::Rotate270Mirror, GST_VIDEO_ORIENTATION_UR_LL },
+};
+
+Orientation
+gst_video_orientation_to_libcamera_orientation(GstVideoOrientationMethod method)
+{
+	for (auto &b : orientation_map) {
+		if (b.method == method)
+			return b.orientation;
+	}
+
+	return Orientation::Rotate0;
+}
+
+GstVideoOrientationMethod
+libcamera_orientation_to_gst_video_orientation(Orientation orientation)
+{
+	for (auto &a : orientation_map) {
+		if (a.orientation == orientation)
+			return a.method;
+	}
+
+	return GST_VIDEO_ORIENTATION_IDENTITY;
+}
+
 GstCaps *
 gst_libcamera_stream_formats_to_caps(const StreamFormats &formats)
 {

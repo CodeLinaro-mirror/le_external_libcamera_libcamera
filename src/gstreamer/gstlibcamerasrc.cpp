@@ -146,6 +146,7 @@ struct _GstLibcameraSrc {
 	GstTask *task;
 
 	gchar *camera_name;
+	GstVideoOrientationMethod orientation;
 
 	std::atomic<GstEvent *> pending_eos;
 
@@ -157,6 +158,7 @@ struct _GstLibcameraSrc {
 enum {
 	PROP_0,
 	PROP_CAMERA_NAME,
+	PROP_ORIENTATION,
 	PROP_LAST
 };
 
@@ -616,6 +618,10 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		gst_libcamera_get_framerate_from_caps(caps, element_caps);
 	}
 
+	/* Set orientation. */
+	Orientation requestedOrientation = gst_video_orientation_to_libcamera_orientation(self->orientation);
+	state->config_->orientation = requestedOrientation;
+
 	/* Validate the configuration. */
 	CameraConfiguration::Status status = state->config_->validate();
 	if (status == CameraConfiguration::Invalid)
@@ -636,6 +642,10 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 	/* Check frame duration bounds within controls::FrameDurationLimits */
 	gst_libcamera_clamp_and_set_frameduration(state->initControls_,
 						  state->cam_->controls(), element_caps);
+
+	/* If orientation is changed, update the property. */
+	if (state->config_->orientation != requestedOrientation)
+		g_object_set(G_OBJECT(self), "orientation", state->config_->orientation, nullptr);
 
 	/*
 	 * Regardless if it has been modified, create clean caps and push the
@@ -936,6 +946,9 @@ gst_libcamera_src_set_property(GObject *object, guint prop_id,
 		g_free(self->camera_name);
 		self->camera_name = g_value_dup_string(value);
 		break;
+	case PROP_ORIENTATION:
+		self->orientation = static_cast<GstVideoOrientationMethod>(g_value_get_enum(value));
+		break;
 	default:
 		if (!state->controls_.setProperty(prop_id - PROP_LAST, value, pspec))
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -954,6 +967,9 @@ gst_libcamera_src_get_property(GObject *object, guint prop_id, GValue *value,
 	switch (prop_id) {
 	case PROP_CAMERA_NAME:
 		g_value_set_string(value, self->camera_name);
+		break;
+	case PROP_ORIENTATION:
+		g_value_set_enum(value, static_cast<gint>(self->orientation));
 		break;
 	default:
 		if (!state->controls_.getProperty(prop_id - PROP_LAST, value, pspec))
@@ -1163,6 +1179,17 @@ gst_libcamera_src_class_init(GstLibcameraSrcClass *klass)
 							     | G_PARAM_READWRITE
 							     | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property(object_class, PROP_CAMERA_NAME, spec);
+
+
+	spec = g_param_spec_enum("orientation", "Orientation",
+				 "Select the preferred image orientation.",
+				 GST_TYPE_VIDEO_ORIENTATION_METHOD,
+				 GST_VIDEO_ORIENTATION_IDENTITY,
+				 (GParamFlags)(GST_PARAM_MUTABLE_READY
+					       | G_PARAM_CONSTRUCT
+					       | G_PARAM_READWRITE
+					       | G_PARAM_STATIC_STRINGS));
+	g_object_class_install_property(object_class, PROP_ORIENTATION, spec);
 
 	GstCameraControls::installProperties(object_class, PROP_LAST);
 }
