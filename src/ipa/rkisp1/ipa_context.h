@@ -65,7 +65,7 @@ struct IPASessionConfiguration {
 		double minAnalogueGain;
 		double maxAnalogueGain;
 
-		int32_t defVBlank;
+		unsigned int vBlank;
 		utils::Duration lineDuration;
 		Size size;
 	} sensor;

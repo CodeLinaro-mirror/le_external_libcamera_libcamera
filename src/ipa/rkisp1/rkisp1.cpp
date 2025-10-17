@@ -250,7 +250,7 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 
 	const IPACameraSensorInfo &info = ipaConfig.sensorInfo;
 	const ControlInfo vBlank = sensorControls_.find(V4L2_CID_VBLANK)->second;
-	context_.configuration.sensor.defVBlank = vBlank.def().get<int32_t>();
+	context_.configuration.sensor.vBlank = vBlank.def().get<int32_t>();
 	context_.configuration.sensor.size = info.outputSize;
 	context_.configuration.sensor.lineDuration = info.minLineLength * 1.0s / info.pixelRate;
 
@@ -261,8 +261,6 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	 * When the AGC computes the new exposure values for a frame, it needs
 	 * to know the limits for exposure time and analogue gain. As it depends
 	 * on the sensor, update it with the controls.
-	 *
-	 * \todo take VBLANK into account for maximum exposure time
 	 */
 	context_.configuration.sensor.minExposureTime =
 		minExposure * context_.configuration.sensor.lineDuration;
@@ -456,6 +454,33 @@ void IPARkISP1::setControls(unsigned int frame)
 	uint32_t exposure = frameContext.agc.exposure;
 	uint32_t gain = context_.camHelper->gainCode(frameContext.agc.gain);
 	uint32_t vblank = frameContext.agc.vblank;
+
+	/*
+	 * Update the exposure limits if vblank has changed. Even if the controls
+	 * will actually be applied to the sensor with some frames of latency
+	 * by DelayedControls, all the algorithms calculations from now on should
+	 * use the new limits.
+	 *
+	 * \todo Sensors usually have a margin that limits the max exposure to
+	 * be shorter by the full frame length:
+	 *
+	 * (max_exposure_lines = height + vblank - margin)
+	 *
+	 * As the margin is a sensor-specific parameter either:
+	 * - Ignore the margin and rely on the driver clamping the exposure
+	 *   value correctly
+	 * - Defer to the sensor helpers by creating an exposure() function that
+	 *   subtract the margin from the frame length
+	 *
+	 * For the time being ignore the margins and rely on the driver doing
+	 * the adjustment.
+	 */
+	if (vblank != context_.configuration.sensor.vBlank) {
+		context_.configuration.sensor.vBlank = vblank;
+		context_.configuration.sensor.maxExposureTime =
+			(vblank + context_.configuration.sensor.size.height) *
+			context_.configuration.sensor.lineDuration;
+	}
 
 	LOG(IPARkISP1, Debug)
 		<< "Set controls for frame " << frame << ": exposure " << exposure
