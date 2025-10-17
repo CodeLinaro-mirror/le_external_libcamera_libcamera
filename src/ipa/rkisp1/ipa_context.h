@@ -143,6 +143,9 @@ struct IPAActiveState {
 
 struct IPAFrameContext : public FrameContext {
 	struct {
+		utils::Duration minExposureTime;
+		utils::Duration maxExposureTime;
+		utils::Duration exposureTime;
 		uint32_t exposure;
 		double gain;
 		double exposureValue;

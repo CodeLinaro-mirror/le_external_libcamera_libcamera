@@ -62,6 +62,8 @@ public:
 	int configure(const IPAConfigInfo &ipaConfig,
 		      const std::map<uint32_t, IPAStream> &streamConfig,
 		      ControlInfoMap *ipaControls) override;
+	int updateControlsLimits(const uint32_t frame,
+				 ControlInfoMap *ipaControls) override;
 	void mapBuffers(const std::vector<IPABuffer> &buffers) override;
 	void unmapBuffers(const std::vector<unsigned int> &ids) override;
 
@@ -290,6 +292,30 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 		if (ret)
 			return ret;
 	}
+
+	return 0;
+}
+
+int IPARkISP1::updateControlsLimits(const uint32_t frame, ControlInfoMap *ipaControls)
+{
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+
+	/*
+	 * Update the exposure time and frame duration limits with the
+	 * settings computed by the AGC for the frame at hand.
+	 */
+	assert(ipaControls->find(&controls::ExposureTime) != ipaControls->end());
+	assert(ipaControls->find(&controls::FrameDurationLimits) != ipaControls->end());
+
+	ControlValue eMin(static_cast<int32_t>(frameContext.agc.minExposureTime.get<std::micro>()));
+	ControlValue eMax(static_cast<int32_t>(frameContext.agc.maxExposureTime.get<std::micro>()));
+	ControlValue eDef(static_cast<int32_t>(frameContext.agc.exposureTime.get<std::micro>()));
+	ipaControls->at(controls::ExposureTime.id()) = ControlInfo(eMin, eMax, eDef);
+
+	ControlValue fMin(static_cast<int32_t>(frameContext.agc.minFrameDuration.get<std::micro>()));
+	ControlValue fMax(static_cast<int32_t>(frameContext.agc.maxFrameDuration.get<std::micro>()));
+	ControlValue fDef(static_cast<int32_t>(frameContext.agc.frameDuration.get<std::micro>()));
+	ipaControls->at(controls::FrameDurationLimits.id()) = ControlInfo(fMin, fMax, fDef);
 
 	return 0;
 }

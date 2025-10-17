@@ -27,6 +27,8 @@ interface IPARkISP1Interface {
 		  map<uint32, libcamera.IPAStream> streamConfig)
 		=> (int32 ret, libcamera.ControlInfoMap ipaControls);
 
+	updateControlsLimits(uint32 frame) => (int32 ret, libcamera.ControlInfoMap ipaControls);
+
 	mapBuffers(array<libcamera.IPABuffer> buffers);
 	unmapBuffers(array<uint32> ids);
 

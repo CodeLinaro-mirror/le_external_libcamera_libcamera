@@ -585,6 +585,8 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 				* frameContext.agc.exposure;
 		maxExposureTime = minExposureTime;
 	}
+	frameContext.agc.minExposureTime = minExposureTime;
+	frameContext.agc.maxExposureTime = maxExposureTime;
 
 	if (frameContext.agc.autoGainEnabled) {
 		minAnalogueGain = context.configuration.sensor.minAnalogueGain;
@@ -606,6 +608,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	 * applied to the sensor when the statistics were collected.
 	 */
 	utils::Duration exposureTime = lineDuration * frameContext.sensor.exposure;
+	frameContext.agc.exposureTime = exposureTime;
 	double analogueGain = frameContext.sensor.gain;
 	utils::Duration effectiveExposureValue = exposureTime * analogueGain;
 

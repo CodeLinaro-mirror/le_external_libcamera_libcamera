@@ -1494,6 +1494,9 @@ void PipelineHandlerRkISP1::tryCompleteRequest(RkISP1FrameInfo *info)
 	if (!isRaw_ && !info->paramDequeued)
 		return;
 
+	/* Update controls before completing the request */
+	data->ipa_->updateControlsLimits(info->frame, &data->controlInfo_);
+
 	data->frameInfo_.destroy(info->frame);
 
 	completeRequest(request);
