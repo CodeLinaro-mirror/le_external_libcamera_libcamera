@@ -544,6 +544,27 @@ void CameraSession::processRequest(Request *request)
 	if (!requeue)
 		return;
 
+	auto camera = this->camera();
+	const auto controlInfo = camera->controls();
+	for (const auto &[id, ctrlInfo] : controlInfo) {
+		if (id->id() != libcamera::controls::EXPOSURE_TIME &&
+		    id->id() != libcamera::controls::FRAME_DURATION_LIMITS)
+			continue;
+
+		switch (id->id()) {
+		case libcamera::controls::EXPOSURE_TIME:
+			std::cout << "Exposure max: "
+				  << ctrlInfo.max().get<int32_t>() << std::endl;
+			break;
+		case libcamera::controls::FRAME_DURATION_LIMITS:
+			std::cout << "FrameDurationLimits: ["
+				  << ctrlInfo.min().get<int32_t>() << ", "
+				  << ctrlInfo.max().get<int32_t>() << "]"
+				  << std::endl;
+			break;
+		}
+	}
+
 	request->reuse(Request::ReuseBuffers);
 	queueRequest(request);
 }

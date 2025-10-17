@@ -1,0 +1,4 @@
+frames:
+  - 50:
+      FrameDurationLimits: [66666, 66666]
+
