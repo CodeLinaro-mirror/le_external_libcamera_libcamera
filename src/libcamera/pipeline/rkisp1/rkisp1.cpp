@@ -559,28 +559,22 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 	 * Simultaneous capture of raw and processed streams isn't possible. If
 	 * there is any raw stream, cap the number of streams to one.
 	 */
+	bool isRaw = false;
 	if (config_.size() > 1) {
 		for (const auto &cfg : config_) {
 			if (PixelFormatInfo::info(cfg.pixelFormat).colourEncoding ==
 			    PixelFormatInfo::ColourEncodingRAW) {
 				config_.resize(1);
 				status = Adjusted;
+				isRaw = true;
 				break;
 			}
 		}
 	}
 
 	bool useDewarper = false;
-	if (pipe->dewarper_) {
-		/*
-		 * Platforms with dewarper support, such as i.MX8MP, support
-		 * only a single stream. We can inspect config_[0] only here.
-		 */
-		bool isRaw = PixelFormatInfo::info(config_[0].pixelFormat).colourEncoding ==
-			     PixelFormatInfo::ColourEncodingRAW;
-		if (!isRaw)
-			useDewarper = true;
-	}
+	if (pipe->dewarper_ && !isRaw)
+		useDewarper = true;
 
 	/*
 	 * If there are more than one stream in the configuration figure out the
