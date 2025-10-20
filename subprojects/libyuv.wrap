@@ -3,4 +3,4 @@
 [wrap-git]
 directory = libyuv
 url = https://chromium.googlesource.com/libyuv/libyuv.git
-revision = 93b1b332cd60b56ab90aea14182755e379c28a80
+revision = 2b4453d46faebcad72d744d763a4e3b1e97d338d
