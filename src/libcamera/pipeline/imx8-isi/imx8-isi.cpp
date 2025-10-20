@@ -71,6 +71,8 @@ public:
 
 	unsigned int xbarSink_ = 0;
 	unsigned int xbarSourceOffset_ = 0;
+
+	const std::string &cameraName() const { return sensor_->entity()->name(); }
 };
 
 class ISICameraConfiguration : public CameraConfiguration
@@ -117,6 +119,9 @@ protected:
 
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
+	bool acquireDevice(Camera *camera) override;
+	void releaseDevice(Camera *camera) override;
+
 private:
 	static constexpr Size kPreviewSize = { 1920, 1080 };
 	static constexpr Size kMinISISize = { 1, 1 };
@@ -143,6 +148,10 @@ private:
 
 	std::unique_ptr<V4L2Subdevice> crossbar_;
 	std::vector<Pipe> pipes_;
+
+	unsigned int acquireCount_ = 0;
+
+	V4L2Subdevice::Routing routing_ = {};
 };
 
 /* -----------------------------------------------------------------------------
@@ -950,6 +959,36 @@ int PipelineHandlerISI::queueRequestDevice(Camera *camera, Request *request)
 	return 0;
 }
 
+bool PipelineHandlerISI::acquireDevice(Camera *camera)
+{
+	ISICameraData *data = cameraData(camera);
+	int ret;
+
+	acquireCount_++;
+	LOG(ISI, Debug) << "acquireDevice " << data->cameraName()
+			<< " count " << acquireCount_;
+
+	if (acquireCount_ > 1)
+		return true;
+
+	/* Enable routing for all available sensors once */
+	ret = crossbar_->setRouting(&routing_, V4L2Subdevice::ActiveFormat);
+	if (ret)
+		return ret;
+
+	return true;
+}
+
+void PipelineHandlerISI::releaseDevice(Camera *camera)
+{
+	ISICameraData *data = cameraData(camera);
+
+	ASSERT(acquireCount_);
+	acquireCount_--;
+	LOG(ISI, Debug) << "releaseDevice " << data->cameraName()
+			<< " count " << acquireCount_;
+}
+
 bool PipelineHandlerISI::match(DeviceEnumerator *enumerator)
 {
 	DeviceMatch dm("mxc-isi");
@@ -1034,7 +1073,6 @@ bool PipelineHandlerISI::match(DeviceEnumerator *enumerator)
 	unsigned int numSinks = 0;
 	const unsigned int xbarFirstSource = crossbar_->entity()->pads().size() - pipes_.size();
 	const unsigned int maxStreams = pipes_.size() / cameraCount;
-	V4L2Subdevice::Routing routing = {};
 
 	for (MediaPad *pad : crossbar_->entity()->pads()) {
 		unsigned int sink = numSinks;
@@ -1104,7 +1142,7 @@ bool PipelineHandlerISI::match(DeviceEnumerator *enumerator)
 		/*  Add routes to the crossbar switch routing table. */
 		for (unsigned i = 0; i < data->streams_.size(); i++) {
 			unsigned int sourcePad = xbarFirstSource + data->xbarSourceOffset_ + i;
-			routing.emplace_back(V4L2Subdevice::Stream{ data->xbarSink_, 0 },
+			routing_.emplace_back(V4L2Subdevice::Stream{ data->xbarSink_, 0 },
 					     V4L2Subdevice::Stream{ sourcePad, 0 },
 					     V4L2_SUBDEV_ROUTE_FL_ACTIVE);
 		}
@@ -1115,10 +1153,6 @@ bool PipelineHandlerISI::match(DeviceEnumerator *enumerator)
 		registerCamera(std::move(camera));
 		numCameras++;
 	}
-
-	ret = crossbar_->setRouting(&routing, V4L2Subdevice::ActiveFormat);
-	if (ret)
-		return false;
 
 	return numCameras > 0;
 }
