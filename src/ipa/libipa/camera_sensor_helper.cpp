@@ -642,6 +642,31 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx477", CameraSensorHelperImx477)
 
+class CameraSensorHelperImx708 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperImx708()
+	{
+		gain_ = AnalogueGainLinear{ 0, 1024, -1, 1024 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx708", CameraSensorHelperImx708)
+
+class CameraSensorHelperImx708Wide : public CameraSensorHelperImx708
+{
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx708_wide", CameraSensorHelperImx708Wide)
+
+class CameraSensorHelperImx708NoIR : public CameraSensorHelperImx708
+{
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx708_noir", CameraSensorHelperImx708NoIR)
+
+class CameraSensorHelperImx708WideNoIR : public CameraSensorHelperImx708
+{
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx708_wide_noir", CameraSensorHelperImx708WideNoIR)
+
 class CameraSensorHelperOv2685 : public CameraSensorHelper
 {
 public:
