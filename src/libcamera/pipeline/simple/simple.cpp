@@ -333,6 +333,7 @@ public:
 	};
 
 	std::vector<Stream> streams_;
+	Stream *rawStream_;
 
 	/*
 	 * All entities in the pipeline, from the camera sensor to the video
@@ -371,6 +372,11 @@ private:
 	void ispStatsReady(uint32_t frame, uint32_t bufferId);
 	void metadataReady(uint32_t frame, const ControlList &metadata);
 	void setSensorControls(const ControlList &sensorControls);
+
+	bool processedRequested() const
+	{
+		return streams_.size() - (rawStream_ ? 1 : 0) > 0;
+	}
 };
 
 class SimpleCameraConfiguration : public CameraConfiguration
@@ -467,7 +473,7 @@ private:
 SimpleCameraData::SimpleCameraData(SimplePipelineHandler *pipe,
 				   unsigned int numStreams,
 				   MediaEntity *sensor)
-	: Camera::Private(pipe), streams_(numStreams)
+	: Camera::Private(pipe), streams_(numStreams), rawStream_(nullptr)
 {
 	/*
 	 * Find the shortest path from the camera sensor to a video capture
@@ -878,10 +884,13 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	 * point converting an erroneous buffer.
 	 */
 	if (buffer->metadata().status != FrameMetadata::FrameSuccess) {
-		if (!useConversion_) {
+		if (rawStream_) {
 			/* No conversion, just complete the request. */
 			Request *request = buffer->request();
 			pipe->completeBuffer(request, buffer);
+			SimpleFrameInfo *info = frameInfo_.find(request->sequence());
+			if (info)
+				info->metadataRequired = false;
 			tryCompleteRequest(request);
 			return;
 		}
@@ -891,7 +900,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		 * buffer for capture (unless the stream is being stopped), and
 		 * complete the request with all the user-facing buffers.
 		 */
-		if (buffer->metadata().status != FrameMetadata::FrameCancelled)
+		if (buffer->metadata().status != FrameMetadata::FrameCancelled &&
+		    !rawStream_)
 			video_->queueBuffer(buffer);
 
 		if (conversionQueue_.empty())
@@ -940,13 +950,14 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	 */
 	if (useConversion_) {
 		if (conversionQueue_.empty()) {
-			video_->queueBuffer(buffer);
+			if (!rawStream_)
+				video_->queueBuffer(buffer);
 			return;
 		}
 
 		if (converter_)
 			converter_->queueBuffers(buffer, conversionQueue_.front().outputs);
-		else
+		else if (processedRequested())
 			/*
 			 * request->sequence() cannot be retrieved from `buffer' inside
 			 * queueBuffers because unique_ptr's make buffer->request() invalid
@@ -956,6 +967,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 					     conversionQueue_.front().outputs);
 
 		conversionQueue_.pop();
+		if (rawStream_)
+			pipe->completeBuffer(request, buffer);
 		return;
 	}
 
@@ -993,7 +1006,8 @@ void SimpleCameraData::tryCompleteRequest(Request *request)
 void SimpleCameraData::conversionInputDone(FrameBuffer *buffer)
 {
 	/* Queue the input buffer back for capture. */
-	video_->queueBuffer(buffer);
+	if (!rawStream_)
+		video_->queueBuffer(buffer);
 }
 
 void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
@@ -1518,11 +1532,15 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 
 	for (unsigned int i = 0; i < config->size(); ++i) {
 		StreamConfiguration &cfg = config->at(i);
+		bool rawStream = isRaw(cfg);
 
 		cfg.setStream(&data->streams_[i]);
 
-		if (data->useConversion_ && !isRaw(cfg))
+		if (data->useConversion_ && !rawStream)
 			outputCfgs.push_back(cfg);
+
+		if (rawStream)
+			data->rawStream_ = &data->streams_[i];
 	}
 
 	if (outputCfgs.empty())
@@ -1553,7 +1571,7 @@ int SimplePipelineHandler::exportFrameBuffers(Camera *camera, Stream *stream,
 	 * Export buffers on the converter or capture video node, depending on
 	 * whether the converter is used or not.
 	 */
-	if (data->useConversion_)
+	if (data->useConversion_ && stream != data->rawStream_)
 		return data->converter_
 			       ? data->converter_->exportBuffers(stream, count, buffers)
 			       : data->swIsp_->exportBuffers(stream, count, buffers);
@@ -1576,7 +1594,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		return -EBUSY;
 	}
 
-	if (data->useConversion_) {
+	if (data->useConversion_ && !data->rawStream_) {
 		/*
 		 * When using the converter allocate a fixed number of internal
 		 * buffers.
@@ -1584,8 +1602,11 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		ret = video->allocateBuffers(kNumInternalBuffers,
 					     &data->conversionBuffers_);
 	} else {
-		/* Otherwise, prepare for using buffers from the only stream. */
-		Stream *stream = &data->streams_[0];
+		/*
+		 * Otherwise, prepare for using buffers from either the raw stream, if
+		 * requested, or the only stream configured.
+		 */
+		Stream *stream = (data->rawStream_ ? data->rawStream_ : &data->streams_[0]);
 		ret = video->importBuffers(stream->configuration().bufferCount);
 	}
 	if (ret < 0) {
@@ -1626,8 +1647,9 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		}
 
 		/* Queue all internal buffers for capture. */
-		for (std::unique_ptr<FrameBuffer> &buffer : data->conversionBuffers_)
-			video->queueBuffer(buffer.get());
+		if (!data->rawStream_)
+			for (std::unique_ptr<FrameBuffer> &buffer : data->conversionBuffers_)
+				video->queueBuffer(buffer.get());
 	}
 
 	return 0;
@@ -1678,7 +1700,7 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		 * queue, it will be handed to the converter in the capture
 		 * completion handler.
 		 */
-		if (data->useConversion_) {
+		if (data->useConversion_ && stream != data->rawStream_) {
 			buffers.emplace(stream, buffer);
 			metadataRequired = !!data->swIsp_;
 		} else {
