@@ -276,8 +276,12 @@ std::string ControlValue::toString() const
 			str += value->toString();
 			break;
 		}
+		case ControlTypeString: {
+			const std::string *value = reinterpret_cast<const std::string *>(data);
+			str += *value;
+			break;
+		}
 		case ControlTypeNone:
-		case ControlTypeString:
 			break;
 		}
 
@@ -353,7 +357,8 @@ bool ControlValue::operator==(const ControlValue &other) const
 void ControlValue::set(ControlType type, bool isArray, const void *data,
 		       std::size_t numElements, std::size_t elementSize)
 {
-	ASSERT(elementSize == ControlValueSize[type]);
+	if (type != ControlTypeString)
+		ASSERT(elementSize == ControlValueSize[type]);
 
 	reserve(type, isArray, numElements);
 
@@ -375,7 +380,7 @@ void ControlValue::set(ControlType type, bool isArray, const void *data,
  */
 void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElements)
 {
-	if (!isArray)
+	if (!isArray && type != ControlTypeString)
 		numElements = 1;
 
 	std::size_t oldSize = numElements_ * ControlValueSize[type_];

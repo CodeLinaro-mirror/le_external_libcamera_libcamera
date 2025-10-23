@@ -201,7 +201,8 @@ public:
 	T get() const
 	{
 		assert(type_ == details::control_type<std::remove_cv_t<T>>::value);
-		assert(isArray_);
+		if (type_ != ControlTypeString)
+			assert(isArray_);
 
 		using V = typename T::value_type;
 		const V *value = reinterpret_cast<const V *>(data().data());

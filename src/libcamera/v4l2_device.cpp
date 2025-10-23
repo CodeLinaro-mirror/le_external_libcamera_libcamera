@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string_view>
 #include <sys/ioctl.h>
 #include <sys/syscall.h>
 #include <unistd.h>
@@ -25,6 +26,8 @@
 
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/sysfs.h"
+#include "libcamera/controls.h"
+#include "linux/videodev2.h"
 
 /**
  * \file v4l2_device.h
@@ -228,6 +231,13 @@ ControlList V4L2Device::getControls(Span<const uint32_t> ids)
 				value.reserve(type, true, info.elems);
 				data = value.data();
 				v4l2Ctrl.p_u32 = reinterpret_cast<uint32_t *>(data.data());
+				break;
+
+			case V4L2_CTRL_TYPE_STRING:
+				type = ControlTypeString;
+				value.reserve(type, false, info.maximum + 1);
+				data = value.data();
+				v4l2Ctrl.string = reinterpret_cast<char *>(data.data());
 				break;
 
 			default:
@@ -570,6 +580,8 @@ ControlType V4L2Device::v4l2CtrlType(uint32_t ctrlType)
 		 * integer type.
 		 */
 		return ControlTypeInteger32;
+	case V4L2_CTRL_TYPE_STRING:
+		return ControlTypeString;
 
 	default:
 		return ControlTypeNone;
@@ -709,6 +721,7 @@ void V4L2Device::listControls()
 		case V4L2_CTRL_TYPE_U8:
 		case V4L2_CTRL_TYPE_U16:
 		case V4L2_CTRL_TYPE_U32:
+		case V4L2_CTRL_TYPE_STRING:
 			break;
 		/* \todo Support other control types. */
 		default:
@@ -806,6 +819,21 @@ void V4L2Device::updateControls(ControlList *ctrls,
 		switch (iter->first->type()) {
 		case ControlTypeInteger64:
 			value.set<int64_t>(v4l2Ctrl.value64);
+			break;
+
+		case ControlTypeString:
+			/*
+			 * The ControlValue contains storage for the  maximum
+			 * length of the string, and its size matches that. After
+			 * the data is retrieved, it must be resized so ControlValue::numElements()
+			 * is correct.
+			*
+			 * VIDIOC_G_EXT_CTRLS does not return the length of the string,
+			 * so we must reassign and let the std::string_view constructor
+			 * calculate the true length. Because value is a copy, there will be
+			 * no use-after-free issues.
+			 */
+			value.set<std::string_view>(v4l2Ctrl.string);
 			break;
 
 		default:
