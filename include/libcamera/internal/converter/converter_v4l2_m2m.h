@@ -81,7 +81,7 @@ public:
 
 	bool supportsRequests();
 
-private:
+protected:
 	class V4L2M2MStream : protected Loggable
 	{
 	public:
@@ -130,12 +130,13 @@ private:
 	virtual std::unique_ptr<V4L2M2MStream> makeStream(const Stream *stream);
 
 	std::unique_ptr<V4L2M2MDevice> m2m_;
+	std::shared_ptr<MediaDevice> media_;
 
 	std::map<const Stream *, std::unique_ptr<V4L2M2MStream>> streams_;
+
+private:
 	std::map<FrameBuffer *, unsigned int> queue_;
 	std::pair<Rectangle, Rectangle> inputCropBounds_;
-
-	std::shared_ptr<MediaDevice> media_;
 };
 
 } /* namespace libcamera */

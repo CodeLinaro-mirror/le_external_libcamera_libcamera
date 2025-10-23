@@ -86,6 +86,28 @@ int getCropBounds(V4L2VideoDevice *device, Rectangle &minCrop,
  * V4L2M2MConverter::V4L2M2MStream
  */
 
+/**
+ * \class libcamera::V4L2M2MConverter::V4L2M2MStream
+ * \brief The V4L2 M2M stream represents a stream in a V4L2M2MConverter
+ *
+ * The Converter interface allows to create multiple output image streams from
+ * a single input image stream. This class represents one such stream.
+ */
+
+/**
+ * \fn V4L2M2MConverter::V4L2M2MStream::isValid
+ * \brief Checks if the stream is valid
+ *
+ * This function checks if the underlying m2m device is valid.
+ *
+ * \return True if the stream is valid, false otherwise
+ */
+
+/**
+ * \brief Constructs a V4L2M2MStream
+ * \param[in] converter The converter this stream belongs to
+ * \param[in] stream The stream this V4L2M2MStream represents
+ */
 V4L2M2MConverter::V4L2M2MStream::V4L2M2MStream(V4L2M2MConverter *converter, const Stream *stream)
 	: converter_(converter), stream_(stream)
 {
@@ -99,6 +121,13 @@ V4L2M2MConverter::V4L2M2MStream::V4L2M2MStream(V4L2M2MConverter *converter, cons
 		m2m_.reset();
 }
 
+/**
+ * \brief Configure the stream
+ * \param[in] inputCfg The input config
+ * \param[in] outputCfg The output config
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
 int V4L2M2MConverter::V4L2M2MStream::configure(const StreamConfiguration &inputCfg,
 					       const StreamConfiguration &outputCfg)
 {
@@ -161,12 +190,24 @@ int V4L2M2MConverter::V4L2M2MStream::configure(const StreamConfiguration &inputC
 	return 0;
 }
 
+/**
+ * \brief Export buffers
+ * \param[in] count The number of buffers
+ * \param[out] buffers The exported buffers
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
 int V4L2M2MConverter::V4L2M2MStream::exportBuffers(unsigned int count,
 						   std::vector<std::unique_ptr<FrameBuffer>> *buffers)
 {
 	return m2m_->capture()->exportBuffers(count, buffers);
 }
 
+/**
+ * \brief Start the stream
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
 int V4L2M2MConverter::V4L2M2MStream::start()
 {
 	int ret = m2m_->output()->importBuffers(inputBufferCount_);
@@ -194,6 +235,9 @@ int V4L2M2MConverter::V4L2M2MStream::start()
 	return 0;
 }
 
+/**
+ * \brief Stop the stream
+ */
 void V4L2M2MConverter::V4L2M2MStream::stop()
 {
 	m2m_->capture()->streamOff();
@@ -202,6 +246,14 @@ void V4L2M2MConverter::V4L2M2MStream::stop()
 	m2m_->output()->releaseBuffers();
 }
 
+/**
+ * \brief Queue buffers
+ * \param[in] input The input buffer
+ * \param[in] output The output buffer
+ * \param[in] request An optional request
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
 int V4L2M2MConverter::V4L2M2MStream::queueBuffers(FrameBuffer *input,
 						  FrameBuffer *output,
 						  const V4L2Request *request)
@@ -217,16 +269,35 @@ int V4L2M2MConverter::V4L2M2MStream::queueBuffers(FrameBuffer *input,
 	return 0;
 }
 
+/**
+ * \brief Get the input selection rectangle
+ * \param[in] target The selection target
+ * \param[out] rect The selection rectangle
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
 int V4L2M2MConverter::V4L2M2MStream::getInputSelection(unsigned int target, Rectangle *rect)
 {
 	return m2m_->output()->getSelection(target, rect);
 }
 
+/**
+ * \brief Set the input selection rectangle
+ * \param[in] target The selection target
+ * \param[in] rect The selection rectangle
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
 int V4L2M2MConverter::V4L2M2MStream::setInputSelection(unsigned int target, Rectangle *rect)
 {
 	return m2m_->output()->setSelection(target, rect);
 }
 
+/**
+ * \brief Get the input crop bounds
+ *
+ * \return A pair of rectangles representing the min and max input crop bounds
+ */
 std::pair<Rectangle, Rectangle> V4L2M2MConverter::V4L2M2MStream::inputCropBounds()
 {
 	return inputCropBounds_;
@@ -461,6 +532,19 @@ Size V4L2M2MConverter::adjustOutputSize(const PixelFormat &pixFmt,
 	return adjustSizes(size, it->second, align);
 }
 
+/**
+ * \brief Adjust the converter output \a size to a valid value
+ * \param[in] cfgSize The requested size
+ * \param[in] ranges The possible sizes
+ * \param[in] align The desired alignment
+ *
+ * Selects the best fitting size from \a ranges according to \a align and
+ * returns that.
+ *
+ * \return The adjusted converter output size or a null Size if \a size cannot
+ * be adjusted
+ * \see libcamera::Converter::adjustOutputSize
+ */
 Size V4L2M2MConverter::adjustSizes(const Size &cfgSize,
 				   const std::vector<SizeRange> &ranges,
 				   Alignment align)
@@ -810,10 +894,33 @@ bool V4L2M2MConverter::supportsRequests()
 	return ret;
 }
 
+/**
+ * \brief Create a V4L2M2MStream
+ * \param[in] stream The stream to wrap
+ *
+ * This function creates a new V4L2M2MConverter::V4L2M2MStream for this
+ * converter and the provided \a stream.
+ *
+ * This function can be overwritten by subclasses to be able provide their own
+ * stream implementation.
+ *
+ * \return The created V4L2M2MStream
+ */
 std::unique_ptr<V4L2M2MConverter::V4L2M2MStream> V4L2M2MConverter::makeStream(const Stream *stream)
 {
 	return std::make_unique<V4L2M2MConverter::V4L2M2MStream>(this, stream);
 }
+
+/**
+ * \var V4L2M2MConverter::m2m_
+ * \brief The underlying m2m device
+ *
+ * \var V4L2M2MConverter::media_
+ * \brief The underlying media device
+ *
+ * \var V4L2M2MConverter::streams_
+ * \brief Map of Stream pointers to V4L2M2MStream unique pointers
+ */
 
 /*
  * \todo This should be extended to include Feature::Flag to denote
