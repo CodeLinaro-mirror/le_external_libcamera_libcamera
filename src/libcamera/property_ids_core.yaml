@@ -701,4 +701,12 @@ controls:
 
         Different cameras may report identical devices.
 
+  - CameraModuleIdentifier:
+      type: string
+      description: |
+        Specify the camera module identifier.
+
+        The camera module identifier is a string that uniquely identifies the
+        camera module. It is used to select the appropriate tuning file for
+        the camera device.
 ...
