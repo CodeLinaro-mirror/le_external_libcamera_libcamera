@@ -251,9 +251,10 @@ void Dpf::prepare(IPAContext &context, const uint32_t frame,
 			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED;
 	}
 
-	if (frame == 0) {
-		auto strengthConfig = params->block<BlockType::DpfStrength>();
-		strengthConfig.setEnabled(true);
+	auto strengthConfig = params->block<BlockType::DpfStrength>();
+	strengthConfig.setEnabled(frameContext.dpf.denoise);
+
+	if (frameContext.dpf.denoise) {
 		*strengthConfig = strengthConfig_;
 	}
 }
