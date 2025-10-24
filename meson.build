@@ -118,7 +118,24 @@ cpp_arguments = [
     '-Wnon-virtual-dtor',
 ]
 
-cxx_stdlib = 'libstdc++'
+# Try to detect libc++
+libcxx_ver = cxx.get_define('_LIBCPP_VERSION',
+  prefix: '#include <vector>\n')
+
+# Try to detect libstdc++
+glibcxx_ver = cxx.get_define('__GLIBCXX__',
+  prefix: '#include <vector>\n')
+
+stdlib_msg = 'unknown'
+
+if libcxx_ver != ''
+  cxx_stdlib = 'libc++'
+elif glibcxx_ver != ''
+  # __GLIBCXX__ is usually a yyyymmdd date code
+  cxx_stdlib = 'libstdc++'
+endif
+
+message('Detected C++ standard library: ' + cxx_stdlib)
 
 if cc.get_id() == 'clang'
     if cc.version().version_compare('<9')
@@ -138,16 +155,9 @@ if cc.get_id() == 'clang'
             ]
         endif
     endif
-
-    # Use libc++ by default if available instead of libstdc++ when compiling
-    # with clang.
-    if cc.find_library('c++', required : false).found()
-        cpp_arguments += [
-            '-stdlib=libc++',
-        ]
-        cxx_stdlib = 'libc++'
-    endif
-
+    cpp_arguments += [
+        '-stdlib=' + cxx_stdlib,
+    ]
     cpp_arguments += [
         '-Wextra-semi',
         '-Wthread-safety',
