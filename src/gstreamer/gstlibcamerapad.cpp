@@ -192,12 +192,7 @@ void gst_libcamera_pad_set_video_info(GstPad *pad, const GstVideoInfo *info)
 Stream *
 gst_libcamera_pad_get_stream(GstPad *pad)
 {
-	auto *self = GST_LIBCAMERA_PAD(pad);
-
-	if (self->pool)
-		return gst_libcamera_pool_get_stream(self->pool);
-
-	return nullptr;
+	return static_cast<Stream *>(gst_pad_get_element_private(pad));
 }
 
 void
