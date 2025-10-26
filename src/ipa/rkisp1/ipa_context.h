@@ -27,6 +27,7 @@
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 #include "libipa/agc_mean_luminance.h"
+#include "libipa/quantized.h"
 
 namespace libcamera {
 
@@ -115,9 +116,9 @@ struct IPAActiveState {
 	} ccm;
 
 	struct {
-		int8_t brightness;
-		uint8_t contrast;
-		uint8_t saturation;
+		Quantized<int8_t> brightness;
+		Quantized<uint8_t> contrast;
+		Quantized<uint8_t> saturation;
 	} cproc;
 
 	struct {
@@ -169,9 +170,9 @@ struct IPAFrameContext : public FrameContext {
 	} awb;
 
 	struct {
-		int8_t brightness;
-		uint8_t contrast;
-		uint8_t saturation;
+		Quantized<int8_t> brightness;
+		Quantized<uint8_t> contrast;
+		Quantized<uint8_t> saturation;
 		bool update;
 	} cproc;
 

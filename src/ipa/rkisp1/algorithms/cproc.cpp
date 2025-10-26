@@ -14,6 +14,8 @@
 
 #include <libcamera/control_ids.h>
 
+#include "libipa/quantized.h"
+
 /**
  * \file cproc.h
  */
@@ -39,15 +41,44 @@ constexpr float kDefaultBrightness = 0.0f;
 constexpr float kDefaultContrast = 1.0f;
 constexpr float kDefaultSaturation = 1.0f;
 
-int convertBrightness(const float v)
+class BrightnessQ : public Quantizer<int8_t>
 {
-	return std::clamp<int>(std::lround(v * 128), -128, 127);
-}
+public:
+	BrightnessQ(const float val) { set(val); }
+	BrightnessQ(const int8_t val) { set(val); }
 
-int convertContrastOrSaturation(const float v)
+	int8_t fromFloat(float v) const override
+	{
+		int quantized = std::lround(v * 128.0f);
+		return static_cast<int8_t>(std::clamp<int>(quantized, -128, 127));
+	}
+
+	float toFloat(int8_t v) const override
+	{
+		return static_cast<float>(v) / 128.0f;
+	}
+};
+
+class ContrastSaturationQuantizer : public Quantizer<uint8_t>
 {
-	return std::clamp<int>(std::lround(v * 128), 0, 255);
-}
+public:
+	ContrastSaturationQuantizer(const float val) { set(val); }
+	ContrastSaturationQuantizer(const uint8_t val) { set(val); }
+
+	uint8_t fromFloat(const float v) const override
+	{
+		int quantized = std::lround(v * 128.0f);
+		return static_cast<uint8_t>(std::clamp<int>(quantized, 0, 255));
+	}
+
+	float toFloat(const uint8_t v) const override
+	{
+		return static_cast<float>(v) / 128.0f;
+	}
+};
+
+using ContrastQ = ContrastSaturationQuantizer;
+using SaturationQ = ContrastSaturationQuantizer;
 
 } /* namespace */
 
@@ -74,9 +105,9 @@ int ColorProcessing::configure(IPAContext &context,
 {
 	auto &cproc = context.activeState.cproc;
 
-	cproc.brightness = convertBrightness(kDefaultBrightness);
-	cproc.contrast = convertContrastOrSaturation(kDefaultContrast);
-	cproc.saturation = convertContrastOrSaturation(kDefaultSaturation);
+	cproc.brightness = BrightnessQ(kDefaultBrightness);
+	cproc.contrast = ContrastQ(kDefaultContrast);
+	cproc.saturation = SaturationQ(kDefaultSaturation);
 
 	return 0;
 }
@@ -97,35 +128,35 @@ void ColorProcessing::queueRequest(IPAContext &context,
 
 	const auto &brightness = controls.get(controls::Brightness);
 	if (brightness) {
-		int value = convertBrightness(*brightness);
+		BrightnessQ value = *brightness;
 		if (cproc.brightness != value) {
 			cproc.brightness = value;
 			update = true;
 		}
 
-		LOG(RkISP1CProc, Debug) << "Set brightness to " << value;
+		LOG(RkISP1CProc, Debug) << "Set brightness to " << value.value();
 	}
 
 	const auto &contrast = controls.get(controls::Contrast);
 	if (contrast) {
-		int value = convertContrastOrSaturation(*contrast);
+		ContrastQ value = *contrast;
 		if (cproc.contrast != value) {
 			cproc.contrast = value;
 			update = true;
 		}
 
-		LOG(RkISP1CProc, Debug) << "Set contrast to " << value;
+		LOG(RkISP1CProc, Debug) << "Set contrast to " << value.value();
 	}
 
 	const auto saturation = controls.get(controls::Saturation);
 	if (saturation) {
-		int value = convertContrastOrSaturation(*saturation);
+		SaturationQ value = *saturation;
 		if (cproc.saturation != value) {
 			cproc.saturation = value;
 			update = true;
 		}
 
-		LOG(RkISP1CProc, Debug) << "Set saturation to " << value;
+		LOG(RkISP1CProc, Debug) << "Set saturation to " << value.value();
 	}
 
 	frameContext.cproc.brightness = cproc.brightness;
@@ -148,9 +179,9 @@ void ColorProcessing::prepare([[maybe_unused]] IPAContext &context,
 
 	auto config = params->block<BlockType::Cproc>();
 	config.setEnabled(true);
-	config->brightness = frameContext.cproc.brightness;
-	config->contrast = frameContext.cproc.contrast;
-	config->sat = frameContext.cproc.saturation;
+	config->brightness = frameContext.cproc.brightness.quantized();
+	config->contrast = frameContext.cproc.contrast.quantized();
+	config->sat = frameContext.cproc.saturation.quantized();
 }
 
 REGISTER_IPA_ALGORITHM(ColorProcessing, "ColorProcessing")
