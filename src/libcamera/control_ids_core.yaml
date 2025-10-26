@@ -1346,4 +1346,17 @@ controls:
         reduces the WdrExposureValue until the amount of pixels that are close
         to saturation is lower than this value.
 
+  - Hue:
+      type: float
+      direction: inout
+      description: |
+        Adjusts the image hue (colour rotation) in degrees.
+
+        The value specifies a rotation around the colour wheel:
+        positive values rotate hues counter-clockwise (for example a +60 degree
+        rotation turns Red hues to Magenta hues), and negative values rotate
+        clockwise (a -60 degree rotation turns Red hues to Yellow hues).
+
+        A value of 0 leaves the hue unchanged.
+
 ...
