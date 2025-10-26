@@ -118,6 +118,7 @@ struct IPAActiveState {
 	struct {
 		Quantized<int8_t> brightness;
 		Quantized<uint8_t> contrast;
+		Quantized<int8_t> hue;
 		Quantized<uint8_t> saturation;
 	} cproc;
 
@@ -172,6 +173,7 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		Quantized<int8_t> brightness;
 		Quantized<uint8_t> contrast;
+		Quantized<int8_t> hue;
 		Quantized<uint8_t> saturation;
 		bool update;
 	} cproc;
