@@ -171,6 +171,48 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 	return 0;
 }
 
+bool Dpf::parseConfig(const YamlObject &tuningData)
+{
+	// Parse base config
+	if (!parseSingleConfig(tuningData, config_, strengthConfig_))
+		return false;
+
+	baseConfig_ = config_;
+	baseStrengthConfig_ = strengthConfig_;
+
+	/* Optional master enable flag (default true). If false, we parse but won't program. */
+	yamlHelper::optbool(tuningData, "enable", enableDpf_, true);
+
+	/* Optional developer mode flag (default true). If false, only basic manual controls available. */
+	bool devMode = true;
+	yamlHelper::optbool(tuningData, "devmode", devMode, true);
+	setDevMode(devMode);
+
+	// Parse ISO levels
+	if (tuningData.contains("IsoLevels")) {
+		useIsoLevels_ = true;
+		isoLevels_.clear();
+		for (const auto &entry : tuningData["IsoLevels"].asList()) {
+			std::optional<unsigned int> maxIsoOpt = entry["maxIso"].get<unsigned int>();
+			if (!maxIsoOpt) {
+				LOG(RkISP1Dpf, Error) << "IsoLevels entry missing maxIso";
+				continue;
+			}
+			IsoLevelConfig lvl{};
+			lvl.maxIso = *maxIsoOpt;
+			if (!parseSingleConfig(entry, lvl.dpf, lvl.strength))
+				continue;
+			isoLevels_.push_back(lvl);
+		}
+		std::sort(isoLevels_.begin(), isoLevels_.end(),
+			  [](const IsoLevelConfig &a, const IsoLevelConfig &b) {
+				  return a.maxIso < b.maxIso;
+			  });
+	}
+
+	return true;
+}
+
 bool Dpf::parseSingleConfig(const YamlObject &config,
 			    rkisp1_cif_isp_dpf_config &cfg,
 			    rkisp1_cif_isp_dpf_strength_config &strength)

@@ -32,8 +32,25 @@ public:
 		     RkISP1Params *params) override;
 
 private:
-	struct rkisp1_cif_isp_dpf_config config_;
-	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_;
+	struct rkisp1_cif_isp_dpf_config config_ {
+	};
+	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_ {
+	};
+	struct rkisp1_cif_isp_dpf_config baseConfig_ {
+	};
+	struct rkisp1_cif_isp_dpf_strength_config baseStrengthConfig_ {
+	};
+	struct IsoLevelConfig {
+		unsigned int maxIso; /* inclusive upper bound */
+		struct rkisp1_cif_isp_dpf_config dpf;
+		struct rkisp1_cif_isp_dpf_strength_config strength;
+	};
+
+	std::vector<IsoLevelConfig> isoLevels_;
+	bool useIsoLevels_ = false;
+	bool enableDpf_ = true; /* YAML master enable */
+
+	bool parseConfig(const YamlObject &tuningData) override;
 	bool parseSingleConfig(const YamlObject &config,
 			       rkisp1_cif_isp_dpf_config &cfg,
 			       rkisp1_cif_isp_dpf_strength_config &strength);

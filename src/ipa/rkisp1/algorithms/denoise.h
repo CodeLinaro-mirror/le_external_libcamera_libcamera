@@ -36,6 +36,7 @@ protected:
 			    const IPAFrameContext &frameContext) const;
 	template<typename LevelContainer>
 	int selectIsoBand(unsigned iso, const LevelContainer &levels) const;
+	virtual bool parseConfig(const YamlObject &tuningData) = 0;
 
 private:
 	bool manualMode_ = false; /**< Current manual/auto mode state */
