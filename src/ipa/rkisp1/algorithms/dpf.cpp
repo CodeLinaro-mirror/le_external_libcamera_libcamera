@@ -76,6 +76,10 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< "DPF init: loaded " << isoLevels_.size()
 			<< " ISO level(s) from tuning";
 	}
+
+	// init controls value from Yaml
+	auto dpfMap = getControlMap();
+	context.ctrlMap.insert(dpfMap.begin(), dpfMap.end());
 	return 0;
 }
 
@@ -662,6 +666,60 @@ void Dpf::prepareManualMode(IPAContext &context, const uint32_t frame,
 		bool anyOverride = false;
 		applyOverridesTo(*cfgBlock, *strBlock, anyOverride);
 		logConfigIfChanged(iso, lastIsoIndex_, anyOverride, frameContext);
+	}
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void Dpf::process(IPAContext &context, const uint32_t frame [[maybe_unused]],
+		  IPAFrameContext &frameContext,
+		  const rkisp1_stat_buffer *stats [[maybe_unused]],
+		  ControlList &metadata)
+{
+	fillMetadata(context, frameContext, metadata);
+}
+
+void Dpf::fillMetadata(IPAContext &context, IPAFrameContext &frameContext, ControlList &metadata)
+{
+	unsigned iso = computeIso(context, frameContext);
+	metadata.set(controls::rkisp1::DpfIso, static_cast<int32_t>(iso));
+	metadata.set(controls::rkisp1::DpfMode, isManualMode() ? controls::rkisp1::DpfModeManual : controls::rkisp1::DpfModeAuto);
+
+	/* Publish current values every frame (acts like controls.set reflection). */
+
+	/* Strength (R,G,B) - always available */
+	int32_t strength[3] = { (int32_t)strengthConfig_.r,
+				(int32_t)strengthConfig_.g,
+				(int32_t)strengthConfig_.b };
+	metadata.set(controls::rkisp1::DpfChannelStrengths, Span<const int32_t, 3>(strength));
+
+	if (isDevMode()) {
+		/* Advanced controls only in devmode */
+		/* Spatial kernels */
+		int32_t gCoeffs[RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS];
+		int32_t rbCoeffs[RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS];
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+			gCoeffs[i] = config_.g_flt.spatial_coeff[i];
+			rbCoeffs[i] = config_.rb_flt.spatial_coeff[i];
+		}
+		metadata.set(controls::rkisp1::DpfGreenSpatialCoefficients,
+			     Span<const int32_t, RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS>(gCoeffs));
+		metadata.set(controls::rkisp1::DpfRedBlueSpatialCoefficients,
+			     Span<const int32_t, RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS>(rbCoeffs));
+
+		/* RB filter size (0=9x9,1=13x9) */
+		int32_t fltSize = (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9) ? 1 : 0;
+		metadata.set(controls::rkisp1::DpfRbFilterSize, fltSize);
+
+		/* NLL coefficients and scale */
+		int32_t nll[RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS];
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i)
+			nll[i] = config_.nll.coeff[i];
+		metadata.set(controls::rkisp1::DpfNoiseLevelLookupCoefficients,
+			     Span<const int32_t, RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS>(nll));
+		int32_t scaleMode = (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC) ? 1 : 0;
+		metadata.set(controls::rkisp1::DpfNoiseLevelLookupScaleMode, scaleMode);
 	}
 }
 
