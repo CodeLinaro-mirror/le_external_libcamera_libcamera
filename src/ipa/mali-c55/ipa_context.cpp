@@ -96,6 +96,12 @@ namespace libcamera::ipa::mali_c55 {
  *
  * \var IPAContext::frameContexts
  * \brief Ring buffer of per-frame contexts
+ *
+ * \var IPAContext::ctrlMap
+ * \brief A ControlInfoMap::Map of controls populated by the algorithms
+ *
+ * \var IPAContext::camHelper
+ * \brief The camera sensor helper
  */
 
 } /* namespace libcamera::ipa::mali_c55 */

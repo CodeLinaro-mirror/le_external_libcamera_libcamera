@@ -12,6 +12,7 @@
 
 #include "libcamera/internal/bayer_format.h"
 
+#include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
 namespace libcamera {
@@ -83,6 +84,9 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+
+	/* Interface to the Camera Helper */
+	std::unique_ptr<CameraSensorHelper> camHelper;
 };
 
 } /* namespace ipa::mali_c55 */
