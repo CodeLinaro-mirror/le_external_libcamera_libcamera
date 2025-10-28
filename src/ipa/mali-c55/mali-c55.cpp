@@ -68,7 +68,7 @@ private:
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
 			    const ControlInfoMap &sensorControls,
 			    ControlInfoMap *ipaControls);
-	void setControls();
+	void setControls(unsigned int frame);
 
 	std::map<unsigned int, MappedFrameBuffer> buffers_;
 
@@ -126,14 +126,17 @@ int IPAMaliC55::init(const IPASettings &settings, const IPAConfigInfo &ipaConfig
 	if (ret)
 		return ret;
 
+	context_.sensorInfo = ipaConfig.sensorInfo;
 	updateControls(ipaConfig.sensorInfo, ipaConfig.sensorControls, ipaControls);
 
 	return 0;
 }
 
-void IPAMaliC55::setControls()
+void IPAMaliC55::setControls(unsigned int frame)
 {
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	IPAActiveState &activeState = context_.activeState;
+	uint32_t vblank = frameContext.agc.vblank;
 	uint32_t exposure;
 	uint32_t gain;
 
@@ -148,6 +151,7 @@ void IPAMaliC55::setControls()
 	ControlList ctrls(sensorControls_);
 	ctrls.set(V4L2_CID_EXPOSURE, static_cast<int32_t>(exposure));
 	ctrls.set(V4L2_CID_ANALOGUE_GAIN, static_cast<int32_t>(gain));
+	ctrls.set(V4L2_CID_VBLANK, static_cast<int32_t>(vblank));
 
 	setSensorControls.emit(ctrls);
 }
@@ -368,7 +372,7 @@ void IPAMaliC55::processStats(unsigned int request, unsigned int bufferId,
 		algo->process(context_, request, frameContext, stats, metadata);
 	}
 
-	setControls();
+	setControls(request);
 
 	statsProcessed.emit(request, metadata);
 }

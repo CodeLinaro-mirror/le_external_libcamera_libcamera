@@ -53,6 +53,8 @@ struct IPAActiveState {
 		uint32_t constraintMode;
 		uint32_t exposureMode;
 		uint32_t temperatureK;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 	} agc;
 
 	struct {
@@ -66,6 +68,9 @@ struct IPAFrameContext : public FrameContext {
 		uint32_t exposure;
 		double sensorGain;
 		double ispGain;
+		uint32_t vblank;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 	} agc;
 
 	struct {
@@ -80,6 +85,7 @@ struct IPAContext {
 	{
 	}
 
+	IPACameraSensorInfo sensorInfo;
 	IPASessionConfiguration configuration;
 	IPAActiveState activeState;
 

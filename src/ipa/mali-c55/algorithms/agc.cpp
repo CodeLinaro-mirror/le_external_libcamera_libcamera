@@ -170,21 +170,22 @@ int Agc::configure(IPAContext &context,
 	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
 
 	ControlInfo &frameDurationLimits = context.ctrlMap[&controls::FrameDurationLimits];
+	context.activeState.agc.minFrameDuration =
+		std::chrono::microseconds(frameDurationLimits.min().get<int64_t>());
+	context.activeState.agc.maxFrameDuration =
+		std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
 
 	AgcMeanLuminance::AgcSensorConfiguration sensorConfig;
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
 	sensorConfig.minExposureTime = context.configuration.agc.minShutterSpeed;
 	sensorConfig.maxExposureTime = context.configuration.agc.maxShutterSpeed;
-	sensorConfig.minFrameDuration =
-		std::chrono::microseconds(frameDurationLimits.min().get<int64_t>());
-	sensorConfig.maxFrameDuration =
-		std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
+	sensorConfig.minFrameDuration = context.activeState.agc.minFrameDuration;
+	sensorConfig.maxFrameDuration = context.activeState.agc.maxFrameDuration;
 	sensorConfig.minAnalogueGain = context.configuration.agc.minAnalogueGain;
 	sensorConfig.maxAnalogueGain = context.configuration.agc.maxAnalogueGain;
 
 	AgcMeanLuminance::configure(&sensorConfig, context.camHelper.get());
-
-	/* \todo Update AGC limits when FrameDurationLimits is passed in */
+	context.activeState.agc.maxFrameDuration = sensorConfig.maxFrameDuration;
 
 	resetFrameCount();
 
@@ -211,6 +212,25 @@ void Agc::queueRequest(IPAContext &context, const uint32_t frame,
 			<< (agc.autoEnabled ? "Enabling" : "Disabling")
 			<< " AGC";
 	}
+
+	const auto &frameDurationLimits = controls.get(controls::FrameDurationLimits);
+	if (frameDurationLimits) {
+		/* Limit the control value to the limits in ControlInfo */
+		ControlInfo &limits = context.ctrlMap[&controls::FrameDurationLimits];
+		int64_t minFrameDuration =
+			std::clamp((*frameDurationLimits).front(),
+				   limits.min().get<int64_t>(),
+				   limits.max().get<int64_t>());
+		int64_t maxFrameDuration =
+			std::clamp((*frameDurationLimits).back(),
+				   limits.min().get<int64_t>(),
+				   limits.max().get<int64_t>());
+
+		agc.minFrameDuration = std::chrono::microseconds(minFrameDuration);
+		agc.maxFrameDuration = std::chrono::microseconds(maxFrameDuration);
+	}
+	frameContext.agc.minFrameDuration = agc.minFrameDuration;
+	frameContext.agc.maxFrameDuration = agc.maxFrameDuration;
 
 	/*
 	 * If the automatic exposure and gain is enabled we have no further work
@@ -375,6 +395,21 @@ void Agc::process(IPAContext &context,
 		return;
 	}
 
+	/*
+	 * Update the AGC limits using the frame duration.
+	 *
+	 * \todo Handle ExposureTime and AnalogueGain controls to support
+	 * manual mode.
+	 */
+	utils::Duration minExposureTime = context.configuration.agc.minShutterSpeed;
+	utils::Duration maxExposureTime = context.configuration.agc.maxShutterSpeed;
+	utils::Duration maxFrameDuration = frameContext.agc.maxFrameDuration;
+
+	setLimits(minExposureTime, maxExposureTime, maxFrameDuration,
+		  context.configuration.agc.minAnalogueGain,
+		  context.configuration.agc.maxAnalogueGain,
+		  {});
+
 	statistics_.parseStatistics(stats);
 	context.activeState.agc.temperatureK = estimateCCT({ { statistics_.rHist.interQuantileMean(0, 1),
 							       statistics_.gHist.interQuantileMean(0, 1),
@@ -402,13 +437,23 @@ void Agc::process(IPAContext &context,
 	dGain = std::clamp(dGain, kMinDigitalGain, kMaxDigitalGain);
 
 	LOG(MaliC55Agc, Debug)
-		<< "Divided up shutter, analogue gain and digital gain are "
-		<< shutterTime << ", " << aGain << " and " << dGain;
+		<< "Divided up shutter, frame duration, analogue gain and digital gain are "
+		<< shutterTime << ", " << frameDuration << ", " << aGain
+		<< " and " << dGain;
 
-	activeState.agc.automatic.exposure = shutterTime / configuration.sensor.lineDuration;
+	/* Use the frame duration to calculate the desired vblank. */
+	utils::Duration lineDuration = configuration.sensor.lineDuration;
+	IPACameraSensorInfo &sensorInfo = context.sensorInfo;
+
+	frameContext.agc.vblank = (frameDuration / lineDuration)
+				- sensorInfo.outputSize.height;
+
+	/* Populate the active state. */
+	activeState.agc.automatic.exposure = shutterTime / lineDuration;
 	activeState.agc.automatic.sensorGain = aGain;
 	activeState.agc.automatic.ispGain = dGain;
 
+	metadata.set(controls::FrameDuration, frameDuration.get<std::micro>());
 	metadata.set(controls::ExposureTime, currentShutter.get<std::micro>());
 	metadata.set(controls::AnalogueGain, frameContext.agc.sensorGain);
 	metadata.set(controls::DigitalGain, frameContext.agc.ispGain);
