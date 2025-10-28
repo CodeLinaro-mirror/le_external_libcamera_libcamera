@@ -338,6 +338,71 @@ bool Dpf::checkDevModeOverridesChanged()
 	return changed;
 }
 
+void Dpf::snapshotCurrentToOverrides()
+{
+	overrides_.clear();
+	overrides_.strength = DpfStrengthSettings{ strengthConfig_.r, strengthConfig_.g, strengthConfig_.b };
+	if (isDevMode()) {
+		DpfSpatialGreenSettings green;
+		std::copy_n(std::begin(config_.g_flt.spatial_coeff), RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS, green.coeffs.begin());
+		overrides_.spatialGreen = green;
+		DpfSpatialRbSettings rb;
+		std::copy_n(std::begin(config_.rb_flt.spatial_coeff), RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS, rb.coeffs.begin());
+		rb.size = (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9) ? 1 : 0;
+		overrides_.spatialRb = rb;
+		overrides_.rbSize = rb.size;
+		DpfNllSettings nll;
+		std::copy_n(std::begin(config_.nll.coeff), RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS, nll.coeffs.begin());
+		nll.scaleMode = (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC) ? 1 : 0;
+		overrides_.nll = nll;
+	}
+}
+
+void Dpf::restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext)
+{
+	overrides_.clear();
+	if (useIsoLevels_) {
+		unsigned iso = computeIso(context, frameContext);
+		int idx = DenoiseBaseAlgorithm::selectIsoBand(iso, isoLevels_);
+		if (idx >= 0) {
+			config_ = isoLevels_[idx].dpf;
+			strengthConfig_ = isoLevels_[idx].strength;
+			lastIsoIndex_ = idx;
+		}
+	} else {
+		config_ = baseConfig_;
+		strengthConfig_ = baseStrengthConfig_;
+		lastIsoIndex_ = -1;
+	}
+	frameContext.dpf.update = true;
+}
+
+bool Dpf::processModeChange(const ControlList &controls, uint32_t currentFrame)
+{
+	const auto &cMode = controls.get(controls::rkisp1::DpfMode);
+	if (!cMode)
+		return false;
+
+	bool requested = (*cMode == controls::rkisp1::DpfModeManual);
+	if (requested == isManualMode())
+		return false;
+
+	// Prevent rapid mode changes (hysteresis to avoid application bugs)
+	uint32_t framesSinceLastChange = currentFrame - lastModeChangeFrame_;
+	if (framesSinceLastChange < kMinModeChangeInterval && lastModeChangeFrame_ != 0) {
+		LOG(RkISP1Dpf, Debug) << "Ignoring rapid mode change (hysteresis): requested="
+				      << (requested ? "manual" : "auto")
+				      << ", current=" << (isManualMode() ? "manual" : "auto")
+				      << ", framesSinceLast=" << framesSinceLastChange;
+		return false;
+	}
+
+	setManualMode(requested);
+	// Reset overrides if switching to auto mode , make sure the config will apply to next frame
+	lastModeChangeFrame_ = currentFrame;
+	return true;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -348,6 +413,17 @@ void Dpf::queueRequest(IPAContext &context,
 {
 	frameContext.dpf.update = false;
 	handleEnableControl(controls, frameContext, context);
+	bool modeChanged = processModeChange(controls, frame);
+	if (modeChanged) {
+		if (isManualMode()) {
+			snapshotCurrentToOverrides();
+			LOG(RkISP1Dpf, Info) << "DPF mode=Manual (snapshot captured)";
+		} else {
+			restoreAutoConfig(context, frameContext);
+			LOG(RkISP1Dpf, Info) << "DPF mode=Auto (restored auto config)";
+		}
+		frameContext.dpf.update = true;
+	}
 
 	if (isManualMode()) {
 		collectManualOverrides(controls);
