@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2025, Ideas On Board
+#
+# RkISP1 specific control definitions
+---
+# Unless otherwise stated, all controls are bi-directional, i.e. they can be
+# set through Request::controls() and returned out through Request::metadata().
+vendor: rkisp1
+controls:
+  # --- RkISP1 DPF controls ---
+  - DpfEnable:
+      type: bool
+      direction: inout
+      description: |
+        Enable or disable the Denoise Pre-Filter (DPF) block.
+
+        When disabled (false) the hardware DPF is forced off regardless of
+        tuning or ISO level selection. When enabled (true) the algorithm may
+        program parameters and adapt them per ISO band or manual overrides.
+
+        Reported in metadata as a boolean.
+
+...
