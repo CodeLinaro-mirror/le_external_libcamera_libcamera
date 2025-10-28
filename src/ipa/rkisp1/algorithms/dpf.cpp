@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -401,6 +402,109 @@ bool Dpf::processModeChange(const ControlList &controls, uint32_t currentFrame)
 	// Reset overrides if switching to auto mode , make sure the config will apply to next frame
 	lastModeChangeFrame_ = currentFrame;
 	return true;
+}
+
+void Dpf::applyOverridesTo(rkisp1_cif_isp_dpf_config &cfg,
+			   rkisp1_cif_isp_dpf_strength_config &str,
+			   bool &anyOverride)
+{
+	if (!isManualMode())
+		return; /* only apply overrides in manual mode */
+
+	if (overrides_.strength) {
+		str.r = overrides_.strength->r;
+		str.g = overrides_.strength->g;
+		str.b = overrides_.strength->b;
+		anyOverride = true;
+	}
+	if (overrides_.spatialGreen) {
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+			cfg.g_flt.spatial_coeff[i] = overrides_.spatialGreen->coeffs[i];
+		}
+		anyOverride = true;
+	}
+	if (overrides_.spatialRb) {
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+			cfg.rb_flt.spatial_coeff[i] = overrides_.spatialRb->coeffs[i];
+		}
+		anyOverride = true;
+	}
+	if (overrides_.rbSize) {
+		cfg.rb_flt.fltsize = *overrides_.rbSize ? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+							: RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
+		anyOverride = true;
+	}
+	if (overrides_.nll) {
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i) {
+			cfg.nll.coeff[i] = overrides_.nll->coeffs[i];
+		}
+		cfg.nll.scale_mode = overrides_.nll->scaleMode ? RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC
+							       : RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
+		anyOverride = true;
+	}
+	if (anyOverride) {
+		config_ = cfg;
+		strengthConfig_ = str;
+		LOG(RkISP1Dpf, Info)
+			<< "DPF manual overrides applied: strength="
+			<< (int)strengthConfig_.r << "," << (int)strengthConfig_.g << "," << (int)strengthConfig_.b
+			<< (overrides_.spatialGreen ? " gKernel" : "")
+			<< (overrides_.spatialRb ? " rbKernel" : "")
+			<< (overrides_.rbSize ? " rbSize" : "")
+			<< (overrides_.nll ? " nll" : "");
+	}
+}
+
+void Dpf::logConfigIfChanged(unsigned iso, int isoIndex, bool anyOverride, const IPAFrameContext &frameContext)
+{
+	static rkisp1_cif_isp_dpf_config lastCfg{};
+	static rkisp1_cif_isp_dpf_strength_config lastStr{};
+	static bool haveLast = false;
+	bool cfgChanged = !haveLast || memcmp(&lastCfg, &config_, sizeof(config_)) != 0;
+	bool strChanged = !haveLast || memcmp(&lastStr, &strengthConfig_, sizeof(strengthConfig_)) != 0;
+	if (!(cfgChanged || strChanged))
+		return;
+	std::ostringstream gs, rbs, nll;
+	gs << '[';
+	rbs << '[';
+	nll << '[';
+	for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i) {
+			gs << ',';
+			rbs << ',';
+		}
+		gs << (int)config_.g_flt.spatial_coeff[i];
+		rbs << (int)config_.rb_flt.spatial_coeff[i];
+	}
+	for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i) {
+		if (i)
+			nll << ',';
+		nll << config_.nll.coeff[i];
+	}
+	gs << ']';
+	rbs << ']';
+	nll << ']';
+	const char *modeStr =
+		config_.gain.mode == RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS ? "AWB+LSC" : config_.gain.mode == RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS ? "AWB"
+										       : config_.gain.mode == RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS	    ? "LSC"
+										       : config_.gain.mode == RKISP1_CIF_ISP_DPF_GAIN_USAGE_NF_GAINS	    ? "NF"
+										       : config_.gain.mode == RKISP1_CIF_ISP_DPF_GAIN_USAGE_NF_LSC_GAINS    ? "NF+LSC"
+																			    : "disabled";
+	LOG(RkISP1Dpf, Info) << "DPF config update: rb_fltsize="
+			     << (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9 ? "13x9" : "9x9")
+			     << ", nll_scale="
+			     << (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC ? "log" : "linear")
+			     << ", gain_mode=" << modeStr
+			     << ", strength=" << (int)strengthConfig_.r << "," << (int)strengthConfig_.g << "," << (int)strengthConfig_.b
+			     << ", g=" << gs.str() << ", rb=" << rbs.str() << ", nll=" << nll.str()
+			     << ", iso=" << iso
+			     << (useIsoLevels_ && isoIndex >= 0 ? (", iso_band=" + std::to_string(isoIndex) + (lastIsoIndex_ == isoIndex ? "" : "(new)")) : "")
+			     << ", control mode=" << (isManualMode() ? "manual" : "auto")
+			     << ", denoise=" << (frameContext.dpf.denoise ? "enabled" : "disabled")
+			     << (anyOverride ? " (overrides applied)" : "");
+	lastCfg = config_;
+	lastStr = strengthConfig_;
+	haveLast = true;
 }
 
 /**

@@ -101,6 +101,10 @@ private:
 	void snapshotCurrentToOverrides() override;
 
 	void restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext) override;
+
+	void applyOverridesTo(rkisp1_cif_isp_dpf_config &cfg, rkisp1_cif_isp_dpf_strength_config &str, bool &anyOverride);
+
+	void logConfigIfChanged(unsigned iso, int isoIndex, bool anyOverride, const IPAFrameContext &frameContext);
 };
 
 } /* namespace ipa::rkisp1::algorithms */
