@@ -10,12 +10,14 @@
 #include <sys/types.h>
 
 #include "algorithm.h"
+#include "denoise.h"
+#include "yaml_helper.h"
 
 namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
 
-class Dpf : public Algorithm
+class Dpf : public DenoiseBaseAlgorithm
 {
 public:
 	Dpf();
@@ -32,6 +34,9 @@ public:
 private:
 	struct rkisp1_cif_isp_dpf_config config_;
 	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_;
+	bool parseSingleConfig(const YamlObject &config,
+			       rkisp1_cif_isp_dpf_config &cfg,
+			       rkisp1_cif_isp_dpf_strength_config &strength);
 };
 
 } /* namespace ipa::rkisp1::algorithms */
