@@ -21,4 +21,66 @@ controls:
 
         Reported in metadata as a boolean.
 
+  - DpfChannelStrengths:
+      type: int32_t
+      direction: inout
+      description: |
+        Override filter strength for R,G,B channels. Values map to hardware
+        strength registers (0..255 typical). Size must be exactly 3 when set.
+        Order: R,G,B. If unset the tuning / ISO level derived strengths apply.
+      size: [3]
+
+  - DpfGreenSpatialCoefficients:
+      type: int32_t
+      direction: inout
+      description: |
+        Override 9x9 green spatial kernel coefficients (6 values). Order must
+        follow tuning file convention. Each value 0..63 typical. All 6 required
+        when provided; otherwise ignored.
+      size: [6]
+
+  - DpfRedBlueSpatialCoefficients:
+      type: int32_t
+      direction: inout
+      description: |
+        Override Red/Blue spatial kernel coefficients (6 values). Applies to
+        either 9x9 or 13x9 depending on DpfRbFilterSize. For 9x9 the last
+        column pair is dropped in hardware. Values 0..63 typical.
+      size: [6]
+
+  - DpfRbFilterSize:
+      type: int32_t
+      direction: inout
+      description: |
+        Override RB spatial filter size selection.
+      enum:
+        - name: DpfRbFilterSize9x9
+          value: 0
+          description: Use 9x9 RB domain filter.
+        - name: DpfRbFilterSize13x9
+          value: 1
+          description: Use 13x9 RB domain filter (if coefficients valid).
+
+  - DpfNoiseLevelLookupCoefficients:
+      type: int32_t
+      direction: inout
+      description: |
+        Override Noise Level Lookup (NLL) piecewise-linear coefficients
+        (17 values). Must supply full set when used or override is ignored.
+      size: [17]
+
+  - DpfNoiseLevelLookupScaleMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Override NLL scale mode (0=linear,1=logarithmic). Matches hardware
+        RKISP1_CIF_ISP_NLL_SCALE_* constants.
+      enum:
+        - name: DpfNoiseLevelLookupScaleLinear
+          value: 0
+          description: Linear scale.
+        - name: DpfNoiseLevelLookupScaleLogarithmic
+          value: 1
+          description: Logarithmic scale.
+
 ...

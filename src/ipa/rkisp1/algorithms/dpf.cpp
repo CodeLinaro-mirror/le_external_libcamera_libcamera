@@ -243,6 +243,53 @@ void Dpf::handleEnableControl(const ControlList &controls, IPAFrameContext &fram
 	frameContext.dpf.denoise = enableDpf_;
 }
 
+void Dpf::collectManualOverrides(const ControlList &controls)
+{
+	if (const auto &c = controls.get(controls::rkisp1::DpfChannelStrengths); c) {
+		if (c->size() == 3) {
+			overrides_.strength = DpfStrengthSettings{ static_cast<uint16_t>((*c)[0]), static_cast<uint16_t>((*c)[1]), static_cast<uint16_t>((*c)[2]) };
+		}
+	}
+	if (isDevMode()) {
+		if (const auto &c = controls.get(controls::rkisp1::DpfGreenSpatialCoefficients); c) {
+			if (c->size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS) {
+				DpfSpatialGreenSettings green;
+				std::copy_n(c->begin(), RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS, green.coeffs.begin());
+				overrides_.spatialGreen = green;
+			}
+		}
+		if (const auto &c = controls.get(controls::rkisp1::DpfRedBlueSpatialCoefficients); c) {
+			if (c->size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS) {
+				DpfSpatialRbSettings rb;
+				std::copy_n(c->begin(), RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS, rb.coeffs.begin());
+				rb.size = (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9) ? 1 : 0;
+				overrides_.spatialRb = rb;
+			}
+		}
+		if (const auto &c = controls.get(controls::rkisp1::DpfRbFilterSize); c) {
+			overrides_.rbSize = *c ? 1 : 0;
+		}
+		if (const auto &c = controls.get(controls::rkisp1::DpfNoiseLevelLookupCoefficients); c) {
+			if (c->size() == RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS) {
+				DpfNllSettings nll;
+				std::copy_n(c->begin(), RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS, nll.coeffs.begin());
+				nll.scaleMode = (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC) ? 1 : 0;
+				overrides_.nll = nll;
+			}
+		}
+		if (const auto &c = controls.get(controls::rkisp1::DpfNoiseLevelLookupScaleMode); c) {
+			if (overrides_.nll) {
+				overrides_.nll->scaleMode = *c ? 1 : 0;
+			} else {
+				DpfNllSettings nll;
+				std::copy_n(std::begin(config_.nll.coeff), RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS, nll.coeffs.begin());
+				nll.scaleMode = *c ? 1 : 0;
+				overrides_.nll = nll;
+			}
+		}
+	}
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -253,6 +300,17 @@ void Dpf::queueRequest(IPAContext &context,
 {
 	frameContext.dpf.update = false;
 	handleEnableControl(controls, frameContext, context);
+
+	if (isManualMode()) {
+		collectManualOverrides(controls);
+		// Check if manual overrides have changed and trigger update
+		if (overrides_.strength &&
+		    (overrides_.strength->r != strengthConfig_.r ||
+		     overrides_.strength->g != strengthConfig_.g ||
+		     overrides_.strength->b != strengthConfig_.b)) {
+			frameContext.dpf.update = true;
+		}
+	}
 }
 
 /**
