@@ -179,9 +179,6 @@ private:
 
 	IPACameraSensorInfo sensorInfo_;
 
-	/* Interface to the Camera Helper */
-	std::unique_ptr<CameraSensorHelper> camHelper_;
-
 	/* Local parameter storage */
 	struct IPAContext context_;
 };
@@ -222,8 +219,8 @@ void IPAIPU3::updateSessionConfiguration(const ControlInfoMap &sensorControls)
 	 */
 	context_.configuration.agc.minExposureTime = minExposure * context_.configuration.sensor.lineDuration;
 	context_.configuration.agc.maxExposureTime = maxExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.agc.minAnalogueGain = camHelper_->gain(minGain);
-	context_.configuration.agc.maxAnalogueGain = camHelper_->gain(maxGain);
+	context_.configuration.agc.minAnalogueGain = context_.camHelper->gain(minGain);
+	context_.configuration.agc.maxAnalogueGain = context_.camHelper->gain(maxGain);
 }
 
 /**
@@ -301,8 +298,8 @@ int IPAIPU3::init(const IPASettings &settings,
 		  const ControlInfoMap &sensorControls,
 		  ControlInfoMap *ipaControls)
 {
-	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
-	if (camHelper_ == nullptr) {
+	context_.camHelper = CameraSensorHelperFactoryBase::create(settings.sensorModel);
+	if (context_.camHelper == nullptr) {
 		LOG(IPAIPU3, Error)
 			<< "Failed to create camera sensor helper for "
 			<< settings.sensorModel;
@@ -597,7 +594,7 @@ void IPAIPU3::processStats(const uint32_t frame,
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 
 	frameContext.sensor.exposure = sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
-	frameContext.sensor.gain = camHelper_->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
+	frameContext.sensor.gain = context_.camHelper->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
 
 	ControlList metadata(controls::controls);
 
@@ -643,7 +640,7 @@ void IPAIPU3::queueRequest(const uint32_t frame, const ControlList &controls)
 void IPAIPU3::setControls(unsigned int frame)
 {
 	int32_t exposure = context_.activeState.agc.exposure;
-	int32_t gain = camHelper_->gainCode(context_.activeState.agc.gain);
+	int32_t gain = context_.camHelper->gainCode(context_.activeState.agc.gain);
 
 	ControlList ctrls(sensorCtrls_);
 	ctrls.set(V4L2_CID_EXPOSURE, exposure);
