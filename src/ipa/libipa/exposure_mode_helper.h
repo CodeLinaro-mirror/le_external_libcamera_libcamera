@@ -26,7 +26,9 @@ public:
 	ExposureModeHelper(const Span<std::pair<utils::Duration, double>> stages);
 	~ExposureModeHelper() = default;
 
-	void configure(utils::Duration lineLength, const CameraSensorHelper *sensorHelper);
+	void configure(utils::Duration lineLength, utils::Duration minExposureTime,
+		       utils::Duration maxExposureTime, double minGain, double maxGain,
+		       const CameraSensorHelper *sensorHelper);
 	void setLimits(utils::Duration minExposureTime, utils::Duration maxExposureTime,
 		       double minGain, double maxGain);
 

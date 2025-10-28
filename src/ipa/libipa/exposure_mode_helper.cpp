@@ -82,22 +82,32 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 /**
  * \brief Configure sensor details
  * \param[in] lineDuration The current line length of the sensor
+ * \param[in] minExposureTime The minimum exposure time supported
+ * \param[in] maxExposureTime The maximum exposure time supported
+ * \param[in] minGain The minimum analogue gain supported
+ * \param[in] maxGain The maximum analogue gain supported
  * \param[in] sensorHelper The sensor helper
  *
- * This function sets the line length and sensor helper. These are used in
- * splitExposure() to take the quantization of the exposure and gain into
- * account.
+ * This function initializes the exposure helper settings using the sensor
+ * configuration parameters.
  *
- * When this has not been called, it is assumed that exposure is in micro second
- * granularity and gain has no quantization at all.
+ * The sensor parameters' min and max limits are used in splitExposure() to take
+ * the quantization of the exposure and gain into account.
  *
  * ExposureModeHelper keeps a pointer to the CameraSensorHelper, so the caller
  * has to ensure that sensorHelper is valid until the next call to configure().
  */
 void ExposureModeHelper::configure(utils::Duration lineDuration,
+				   utils::Duration minExposureTime,
+				   utils::Duration maxExposureTime,
+				   double minGain, double maxGain,
 				   const CameraSensorHelper *sensorHelper)
 {
 	lineDuration_ = lineDuration;
+	minExposureTime_ = minExposureTime;
+	maxExposureTime_ = maxExposureTime;
+	minGain_ = minGain;
+	maxGain_ = maxGain;
 	sensorHelper_ = sensorHelper;
 }
 
