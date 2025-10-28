@@ -453,6 +453,7 @@ int AgcMeanLuminance::parseTuningData(const YamlObject &tuningData)
  * \brief Set the ExposureModeHelper limits for this class
  * \param[in] minExposureTime Minimum exposure time to allow
  * \param[in] maxExposureTime Maximum ewposure time to allow
+ * \param[in] maxFrameDuration Maximum frame duration
  * \param[in] minGain Minimum gain to allow
  * \param[in] maxGain Maximum gain to allow
  * \param[in] constraints Additional constraints to apply
@@ -462,11 +463,13 @@ int AgcMeanLuminance::parseTuningData(const YamlObject &tuningData)
  */
 void AgcMeanLuminance::setLimits(utils::Duration minExposureTime,
 				 utils::Duration maxExposureTime,
+				 utils::Duration maxFrameDuration,
 				 double minGain, double maxGain,
 				 std::vector<AgcMeanLuminance::AgcConstraint> constraints)
 {
 	for (auto &[id, helper] : exposureModeHelpers_)
-		helper->setLimits(minExposureTime, maxExposureTime, minGain, maxGain);
+		helper->setLimits(minExposureTime, maxExposureTime, maxFrameDuration,
+				  minGain, maxGain);
 
 	additionalConstraints_ = std::move(constraints);
 }

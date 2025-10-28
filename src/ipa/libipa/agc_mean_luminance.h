@@ -61,7 +61,8 @@ public:
 	}
 
 	void setLimits(utils::Duration minExposureTime, utils::Duration maxExposureTime,
-		       double minGain, double maxGain, std::vector<AgcConstraint> constraints);
+		       utils::Duration maxFrameDuration, double minGain, double maxGain,
+		       std::vector<AgcConstraint> constraints);
 
 	std::map<int32_t, std::vector<AgcConstraint>> constraintModes()
 	{

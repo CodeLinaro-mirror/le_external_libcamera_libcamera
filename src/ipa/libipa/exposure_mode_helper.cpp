@@ -79,6 +79,33 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 	}
 }
 
+void ExposureModeHelper::setMaxExposure(utils::Duration minExposureTime,
+					utils::Duration maxExposureTime,
+					utils::Duration maxFrameDuration)
+{
+	/*
+	 * Compute the maximum exposure time.
+	 *
+	 * If maxExposureTime is equal to minExposureTime then we use them
+	 * to fix the exposure time.
+	 *
+	 * Otherwise, if the exposure can range between a min and max, use the
+	 * maxFrameDuration minus the margin as upper limit for exposure
+	 * (capped to the provided max exposure).
+	 */
+	minExposureTime_ = minExposureTime;
+	auto margin = sensorHelper_->exposureMargin();
+	if (!margin.has_value()) {
+		LOG(ExposureModeHelper, Warning)
+			<< "Exposure margin not known. Default to 4";
+		margin = { 4 };
+	}
+
+	maxExposureTime_ = minExposureTime != maxExposureTime
+			 ? maxFrameDuration - margin.value() * lineDuration_
+			 : minExposureTime;
+}
+
 /**
  * \brief Configure sensor details
  * \param[in] lineDuration The current line length of the sensor
@@ -111,34 +138,14 @@ void ExposureModeHelper::configure(utils::Duration lineDuration,
 	maxGain_ = maxGain;
 	sensorHelper_ = sensorHelper;
 
-	minExposureTime_ = minExposureTime;
-
-	/*
-	 * Compute the maximum exposure time.
-	 *
-	 * If maxExposureTime is equal to minExposureTime then we use them
-	 * to fix the exposure time.
-	 *
-	 * Otherwise, if the exposure can range between a min and max, use the
-	 * maxFrameDuration minus the margin as upper limit for exposure
-	 * (capped to the provided max exposure).
-	 */
-	auto margin = sensorHelper_->exposureMargin();
-	if (!margin.has_value()) {
-		LOG(ExposureModeHelper, Warning)
-			<< "Exposure margin not known. Default to 4";
-		margin = { 4 };
-	}
-
-	maxExposureTime_ = minExposureTime != maxExposureTime
-			 ? maxFrameDuration - margin.value() * lineDuration
-			 : minExposureTime;
+	setMaxExposure(minExposureTime, maxExposureTime, maxFrameDuration);
 }
 
 /**
  * \brief Set the exposure time and gain limits
  * \param[in] minExposureTime The minimum exposure time supported
  * \param[in] maxExposureTime The maximum exposure time supported
+ * \param[in] maxFrameDuration The maximum frame duration
  * \param[in] minGain The minimum analogue gain supported
  * \param[in] maxGain The maximum analogue gain supported
  *
@@ -150,15 +157,19 @@ void ExposureModeHelper::configure(utils::Duration lineDuration,
  * If the algorithm using the helpers needs to indicate that either exposure time
  * or analogue gain or both should be fixed it can do so by setting both the
  * minima and maxima to the same value.
+ *
+ * The exposure time limits are calculated using \a maxFrameDuration as the
+ * upper bound, the \a maxExposureTime paramter effectivelly only serves
+ * to indicate that the caller wants a fixed exposure value.
  */
 void ExposureModeHelper::setLimits(utils::Duration minExposureTime,
 				   utils::Duration maxExposureTime,
+				   utils::Duration maxFrameDuration,
 				   double minGain, double maxGain)
 {
-	minExposureTime_ = minExposureTime;
-	maxExposureTime_ = maxExposureTime;
 	minGain_ = minGain;
 	maxGain_ = maxGain;
+	setMaxExposure(minExposureTime, maxExposureTime, maxFrameDuration);
 }
 
 utils::Duration ExposureModeHelper::clampExposureTime(utils::Duration exposureTime,
