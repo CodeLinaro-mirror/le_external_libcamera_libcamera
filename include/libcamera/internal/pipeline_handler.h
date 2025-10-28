@@ -82,6 +82,7 @@ protected:
 
 	CameraManager *manager_;
 	const unsigned int maxQueuedRequestsDevice_;
+	unsigned int useCount_;
 
 private:
 	void unlockMediaDevices();
@@ -96,7 +97,6 @@ private:
 	std::vector<std::weak_ptr<Camera>> cameras_;
 
 	const char *name_;
-	unsigned int useCount_;
 
 	friend class PipelineHandlerFactoryBase;
 };
