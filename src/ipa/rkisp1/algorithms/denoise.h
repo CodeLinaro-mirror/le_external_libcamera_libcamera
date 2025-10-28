@@ -62,6 +62,8 @@ protected:
 
 	virtual ControlInfoMap::Map getControlMap() const = 0;
 
+	virtual void fillMetadata(IPAContext &context, IPAFrameContext &frameContext, ControlList &metadata) = 0;
+
 private:
 	bool manualMode_ = false; /**< Current manual/auto mode state */
 	bool devMode_ = false; /**< Developer mode state for advanced controls */
