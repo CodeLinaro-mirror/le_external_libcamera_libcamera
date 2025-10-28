@@ -229,6 +229,20 @@ bool Dpf::parseSingleConfig(const YamlObject &config,
 	return true;
 }
 
+void Dpf::handleEnableControl(const ControlList &controls, IPAFrameContext &frameContext, IPAContext &context)
+{
+	if (const auto &c = controls.get(controls::rkisp1::DpfEnable); c) {
+		bool requested = *c != 0;
+		if (requested != enableDpf_) {
+			enableDpf_ = requested;
+			frameContext.dpf.update = true;
+			LOG(RkISP1Dpf, Info) << "DPF global " << (enableDpf_ ? "enabled" : "disabled");
+		}
+	}
+	context.activeState.dpf.denoise = enableDpf_;
+	frameContext.dpf.denoise = enableDpf_;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -237,38 +251,8 @@ void Dpf::queueRequest(IPAContext &context,
 		       IPAFrameContext &frameContext,
 		       const ControlList &controls)
 {
-	auto &dpf = context.activeState.dpf;
-	bool update = false;
-
-	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
-	if (denoise) {
-		LOG(RkISP1Dpf, Debug) << "Set denoise to " << *denoise;
-
-		switch (*denoise) {
-		case controls::draft::NoiseReductionModeOff:
-			if (dpf.denoise) {
-				dpf.denoise = false;
-				update = true;
-			}
-			break;
-		case controls::draft::NoiseReductionModeMinimal:
-		case controls::draft::NoiseReductionModeHighQuality:
-		case controls::draft::NoiseReductionModeFast:
-			if (!dpf.denoise) {
-				dpf.denoise = true;
-				update = true;
-			}
-			break;
-		default:
-			LOG(RkISP1Dpf, Error)
-				<< "Unsupported denoise value "
-				<< *denoise;
-			break;
-		}
-	}
-
-	frameContext.dpf.denoise = dpf.denoise;
-	frameContext.dpf.update = update;
+	frameContext.dpf.update = false;
+	handleEnableControl(controls, frameContext, context);
 }
 
 /**
