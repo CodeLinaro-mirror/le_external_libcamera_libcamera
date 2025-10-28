@@ -106,12 +106,33 @@ void ExposureModeHelper::configure(utils::Duration lineDuration,
 				   const CameraSensorHelper *sensorHelper)
 {
 	lineDuration_ = lineDuration;
-	minExposureTime_ = minExposureTime;
-	maxExposureTime_ = maxExposureTime;
 	maxFrameDuration_ = maxFrameDuration;
 	minGain_ = minGain;
 	maxGain_ = maxGain;
 	sensorHelper_ = sensorHelper;
+
+	minExposureTime_ = minExposureTime;
+
+	/*
+	 * Compute the maximum exposure time.
+	 *
+	 * If maxExposureTime is equal to minExposureTime then we use them
+	 * to fix the exposure time.
+	 *
+	 * Otherwise, if the exposure can range between a min and max, use the
+	 * maxFrameDuration minus the margin as upper limit for exposure
+	 * (capped to the provided max exposure).
+	 */
+	auto margin = sensorHelper_->exposureMargin();
+	if (!margin.has_value()) {
+		LOG(ExposureModeHelper, Warning)
+			<< "Exposure margin not known. Default to 4";
+		margin = { 4 };
+	}
+
+	maxExposureTime_ = minExposureTime != maxExposureTime
+			 ? maxFrameDuration - margin.value() * lineDuration
+			 : minExposureTime;
 }
 
 /**
