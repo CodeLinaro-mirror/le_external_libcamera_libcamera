@@ -4,8 +4,114 @@
 version: 1
 algorithms:
   - Agc:
+      AeMeteringMode:
+        MeteringCentreWeighted: [ 0, 0, 0, 0, 0, 0, 6, 8, 6, 0, 0, 8, 16, 8, 0, 0, 6, 8, 6, 0, 0, 0, 0, 0, 0 ]
+        MeteringSpot: [ 0, 0, 0, 0, 0, 0, 2, 4, 2, 0, 0, 4, 16, 4, 0, 0, 2, 4, 2, 0, 0, 0, 0, 0, 0 ]
+        MeteringMatrix: [ 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 ]
+      AeExposureMode:
+        ExposureNormal:
+          exposureTime: [ 100, 10000, 15000, 30000, 60000, 120000 ]
+          gain: [ 1.0, 1.0, 2.0, 6.0, 6.0, 6.0 ]
+        ExposureShort:
+          exposureTime: [ 100, 5000, 10000, 20000, 120000 ]
+          gain: [ 4.0, 4.0, 6.0, 6.0, 6.0 ]
+        ExposureCustom:
+          exposureTime: [ 100, 10000, 30000, 60000, 120000 ]
+          gain: [ 6.0, 6.0, 6.0, 6.0, 6.0 ]
+      AeConstraintMode:
+        ConstraintNormal:
+          lower:
+            qLo: 0.96
+            qHi: 1.0
+            yTarget: 0.5
+        ConstraintHighlight:
+          lower:
+            qLo: 0.98
+            qHi: 1.0
+            yTarget: 0.5
+          upper:
+            qLo: 0.98
+            qHi: 1.0
+            yTarget: 0.8
+      relativeLuminanceTarget: 0.38
+  - Lux:
+      referenceY: 0.1100404927222605
+      referenceExposureTime: 10000
+      referenceAnalogueGain: 1.0
+      referenceDigitalGain: 1.0
+      referenceLux: 1000
   - Awb:
+      algorithm: "bayes"
+      AwbMode:
+        AwbAuto:
+          lo: 2500
+          hi: 8000
+        AwbIncandescent:
+          lo: 2500
+          hi: 3000
+        AwbTungsten:
+          lo: 3000
+          hi: 3500
+        AwbFluorescent:
+          lo: 4000
+          hi: 4700
+        AwbIndoor:
+          lo: 3000
+          hi: 5000
+        AwbDaylight:
+          lo: 5500
+          hi: 6500
+        AwbCloudy:
+          lo: 6500
+          hi: 8000
+      priors:
+        - lux: 0
+          ct: [ 2000, 13000 ]
+          probability: [ 1.0, 1.0 ]
+      colourGains:
+        - ct: 2000
+          gains: [ 0.7052683546089288, 3.3036009250082587 ]
+        - ct: 3500
+          gains: [ 1.168770453482936, 2.509410288582183 ]
+        - ct: 5000
+          gains: [ 1.4365752047119666, 1.9519812609798948 ]
+        - ct: 6500
+          gains: [ 1.5730690577316344, 1.7325017325017324 ]
+        - ct: 8000
+          gains: [ 1.7298045320878743, 1.527650473571647 ]
+      transversePos: 0.01
+      transverseNeg: 0.01
   - BlackLevelCorrection:
+  - Ccm:
+      ccms:
+        - ct: 2000
+          ccm: [
+                 2.33831, 0.05412, -1.39242, -1.07561, 2.69265, -0.61704, -1.06246, -4.54151,
+                 6.60396,
+               ]
+        - ct: 3500
+          ccm: [
+                 1.94309, -0.61703, -0.32605, -0.63624, 1.98043, -0.34419, -0.06228, -1.70311,
+                 2.76539,
+               ]
+        - ct: 5000
+          ccm: [
+                 1.89171, -0.69651, -0.19519, -0.52877, 1.88519, -0.35641, -0.01512, -1.20358,
+                 2.21871,
+               ]
+        - ct: 6500
+          ccm: [
+                 1.85577, -0.70949, -0.14627, -0.47878, 1.87216, -0.39337, -0.01145, -1.02604,
+                 2.03749,
+               ]
+        - ct: 8000
+          ccm: [
+                 1.85859, -0.72919, -0.12939, -0.46756, 1.84927, -0.38171, -0.02651, -0.83045,
+                 1.85695,
+               ]
+  - ColorProcessing:
+  - GammaOutCorrection:
+      gamma: 2.2
   - LensShadingCorrection:
       x-size: [ 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625 ]
       y-size: [ 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625, 0.0625 ]
@@ -111,4 +217,187 @@ algorithms:
                1438, 1226, 1059, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025, 1054, 1185,
                1326, 1334, 1334,
              ]
+  - DefectPixelClusterCorrection:
+      # DPCC (Defect Pixel Cluster Correction) algorithm
+      # fixed-set: true would force use of pre-defined (fixed) set; keep false for dynamic.
+      fixed-set: false
+      # Up to 3 sets may be defined. Provide at least one with conservative defaults.
+      # These zero / low values act as a no-op baseline; tune per sensor after characterization.
+      sets:
+        - pg-factor:       # PG (Projection Gain) method factors
+            green: 0       # Typical range 0..15
+            red-blue: 0
+          ro-limits:       # RO (Rank Order) limits
+            green: 0       # Typical range 0..63
+            red-blue: 0
+          rg-factor:       # RG (Region Growth) factors
+            green: 0       # Typical range 0..15
+            red-blue: 0
+          rnd-offsets:     # RND (Random) offsets
+            green: 0       # Typical range 0..31
+            red-blue: 0
+          rnd-threshold:   # RND thresholds
+            green: 0       # Typical range 0..1023
+            red-blue: 0
+          line-threshold:  # LC line thresholds
+            green: 0       # Typical range 0..1023
+            red-blue: 0
+          line-mad-factor: # LC line mean absolute deviation factor
+            green: 0       # Typical range 0..63
+            red-blue: 0
+  - Dpf:
+      # Master toggle (optional). Set to false to disable DPF programming.
+      enable: true
+      # Developer mode toggle (optional). Set to false to hide advanced controls from clients.
+      devmode: false
+      # Tuning parameters for rkisp1 DPF (denoise)
+      DomainFilter:
+        # 9x9 kernel for green is always 6 coefficients
+        g:  [ 18, 13,  9,  5,  3,  1 ]
+        # RB: keep moderate width; IsoLevels override per ISO
+        rb: [ 18, 15, 12,  8,  5,  2 ]
+      NoiseLevelFunction:
+        # Base NLL: mild increase vs previous to better classify low-level noise
+        coeff: [
+          0,  14,  28,  42,  58,  76,  96, 120,
+          148, 180, 216, 256, 300, 348, 400, 456,
+          520
+        ]
+        scale-mode: "linear"
+      FilterStrength:
+        # Base strength (was 72) -> 80 for stronger baseline denoise while preserving detail
+        r: 80
+        g: 80
+        b: 80
+      Gain:
+        # Base gain settings - supports all 7 modes: 0=disabled, 1=NF, 2=LSC, 3=NF+LSC, 4=AWB, 5=AWB+LSC, 6=MAX
+        gain_mode: 5  # AWB+LSC gains for optimal denoising with color correction
+        nf_r_gain: 256
+        nf_b_gain: 256
+        nf_gr_gain: 256
+        nf_gb_gain: 256
+      IsoLevels:
+        # ISO-banded tuning for 100/200/400/800/1600/3200 (placeholders; refine with measurements).
+        - maxIso: 100
+          DomainFilter:
+            g:  [ 14, 10,  7,  4,  2,  1 ]
+            rb: [ 14, 11,  8,  4,  2,  1 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 10, 20, 30, 42, 56, 72, 90, 112, 138, 168, 200, 236, 276, 320, 368, 420 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 64
+            g: 64
+            b: 64
+          Gain:
+            gain_mode: 5  # AWB+LSC gains
+            nf_r_gain: 256
+            nf_b_gain: 256
+            nf_gr_gain: 256
+            nf_gb_gain: 256
+        - maxIso: 200
+          DomainFilter:
+            g:  [ 15, 11,  8,  4,  2,  1 ]
+            # Low ISO: conservative RB kernel to retain fine detail
+            rb: [ 15, 12,  9,  5,  3,  1 ]
+          NoiseLevelFunction:
+            # Slightly steeper early ramp to suppress chroma speckle
+            coeff: [
+              0,  12,  24,  36,  50,  66,  84, 104,
+              128, 154, 184, 216, 252, 292, 336, 384,
+              440
+            ]
+            scale-mode: "linear"
+          FilterStrength:
+            # Low ISO strength (was 64) -> 72
+            r: 72
+            g: 72
+            b: 72
+          Gain:
+            gain_mode: 5  # AWB+LSC gains
+            nf_r_gain: 256
+            nf_b_gain: 256
+            nf_gr_gain: 256
+            nf_gb_gain: 256
+        - maxIso: 400
+          DomainFilter:
+            g:  [ 16, 12,  9,  5,  3,  1 ]
+            rb: [ 16, 13, 10,  6,  4,  2 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 16, 32, 48, 66, 86, 108, 132, 160, 192, 228, 268, 312, 360, 412, 468, 528 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 88
+            g: 88
+            b: 88
+          Gain:
+            gain_mode: 5  # AWB+LSC gains
+            nf_r_gain: 256
+            nf_b_gain: 256
+            nf_gr_gain: 256
+            nf_gb_gain: 256
+        - maxIso: 800
+          DomainFilter:
+            g:  [ 18, 14, 10,  6,  3,  1 ]
+            # Mid ISO: widen RB for stronger smoothing
+            rb: [ 18, 16, 13,  9,  5,  3 ]
+          NoiseLevelFunction:
+            coeff: [
+              0,  20,  40,  60,  82, 106, 132, 160,
+              192, 228, 268, 312, 360, 412, 468, 528,
+              592
+            ]
+            scale-mode: "linear"
+          FilterStrength:
+            # Mid ISO strength (was 88) -> 100
+            r: 100
+            g: 100
+            b: 100
+          Gain:
+            gain_mode: 5  # AWB+LSC gains
+            nf_r_gain: 256
+            nf_b_gain: 256
+            nf_gr_gain: 256
+            nf_gb_gain: 256
+        - maxIso: 1600
+          DomainFilter:
+            # Emulate 13x9-like smoothing for green (hardware green kernel size fixed; increase coeff magnitudes)
+            g:  [ 22, 18, 13,  8,  5,  2 ]
+            # High ISO: wider RB kernel for stronger spatial denoise
+            rb: [ 20, 18, 16, 11,  7,  3 ]
+          NoiseLevelFunction:
+            coeff: [
+              0,  26,  52,  78, 106, 138, 172, 208,
+              248, 292, 340, 392, 448, 508, 572, 640,
+              712
+            ]
+            scale-mode: "linear"
+          FilterStrength:
+            # High ISO strength (was 108) -> 120
+            r: 120
+            g: 120
+            b: 120
+          Gain:
+            gain_mode: 5  # AWB+LSC gains
+            nf_r_gain: 256
+            nf_b_gain: 256
+            nf_gr_gain: 256
+            nf_gb_gain: 256
+        - maxIso: 3200
+          DomainFilter:
+            g:  [ 26, 22, 16, 10,  6,  3 ]
+            rb: [ 24, 22, 18, 12,  8,  4 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 32, 64, 96, 130, 168, 210, 256, 306, 360, 418, 480, 546, 616, 690, 768, 850 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 140
+            g: 140
+            b: 140
+          Gain:
+            gain_mode: 5  # AWB+LSC gains
+            nf_r_gain: 256
+            nf_b_gain: 256
+            nf_gr_gain: 256
+            nf_gb_gain: 256
 ...
