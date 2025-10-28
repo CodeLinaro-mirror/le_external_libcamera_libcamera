@@ -115,9 +115,13 @@ int Agc::configure(IPAContext &context,
 	context.activeState.agc.constraintMode = constraintModes().begin()->first;
 	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
 
+	ControlInfo &frameDurationLimits = context.ctrlMap[&controls::FrameDurationLimits];
+
 	AgcMeanLuminance::AgcSensorConfiguration sensorConfig;
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
 	sensorConfig.minExposureTime = minExposureTime_;
+	sensorConfig.maxFrameDuration =
+		std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
 	sensorConfig.maxExposureTime = maxExposureTime_;
 	sensorConfig.minAnalogueGain = minAnalogueGain_;
 	sensorConfig.maxAnalogueGain = maxAnalogueGain_;

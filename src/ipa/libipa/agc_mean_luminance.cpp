@@ -122,6 +122,11 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  */
 
 /**
+ * \var AgcMeanLuminance::AgcSensorConfiguration::maxFrameDuration
+ * \brief The sensor maximum frame duration in microseconds
+ */
+
+/**
  * \var AgcMeanLuminance::AgcSensorConfiguration::minAnalogueGain
  * \brief The sensor minimum analogue gain absolute value
  */
@@ -363,6 +368,7 @@ void AgcMeanLuminance::configure(const AgcSensorConfiguration &config,
 	for (auto &[id, helper] : exposureModeHelpers_)
 		helper->configure(config.lineDuration,
 				  config.minExposureTime, config.maxExposureTime,
+				  config.maxFrameDuration,
 				  config.minAnalogueGain, config.maxAnalogueGain,
 				  sensorHelper);
 }

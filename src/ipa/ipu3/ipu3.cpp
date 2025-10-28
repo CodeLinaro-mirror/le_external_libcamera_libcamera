@@ -278,11 +278,10 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
 	}
 
-	controls[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
-							       frameDurations[1],
-							       frameDurations[2]);
+	context_.ctrlMap[&controls::FrameDurationLimits] =
+		ControlInfo(frameDurations[0], frameDurations[1], frameDurations[2]);
 
-	controls.merge(context_.ctrlMap);
+	controls.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
 	*ipaControls = ControlInfoMap(std::move(controls), controls::controls);
 }
 

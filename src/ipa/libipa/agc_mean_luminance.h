@@ -46,6 +46,7 @@ public:
 		utils::Duration lineDuration;
 		utils::Duration minExposureTime;
 		utils::Duration maxExposureTime;
+		utils::Duration maxFrameDuration;
 		double minAnalogueGain;
 		double maxAnalogueGain;
 	};

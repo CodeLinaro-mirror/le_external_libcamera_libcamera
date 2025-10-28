@@ -27,7 +27,8 @@ public:
 	~ExposureModeHelper() = default;
 
 	void configure(utils::Duration lineLength, utils::Duration minExposureTime,
-		       utils::Duration maxExposureTime, double minGain, double maxGain,
+		       utils::Duration maxExposureTime, utils::Duration maxFrameDuration,
+		       double minGain, double maxGain,
 		       const CameraSensorHelper *sensorHelper);
 	void setLimits(utils::Duration minExposureTime, utils::Duration maxExposureTime,
 		       double minGain, double maxGain);
@@ -37,6 +38,7 @@ public:
 
 	utils::Duration minExposureTime() const { return minExposureTime_; }
 	utils::Duration maxExposureTime() const { return maxExposureTime_; }
+	utils::Duration maxFrameDuration() const { return maxFrameDuration_; }
 	double minGain() const { return minGain_; }
 	double maxGain() const { return maxGain_; }
 
@@ -51,6 +53,7 @@ private:
 	utils::Duration lineDuration_;
 	utils::Duration minExposureTime_;
 	utils::Duration maxExposureTime_;
+	utils::Duration maxFrameDuration_;
 	double minGain_;
 	double maxGain_;
 	const CameraSensorHelper *sensorHelper_;

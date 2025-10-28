@@ -84,6 +84,7 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
  * \param[in] lineDuration The current line length of the sensor
  * \param[in] minExposureTime The minimum exposure time supported
  * \param[in] maxExposureTime The maximum exposure time supported
+ * \param[in] maxFrameDuration The maximum frame duration
  * \param[in] minGain The minimum analogue gain supported
  * \param[in] maxGain The maximum analogue gain supported
  * \param[in] sensorHelper The sensor helper
@@ -100,12 +101,14 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 void ExposureModeHelper::configure(utils::Duration lineDuration,
 				   utils::Duration minExposureTime,
 				   utils::Duration maxExposureTime,
+				   utils::Duration maxFrameDuration,
 				   double minGain, double maxGain,
 				   const CameraSensorHelper *sensorHelper)
 {
 	lineDuration_ = lineDuration;
 	minExposureTime_ = minExposureTime;
 	maxExposureTime_ = maxExposureTime;
+	maxFrameDuration_ = maxFrameDuration;
 	minGain_ = minGain;
 	maxGain_ = maxGain;
 	sensorHelper_ = sensorHelper;
@@ -287,6 +290,12 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
  * \fn ExposureModeHelper::maxExposureTime()
  * \brief Retrieve the configured maximum exposure time set through setLimits()
  * \return The maxExposureTime_ value
+ */
+
+/**
+ * \fn ExposureModeHelper::maxFrameDuration()
+ * \brief Retrieve the configured maximum frame duration set through setLimits()
+ * \return The maxFrameDuration_ value
  */
 
 /**
