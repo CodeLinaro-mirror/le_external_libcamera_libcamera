@@ -111,7 +111,8 @@ void ExposureModeHelper::setMaxExposure(utils::Duration minExposureTime,
  * \param[in] lineDuration The current line length of the sensor
  * \param[in] minExposureTime The minimum exposure time supported
  * \param[in] maxExposureTime The maximum exposure time supported
- * \param[in] maxFrameDuration The maximum frame duration
+ * \param[in] minFrameDuration The minimum frame duration
+ * \param[inout] maxFrameDuration The maximum frame duration
  * \param[in] minGain The minimum analogue gain supported
  * \param[in] maxGain The maximum analogue gain supported
  * \param[in] sensorHelper The sensor helper
@@ -128,17 +129,29 @@ void ExposureModeHelper::setMaxExposure(utils::Duration minExposureTime,
 void ExposureModeHelper::configure(utils::Duration lineDuration,
 				   utils::Duration minExposureTime,
 				   utils::Duration maxExposureTime,
-				   utils::Duration maxFrameDuration,
+				   utils::Duration minFrameDuration,
+				   utils::Duration *maxFrameDuration,
 				   double minGain, double maxGain,
 				   const CameraSensorHelper *sensorHelper)
 {
 	lineDuration_ = lineDuration;
-	maxFrameDuration_ = maxFrameDuration;
 	minGain_ = minGain;
 	maxGain_ = maxGain;
 	sensorHelper_ = sensorHelper;
 
-	setMaxExposure(minExposureTime, maxExposureTime, maxFrameDuration);
+	static constexpr utils::Duration duration30fps = 33.333 * 1ms;
+	static constexpr utils::Duration duration15fps = 66.666 * 1ms;
+	static constexpr utils::Duration duration10fps = 100.00 * 1ms;
+	utils::Duration frameDuration = minFrameDuration < duration30fps
+				      ? duration30fps
+				        : minFrameDuration < duration15fps
+					? duration15fps
+					  : minFrameDuration < duration10fps
+					  ? duration10fps : minFrameDuration;
+	frameDuration = std::min(frameDuration, *maxFrameDuration);
+	setMaxExposure(minExposureTime, maxExposureTime, frameDuration);
+
+	maxFrameDuration_ = *maxFrameDuration = frameDuration;
 }
 
 /**

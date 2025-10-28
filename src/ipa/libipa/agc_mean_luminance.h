@@ -46,12 +46,13 @@ public:
 		utils::Duration lineDuration;
 		utils::Duration minExposureTime;
 		utils::Duration maxExposureTime;
+		utils::Duration minFrameDuration;
 		utils::Duration maxFrameDuration;
 		double minAnalogueGain;
 		double maxAnalogueGain;
 	};
 
-	void configure(const AgcSensorConfiguration &config,
+	void configure(AgcSensorConfiguration *config,
 		       const CameraSensorHelper *sensorHelper);
 	int parseTuningData(const YamlObject &tuningData);
 

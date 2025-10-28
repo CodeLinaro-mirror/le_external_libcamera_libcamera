@@ -175,12 +175,14 @@ int Agc::configure(IPAContext &context,
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
 	sensorConfig.minExposureTime = context.configuration.agc.minShutterSpeed;
 	sensorConfig.maxExposureTime = context.configuration.agc.maxShutterSpeed;
+	sensorConfig.minFrameDuration =
+		std::chrono::microseconds(frameDurationLimits.min().get<int64_t>());
 	sensorConfig.maxFrameDuration =
 		std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
 	sensorConfig.minAnalogueGain = context.configuration.agc.minAnalogueGain;
 	sensorConfig.maxAnalogueGain = context.configuration.agc.maxAnalogueGain;
 
-	AgcMeanLuminance::configure(sensorConfig, context.camHelper.get());
+	AgcMeanLuminance::configure(&sensorConfig, context.camHelper.get());
 
 	/* \todo Update AGC limits when FrameDurationLimits is passed in */
 

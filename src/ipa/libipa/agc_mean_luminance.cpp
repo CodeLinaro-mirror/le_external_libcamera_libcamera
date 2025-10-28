@@ -122,6 +122,11 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  */
 
 /**
+ * \var AgcMeanLuminance::AgcSensorConfiguration::minFrameDuration
+ * \brief The sensor minimum exposure time in microseconds
+ */
+
+/**
  * \var AgcMeanLuminance::AgcSensorConfiguration::maxFrameDuration
  * \brief The sensor maximum frame duration in microseconds
  */
@@ -355,21 +360,24 @@ int AgcMeanLuminance::parseExposureModes(const YamlObject &tuningData)
 
 /**
  * \brief Configure the exposure mode helpers
- * \param[in] config The sensor configuration
+ * \param[inout] config The sensor configuration
  * \param[in] sensorHelper The sensor helper
  *
  * This function configures the exposure mode helpers by providing them the
  * sensor configuration parameters and the sensor helper, so they can correctly
  * take quantization effects into account.
+ *
+ * The maximum frame duration passed in as a member of \a config is updated to
+ * the AGC algorithm startup value.
  */
-void AgcMeanLuminance::configure(const AgcSensorConfiguration &config,
+void AgcMeanLuminance::configure(AgcSensorConfiguration *config,
 				 const CameraSensorHelper *sensorHelper)
 {
 	for (auto &[id, helper] : exposureModeHelpers_)
-		helper->configure(config.lineDuration,
-				  config.minExposureTime, config.maxExposureTime,
-				  config.maxFrameDuration,
-				  config.minAnalogueGain, config.maxAnalogueGain,
+		helper->configure(config->lineDuration,
+				  config->minExposureTime, config->maxExposureTime,
+				  config->minFrameDuration, &config->maxFrameDuration,
+				  config->minAnalogueGain, config->maxAnalogueGain,
 				  sensorHelper);
 }
 

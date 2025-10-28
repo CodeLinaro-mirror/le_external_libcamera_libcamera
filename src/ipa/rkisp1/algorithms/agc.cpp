@@ -190,10 +190,13 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.activeState.agc.meteringMode =
 		static_cast<controls::AeMeteringModeEnum>(meteringModes_.begin()->first);
 
-	/* Limit the frame duration to match current initialisation */
+	/*
+	 * Initialize frame duration with the camera limits and update it to
+	 * the value computed by AgcMeanLuminance::configure().
+	 */
 	ControlInfo &frameDurationLimits = context.ctrlMap[&controls::FrameDurationLimits];
 	context.activeState.agc.minFrameDuration = std::chrono::microseconds(frameDurationLimits.min().get<int64_t>());
-	context.activeState.agc.maxFrameDuration = std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
+	utils::Duration maxFrameDuration = std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
 
 	context.configuration.agc.measureWindow.h_offs = 0;
 	context.configuration.agc.measureWindow.v_offs = 0;
@@ -204,12 +207,14 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
 	sensorConfig.minExposureTime = context.configuration.sensor.minExposureTime;
 	sensorConfig.maxExposureTime = context.configuration.sensor.maxExposureTime;
-	sensorConfig.maxFrameDuration = context.activeState.agc.maxFrameDuration;
+	sensorConfig.minFrameDuration = context.activeState.agc.minFrameDuration;
+	sensorConfig.maxFrameDuration = maxFrameDuration;
 	sensorConfig.minAnalogueGain = context.configuration.sensor.minAnalogueGain;
 	sensorConfig.maxAnalogueGain = context.configuration.sensor.maxAnalogueGain;
 
-	AgcMeanLuminance::configure(sensorConfig, context.camHelper.get());
+	AgcMeanLuminance::configure(&sensorConfig, context.camHelper.get());
 
+	context.activeState.agc.maxFrameDuration = sensorConfig.maxFrameDuration;
 	context.activeState.agc.automatic.yTarget = effectiveYTarget();
 
 	resetFrameCount();

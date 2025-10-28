@@ -27,11 +27,12 @@ public:
 	~ExposureModeHelper() = default;
 
 	void configure(utils::Duration lineLength, utils::Duration minExposureTime,
-		       utils::Duration maxExposureTime, utils::Duration maxFrameDuration,
-		       double minGain, double maxGain,
+		       utils::Duration maxExposureTime, utils::Duration minFrameDuration,
+		       utils::Duration *maxFrameDuration, double minGain, double maxGain,
 		       const CameraSensorHelper *sensorHelper);
 	void setLimits(utils::Duration minExposureTime, utils::Duration maxExposureTime,
-		       utils::Duration maxFrameDuration, double minGain, double maxGain);
+		       utils::Duration maxFrameDuration,
+		       double minGain, double maxGain);
 
 	std::tuple<utils::Duration, double, double, double>
 	splitExposure(utils::Duration exposure) const;
