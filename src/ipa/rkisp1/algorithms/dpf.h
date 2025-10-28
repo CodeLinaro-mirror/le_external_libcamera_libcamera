@@ -80,8 +80,13 @@ private:
 	bool enableDpf_ = true; /* YAML master enable */
 
 	void handleEnableControl(const ControlList &controls, IPAFrameContext &frameContext, IPAContext &context) override;
+
 	void collectManualOverrides(const ControlList &controls) override;
+
+	bool checkDevModeOverridesChanged();
+
 	bool parseConfig(const YamlObject &tuningData) override;
+
 	bool parseSingleConfig(const YamlObject &config,
 			       rkisp1_cif_isp_dpf_config &cfg,
 			       rkisp1_cif_isp_dpf_strength_config &strength);

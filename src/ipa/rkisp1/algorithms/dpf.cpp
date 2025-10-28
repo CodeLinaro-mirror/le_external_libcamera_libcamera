@@ -290,6 +290,54 @@ void Dpf::collectManualOverrides(const ControlList &controls)
 	}
 }
 
+bool Dpf::checkDevModeOverridesChanged()
+{
+	if (!isDevMode())
+		return false;
+
+	bool changed = false;
+	if (overrides_.spatialGreen) {
+		bool coeffsChanged = false;
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+			if (overrides_.spatialGreen->coeffs[i] != config_.g_flt.spatial_coeff[i]) {
+				coeffsChanged = true;
+				break;
+			}
+		}
+		if (coeffsChanged) {
+			changed = true;
+		}
+	}
+	if (overrides_.spatialRb) {
+		bool coeffsChanged = false;
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+			if (overrides_.spatialRb->coeffs[i] != config_.rb_flt.spatial_coeff[i]) {
+				coeffsChanged = true;
+				break;
+			}
+		}
+		if (coeffsChanged) {
+			changed = true;
+		}
+	}
+	if (overrides_.rbSize && *overrides_.rbSize != (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9 ? 1 : 0)) {
+		changed = true;
+	}
+	if (overrides_.nll) {
+		bool coeffsChanged = false;
+		for (unsigned i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i) {
+			if (overrides_.nll->coeffs[i] != config_.nll.coeff[i]) {
+				coeffsChanged = true;
+				break;
+			}
+		}
+		if (coeffsChanged || overrides_.nll->scaleMode != (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC ? 1 : 0)) {
+			changed = true;
+		}
+	}
+	return changed;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -308,6 +356,9 @@ void Dpf::queueRequest(IPAContext &context,
 		    (overrides_.strength->r != strengthConfig_.r ||
 		     overrides_.strength->g != strengthConfig_.g ||
 		     overrides_.strength->b != strengthConfig_.b)) {
+			frameContext.dpf.update = true;
+		}
+		if (checkDevModeOverridesChanged()) {
 			frameContext.dpf.update = true;
 		}
 	}
