@@ -625,15 +625,17 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	setExposureCompensation(pow(2.0, frameContext.agc.exposureValue));
 
 	utils::Duration newExposureTime;
+	utils::Duration frameDuration;
 	double aGain, qGain, dGain;
-	std::tie(newExposureTime, aGain, qGain, dGain) =
+	std::tie(newExposureTime, frameDuration, aGain, qGain, dGain) =
 		calculateNewEv(frameContext.agc.constraintMode,
 			       frameContext.agc.exposureMode,
 			       hist, effectiveExposureValue);
 
 	LOG(RkISP1Agc, Debug)
-		<< "Divided up exposure time, analogue gain, quantization gain"
-		<< " and digital gain are " << newExposureTime << ", " << aGain
+		<< "Divided up exposure time, frame duration, analogue gain,"
+		<< "quantization gain and digital gain are "
+		<< newExposureTime << ", " << frameDuration << ", " << aGain
 		<< ", " << qGain << " and " << dGain;
 
 	IPAActiveState &activeState = context.activeState;
@@ -646,8 +648,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	 * Expand the target frame duration so that we do not run faster than
 	 * the minimum frame duration when we have short exposures.
 	 */
-	processFrameDuration(context, frameContext,
-			     std::max(frameContext.agc.minFrameDuration, newExposureTime));
+	processFrameDuration(context, frameContext, frameDuration);
 
 	fillMetadata(context, frameContext, metadata);
 	expMeans_ = {};

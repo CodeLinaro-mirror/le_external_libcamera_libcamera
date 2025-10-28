@@ -646,10 +646,10 @@ utils::Duration AgcMeanLuminance::filterExposure(utils::Duration exposureValue)
  * exposure value is filtered to prevent rapid changes from frame to frame, and
  * divided into exposure time, analogue, quantization and digital gain.
  *
- * \return Tuple of exposure time, analogue gain, quantization gain and digital
- * gain
+ * \return Tuple of exposure time, frame duration analogue gain, quantization
+ * gain and digital gain
  */
-std::tuple<utils::Duration, double, double, double>
+std::tuple<utils::Duration, utils::Duration, double, double, double>
 AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 				 uint32_t exposureModeIndex,
 				 const Histogram &yHist,

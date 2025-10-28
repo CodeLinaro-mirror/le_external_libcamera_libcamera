@@ -80,7 +80,7 @@ public:
 		return controls_;
 	}
 
-	std::tuple<utils::Duration, double, double, double>
+	std::tuple<utils::Duration, utils::Duration, double, double, double>
 	calculateNewEv(uint32_t constraintModeIndex, uint32_t exposureModeIndex,
 		       const Histogram &yHist, utils::Duration effectiveExposureValue);
 

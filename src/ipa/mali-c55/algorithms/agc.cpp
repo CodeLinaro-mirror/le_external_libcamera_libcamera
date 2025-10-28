@@ -391,9 +391,10 @@ void Agc::process(IPAContext &context,
 	utils::Duration currentShutter = exposure * configuration.sensor.lineDuration;
 	utils::Duration effectiveExposureValue = currentShutter * totalGain;
 
+	utils::Duration frameDuration;
 	utils::Duration shutterTime;
 	double aGain, qGain, dGain;
-	std::tie(shutterTime, aGain, qGain, dGain) =
+	std::tie(shutterTime, frameDuration, aGain, qGain, dGain) =
 		calculateNewEv(activeState.agc.constraintMode,
 			       activeState.agc.exposureMode, statistics_.yHist,
 			       effectiveExposureValue);

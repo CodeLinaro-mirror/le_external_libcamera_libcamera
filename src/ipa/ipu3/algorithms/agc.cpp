@@ -236,8 +236,9 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	utils::Duration effectiveExposureValue = exposureTime * analogueGain;
 
 	utils::Duration newExposureTime;
+	utils::Duration frameDuration;
 	double aGain, qGain, dGain;
-	std::tie(newExposureTime, aGain, qGain, dGain) =
+	std::tie(newExposureTime, frameDuration, aGain, qGain, dGain) =
 		calculateNewEv(context.activeState.agc.constraintMode,
 			       context.activeState.agc.exposureMode, hist,
 			       effectiveExposureValue);
@@ -254,12 +255,13 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	metadata.set(controls::AnalogueGain, frameContext.sensor.gain);
 	metadata.set(controls::ExposureTime, exposureTime.get<std::micro>());
 
-	/* \todo Use VBlank value calculated from each frame exposure. */
+	/* \todo Use frameDuration to calculate the right vblank. */
+
 	uint32_t vTotal = context.configuration.sensor.size.height
 			+ context.configuration.sensor.defVBlank;
-	utils::Duration frameDuration = context.configuration.sensor.lineDuration
-				      * vTotal;
-	metadata.set(controls::FrameDuration, frameDuration.get<std::micro>());
+	utils::Duration defFrameDuration = context.configuration.sensor.lineDuration
+					 * vTotal;
+	metadata.set(controls::FrameDuration, defFrameDuration.get<std::micro>());
 }
 
 REGISTER_IPA_ALGORITHM(Agc, "Agc")

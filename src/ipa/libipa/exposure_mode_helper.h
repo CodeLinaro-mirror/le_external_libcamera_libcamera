@@ -34,7 +34,7 @@ public:
 		       utils::Duration maxFrameDuration,
 		       double minGain, double maxGain);
 
-	std::tuple<utils::Duration, double, double, double>
+	std::tuple<utils::Duration, utils::Duration, double, double, double>
 	splitExposure(utils::Duration exposure) const;
 
 	utils::Duration minExposureTime() const { return minExposureTime_; }
@@ -50,6 +50,7 @@ private:
 	utils::Duration clampExposureTime(utils::Duration exposureTime,
 					  double *quantizationGain = nullptr) const;
 	double clampGain(double gain, double *quantizationGain = nullptr) const;
+	utils::Duration frameDurationFromExposure(utils::Duration exposureTime) const;
 
 	std::vector<utils::Duration> exposureTimes_;
 	std::vector<double> gains_;
@@ -58,6 +59,8 @@ private:
 	utils::Duration minExposureTime_;
 	utils::Duration maxExposureTime_;
 	utils::Duration maxFrameDuration_;
+	utils::Duration minFrameDuration_;
+	utils::Duration exposureMargin_;
 	double minGain_;
 	double maxGain_;
 	const CameraSensorHelper *sensorHelper_;

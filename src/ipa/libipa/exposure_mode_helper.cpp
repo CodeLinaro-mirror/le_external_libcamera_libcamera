@@ -100,9 +100,10 @@ void ExposureModeHelper::setMaxExposure(utils::Duration minExposureTime,
 			<< "Exposure margin not known. Default to 4";
 		margin = { 4 };
 	}
+	exposureMargin_ = margin.value() * lineDuration_;
 
 	maxExposureTime_ = minExposureTime != maxExposureTime
-			 ? maxFrameDuration - margin.value() * lineDuration_
+			 ? maxFrameDuration - exposureMargin_
 			 : minExposureTime;
 }
 
@@ -152,6 +153,7 @@ void ExposureModeHelper::configure(utils::Duration lineDuration,
 	setMaxExposure(minExposureTime, maxExposureTime, frameDuration);
 
 	maxFrameDuration_ = *maxFrameDuration = frameDuration;
+	minFrameDuration_ = minFrameDuration;
 }
 
 /**
@@ -207,6 +209,17 @@ double ExposureModeHelper::clampGain(double gain, double *quantizationGain) cons
 	return sensorHelper_->quantizeGain(clamped, quantizationGain);
 }
 
+utils::Duration ExposureModeHelper::frameDurationFromExposure(utils::Duration exposureTime) const
+{
+	/*
+	 * The maximum exposure value has already been clamped to the maximum
+	 * frame duration. Re-apply the exposure margin and make sure we don't
+	 * go below the minium frame duration.
+	 */
+	utils::Duration frameDuration = exposureTime + exposureMargin_;
+	return std::max(frameDuration, minFrameDuration_);
+}
+
 /**
  * \brief Split exposure into exposure time and gain
  * \param[in] exposure Exposure value
@@ -244,7 +257,7 @@ double ExposureModeHelper::clampGain(double gain, double *quantizationGain) cons
  * \return Tuple of exposure time, analogue gain, quantization gain and digital
  * gain
  */
-std::tuple<utils::Duration, double, double, double>
+std::tuple<utils::Duration, utils::Duration, double, double, double>
 ExposureModeHelper::splitExposure(utils::Duration exposure) const
 {
 	ASSERT(maxExposureTime_);
@@ -266,8 +279,8 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 		gain = clampGain(minGain_, &quantGain2);
 		quantGain *= quantGain2;
 
-		return { exposureTime, gain, quantGain,
-			 exposure / (exposureTime * gain * quantGain) };
+		return { exposureTime, frameDurationFromExposure(exposureTime),
+			 gain, quantGain, exposure / (exposureTime * gain * quantGain) };
 	}
 
 	double stageGain = clampGain(1.0);
@@ -292,8 +305,8 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 			gain = clampGain(exposure / exposureTime, &quantGain2);
 			quantGain *= quantGain2;
 
-			return { exposureTime, gain, quantGain,
-				 exposure / (exposureTime * gain * quantGain) };
+			return { exposureTime, frameDurationFromExposure(exposureTime),
+				 gain, quantGain, exposure / (exposureTime * gain * quantGain) };
 		}
 
 		/* Clamp the exposureTime to stageExposureTime and regulate gain. */
@@ -302,8 +315,8 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 			gain = clampGain(exposure / exposureTime, &quantGain2);
 			quantGain *= quantGain2;
 
-			return { exposureTime, gain, quantGain,
-				 exposure / (exposureTime * gain * quantGain) };
+			return { exposureTime, frameDurationFromExposure(exposureTime),
+				 gain, quantGain, exposure / (exposureTime * gain * quantGain) };
 		}
 
 		lastStageGain = stageGain;
@@ -320,8 +333,8 @@ ExposureModeHelper::splitExposure(utils::Duration exposure) const
 	gain = clampGain(exposure / exposureTime, &quantGain2);
 	quantGain *= quantGain2;
 
-	return { exposureTime, gain, quantGain,
-		 exposure / (exposureTime * gain * quantGain) };
+	return { exposureTime, frameDurationFromExposure(exposureTime),
+		 gain, quantGain, exposure / (exposureTime * gain * quantGain) };
 }
 
 /**
