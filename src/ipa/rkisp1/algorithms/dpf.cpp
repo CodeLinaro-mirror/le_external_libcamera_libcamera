@@ -542,6 +542,11 @@ void Dpf::queueRequest(IPAContext &context,
 			frameContext.dpf.update = true;
 		}
 	}
+
+	LOG(RkISP1Dpf, Debug) << "queueRequest: denoise=" << frameContext.dpf.denoise
+			      << ", update=" << frameContext.dpf.update
+			      << (enableDpf_ ? "" : " (DPF disabled)")
+			      << (modeChanged ? " (mode change)" : "");
 }
 
 /**
@@ -550,42 +555,84 @@ void Dpf::queueRequest(IPAContext &context,
 void Dpf::prepare(IPAContext &context, const uint32_t frame,
 		  IPAFrameContext &frameContext, RkISP1Params *params)
 {
+	// check if master denoise toggle on
+	if (!frameContext.dpf.denoise) {
+		auto cfg = params->block<BlockType::Dpf>();
+		cfg.setEnabled(false);
+		auto str = params->block<BlockType::DpfStrength>();
+		str.setEnabled(false);
+		return;
+	}
+
+	if (isManualMode())
+		prepareManualMode(context, frame, frameContext, params);
+	else
+		prepareAutoMode(context, frame, frameContext, params);
+}
+
+void Dpf::prepareAutoMode(IPAContext &context, const uint32_t frame,
+			  IPAFrameContext &frameContext, RkISP1Params *params)
+{
+	unsigned iso = computeIso(context, frameContext);
+	bool baseIsoSkip = iso <= 100;
+
+	// Select different dpf config determined by iso Level
+	if (useIsoLevels_) {
+		int idx = DenoiseBaseAlgorithm::selectIsoBand(iso, isoLevels_);
+		if (idx >= 0 && idx != lastIsoIndex_) {
+			config_ = isoLevels_[idx].dpf;
+			strengthConfig_ = isoLevels_[idx].strength;
+			frameContext.dpf.update = true;
+			lastIsoIndex_ = idx;
+		}
+	}
+	// Disable dpf denoise due to high light
+	if (baseIsoSkip) {
+		auto cfg = params->block<BlockType::Dpf>();
+		cfg.setEnabled(false);
+		auto str = params->block<BlockType::DpfStrength>();
+		str.setEnabled(false);
+		return;
+	}
+
 	if (!frameContext.dpf.update && frame > 0)
 		return;
 
-	auto config = params->block<BlockType::Dpf>();
-	config.setEnabled(frameContext.dpf.denoise);
+	auto cfgBlock = params->block<BlockType::Dpf>();
+	cfgBlock.setEnabled(true);
+	*cfgBlock = config_;
 
-	if (frameContext.dpf.denoise) {
-		*config = config_;
+	cfgBlock->gain.mode = config_.gain.mode;
 
-		const auto &awb = context.configuration.awb;
-		const auto &lsc = context.configuration.lsc;
-
-		auto &mode = config->gain.mode;
-
-		/*
-		 * The DPF needs to take into account the total amount of
-		 * digital gain, which comes from the AWB and LSC modules. The
-		 * DPF hardware can be programmed with a digital gain value
-		 * manually, but can also use the gains supplied by the AWB and
-		 * LSC modules automatically when they are enabled. Use that
-		 * mode of operation as it simplifies control of the DPF.
-		 */
-		if (awb.enabled && lsc.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS;
-		else if (awb.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS;
-		else if (lsc.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS;
-		else
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED;
+	if (frame == 0 || frameContext.dpf.update) {
+		auto strBlock = params->block<BlockType::DpfStrength>();
+		strBlock.setEnabled(true);
+		*strBlock = strengthConfig_;
+		logConfigIfChanged(iso, lastIsoIndex_, false, frameContext);
 	}
+}
 
-	if (frame == 0) {
-		auto strengthConfig = params->block<BlockType::DpfStrength>();
-		strengthConfig.setEnabled(true);
-		*strengthConfig = strengthConfig_;
+void Dpf::prepareManualMode(IPAContext &context, const uint32_t frame,
+			    IPAFrameContext &frameContext, RkISP1Params *params)
+{
+	unsigned iso = computeIso(context, frameContext);
+
+	if (!frameContext.dpf.update && frame > 0)
+		return;
+
+	auto cfgBlock = params->block<BlockType::Dpf>();
+	cfgBlock.setEnabled(true);
+	*cfgBlock = config_;
+
+	cfgBlock->gain.mode = config_.gain.mode;
+
+	if (frame == 0 || frameContext.dpf.update) {
+		auto strBlock = params->block<BlockType::DpfStrength>();
+		strBlock.setEnabled(true);
+		*strBlock = strengthConfig_;
+		bool anyOverride = false;
+		applyOverridesTo(*cfgBlock, *strBlock, anyOverride);
+		logConfigIfChanged(iso, lastIsoIndex_, anyOverride, frameContext);
 	}
 }
 

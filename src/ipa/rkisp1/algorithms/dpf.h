@@ -105,6 +105,12 @@ private:
 	void applyOverridesTo(rkisp1_cif_isp_dpf_config &cfg, rkisp1_cif_isp_dpf_strength_config &str, bool &anyOverride);
 
 	void logConfigIfChanged(unsigned iso, int isoIndex, bool anyOverride, const IPAFrameContext &frameContext);
+
+	void prepareAutoMode(IPAContext &context, const uint32_t frame,
+			     IPAFrameContext &frameContext, RkISP1Params *params) override;
+
+	void prepareManualMode(IPAContext &context, const uint32_t frame,
+			       IPAFrameContext &frameContext, RkISP1Params *params) override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */

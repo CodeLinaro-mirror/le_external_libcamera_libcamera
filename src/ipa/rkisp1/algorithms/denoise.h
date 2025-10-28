@@ -54,6 +54,12 @@ protected:
 
 	virtual void restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext) = 0;
 
+	virtual void prepareAutoMode(IPAContext &context, const uint32_t frame,
+				     IPAFrameContext &frameContext, RkISP1Params *params) = 0;
+
+	virtual void prepareManualMode(IPAContext &context, const uint32_t frame,
+				       IPAFrameContext &frameContext, RkISP1Params *params) = 0;
+
 private:
 	bool manualMode_ = false; /**< Current manual/auto mode state */
 	bool devMode_ = false; /**< Developer mode state for advanced controls */
