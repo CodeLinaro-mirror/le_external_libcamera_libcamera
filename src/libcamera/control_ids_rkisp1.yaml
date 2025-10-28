@@ -82,5 +82,44 @@ controls:
         - name: DpfNoiseLevelLookupScaleLogarithmic
           value: 1
           description: Logarithmic scale.
+  - DpfMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Controls the operating mode of the Denoise Pre-Filter (DPF) algorithm.
+
+        In Auto mode the algorithm selects parameters automatically from the
+        sensor tuning data and (if provided) the ISO level table. Changes in
+        scene brightness (analogue gain / ISO) may cause the algorithm to
+        re-evaluate and reprogram the hardware when an ISO band boundary is
+        crossed.
+
+        In Manual mode the automatically selected parameters are frozen at
+        the moment the mode switch occurs (a snapshot is taken). Subsequent
+        per‑frame automatic ISO/tuning updates are disabled until the mode is
+        set back to Auto. While in Manual mode the application may modify any
+        of the override controls (e.g. DpfChannelStrengths, DpfGreenSpatialCoefficients,
+        DpfRedBlueSpatialCoefficients, DpfRbFilterSize, DpfNoiseLevelLookupCoefficients,
+        DpfNoiseLevelLookupScaleMode). Changes are applied immediately to hardware.
+
+        Transition Rules:
+          * Auto -> Manual: The current effective (auto-selected) parameters
+            are captured as the initial manual override values.
+          * Manual -> Auto: All manual override state is discarded and the
+            algorithm immediately reverts to automatic tuning selection,
+            potentially reprogramming hardware that same frame.
+
+        If the application switches to Manual but supplies no overrides,
+        the previously auto-derived parameters continue to be used unchanged.
+
+        \\sa DpfEnable
+        \\sa DpfChannelStrengths
+      enum:
+        - name: DpfModeAuto
+          value: 0
+          description: Automatic mode - algorithm selects parameters based on tuning data.
+        - name: DpfModeManual
+          value: 1
+          description: Manual mode - parameters are frozen and can be overridden.
 
 ...

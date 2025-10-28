@@ -20,10 +20,12 @@ class DenoiseBaseAlgorithm : public ipa::rkisp1::Algorithm
 protected:
 	DenoiseBaseAlgorithm() = default;
 	~DenoiseBaseAlgorithm() = default;
+
 	struct EnableState {
 		bool enabled = true; /**< Current enable state */
 		bool lastEnabled = true; /**< Previous enable state for change detection */
 	};
+
 	bool processEnableToggle(bool value, EnableState &state);
 
 	void setManualMode(bool manual) { manualMode_ = manual; }
@@ -31,14 +33,26 @@ protected:
 	void setDevMode(bool dev) { devMode_ = dev; }
 
 	bool isManualMode() const { return manualMode_; }
+
 	bool isDevMode() const { return devMode_; }
+
 	unsigned computeIso(const IPAContext &context,
 			    const IPAFrameContext &frameContext) const;
+
 	template<typename LevelContainer>
 	int selectIsoBand(unsigned iso, const LevelContainer &levels) const;
+
 	virtual bool parseConfig(const YamlObject &tuningData) = 0;
+
 	virtual void handleEnableControl(const ControlList &controls, IPAFrameContext &frameContext, IPAContext &context) = 0;
+
 	virtual void collectManualOverrides(const ControlList &controls) = 0;
+
+	virtual bool processModeChange(const ControlList &controls, uint32_t currentFrame) = 0;
+
+	virtual void snapshotCurrentToOverrides() = 0;
+
+	virtual void restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext) = 0;
 
 private:
 	bool manualMode_ = false; /**< Current manual/auto mode state */

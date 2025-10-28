@@ -78,6 +78,11 @@ private:
 	std::vector<IsoLevelConfig> isoLevels_;
 	bool useIsoLevels_ = false;
 	bool enableDpf_ = true; /* YAML master enable */
+	int lastIsoIndex_ = -1;
+
+	/* Mode change protection */
+	uint32_t lastModeChangeFrame_ = 0;
+	static constexpr uint32_t kMinModeChangeInterval = 2; /* frames */
 
 	void handleEnableControl(const ControlList &controls, IPAFrameContext &frameContext, IPAContext &context) override;
 
@@ -90,6 +95,12 @@ private:
 	bool parseSingleConfig(const YamlObject &config,
 			       rkisp1_cif_isp_dpf_config &cfg,
 			       rkisp1_cif_isp_dpf_strength_config &strength);
+
+	bool processModeChange(const ControlList &controls, uint32_t currentFrame) override;
+
+	void snapshotCurrentToOverrides() override;
+
+	void restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext) override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
