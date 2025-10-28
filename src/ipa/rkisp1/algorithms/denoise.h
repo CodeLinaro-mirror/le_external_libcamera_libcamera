@@ -15,26 +15,39 @@ namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
 
-/**
- * \class DenoiseBaseAlgorithm
- * \brief Base class for RkISP1 denoising algorithms
- *
- * This abstract base class provides common functionality for denoising algorithms
- * in the RkISP1 Image Processing Algorithm (IPA).
- *
- * Derived classes must implement algorithm-specific behavior.
- */
 class DenoiseBaseAlgorithm : public ipa::rkisp1::Algorithm
 {
 protected:
 	DenoiseBaseAlgorithm() = default;
 	~DenoiseBaseAlgorithm() = default;
+	struct EnableState {
+		bool enabled = true; /**< Current enable state */
+		bool lastEnabled = true; /**< Previous enable state for change detection */
+	};
+	bool processEnableToggle(bool value, EnableState &state);
 
+	void setManualMode(bool manual) { manualMode_ = manual; }
+
+	void setDevMode(bool dev) { devMode_ = dev; }
+
+	bool isManualMode() const { return manualMode_; }
+	bool isDevMode() const { return devMode_; }
 	unsigned computeIso(const IPAContext &context,
 			    const IPAFrameContext &frameContext) const;
 	template<typename LevelContainer>
 	int selectIsoBand(unsigned iso, const LevelContainer &levels) const;
+
+private:
+	bool manualMode_ = false; /**< Current manual/auto mode state */
+	bool devMode_ = false; /**< Developer mode state for advanced controls */
 };
+
+inline bool DenoiseBaseAlgorithm::processEnableToggle(bool value, EnableState &state)
+{
+	state.lastEnabled = state.enabled;
+	state.enabled = value;
+	return state.enabled != state.lastEnabled;
+}
 
 inline unsigned DenoiseBaseAlgorithm::computeIso(const IPAContext &context,
 						 const IPAFrameContext &frameContext) const
