@@ -121,5 +121,13 @@ controls:
         - name: DpfModeManual
           value: 1
           description: Manual mode - parameters are frozen and can be overridden.
+          
+  - DpfIso:
+      type: int32_t
+      direction: out
+      description: |
+        Estimated scene ISO value used for DPF tuning selection. Derived
+        from analogue gain (approx ISO = gain * 100). Provided each frame
+        for client awareness and debugging. Range 0..409600.
 
 ...

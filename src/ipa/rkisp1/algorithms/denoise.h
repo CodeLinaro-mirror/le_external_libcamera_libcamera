@@ -60,6 +60,8 @@ protected:
 	virtual void prepareManualMode(IPAContext &context, const uint32_t frame,
 				       IPAFrameContext &frameContext, RkISP1Params *params) = 0;
 
+	virtual ControlInfoMap::Map getControlMap() const = 0;
+
 private:
 	bool manualMode_ = false; /**< Current manual/auto mode state */
 	bool devMode_ = false; /**< Developer mode state for advanced controls */
