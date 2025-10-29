@@ -151,6 +151,65 @@ namespace ipa {
  * Represents values in the range [0.0, 4095.9375] with a resolution of 1/16.
  */
 
+/**
+ * \struct ScaledFixedPointQTraits
+ * \brief Wrap a FixedPointQTraits with a linear scaling factor
+ *
+ * This trait extends an existing fixed-point quantisation policy
+ * by applying an additional multiplicative scale between the
+ * floating-point and quantised domains.
+ *
+ * \tparam Q The base fixed-point traits type
+ * \tparam Scale The scale factor applied to the floating-point domain
+ */
+
+/**
+ * \typedef ScaledFixedPointQTraits::quantized_type
+ * \copydoc FixedPointQTraits::quantized_type
+ */
+
+/**
+ * \var ScaledFixedPointQTraits::scale
+ * \brief The constant scaling factor applied to the floating-point domain.
+ *
+ * Floating-point inputs are divided by this factor before quantisation,
+ * and multiplied by it after dequantisation.
+ */
+
+/**
+ * \var ScaledFixedPointQTraits::qmin
+ * \copydoc FixedPointQTraits::qmin
+ */
+
+/**
+ * \var ScaledFixedPointQTraits::qmax
+ * \copydoc FixedPointQTraits::qmax
+ */
+
+/**
+ * \var ScaledFixedPointQTraits::min
+ * \copydoc FixedPointQTraits::min
+ */
+
+/**
+ * \var ScaledFixedPointQTraits::max
+ * \copydoc FixedPointQTraits::max
+ */
+
+/**
+ * \fn ScaledFixedPointQTraits::fromFloat(float v)
+ * \copydoc FixedPointQTraits::fromFloat(float v)
+ *
+ * The input value \a v is divided by the scaling factor before conversion.
+ */
+
+/**
+ * \fn ScaledFixedPointQTraits::toFloat(quantized_type q)
+ * \copydoc FixedPointQTraits::toFloat(quantized_type q)
+ *
+ * The output value is multiplied by the scaling factor after conversion.
+ */
+
 } /* namespace ipa */
 
 } /* namespace libcamera */
