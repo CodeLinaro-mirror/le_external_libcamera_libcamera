@@ -247,6 +247,71 @@ protected:
 		return fails ? TestFail : TestPass;
 	}
 
+	struct BrightnessTraits {
+		using quantized_type = int8_t;
+		static constexpr quantized_type fromFloat(float v)
+		{
+			int quantized = std::lround(v * 128.0f);
+			return static_cast<int8_t>(std::clamp<int>(quantized, -128, 127));
+		}
+		static float toFloat(quantized_type v)
+		{
+			return static_cast<float>(v) / 128.0f;
+		}
+	};
+
+	using BrightnessQOriginal = Quantized<BrightnessTraits>;
+
+	struct ContrastSaturationTraits {
+		using quantized_type = uint8_t;
+		static constexpr quantized_type fromFloat(float v)
+		{
+			int quantized = std::lround(v * 128.0f);
+			return static_cast<uint8_t>(std::clamp<int>(quantized, 0, 255));
+		}
+		static float toFloat(quantized_type v)
+		{
+			return static_cast<float>(v) / 128.0f;
+		}
+	};
+
+	using ContrastQOriginal = Quantized<ContrastSaturationTraits>;
+
+	/* FixedPoint equivalents to validate */
+	using BrightnessQ = Quantized<FixedPointQTraits<1, 7, int8_t>>;
+	using ContrastQ = Quantized<FixedPointQTraits<1, 7, uint8_t>>;
+
+	template<typename T1, typename T2>
+	int testTwoIdenticalTypes(float v)
+	{
+		T1 a(v);
+		T2 b(v);
+
+		std::cout << "  Checking " << a.toString()
+			  << " == " << b.toString()
+			  << std::endl;
+
+		/* 0/false success, 1/true fail */
+		return (a.quantized() != b.quantized());
+	}
+
+	int testCprocFixedPointConversion()
+	{
+		unsigned int fails = 0;
+
+		std::cout << std::endl
+			  << "CPROC Fixed-Point Quantizer conversion tests:"
+			  << std::endl;
+
+		fails += testTwoIdenticalTypes<BrightnessQOriginal, BrightnessQ>(BrightnessQ::TraitsType::min);
+		fails += testTwoIdenticalTypes<BrightnessQOriginal, BrightnessQ>(BrightnessQ::TraitsType::max);
+
+		fails += testTwoIdenticalTypes<ContrastQOriginal, ContrastQ>(ContrastQ::TraitsType::min);
+		fails += testTwoIdenticalTypes<ContrastQOriginal, ContrastQ>(ContrastQ::TraitsType::max);
+
+		return fails ? TestFail : TestPass;
+	}
+
 	int run()
 	{
 		unsigned int fails = 0;
@@ -259,6 +324,9 @@ protected:
 			fails++;
 
 		if (testScaledFixedPointQuantizers() != TestPass)
+			fails++;
+
+		if (testCprocFixedPointConversion() != TestPass)
 			fails++;
 
 		return fails ? TestFail : TestPass;
