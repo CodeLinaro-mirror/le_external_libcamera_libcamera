@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 
 #include <linux/rkisp1-config.h>
@@ -27,10 +28,16 @@
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 #include "libipa/agc_mean_luminance.h"
+#include "libipa/fixedpoint.h"
 
 namespace libcamera {
 
 namespace ipa::rkisp1 {
+
+/* Fixed point types used by CPROC */
+using BrightnessQ = Q1_7;
+using ContrastQ = UQ1_7;
+using SaturationQ = UQ1_7;
 
 struct IPAHwSettings {
 	unsigned int numAeCells;
@@ -115,9 +122,9 @@ struct IPAActiveState {
 	} ccm;
 
 	struct {
-		int8_t brightness;
-		uint8_t contrast;
-		uint8_t saturation;
+		BrightnessQ brightness;
+		ContrastQ contrast;
+		SaturationQ saturation;
 	} cproc;
 
 	struct {
@@ -169,9 +176,10 @@ struct IPAFrameContext : public FrameContext {
 	} awb;
 
 	struct {
-		int8_t brightness;
-		uint8_t contrast;
-		uint8_t saturation;
+		BrightnessQ brightness;
+		ContrastQ contrast;
+		SaturationQ saturation;
+
 		bool update;
 	} cproc;
 
