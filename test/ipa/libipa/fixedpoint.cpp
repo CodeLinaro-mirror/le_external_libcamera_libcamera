@@ -221,6 +221,32 @@ protected:
 		return TestPass;
 	}
 
+	int testScaledFixedPointQuantizers()
+	{
+		unsigned int fails = 0;
+		cerr << std::endl
+		     << "Scaled Fixed-Point Quantizer tests:" << std::endl;
+
+		using HueQ = Quantized<ScaledFixedPointQTraits<Q1_7::TraitsType, 90>>;
+
+		fails += introduce<HueQ>("HueQ (Scaled Q1_7 * 90) ");
+
+		/* clang-format off */
+
+		fails += quantizedCheck<HueQ>(-90.0f, -128, -90.0f);	/* Min */
+		fails += quantizedCheck<HueQ>(-45.0f,  -64, -45.0f);	/* Mid negative */
+		fails += quantizedCheck<HueQ>(  0.0f,    0,   0.0f);	/* Zero */
+		fails += quantizedCheck<HueQ>( 45.0f,   64,  45.0f);	/* Mid positive */
+		fails += quantizedCheck<HueQ>( 90.0f,  127,  89.2969f);	/* Max */
+
+		fails += quantizedCheck<HueQ>(-99.0f, -128, -90.0f);	/* Clamp low */
+		fails += quantizedCheck<HueQ>( 99.0f,  127,  89.2969f);	/* Clamp high */
+
+		/* clang-format on */
+
+		return fails ? TestFail : TestPass;
+	}
+
 	int run()
 	{
 		unsigned int fails = 0;
@@ -230,6 +256,9 @@ protected:
 			fails++;
 
 		if (testFixedPointQuantizers() != TestPass)
+			fails++;
+
+		if (testScaledFixedPointQuantizers() != TestPass)
 			fails++;
 
 		return fails ? TestFail : TestPass;
