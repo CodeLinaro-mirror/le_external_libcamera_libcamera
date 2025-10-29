@@ -10,6 +10,8 @@
 #include <cmath>
 #include <type_traits>
 
+#include "quantized.h"
+
 namespace libcamera {
 
 namespace ipa {
@@ -59,6 +61,47 @@ constexpr R fixedToFloatingPoint(T number)
 	int t = static_cast<int>(static_cast<unsigned>(number) << remaining_bits) >> remaining_bits;
 	return static_cast<R>(t) / static_cast<R>(1 << F);
 }
+
+template<unsigned int I, unsigned int F, typename T>
+struct FixedPointQTraits {
+	static_assert(std::is_integral_v<T>, "FixedPointQTraits: T must be integral");
+	using quantized_type = T;
+
+	static constexpr unsigned int Bits = I + F;
+
+	static constexpr T BitMask = (Bits < sizeof(T) * 8)
+				   ? (T{1} << Bits) - 1
+				   : T{-1};
+
+	static constexpr T qmin = std::is_signed_v<T>
+				? -(T{1} << (Bits - 1))
+				: T{0};
+
+	static constexpr T qmax = std::is_signed_v<T>
+				? ((T{1} << (Bits - 1)) - 1)
+				: ((T{1} << Bits) - 1);
+
+	static constexpr float min = fixedToFloatingPoint<I, F, float>(qmin);
+	static constexpr float max = fixedToFloatingPoint<I, F, float>(qmax);
+
+	/* Conversion functions required by Quantized<Traits> */
+	static quantized_type fromFloat(float v)
+	{
+		v = std::clamp(v, min, max);
+		return floatingToFixedPoint<I, F, quantized_type, float>(v);
+	}
+
+	static float toFloat(quantized_type q)
+	{
+		return fixedToFloatingPoint<I, F, float, quantized_type>(q);
+	}
+};
+
+using Q1_7 = Quantized<FixedPointQTraits<1, 7, int8_t>>;
+using UQ1_7 = Quantized<FixedPointQTraits<1, 7, uint8_t>>;
+
+using Q12_4 = Quantized<FixedPointQTraits<12, 4, int16_t>>;
+using UQ12_4 = Quantized<FixedPointQTraits<12, 4, uint16_t>>;
 
 } /* namespace ipa */
 
