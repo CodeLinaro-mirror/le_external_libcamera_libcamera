@@ -357,6 +357,7 @@ void Request::Private::timeout()
  */
 Request::Request(Camera *camera, uint64_t cookie)
 	: Extensible(std::make_unique<Private>(camera)),
+	  metadata2_(camera->_d()->metadataPlan_),
 	  cookie_(cookie), status_(RequestPending)
 {
 	controls_ = new ControlList(controls::controls,
@@ -410,6 +411,7 @@ void Request::reuse(ReuseFlag flags)
 
 	controls_->clear();
 	metadata_->clear();
+	metadata2_.clear();
 }
 
 /**
