@@ -16,11 +16,13 @@
 #include <libcamera/base/utils.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/control_ids.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/property_ids.h>
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_manager.h"
+#include "libcamera/internal/controls.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/request.h"
@@ -755,6 +757,47 @@ std::string PipelineHandler::configurationFile(const std::string &subdir,
 	return std::string();
 }
 
+namespace {
+
+/*
+ * This is kind of hack. The metadata controls in the "debug" namespace
+ * are forcefully injected into each Camera's MetadataListPlan so that
+ * they work seamlessly without any additional setup.
+ *
+ * The dynamically-sized array-like controls have a maximum capacity
+ * determined by the magic number below.
+ */
+void extendMetadataPlanWithDebugMetadata(MetadataListPlan& mlp)
+{
+	constexpr std::size_t kDynamicArrayCapacity = 32;
+
+	for (const auto &[id, ctrl] : controls::controls) {
+		if (!ctrl->isOutput())
+			continue;
+		if (ctrl->vendor() != "debug")
+			continue;
+		if (mlp.get(id))
+			continue;
+
+		std::size_t count = ctrl->size();
+		if (count == 0) /* Non-array controls have a static size of 0. */
+			count = 1;
+		else if (ctrl->size() == libcamera::dynamic_extent)
+			count = kDynamicArrayCapacity;
+
+		const auto info = controls::details::TypeInfo::get(ctrl->type());
+		if (!info)
+			continue;
+
+		[[maybe_unused]] bool ok = mlp.set(id,
+						   info.size, info.alignment,
+						   count, ctrl->type(), ctrl->isArray());
+		ASSERT(ok);
+	}
+}
+
+} /* namespace */
+
 /**
  * \brief Register a camera to the camera manager and pipeline handler
  * \param[in] camera The camera to be added
@@ -799,6 +842,8 @@ void PipelineHandler::registerCamera(std::shared_ptr<Camera> camera)
 	 */
 	Camera::Private *data = camera->_d();
 	data->properties_.set(properties::SystemDevices, devnums);
+
+	extendMetadataPlanWithDebugMetadata(data->metadataPlan_);
 
 	manager_->_d()->addCamera(std::move(camera));
 }
