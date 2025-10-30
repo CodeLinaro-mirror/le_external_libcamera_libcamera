@@ -26,6 +26,7 @@
    SoftwareISP Benchmarking <software-isp-benchmarking>
    Tracing guide <guides/tracing>
    Design document: AE <design/ae>
+   Design document: Metadata list <design/metadata-list>
    Internal API <internal-api/index>
 
 .. toctree::
@@ -34,5 +35,3 @@
 
    Lens driver requirements <lens_driver_requirements>
    Sensor driver requirements <sensor_driver_requirements>
-
-
