@@ -14,6 +14,7 @@
 #include <sstream>
 
 #include <libcamera/control_ids.h>
+#include <libcamera/metadata_list_plan.h>
 #include <libcamera/property_ids.h>
 
 #include "../common/event_loop.h"
@@ -227,6 +228,20 @@ void CameraSession::listControls() const
 				std::cout << std::to_string(size);
 			std::cout << std::endl;
 		}
+	}
+
+	for (const auto &[id, info] : camera_->metadata()) {
+		const auto *cid = controls::controls.at(id);
+
+		std::cout << "Metadata: [  out] " << cid->vendor() << "::" << cid->name()
+			  << " type:" << info.type
+			  << " size:" << info.size
+			  << " alignment:" << info.alignment;
+
+		if (info.isArray)
+			std::cout << " count:" << info.numElements;
+
+		std::cout << std::endl;
 	}
 }
 
