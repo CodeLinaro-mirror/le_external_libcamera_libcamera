@@ -187,7 +187,7 @@ std::string time_point_to_string(const time_point &time)
 }
 
 std::basic_ostream<char, std::char_traits<char>> &
-operator<<(std::basic_ostream<char, std::char_traits<char>> &stream, const _hex &h)
+operator<<(std::basic_ostream<char, std::char_traits<char>> &stream, const struct hex &h)
 {
 	stream << "0x";
 
