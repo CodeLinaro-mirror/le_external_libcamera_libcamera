@@ -533,6 +533,96 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  */
 
 /**
+ * \brief Signal the availability of metadata for \a request
+ * \param[in] request The request the metadata belongs to
+ * \param[in] metadata The collection of metadata items
+ *
+ * This function copies metadata items from \a metadata to the cumulative metadata
+ * collection of \a request. This function may be called multiple times, but metadata
+ * items already present in Request::metadata() are ignored. Afterwards the function
+ * notifies the application by triggering the Camera::availableMetadata signal with
+ * the just added metadata items.
+ *
+ * Early metadata completion allows pipeline handlers to fast track delivery of
+ * metadata results as soon as they are available before the completion of \a
+ * request. The full list of metadata results of a Request is available at
+ * Request completion time in Request::metadata().
+ *
+ * \context This function shall be called from the CameraManager thread.
+ *
+ * \sa PipelineHandler::metadataAvailable(Request *request, Func func)
+ * \sa PipelineHandler::metadataAvailable(Request *request,
+ *                                        const Control<T> &ctrl,
+ *                                        const internal::cxx20::type_identity_t<T> &value)
+ */
+void PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+{
+	request->metadata().merge(metadata);
+
+	const auto d = request->metadata2().merge(metadata);
+	if (!d)
+		LOG(Pipeline, Fatal) << "Tried to add incompatible metadata items";
+
+	if (!d->empty())
+		request->_d()->camera()->metadataAvailable.emit(request, *d);
+}
+
+/**
+ * \fn void PipelineHandler::metadataAvailable(Request *request, const Control<T> &ctrl,
+ *					       const internal::cxx20::type_identity_t<T> &value)
+ * \copybrief PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+ * \param[in] request The request the metadata belongs to
+ * \param[in] ctrl The control id of the metadata item
+ * \param[in] value The value of the metadata item
+ *
+ * This function servers the same purpose as
+ * PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+ * but it allows a single metadata item to be reported directly,
+ * without creating a ControlList.
+ *
+ * \context This function shall be called from the CameraManager thread.
+ * \sa PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+ */
+
+/**
+ * \fn void PipelineHandler::metadataAvailable(Request *request, Func func)
+ * \copybrief PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+ * \param[in] request The request the metadata belongs to
+ * \param[in] func The callback to invoke
+ *
+ * This function serves the same purpose as
+ * PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+ * but it provides more flexibility for pipeline handlers. This function invokes
+ * \a func, which receives as its sole argument an object of unspecified type whose
+ * operator() can be used to add metadata items.
+ *
+ * For example, a PipelineHandler might use this function to conditionally report two
+ * metadata items without creating an intermediate ControlList:
+ *
+ * \code
+	metadataAvailable(request, [&](auto set) {
+		if (...) // controls::X is available and ready to be reported
+			set(controls::X, ...);
+		if (...) // controls::Y is available and ready to be reported
+			set(controls::Y, ...);
+		// ...
+	});
+ * \endcode
+ *
+ * The advantage of the above over two calls to
+ * PipelineHandler::metadataAvailable(Request *request, const Control<T> &ctrl, const internal::cxx20::type_identity_t<T> &value)
+ * is that the application is only notified once, after \a func has returned.
+ *
+ * \note Calling any overload of metadataAvailable() inside \a func is not allowed.
+ * \note The object passed to \a func is only usable while \a func runs, it must not
+ *       be saved or reused.
+ *
+ * \context This function shall be called from the CameraManager thread.
+ *
+ * \sa PipelineHandler::metadataAvailable(Request *request, const ControlList &metadata)
+ */
+
+/**
  * \brief Complete a buffer for a request
  * \param[in] request The request the buffer belongs to
  * \param[in] buffer The buffer that has completed
