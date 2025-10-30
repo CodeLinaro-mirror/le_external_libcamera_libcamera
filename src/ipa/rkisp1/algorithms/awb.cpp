@@ -117,6 +117,10 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 	const auto &src = awbAlgo_->controls();
 	cmap.insert(src.begin(), src.end());
 
+	context.metadataPlan.set(controls::AwbEnable);
+	context.metadataPlan.set(controls::ColourGains);
+	context.metadataPlan.set(controls::ColourTemperature);
+
 	return 0;
 }
 

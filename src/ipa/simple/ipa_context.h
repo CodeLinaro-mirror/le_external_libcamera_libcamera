@@ -12,6 +12,7 @@
 #include <stdint.h>
 
 #include <libcamera/controls.h>
+#include <libcamera/metadata_list_plan.h>
 
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
@@ -102,6 +103,7 @@ struct IPAContext {
 	IPAActiveState activeState;
 	FCQueue<IPAFrameContext> frameContexts;
 	ControlInfoMap::Map ctrlMap;
+	MetadataListPlan metadataPlan; // TODO: only needed during init(), how could be removed?
 	bool ccmEnabled = false;
 };
 

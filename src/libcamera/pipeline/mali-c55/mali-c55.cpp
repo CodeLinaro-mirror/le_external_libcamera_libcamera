@@ -402,7 +402,7 @@ int MaliC55CameraData::loadIPA()
 
 	ControlInfoMap ipaControls;
 	ret = ipa_->init({ ipaTuningFile, sensor_->model() }, ipaConfig,
-			 &ipaControls);
+			 &ipaControls, &metadataPlan_);
 	if (ret) {
 		LOG(MaliC55, Error) << "Failed to initialise the Mali-C55 IPA";
 		return ret;

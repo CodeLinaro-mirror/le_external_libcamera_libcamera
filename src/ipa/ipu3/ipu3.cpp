@@ -143,7 +143,8 @@ public:
 	int init(const IPASettings &settings,
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
-		 ControlInfoMap *ipaControls) override;
+		 ControlInfoMap *ipaControls,
+		 MetadataListPlan *metadataPlan) override;
 
 	int start() override;
 	void stop() override;
@@ -299,7 +300,8 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 int IPAIPU3::init(const IPASettings &settings,
 		  const IPACameraSensorInfo &sensorInfo,
 		  const ControlInfoMap &sensorControls,
-		  ControlInfoMap *ipaControls)
+		  ControlInfoMap *ipaControls,
+		  MetadataListPlan *metadataPlan)
 {
 	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
 	if (camHelper_ == nullptr) {
@@ -347,6 +349,8 @@ int IPAIPU3::init(const IPASettings &settings,
 
 	/* Initialize controls. */
 	updateControls(sensorInfo, sensorControls, ipaControls);
+
+	*metadataPlan = std::move(context_.metadataPlan);
 
 	return 0;
 }

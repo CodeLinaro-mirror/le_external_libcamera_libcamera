@@ -71,10 +71,11 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  * \param[in] pipe The pipeline handler in use
  * \param[in] sensor Pointer to the CameraSensor instance owned by the pipeline
  * \param[out] ipaControls The IPA controls to update
+ * \param[out] metadataPlan The metadata plan to update
  * handler
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-			 ControlInfoMap *ipaControls)
+			 ControlInfoMap *ipaControls, MetadataListPlan *metadataPlan)
 	: dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
 		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
 		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
@@ -147,7 +148,8 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 sensorInfo,
 			 sensor->controls(),
 			 ipaControls,
-			 &ccmEnabled_);
+			 &ccmEnabled_,
+			 metadataPlan);
 	if (ret) {
 		LOG(SoftwareIsp, Error) << "IPA init failed";
 		debayer_.reset();
