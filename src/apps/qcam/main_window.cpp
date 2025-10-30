@@ -646,7 +646,7 @@ void MainWindow::captureRaw()
 }
 
 void MainWindow::processRaw(FrameBuffer *buffer,
-			    [[maybe_unused]] const ControlList &metadata)
+			    [[maybe_unused]] const MetadataList &metadata)
 {
 #ifdef HAVE_TIFF
 	QString defaultPath = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);

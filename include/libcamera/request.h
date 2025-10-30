@@ -51,9 +51,9 @@ public:
 	void reuse(ReuseFlag flags = Default);
 
 	ControlList &controls() { return *controls_; }
-	ControlList &metadata() { return *metadata_; }
+	[[nodiscard]] MetadataList &metadata() { return metadata_; }
 #ifndef __DOXYGEN__
-	[[nodiscard]] MetadataList &metadata2() { return metadata2_; }
+	ControlList &metadata2() { return *metadata2_; }
 #endif
 	const BufferMap &buffers() const { return bufferMap_; }
 	int addBuffer(const Stream *stream, FrameBuffer *buffer,
@@ -72,8 +72,8 @@ private:
 	LIBCAMERA_DISABLE_COPY(Request)
 
 	ControlList *controls_;
-	ControlList *metadata_;
-	MetadataList metadata2_;
+	MetadataList metadata_;
+	ControlList *metadata2_;
 	BufferMap bufferMap_;
 
 	const uint64_t cookie_;

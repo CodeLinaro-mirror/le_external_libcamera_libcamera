@@ -521,7 +521,7 @@ const std::map<PixelFormat, FormatInfo> formatInfo = {
 
 int DNGWriter::write(const char *filename, const Camera *camera,
 		     const StreamConfiguration &config,
-		     const ControlList &metadata,
+		     const MetadataList &metadata,
 		     [[maybe_unused]] const FrameBuffer *buffer,
 		     const void *data)
 {

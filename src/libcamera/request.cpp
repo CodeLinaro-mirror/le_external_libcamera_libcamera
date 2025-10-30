@@ -357,7 +357,7 @@ void Request::Private::timeout()
  */
 Request::Request(Camera *camera, uint64_t cookie)
 	: Extensible(std::make_unique<Private>(camera)),
-	  metadata2_(camera->_d()->metadataPlan_),
+	  metadata_(camera->_d()->metadataPlan_),
 	  cookie_(cookie), status_(RequestPending)
 {
 	controls_ = new ControlList(controls::controls,
@@ -366,7 +366,7 @@ Request::Request(Camera *camera, uint64_t cookie)
 	/**
 	 * \todo Add a validator for metadata controls.
 	 */
-	metadata_ = new ControlList(controls::controls);
+	metadata2_ = new ControlList(controls::controls);
 
 	LIBCAMERA_TRACEPOINT(request_construct, this);
 
@@ -377,7 +377,7 @@ Request::~Request()
 {
 	LIBCAMERA_TRACEPOINT(request_destroy, this);
 
-	delete metadata_;
+	delete metadata2_;
 	delete controls_;
 }
 
@@ -410,8 +410,8 @@ void Request::reuse(ReuseFlag flags)
 	status_ = RequestPending;
 
 	controls_->clear();
-	metadata_->clear();
-	metadata2_.clear();
+	metadata_.clear();
+	metadata2_->clear();
 }
 
 /**

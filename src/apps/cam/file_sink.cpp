@@ -102,7 +102,7 @@ bool FileSink::processRequest(Request *request)
 }
 
 void FileSink::writeBuffer(const Stream *stream, FrameBuffer *buffer,
-			   [[maybe_unused]] const ControlList &metadata)
+			   [[maybe_unused]] const MetadataList &metadata)
 {
 	std::string filename = pattern_;
 	size_t pos;
