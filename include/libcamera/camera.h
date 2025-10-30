@@ -123,6 +123,7 @@ public:
 
 	const std::string &id() const;
 
+	Signal<Request *, MetadataList::Diff> metadataAvailable;
 	Signal<Request *, FrameBuffer *> bufferCompleted;
 	Signal<Request *> requestCompleted;
 	Signal<> disconnected;
