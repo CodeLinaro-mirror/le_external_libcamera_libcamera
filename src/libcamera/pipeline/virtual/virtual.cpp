@@ -354,7 +354,7 @@ int PipelineHandlerVirtual::queueRequestDevice([[maybe_unused]] Camera *camera,
 	VirtualCameraData *data = cameraData(camera);
 	const auto timestamp = currentTimestamp();
 
-	request->metadata().set(controls::SensorTimestamp, timestamp);
+	metadataAvailable(request, controls::SensorTimestamp, timestamp);
 	data->invokeMethod(&VirtualCameraData::processRequest,
 			   ConnectionTypeQueued, request);
 

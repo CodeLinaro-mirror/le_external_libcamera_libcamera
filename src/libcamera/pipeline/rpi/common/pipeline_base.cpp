@@ -1227,7 +1227,7 @@ void CameraData::metadataReady(const ControlList &metadata)
 	/* Add to the Request metadata buffer what the IPA has provided. */
 	/* Last thing to do is to fill up the request metadata. */
 	Request *request = requestQueue_.front();
-	request->metadata().merge(metadata);
+	pipe()->metadataAvailable(request, metadata);
 
 	/*
 	 * Inform the sensor of the latest colour gains if it has the
@@ -1497,23 +1497,24 @@ void CameraData::checkRequestCompleted()
 
 void CameraData::fillRequestMetadata(const ControlList &bufferControls, Request *request)
 {
-	if (auto x = bufferControls.get(controls::SensorTimestamp))
-		request->metadata().set(controls::SensorTimestamp, *x);
-	if (auto x = bufferControls.get(controls::FrameWallClock))
-		request->metadata().set(controls::FrameWallClock, *x);
+	pipe()->metadataAvailable(request, [&](auto set) {
+		if (auto x = bufferControls.get(controls::SensorTimestamp))
+			set(controls::SensorTimestamp, *x);
+		if (auto x = bufferControls.get(controls::FrameWallClock))
+			set(controls::FrameWallClock, *x);
 
-	if (cropParams_.size()) {
-		std::vector<Rectangle> crops;
+		if (cropParams_.size()) {
+			std::vector<Rectangle> crops;
 
-		for (auto const &[k, v] : cropParams_)
-			crops.push_back(scaleIspCrop(v.ispCrop));
+			for (auto const &[k, v] : cropParams_)
+				crops.push_back(scaleIspCrop(v.ispCrop));
 
-		request->metadata().set(controls::ScalerCrop, crops[0]);
-		if (crops.size() > 1) {
-			request->metadata().set(controls::rpi::ScalerCrops,
-						Span<const Rectangle>(crops.data(), crops.size()));
+			set(controls::ScalerCrop, crops[0]);
+
+			if (crops.size() > 1)
+				set(controls::rpi::ScalerCrops, { crops.data(), crops.size() });
 		}
-	}
+	});
 }
 
 } /* namespace libcamera */
