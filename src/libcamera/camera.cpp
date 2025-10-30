@@ -659,6 +659,14 @@ Camera::Private::~Private()
  */
 
 /**
+ * \var Camera::Private::metadataPlan_
+ * \brief The set of metadata supported by the camera
+ *
+ * The metadata information shall be initialised by the pipeline handler when
+ * creating the camera.
+ */
+
+/**
  * \var Camera::Private::requestSequence_
  * \brief The queuing sequence number of the request
  *
@@ -1072,6 +1080,19 @@ int Camera::release()
 const ControlInfoMap &Camera::controls() const
 {
 	return _d()->controlInfo_;
+}
+
+/**
+ * \brief Retrieve the set of metadata supported by the camera
+ *
+ * The list of metadata controls that may be reported by the camera
+ * for a \ref Request::metadata() "request".
+ *
+ * \return A MetadataListPlan listing the metadata controls supported by the camera
+ */
+const MetadataListPlan &Camera::metadata() const
+{
+	return _d()->metadataPlan_;
 }
 
 /**
