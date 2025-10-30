@@ -98,7 +98,7 @@ struct control_type<float> {
 template<>
 struct control_type<std::string_view> {
 	static constexpr ControlType value = ControlTypeString;
-	static constexpr std::size_t size = 0;
+	static constexpr std::size_t size = libcamera::dynamic_extent;
 };
 
 template<>
