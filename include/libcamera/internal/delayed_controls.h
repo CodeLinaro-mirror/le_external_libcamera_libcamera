@@ -21,13 +21,14 @@ class V4L2Device;
 class DelayedControls : public Object
 {
 public:
-	struct ControlParams {
+	struct Controls {
+		uint32_t id;
 		unsigned int delay;
-		bool priorityWrite;
 	};
 
-	DelayedControls(V4L2Device *device,
-			const std::unordered_map<uint32_t, ControlParams> &controlParams);
+	using Params = std::vector<Controls>;
+
+	DelayedControls(V4L2Device *device, const Params &controlParams);
 
 	void reset();
 
@@ -37,6 +38,11 @@ public:
 	void applyControls(uint32_t sequence);
 
 private:
+	struct ControlParams {
+		unsigned int delay;
+		bool priorityWrite;
+	};
+
 	class Info : public ControlValue
 	{
 	public:

@@ -1083,9 +1083,9 @@ int PipelineHandlerIPU3::registerCameras()
 			continue;
 
 		const CameraSensorProperties::SensorDelays &delays = cio2->sensor()->sensorDelays();
-		std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-			{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
-			{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
+		DelayedControls::Params params = {
+			{ V4L2_CID_ANALOGUE_GAIN, delays.gainDelay },
+			{ V4L2_CID_EXPOSURE, delays.exposureDelay },
 		};
 
 		data->delayedCtrls_ =

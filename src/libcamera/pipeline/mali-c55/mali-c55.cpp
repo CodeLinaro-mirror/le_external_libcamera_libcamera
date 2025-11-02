@@ -1607,9 +1607,9 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 		data->properties_ = data->sensor_->properties();
 
 		const CameraSensorProperties::SensorDelays &delays = data->sensor_->sensorDelays();
-		std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-			{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
-			{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
+		DelayedControls::Params params = {
+			{ V4L2_CID_ANALOGUE_GAIN, delays.gainDelay },
+			{ V4L2_CID_EXPOSURE, delays.exposureDelay },
 		};
 
 		data->delayedCtrls_ =

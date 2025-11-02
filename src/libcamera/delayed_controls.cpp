@@ -39,40 +39,35 @@ LOG_DEFINE_CATEGORY(DelayedControls)
  */
 
 /**
- * \struct DelayedControls::ControlParams
- * \brief Parameters associated with controls handled by the \a DelayedControls
+ * \struct DelayedControls::Controls
+ * \brief Delays associated with controls handled by the \a DelayedControls
  * helper class
  *
- * \var ControlParams::delay
+ * \var Controls::id
+ * \brief The control id
+ *
+ * \var Controls::delay
  * \brief Frame delay from setting the control on a sensor device to when it is
  * consumed during framing.
- *
- * \var ControlParams::priorityWrite
- * \brief Flag to indicate that this control must be applied ahead of, and
- * separately from the other controls.
- *
- * Typically set for the \a V4L2_CID_VBLANK control so that the device driver
- * does not reject \a V4L2_CID_EXPOSURE control values that may be outside of
- * the existing vertical blanking specified bounds, but are within the new
- * blanking bounds.
+ */
+
+/**
+ * \typedef DelayedControls::Params
+ * \brief Vector of DelayedControls::Controls
  */
 
 /**
  * \brief Construct a DelayedControls instance
  * \param[in] device The V4L2 device the controls have to be applied to
- * \param[in] controlParams Map of the numerical V4L2 control ids to their
- * associated control parameters.
+ * \param[in] controlParams Control ids and delays
  *
- * The control parameters comprise of delays (in frames) and a priority write
- * flag. If this flag is set, the relevant control is written separately from,
- * and ahead of the rest of the batched controls.
+ * The control parameters associate a delay (in frames) to control ids.
  *
  * Only controls specified in \a controlParams are handled. If it's desired to
  * mix delayed controls and controls that take effect immediately the immediate
  * controls must be listed in the \a controlParams map with a delay value of 0.
  */
-DelayedControls::DelayedControls(V4L2Device *device,
-				 const std::unordered_map<uint32_t, ControlParams> &controlParams)
+DelayedControls::DelayedControls(V4L2Device *device, const Params &controlParams)
 	: device_(device), maxDelay_(0)
 {
 	const ControlInfoMap &controls = device_->controls();
@@ -82,11 +77,11 @@ DelayedControls::DelayedControls(V4L2Device *device,
 	 * device.
 	 */
 	for (auto const &param : controlParams) {
-		auto it = controls.find(param.first);
+		auto it = controls.find(param.id);
 		if (it == controls.end()) {
 			LOG(DelayedControls, Error)
 				<< "Delay request for control id "
-				<< utils::hex(param.first)
+				<< utils::hex(param.id)
 				<< " but control is not exposed by device "
 				<< device_->deviceNode();
 			continue;
@@ -94,7 +89,9 @@ DelayedControls::DelayedControls(V4L2Device *device,
 
 		const ControlId *id = it->first;
 
-		controlParams_[id] = param.second;
+		controlParams_[id].delay = param.delay;
+		if (param.id == V4L2_CID_VBLANK)
+			controlParams_[id].priorityWrite = true;
 
 		LOG(DelayedControls, Debug)
 			<< "Set a delay of " << controlParams_[id].delay

@@ -1345,12 +1345,12 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	scalerMaxCrop_ = Rectangle(data->sensor_->resolution());
 
 	const CameraSensorProperties::SensorDelays &delays = data->sensor_->sensorDelays();
-	std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
-		{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
-		{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
-		{ V4L2_CID_VBLANK, { delays.vblankDelay, false } },
-	};
+	DelayedControls::Params params = {
+		{ V4L2_CID_ANALOGUE_GAIN, delays.gainDelay },
+		{ V4L2_CID_EXPOSURE, delays.exposureDelay },
+		{ V4L2_CID_VBLANK, delays.vblankDelay },
 
+	};
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);

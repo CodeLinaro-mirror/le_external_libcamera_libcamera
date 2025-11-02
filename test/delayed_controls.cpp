@@ -72,8 +72,8 @@ protected:
 
 	int singleControlNoDelay()
 	{
-		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
-			{ V4L2_CID_BRIGHTNESS, { 0, false } },
+		DelayedControls::Params delays = {
+			{ V4L2_CID_BRIGHTNESS, 0 },
 		};
 		std::unique_ptr<DelayedControls> delayed =
 			std::make_unique<DelayedControls>(dev_.get(), delays);
@@ -113,8 +113,8 @@ protected:
 
 	int singleControlWithDelay()
 	{
-		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
-			{ V4L2_CID_BRIGHTNESS, { 1, false } },
+		DelayedControls::Params delays = {
+			{ V4L2_CID_BRIGHTNESS, 1 },
 		};
 		std::unique_ptr<DelayedControls> delayed =
 			std::make_unique<DelayedControls>(dev_.get(), delays);
@@ -159,9 +159,9 @@ protected:
 	{
 		static const unsigned int maxDelay = 2;
 
-		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
-			{ V4L2_CID_BRIGHTNESS, { 1, false } },
-			{ V4L2_CID_CONTRAST, { maxDelay, false } },
+		DelayedControls::Params delays = {
+			{ V4L2_CID_BRIGHTNESS, 1 },
+			{ V4L2_CID_CONTRAST, maxDelay },
 		};
 		std::unique_ptr<DelayedControls> delayed =
 			std::make_unique<DelayedControls>(dev_.get(), delays);
@@ -210,9 +210,9 @@ protected:
 	{
 		static const unsigned int maxDelay = 2;
 
-		std::unordered_map<uint32_t, DelayedControls::ControlParams> delays = {
-			{ V4L2_CID_BRIGHTNESS, { 1, false } },
-			{ V4L2_CID_CONTRAST, { maxDelay, false } }
+		DelayedControls::Params delays = {
+			{ V4L2_CID_BRIGHTNESS, 1 },
+			{ V4L2_CID_CONTRAST, maxDelay }
 		};
 		std::unique_ptr<DelayedControls> delayed =
 			std::make_unique<DelayedControls>(dev_.get(), delays);
