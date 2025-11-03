@@ -811,6 +811,12 @@ void PipelineHandler::disconnect()
  * \return The pipeline handler name
  */
 
+ /**
+ * \fn PipelineHandler::useCount()
+ * \brief Retrieve the pipeline handler user count
+ * \return The pipeline handler user count
+ */
+
 /**
  * \fn PipelineHandler::cameraManager() const
  * \brief Retrieve the CameraManager that this pipeline handler belongs to
