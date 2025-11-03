@@ -571,7 +571,7 @@ int CameraSensorLegacy::initProperties()
 	const auto &orientation = controls.find(V4L2_CID_CAMERA_ORIENTATION);
 	if (orientation != controls.end()) {
 		int32_t v4l2Orientation = orientation->second.def().get<int32_t>();
-		int32_t propertyValue;
+		properties::LocationEnum propertyValue;
 
 		switch (v4l2Orientation) {
 		default:
@@ -624,7 +624,8 @@ int CameraSensorLegacy::initProperties()
 
 	/* Color filter array pattern, register only for RAW sensors. */
 	if (bayerFormat_) {
-		int32_t cfa;
+		auto cfa = properties::draft::MONO;
+
 		switch (bayerFormat_->order) {
 		case BayerFormat::BGGR:
 			cfa = properties::draft::BGGR;

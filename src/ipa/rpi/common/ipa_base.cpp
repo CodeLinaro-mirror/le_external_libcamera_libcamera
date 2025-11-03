@@ -1584,7 +1584,9 @@ void IpaBase::reportMetadata(unsigned int ipaContext)
 
 	const AfStatus *afStatus = rpiMetadata.getLocked<AfStatus>("af.status");
 	if (afStatus) {
-		int32_t s, p;
+		controls::AfStateEnum s;
+		controls::AfPauseStateEnum p;
+
 		switch (afStatus->state) {
 		case AfState::Scanning:
 			s = controls::AfStateScanning;

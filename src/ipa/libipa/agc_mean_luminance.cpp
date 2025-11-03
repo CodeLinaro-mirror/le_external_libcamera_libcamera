@@ -297,7 +297,7 @@ int AgcMeanLuminance::parseExposureModes(const YamlObject &tuningData)
 	 * possible before touching gain.
 	 */
 	if (availableExposureModes.empty()) {
-		int32_t exposureModeId = controls::ExposureNormal;
+		auto exposureModeId = controls::ExposureNormal;
 		std::vector<std::pair<utils::Duration, double>> stages = { };
 
 		std::shared_ptr<ExposureModeHelper> helper =

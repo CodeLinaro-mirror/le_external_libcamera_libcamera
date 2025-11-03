@@ -576,7 +576,7 @@ int CameraSensorRaw::initProperties()
 	const auto &orientation = controls.find(V4L2_CID_CAMERA_ORIENTATION);
 	if (orientation != controls.end()) {
 		int32_t v4l2Orientation = orientation->second.def().get<int32_t>();
-		int32_t propertyValue;
+		properties::LocationEnum propertyValue;
 
 		switch (v4l2Orientation) {
 		default:
@@ -628,7 +628,7 @@ int CameraSensorRaw::initProperties()
 	properties_.set(properties::PixelArrayActiveAreas, { activeArea_ });
 
 	/* Color filter array pattern. */
-	uint32_t cfa;
+	auto cfa = properties::draft::MONO;
 
 	switch (cfaPattern_) {
 	case BayerFormat::BGGR:
@@ -644,7 +644,6 @@ int CameraSensorRaw::initProperties()
 		cfa = properties::draft::RGGB;
 		break;
 	case BayerFormat::MONO:
-	default:
 		cfa = properties::draft::MONO;
 		break;
 	}
