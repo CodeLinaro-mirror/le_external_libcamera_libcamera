@@ -168,6 +168,10 @@ MediaDevice *PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
  */
 bool PipelineHandler::acquire(Camera *camera)
 {
+	LOG(Pipeline, Debug)
+		<< "Acquire camera " << camera->id()
+		<< " useCount " << useCount_;
+
 	if (useCount_ == 0) {
 		for (std::shared_ptr<MediaDevice> &media : mediaDevices_) {
 			if (!media->lock()) {
@@ -214,6 +218,10 @@ void PipelineHandler::release(Camera *camera)
 		unlockMediaDevices();
 
 	--useCount_;
+
+	LOG(Pipeline, Debug)
+		<< "release camera " << camera->id()
+		<< " useCount " << useCount_;
 }
 
 /**
@@ -809,6 +817,12 @@ void PipelineHandler::disconnect()
  * \brief Retrieve the pipeline handler name
  * \context This function shall be \threadsafe.
  * \return The pipeline handler name
+ */
+
+/**
+ * \fn PipelineHandler::useCount()
+ * \brief Retrieve the pipeline handler's used camera count
+ * \return The number of acquired cameras of the pipeline handler
  */
 
 /**
