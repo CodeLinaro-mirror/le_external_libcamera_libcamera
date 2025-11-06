@@ -10,7 +10,9 @@
 
 #include <libcamera/camera_manager.h>
 #include <libcamera/controls.h>
+#include <libcamera/orientation.h>
 #include <libcamera/stream.h>
+#include <libcamera/transform.h>
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -32,6 +34,9 @@ libcamera::Rectangle gst_libcamera_gvalue_get_rectangle(const GValue *value);
 int gst_libcamera_set_structure_field(GstStructure *structure,
 				      const libcamera::ControlId *id,
 				      const libcamera::ControlValue &value);
+libcamera::Orientation gst_video_orientation_to_libcamera_orientation(GstVideoOrientationMethod method);
+GstVideoOrientationMethod libcamera_orientation_to_gst_video_orientation(libcamera::Orientation orientation);
+const gchar *gst_libcamera_transform_to_tag_string(libcamera::Transform transform);
 
 #if !GST_CHECK_VERSION(1, 16, 0)
 static inline void gst_clear_event(GstEvent **event_ptr)
