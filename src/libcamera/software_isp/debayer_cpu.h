@@ -86,6 +86,8 @@ private:
 	 */
 	using debayerFn = void (DebayerCpu::*)(uint8_t *dst, const uint8_t *src[]);
 
+	using inputMaskFn = void (DebayerCpu::*)(uint8_t *data, unsigned int len);
+
 	/* 8-bit raw bayer format */
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
@@ -96,11 +98,13 @@ private:
 	void debayer10_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer10_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void inputMask10(uint8_t *data, unsigned int len);
 	/* unpacked 12-bit raw bayer format */
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer12_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer12_GRGR_BGR888(uint8_t *dst, const uint8_t *src[]);
+	void inputMask12(uint8_t *data, unsigned int len);
 	/* CSI-2 packed 10-bit raw bayer format (all the 4 orders) */
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer10P_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
@@ -150,6 +154,7 @@ private:
 	debayerFn debayer1_;
 	debayerFn debayer2_;
 	debayerFn debayer3_;
+	inputMaskFn inputMask_;
 	Rectangle window_;
 	DebayerInputConfig inputConfig_;
 	DebayerOutputConfig outputConfig_;
@@ -159,6 +164,7 @@ private:
 	unsigned int lineBufferPadding_;
 	unsigned int lineBufferIndex_;
 	unsigned int xShift_; /* Offset of 0/1 applied to window_.x */
+	bool forceInputMemcpy_;
 	bool enableInputMemcpy_;
 	bool swapRedBlueGains_;
 	unsigned int encounteredFrames_;
