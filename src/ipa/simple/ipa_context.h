@@ -61,6 +61,7 @@ struct IPAActiveState {
 	} gamma;
 
 	Matrix<float, 3, 3> ccm;
+	Matrix<float, 3, 3> correctionMatrix;
 	bool matrixChanged = false;
 
 	struct {
