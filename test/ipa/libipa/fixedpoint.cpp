@@ -190,6 +190,11 @@ protected:
 		fails += quantizedCheck<Q4_7>(-0.4f, 0b1111'1001101, -0.398438f);	/* 0x7cd */
 		fails += quantizedCheck<Q4_7>(-1.4f, 0b1110'1001101, -1.39844f);	/* 0x74d */
 
+		/* Q5_4(-16 .. 15.9375)  Min: [0x0100:-16] -- Max: [0x00ff:15.9375] Step:0.0625 */
+		introduce<Q5_4>("Q5_4");
+		fails += quantizedCheck<Q5_4>(-16.00f, 0b10000'0000, -16.00f);
+		fails += quantizedCheck<Q5_4>( 15.94f, 0b01111'1111,  15.9375f);
+
 		/* Q12.4(-2048 .. 2047.94)  Min: [0x8000:-2048] -- Max: [0x7fff:2047.94] Step:0.0625 */
 		introduce<Q12_4>("Q12_4");
 		fails += quantizedCheck<Q12_4>(0.0f, 0b000000000000'0000, 0.0f);
