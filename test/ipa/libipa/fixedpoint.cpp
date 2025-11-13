@@ -5,12 +5,14 @@
  * Fixed / Floating point utility tests
  */
 
+#include "../src/ipa/libipa/fixedpoint.h"
+
 #include <cmath>
 #include <iostream>
 #include <map>
 #include <stdint.h>
 
-#include "../src/ipa/libipa/fixedpoint.h"
+#include <libcamera/base/utils.h>
 
 #include "test.h"
 
@@ -95,13 +97,123 @@ protected:
 		return TestPass;
 	}
 
-	int run()
+	template<typename Q>
+	int quantizedCheck(float input, typename Q::QuantizedType expected, float value)
 	{
-		/* fixed point conversion test */
-		if (testFixedPoint() != TestPass)
+		Q q(input);
+		using T = typename Q::QuantizedType;
+
+		cerr << "  Checking " << input << " == " << q.toString() << std::endl;
+
+		T quantized = q.quantized();
+		if (quantized != expected) {
+			cerr << "    ** Q Expected " << input
+			     << " to quantize to " << utils::hex(expected)
+			     << ", got " << utils::hex(quantized)
+			     << " - (" << q.toString() << ")"
+			     << std::endl;
+			return 1;
+		}
+
+		if ((std::abs(q.value() - value)) > 0.0001f) {
+			cerr << "    ** V Expected " << input
+			     << " to quantize to " << value
+			     << ", got " << q.value()
+			     << " - (" << q.toString() << ")"
+			     << std::endl;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	template<typename Q>
+	int introduce(std::string type)
+	{
+		using T = typename Q::QuantizedType;
+
+		std::cerr << std::endl;
+
+		cerr << type << "(" << Q::TraitsType::min << " .. " << Q::TraitsType::max << ") "
+		     << " Min: " << Q(Q::TraitsType::min).toString()
+		     << " -- Max: " << Q(Q::TraitsType::max).toString()
+		     << " Step:" << Q(T(1)).value()
+		     << std::endl;
+
+		if (Q::TraitsType::min > Q::TraitsType::max) {
+			cerr << "    *** " << type
+			     << " Min (" << Q::TraitsType::min
+			     << ") must be less than max ("
+			     << Q::TraitsType::max << ")" << std::endl;
+			return 1;
+		}
+
+		return 0;
+	}
+
+	int testFixedPointQuantizers()
+	{
+		unsigned int fails = 0;
+
+		/* clang-format off */
+
+		/* Q1_7(-1 .. 0.992188)  Min: [0x80:-1] -- Max: [0x7f:0.992188] Step:0.0078125*/
+		fails += introduce<Q1_7>("Q1_7");
+		fails += quantizedCheck<Q1_7>(-1.000f, 0b1'0000000, -1.0f);		/* Min */
+		fails += quantizedCheck<Q1_7>(-0.992f, 0b1'0000001, -0.992188f);	/* Min + 1 step */
+		fails += quantizedCheck<Q1_7>(-0.006f, 0b1'1111111, -0.0078125f);	/* -1 step */
+		fails += quantizedCheck<Q1_7>( 0.000f, 0b0'0000000,  0.0f);		/* Zero */
+		fails += quantizedCheck<Q1_7>( 0.008f, 0b0'0000001,  0.0078125f);	/* +1 step */
+		fails += quantizedCheck<Q1_7>( 0.992f, 0b0'1111111,  0.992188f);	/* Max */
+
+		/* UQ1_7(0 .. 1.99219)  Min: [0x00:0] -- Max: [0xff:1.99219] Step:0.0078125 */
+		fails += introduce<UQ1_7>("UQ1_7");
+		fails += quantizedCheck<UQ1_7>(0.0f,   0b0'0000000, 0.0f);		/* Min / Zero */
+		fails += quantizedCheck<UQ1_7>(1.0f,   0b1'0000000, 1.0f);		/* Mid */
+		fails += quantizedCheck<UQ1_7>(1.992f, 0b1'1111111, 1.99219f);		/* Max */
+
+		/* Q12.4(-2048 .. 2047.94)  Min: [0x8000:-2048] -- Max: [0x7fff:2047.94] Step:0.0625 */
+		introduce<Q12_4>("Q12_4");
+		fails += quantizedCheck<Q12_4>(0.0f, 0b000000000000'0000, 0.0f);
+		fails += quantizedCheck<Q12_4>(7.5f, 0b000000000111'1000, 7.5f);
+
+		/* UQ12_4(0 .. 4095.94)  Min: [0x0000:0] -- Max: [0xffff:4095.94] Step:0.0625 */
+		introduce<UQ12_4>("UQ12_4");
+		fails += quantizedCheck<UQ12_4>(0.0f, 0b000000000000'0000, 0.0f);
+		fails += quantizedCheck<UQ12_4>(7.5f, 0b000000000111'1000, 7.5f);
+
+		/* Validate that exceeding limits clamps to type range */
+		cerr << std::endl << "Range validation:" << std::endl;
+		fails += quantizedCheck<Q1_7>(-100.0f, 0b1'0000000, -1.0f);
+		fails += quantizedCheck<Q1_7>(+100.0f, 0b0'1111111, 0.992188f);
+		fails += quantizedCheck<UQ1_7>(-100.0f, 0b0'0000000, 0.0f);
+		fails += quantizedCheck<UQ1_7>(+100.0f, 0b1'1111111, 1.99219f);
+
+		/* clang-format on */
+
+		std::cerr << std::endl;
+
+		if (fails > 0) {
+			cerr << "Fixed point quantizer tests failed: "
+			     << std::dec << fails << " failures." << std::endl;
 			return TestFail;
+		}
 
 		return TestPass;
+	}
+
+	int run()
+	{
+		unsigned int fails = 0;
+
+		/* fixed point conversion test */
+		if (testFixedPoint() != TestPass)
+			fails++;
+
+		if (testFixedPointQuantizers() != TestPass)
+			fails++;
+
+		return fails ? TestFail : TestPass;
 	}
 };
 
