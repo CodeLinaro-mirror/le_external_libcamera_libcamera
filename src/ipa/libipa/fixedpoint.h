@@ -108,6 +108,30 @@ using Q5_4 = Quantized<FixedPointQTraits<5, 4, int16_t>>;
 using Q12_4 = Quantized<FixedPointQTraits<12, 4, int16_t>>;
 using UQ12_4 = Quantized<FixedPointQTraits<12, 4, uint16_t>>;
 
+template<typename Q, int Scale>
+struct ScaledFixedPointQTraits {
+	using QuantizedType = typename Q::QuantizedType;
+
+	static constexpr float scale = static_cast<float>(Scale);
+
+	/* Re-expose base limits, adjusted by the scaling factor */
+	static constexpr QuantizedType qmin = Q::qmin;
+	static constexpr QuantizedType qmax = Q::qmax;
+	static constexpr float min = Q::min * scale;
+	static constexpr float max = Q::max * scale;
+
+	static QuantizedType fromFloat(float v)
+	{
+		v = std::clamp(v, min, max);
+		return Q::fromFloat(v / scale);
+	}
+
+	static float toFloat(QuantizedType q)
+	{
+		return Q::toFloat(q) * scale;
+	}
+};
+
 } /* namespace ipa */
 
 } /* namespace libcamera */
