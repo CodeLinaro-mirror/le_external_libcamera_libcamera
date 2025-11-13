@@ -325,7 +325,7 @@ private:
 	std::vector<std::unique_ptr<LogCategory>> categories_ LIBCAMERA_TSA_GUARDED_BY(mutex_);
 	std::list<std::pair<std::string, LogSeverity>> levels_;
 
-	std::shared_ptr<LogOutput> output_;
+	std::atomic<std::shared_ptr<LogOutput>> output_;
 };
 
 bool Logger::destroyed_ = false;
@@ -465,7 +465,7 @@ Logger *Logger::instance()
  */
 void Logger::write(const LogMessage &msg)
 {
-	std::shared_ptr<LogOutput> output = std::atomic_load(&output_);
+	std::shared_ptr<LogOutput> output = output_.load();
 	if (!output)
 		return;
 
@@ -477,7 +477,7 @@ void Logger::write(const LogMessage &msg)
  */
 void Logger::backtrace()
 {
-	std::shared_ptr<LogOutput> output = std::atomic_load(&output_);
+	std::shared_ptr<LogOutput> output = output_.load();
 	if (!output)
 		return;
 
