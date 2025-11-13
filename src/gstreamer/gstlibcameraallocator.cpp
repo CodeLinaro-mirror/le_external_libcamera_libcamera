@@ -76,12 +76,7 @@ FrameWrap::~FrameWrap()
 
 GQuark FrameWrap::getQuark()
 {
-	static gsize frame_quark = 0;
-
-	if (g_once_init_enter(&frame_quark)) {
-		GQuark quark = g_quark_from_string("GstLibcameraFrameWrap");
-		g_once_init_leave(&frame_quark, quark);
-	}
+	static const GQuark frame_quark = g_quark_from_static_string("GstLibcameraFrameWrap");
 
 	return frame_quark;
 }
