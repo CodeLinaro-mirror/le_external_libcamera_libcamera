@@ -39,6 +39,8 @@ struct IPASessionConfiguration {
 		Size size;
 		utils::Duration minExposureTime;
 		utils::Duration maxExposureTime;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 		double minAnalogueGain;
 		double maxAnalogueGain;
 	} sensor;
@@ -56,6 +58,8 @@ struct IPAActiveState {
 		double gain;
 		uint32_t constraintMode;
 		uint32_t exposureMode;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 	} agc;
 
 	struct {

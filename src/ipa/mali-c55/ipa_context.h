@@ -30,6 +30,8 @@ struct IPASessionConfiguration {
 		uint32_t blackLevel;
 		utils::Duration minShutterSpeed;
 		utils::Duration maxShutterSpeed;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 		double minAnalogueGain;
 		double maxAnalogueGain;
 	} sensor;
@@ -51,6 +53,8 @@ struct IPAActiveState {
 		uint32_t constraintMode;
 		uint32_t exposureMode;
 		uint32_t temperatureK;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 	} agc;
 
 	struct {

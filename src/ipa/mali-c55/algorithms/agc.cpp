@@ -168,11 +168,17 @@ int Agc::configure(IPAContext &context,
 	context.activeState.agc.manual.ispGain = kMinDigitalGain;
 	context.activeState.agc.constraintMode = constraintModes().begin()->first;
 	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
+	context.activeState.agc.minFrameDuration =
+				context.configuration.sensor.minFrameDuration;
+	context.activeState.agc.maxFrameDuration =
+				context.configuration.sensor.maxFrameDuration;
 
 	AgcMeanLuminance::SensorConfiguration sensorConfig;
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
 	sensorConfig.minExposureTime = context.configuration.sensor.minShutterSpeed;
 	sensorConfig.maxExposureTime = context.configuration.sensor.maxShutterSpeed;
+	sensorConfig.minFrameDuration = context.configuration.sensor.minFrameDuration;
+	sensorConfig.maxFrameDuration = context.configuration.sensor.maxFrameDuration;
 	sensorConfig.minAnalogueGain = context.configuration.sensor.minAnalogueGain;
 	sensorConfig.maxAnalogueGain = context.configuration.sensor.maxAnalogueGain;
 

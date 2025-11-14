@@ -177,16 +177,23 @@ void IPAMaliC55::updateSessionConfiguration(const IPACameraSensorInfo &info,
 	int32_t minGain = v4l2Gain.min().get<int32_t>();
 	int32_t maxGain = v4l2Gain.max().get<int32_t>();
 
+	const ControlInfo &v4l2VBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
+	std::array<uint32_t, 2> frameHeights{
+		v4l2VBlank.min().get<int32_t>() + info.outputSize.height,
+		v4l2VBlank.max().get<int32_t>() + info.outputSize.height,
+	};
+
 	/*
 	 * When the AGC computes the new exposure values for a frame, it needs
 	 * to know the limits for shutter speed and analogue gain.
 	 * As it depends on the sensor, update it with the controls.
-	 *
-	 * \todo take VBLANK into account for maximum shutter speed
 	 */
-	context_.configuration.sensor.lineDuration = info.minLineLength * 1.0s / info.pixelRate;
-	context_.configuration.sensor.minShutterSpeed = minExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.sensor.maxShutterSpeed = maxExposure * context_.configuration.sensor.lineDuration;
+	utils::Duration lineDuration = info.minLineLength * 1.0s / info.pixelRate;
+	context_.configuration.sensor.lineDuration = lineDuration;
+	context_.configuration.sensor.minShutterSpeed = minExposure * lineDuration;
+	context_.configuration.sensor.maxShutterSpeed = maxExposure * lineDuration;
+	context_.configuration.sensor.minFrameDuration = frameHeights[0] * lineDuration;
+	context_.configuration.sensor.maxFrameDuration = frameHeights[1] * lineDuration;
 	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);
 	context_.configuration.sensor.maxAnalogueGain = context_.camHelper->gain(maxGain);
 

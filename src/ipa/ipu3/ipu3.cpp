@@ -167,7 +167,8 @@ private:
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
 			    const ControlInfoMap &sensorControls,
 			    ControlInfoMap *ipaControls);
-	void updateSessionConfiguration(const ControlInfoMap &sensorControls);
+	void updateSessionConfiguration(const IPACameraSensorInfo &sensorInfo,
+					const ControlInfoMap &sensorControls);
 
 	void setControls(unsigned int frame);
 	void calculateBdsGrid(const Size &bdsOutputSize);
@@ -197,7 +198,8 @@ std::string IPAIPU3::logPrefix() const
  * \brief Compute IPASessionConfiguration using the sensor information and the
  * sensor V4L2 controls
  */
-void IPAIPU3::updateSessionConfiguration(const ControlInfoMap &sensorControls)
+void IPAIPU3::updateSessionConfiguration(const IPACameraSensorInfo &sensorInfo,
+					 const ControlInfoMap &sensorControls)
 {
 	const ControlInfo vBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
 	context_.configuration.sensor.defVBlank = vBlank.def().get<int32_t>();
@@ -210,6 +212,12 @@ void IPAIPU3::updateSessionConfiguration(const ControlInfoMap &sensorControls)
 	int32_t minGain = v4l2Gain.min().get<int32_t>();
 	int32_t maxGain = v4l2Gain.max().get<int32_t>();
 
+	const ControlInfo &v4l2VBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
+	std::array<uint32_t, 2> frameHeights{
+		v4l2VBlank.min().get<int32_t>() + sensorInfo.outputSize.height,
+		v4l2VBlank.max().get<int32_t>() + sensorInfo.outputSize.height,
+	};
+
 	/*
 	 * When the AGC computes the new exposure values for a frame, it needs
 	 * to know the limits for exposure time and analogue gain.
@@ -219,6 +227,10 @@ void IPAIPU3::updateSessionConfiguration(const ControlInfoMap &sensorControls)
 	 */
 	context_.configuration.sensor.minExposureTime = minExposure * context_.configuration.sensor.lineDuration;
 	context_.configuration.sensor.maxExposureTime = maxExposure * context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.minFrameDuration = frameHeights[0] *
+							 context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.maxFrameDuration = frameHeights[1] *
+							 context_.configuration.sensor.lineDuration;
 	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);
 	context_.configuration.sensor.maxAnalogueGain = context_.camHelper->gain(maxGain);
 }
@@ -488,7 +500,7 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 	updateControls(sensorInfo_, sensorCtrls_, ipaControls);
 
 	/* Update the IPASessionConfiguration using the sensor settings. */
-	updateSessionConfiguration(sensorCtrls_);
+	updateSessionConfiguration(sensorInfo_, sensorCtrls_);
 
 	for (auto const &algo : algorithms()) {
 		int ret = algo->configure(context_, configInfo);
