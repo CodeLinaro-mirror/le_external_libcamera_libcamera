@@ -15,6 +15,7 @@
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
 
+#include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
 namespace libcamera {
@@ -95,6 +96,8 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+
+	std::unique_ptr<CameraSensorHelper> camHelper;
 };
 
 } /* namespace ipa::ipu3 */
