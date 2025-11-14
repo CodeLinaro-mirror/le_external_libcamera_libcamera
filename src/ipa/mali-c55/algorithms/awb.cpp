@@ -37,8 +37,8 @@ int Awb::configure([[maybe_unused]] IPAContext &context,
 	 * for the first frame we will make no assumptions and leave the R/B
 	 * channels unmodified.
 	 */
-	context.activeState.awb.rGain = 1.0;
-	context.activeState.awb.bGain = 1.0;
+	context.activeState.awb.rGain = 1.0f;
+	context.activeState.awb.bGain = 1.0f;
 
 	return 0;
 }
@@ -50,8 +50,8 @@ size_t Awb::fillGainsParamBlock(mali_c55_params_block block, IPAContext &context
 	block.header->flags = MALI_C55_PARAM_BLOCK_FL_NONE;
 	block.header->size = sizeof(struct mali_c55_params_awb_gains);
 
-	double rGain = context.activeState.awb.rGain;
-	double bGain = context.activeState.awb.bGain;
+	UQ4_8 rGain = context.activeState.awb.rGain;
+	UQ4_8 bGain = context.activeState.awb.bGain;
 
 	/*
 	 * The gains here map as follows:
@@ -63,10 +63,10 @@ size_t Awb::fillGainsParamBlock(mali_c55_params_block block, IPAContext &context
 	 * This holds true regardless of the bayer order of the input data, as
 	 * the mapping is done internally in the ISP.
 	 */
-	block.awb_gains->gain00 = floatingToFixedPoint<4, 8, uint16_t, double>(rGain);
-	block.awb_gains->gain01 = floatingToFixedPoint<4, 8, uint16_t, double>(1.0);
-	block.awb_gains->gain10 = floatingToFixedPoint<4, 8, uint16_t, double>(1.0);
-	block.awb_gains->gain11 = floatingToFixedPoint<4, 8, uint16_t, double>(bGain);
+	block.awb_gains->gain00 = rGain.quantized();
+	block.awb_gains->gain01 = UQ4_8(1.0f).quantized();
+	block.awb_gains->gain10 = UQ4_8(1.0f).quantized();
+	block.awb_gains->gain11 = bGain.quantized();
 
 	frameContext.awb.rGain = rGain;
 	frameContext.awb.bGain = bGain;
@@ -162,8 +162,8 @@ void Awb::process(IPAContext &context, const uint32_t frame,
 		 * The statistics are in Q4.8 format, so we convert to double
 		 * here.
 		 */
-		rgSum += fixedToFloatingPoint<4, 8, double, uint16_t>(awb_ratios[i].avg_rg_gr);
-		bgSum += fixedToFloatingPoint<4, 8, double, uint16_t>(awb_ratios[i].avg_bg_br);
+		rgSum += UQ4_8(awb_ratios[i].avg_rg_gr).value();
+		bgSum += UQ4_8(awb_ratios[i].avg_bg_br).value();
 		counted_zones++;
 	}
 
@@ -186,8 +186,8 @@ void Awb::process(IPAContext &context, const uint32_t frame,
 	 * figure by the gains that were applied when the statistics for this
 	 * frame were generated.
 	 */
-	double rRatio = rgAvg / frameContext.awb.rGain;
-	double bRatio = bgAvg / frameContext.awb.bGain;
+	double rRatio = rgAvg / frameContext.awb.rGain.value();
+	double bRatio = bgAvg / frameContext.awb.bGain.value();
 
 	/*
 	 * And then we can simply invert the ratio to find the gain we should
@@ -203,24 +203,24 @@ void Awb::process(IPAContext &context, const uint32_t frame,
 	 * want to fix the miscolouring as quickly as possible.
 	 */
 	double speed = frame < kNumStartupFrames ? 1.0 : 0.2;
-	rGain = speed * rGain + context.activeState.awb.rGain * (1.0 - speed);
-	bGain = speed * bGain + context.activeState.awb.bGain * (1.0 - speed);
+	rGain = speed * rGain + context.activeState.awb.rGain.value() * (1.0 - speed);
+	bGain = speed * bGain + context.activeState.awb.bGain.value() * (1.0 - speed);
 
-	context.activeState.awb.rGain = rGain;
-	context.activeState.awb.bGain = bGain;
+	context.activeState.awb.rGain = static_cast<float>(rGain);
+	context.activeState.awb.bGain = static_cast<float>(bGain);
 
 	metadata.set(controls::ColourGains, {
-		static_cast<float>(frameContext.awb.rGain),
-		static_cast<float>(frameContext.awb.bGain),
+		frameContext.awb.rGain.value(),
+		frameContext.awb.bGain.value(),
 	});
 
 	LOG(MaliC55Awb, Debug) << "For frame number " << frame << ": "
 		<< "Average R/G Ratio: " << rgAvg
 		<< ", Average B/G Ratio: " << bgAvg
-		<< "\nrGain applied to this frame: " << frameContext.awb.rGain
-		<< ", bGain applied to this frame: " << frameContext.awb.bGain
-		<< "\nrGain to apply: " << context.activeState.awb.rGain
-		<< ", bGain to apply: " << context.activeState.awb.bGain;
+		<< "\nrGain applied to this frame: " << frameContext.awb.rGain.value()
+		<< ", bGain applied to this frame: " << frameContext.awb.bGain.value()
+		<< "\nrGain to apply: " << context.activeState.awb.rGain.value()
+		<< ", bGain to apply: " << context.activeState.awb.bGain.value();
 }
 
 REGISTER_IPA_ALGORITHM(Awb, "Awb")
