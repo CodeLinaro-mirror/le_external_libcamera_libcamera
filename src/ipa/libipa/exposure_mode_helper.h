@@ -33,11 +33,6 @@ public:
 	std::tuple<utils::Duration, double, double, double>
 	splitExposure(utils::Duration exposure) const;
 
-	utils::Duration minExposureTime() const { return minExposureTime_; }
-	utils::Duration maxExposureTime() const { return maxExposureTime_; }
-	double minGain() const { return minGain_; }
-	double maxGain() const { return maxGain_; }
-
 private:
 	utils::Duration clampExposureTime(utils::Duration exposureTime,
 					  double *quantizationGain = nullptr) const;
