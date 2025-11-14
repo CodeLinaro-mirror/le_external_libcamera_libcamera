@@ -36,6 +36,7 @@ namespace ipa::rkisp1 {
 /* Fixed point types used by CPROC */
 using BrightnessQ = Q1_7;
 using ContrastQ = UQ1_7;
+using HueQ = Quantized<ScaledFixedPointQTraits<Q1_7::TraitsType, 90>>;
 using SaturationQ = UQ1_7;
 
 struct IPAHwSettings {
@@ -123,6 +124,7 @@ struct IPAActiveState {
 	struct {
 		BrightnessQ brightness;
 		ContrastQ contrast;
+		HueQ hue;
 		SaturationQ saturation;
 	} cproc;
 
@@ -177,6 +179,7 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		BrightnessQ brightness;
 		ContrastQ contrast;
+		HueQ hue;
 		SaturationQ saturation;
 
 		bool update;
