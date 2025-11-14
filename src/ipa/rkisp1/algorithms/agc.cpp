@@ -501,21 +501,26 @@ double Agc::estimateLuminance(double gain) const
  * \brief Process frame duration and compute vblank
  * \param[in] context The shared IPA context
  * \param[in] frameContext The current frame context
- * \param[in] frameDuration The target frame duration
+ * \param[in] shutterTime The target shutter duration
  *
- * Compute and populate vblank from the target frame duration.
+ * Compute and populate vblank from a frame duration that allows to achieve the
+ * desired \a shutterTime
  */
 void Agc::processFrameDuration(IPAContext &context,
 			       IPAFrameContext &frameContext,
-			       utils::Duration frameDuration)
+			       utils::Duration shutterTime)
 {
-	IPACameraSensorInfo &sensorInfo = context.sensorInfo;
 	utils::Duration lineDuration = context.configuration.sensor.lineDuration;
+	utils::Duration frameDuration =
+		std::max(context.camHelper->minFrameDuration(shutterTime, lineDuration),
+			 context.activeState.agc.minFrameDuration);
 
-	frameContext.agc.vblank = (frameDuration / lineDuration) - sensorInfo.outputSize.height;
+	frameContext.agc.vblank = (frameDuration / lineDuration)
+				- context.sensorInfo.outputSize.height;
 
 	/* Update frame duration accounting for line length quantization. */
-	frameContext.agc.frameDuration = (sensorInfo.outputSize.height + frameContext.agc.vblank) * lineDuration;
+	frameContext.agc.frameDuration = (context.sensorInfo.outputSize.height
+				       + frameContext.agc.vblank) * lineDuration;
 }
 
 /**
