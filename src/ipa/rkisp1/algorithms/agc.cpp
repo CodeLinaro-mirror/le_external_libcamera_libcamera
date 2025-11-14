@@ -580,9 +580,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 
 	if (frameContext.agc.autoExposureEnabled) {
 		minExposureTime = context.configuration.sensor.minExposureTime;
-		maxExposureTime = std::clamp(frameContext.agc.maxFrameDuration,
-					     context.configuration.sensor.minExposureTime,
-					     context.configuration.sensor.maxExposureTime);
+		maxExposureTime = context.configuration.sensor.maxExposureTime;
 	} else {
 		minExposureTime = context.configuration.sensor.lineDuration
 				* frameContext.agc.exposure;
@@ -601,8 +599,8 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	if (context.activeState.wdr.mode != controls::WdrOff)
 		additionalConstraints.push_back(context.activeState.wdr.constraint);
 
-	setLimits(minExposureTime, maxExposureTime, minAnalogueGain, maxAnalogueGain,
-		  std::move(additionalConstraints));
+	setLimits(minExposureTime, maxExposureTime, frameContext.agc.maxFrameDuration,
+		  minAnalogueGain, maxAnalogueGain, std::move(additionalConstraints));
 
 	/*
 	 * The Agc algorithm needs to know the effective exposure value that was

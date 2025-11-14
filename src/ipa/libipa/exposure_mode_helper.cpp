@@ -109,6 +109,27 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 	}
 }
 
+void ExposureModeHelper::setMaxExposure(utils::Duration minExposureTime,
+					utils::Duration maxExposureTime,
+					utils::Duration maxFrameDuration)
+{
+	minExposureTime_ = minExposureTime;
+
+	/*
+	 * Compute the maximum shutter time.
+	 *
+	 * If maxExposureTime is equal to minExposureTime then we use them
+	 * to fix the exposure time.
+	 *
+	 * Otherwise, if the exposure can range between a min and max delegate
+	 * the maximum shutter time calculation to the sensor helper.
+	 */
+	maxExposureTime_ = minExposureTime != maxExposureTime
+			 ? sensorHelper_->maxShutterTime(maxFrameDuration,
+							 sensor_.lineDuration_)
+			 : minExposureTime;
+}
+
 /**
  * \brief Configure sensor details
  * \param[in] sensorConfig The sensor configuration
@@ -136,27 +157,15 @@ void ExposureModeHelper::configure(const SensorConfiguration &sensorConfig,
 	minGain_ = sensor_.minGain_;
 	maxGain_ = sensor_.maxGain_;
 
-	minExposureTime_ = sensor_.minExposureTime_;
-
-	/*
-	 * Compute the maximum shutter time.
-	 *
-	 * If maxExposureTime is equal to minExposureTime then we use them
-	 * to fix the exposure time.
-	 *
-	 * Otherwise, if the exposure can range between a min and max delegate
-	 * the maximum shutter time calculation to the sensor helper.
-	 */
-	maxExposureTime_ = minExposureTime_ != sensorConfig.maxExposureTime_
-			 ? sensorHelper_->maxShutterTime(sensorConfig.maxFrameDuration_,
-							 sensorConfig.lineDuration_)
-			 : minExposureTime_;
+	setMaxExposure(sensorConfig.minExposureTime_, sensorConfig.maxExposureTime_,
+		       sensorConfig.maxFrameDuration_);
 }
 
 /**
  * \brief Set the exposure time and gain limits
  * \param[in] minExposureTime The minimum exposure time supported
  * \param[in] maxExposureTime The maximum exposure time supported
+ * \param[in] maxFrameDuration The maximum frame duration
  * \param[in] minGain The minimum analogue gain supported
  * \param[in] maxGain The maximum analogue gain supported
  *
@@ -168,15 +177,19 @@ void ExposureModeHelper::configure(const SensorConfiguration &sensorConfig,
  * If the algorithm using the helpers needs to indicate that either exposure time
  * or analogue gain or both should be fixed it can do so by setting both the
  * minima and maxima to the same value.
+ *
+ * The exposure time limits are calculated using \a maxFrameDuration as the
+ * upper bound, the \a maxExposureTime paramter effectivelly only serves
+ * to indicate that the caller wants a fixed exposure value.
  */
 void ExposureModeHelper::setLimits(utils::Duration minExposureTime,
 				   utils::Duration maxExposureTime,
+				   utils::Duration maxFrameDuration,
 				   double minGain, double maxGain)
 {
-	minExposureTime_ = minExposureTime;
-	maxExposureTime_ = maxExposureTime;
 	minGain_ = minGain;
 	maxGain_ = maxGain;
+	setMaxExposure(minExposureTime, maxExposureTime, maxFrameDuration);
 }
 
 utils::Duration ExposureModeHelper::clampExposureTime(utils::Duration exposureTime,
