@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <optional>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -40,16 +41,18 @@ public:
 
 	void configure(const SensorConfiguration &sensorConfig,
 		       const CameraSensorHelper *sensorHelper);
-	void setLimits(utils::Duration minExposureTime, utils::Duration maxExposureTime,
-		       utils::Duration maxFrameDuration, double minGain, double maxGain);
+	void setExposureLimits(std::optional<utils::Duration> shutterTime,
+			       std::optional<double> gain,
+			       utils::Duration maxFrameDuration);
 
 	std::tuple<utils::Duration, double, double, double>
 	splitExposure(utils::Duration exposure) const;
 
 private:
-	void setMaxExposure(utils::Duration minExposureTime,
-			    utils::Duration maxExposureTime,
-			    utils::Duration maxFrameDuration);
+	void setShutterLimits(std::optional<utils::Duration> shutterTime,
+			      utils::Duration maxFrameDuration);
+	void setGainLimits(std::optional<double> gain);
+
 	utils::Duration clampExposureTime(utils::Duration exposureTime,
 					  double *quantizationGain = nullptr) const;
 	double clampGain(double gain, double *quantizationGain = nullptr) const;

@@ -61,9 +61,10 @@ public:
 		exposureCompensation_ = gain;
 	}
 
-	void setLimits(utils::Duration minExposureTime, utils::Duration maxExposureTime,
-		       utils::Duration maxFrameDuration, double minGain, double maxGain,
-		       std::vector<AgcConstraint> constraints);
+	void setExposureLimits(std::optional<utils::Duration> shutterTime,
+			       std::optional<double> gain,
+			       utils::Duration maxFrameDuration,
+			       std::vector<AgcConstraint> constraints);
 
 	const std::map<int32_t, std::vector<AgcConstraint>> &constraintModes() const
 	{

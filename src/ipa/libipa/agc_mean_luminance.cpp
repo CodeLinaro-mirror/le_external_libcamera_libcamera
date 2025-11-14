@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 #include <libcamera/base/log.h>
 #include <libcamera/control_ids.h>
@@ -171,11 +172,10 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  * IPA modules that want to use this class to implement their AEGC algorithm
  * should derive it and provide an overriding estimateLuminance() function for
  * this class to use. They must call parseTuningData() in init(), and must also
- * call setLimits() and resetFrameCounter() in configure(). They may then use
- * calculateNewEv() in process(). If the limits passed to setLimits() change for
- * any reason (for example, in response to a FrameDurationLimit control being
- * passed in queueRequest()) then setLimits() must be called again with the new
- * values.
+ * call resetFrameCounter() in configure(). They may then use calculateNewEv()
+ * in process(). To update the algorithm limits for example, in response to a
+ * FrameDurationLimit control being passed in queueRequest()) then
+ * setExposureLimits() must be called with the new values.
  */
 
 AgcMeanLuminance::AgcMeanLuminance()
@@ -459,25 +459,21 @@ int AgcMeanLuminance::parseTuningData(const YamlObject &tuningData)
 
 /**
  * \brief Set the ExposureModeHelper limits for this class
- * \param[in] minExposureTime Minimum exposure time to allow
- * \param[in] maxExposureTime Maximum ewposure time to allow
+ * \param[in] shutterTime The (optional) fixed shutter time
+ * \param[in] gain The (optional) analogue gain value
  * \param[in] maxFrameDuration Maximum frame duration
- * \param[in] minGain Minimum gain to allow
- * \param[in] maxGain Maximum gain to allow
  * \param[in] constraints Additional constraints to apply
  *
- * This function calls \ref ExposureModeHelper::setLimits() for each
+ * This function calls \ref ExposureModeHelper::setExposureLimits() for each
  * ExposureModeHelper that has been created for this class.
  */
-void AgcMeanLuminance::setLimits(utils::Duration minExposureTime,
-				 utils::Duration maxExposureTime,
-				 utils::Duration maxFrameDuration,
-				 double minGain, double maxGain,
-				 std::vector<AgcMeanLuminance::AgcConstraint> constraints)
+void AgcMeanLuminance::setExposureLimits(std::optional<utils::Duration> shutterTime,
+					 std::optional<double> gain,
+					 utils::Duration maxFrameDuration,
+					 std::vector<AgcMeanLuminance::AgcConstraint> constraints)
 {
 	for (auto &[id, helper] : exposureModeHelpers_)
-		helper->setLimits(minExposureTime, maxExposureTime, maxFrameDuration,
-				  minGain, maxGain);
+		helper->setExposureLimits(shutterTime, gain, maxFrameDuration);
 
 	additionalConstraints_ = std::move(constraints);
 }

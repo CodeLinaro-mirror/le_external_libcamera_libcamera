@@ -109,25 +109,33 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 	}
 }
 
-void ExposureModeHelper::setMaxExposure(utils::Duration minExposureTime,
-					utils::Duration maxExposureTime,
-					utils::Duration maxFrameDuration)
+void ExposureModeHelper::setShutterLimits(std::optional<utils::Duration> shutterTime,
+					  utils::Duration maxFrameDuration)
 {
-	minExposureTime_ = minExposureTime;
-
 	/*
-	 * Compute the maximum shutter time.
+	 * If shutterTime is populated we use it to to fix the shutter time.
 	 *
-	 * If maxExposureTime is equal to minExposureTime then we use them
-	 * to fix the exposure time.
-	 *
-	 * Otherwise, if the exposure can range between a min and max delegate
-	 * the maximum shutter time calculation to the sensor helper.
+	 * Otherwise, if the exposure is not fixed delegate the maximum shutter
+	 * time calculation to the sensor helper and restore the min exposure
+	 * time to the sensor's default value.
 	 */
-	maxExposureTime_ = minExposureTime != maxExposureTime
-			 ? sensorHelper_->maxShutterTime(maxFrameDuration,
-							 sensor_.lineDuration_)
-			 : minExposureTime;
+
+	maxExposureTime_ = shutterTime.has_value()
+			 ? shutterTime.value()
+			 : sensorHelper_->maxShutterTime(maxFrameDuration,
+							 sensor_.lineDuration_);
+	minExposureTime_ = shutterTime.has_value()
+			 ? shutterTime.value() : sensor_.minExposureTime_;
+}
+
+void ExposureModeHelper::setGainLimits(std::optional<double> gain)
+{
+	/*
+	 * Use the fixed value as limits if populated, otherwise use the
+	 * sensor's default ones.
+	 */
+	minGain_ = gain.has_value() ? gain.value() : sensor_.minGain_;
+	maxGain_ = gain.has_value() ? gain.value() : sensor_.maxGain_;
 }
 
 /**
@@ -154,42 +162,37 @@ void ExposureModeHelper::configure(const SensorConfiguration &sensorConfig,
 	sensorHelper_ = sensorHelper;
 
 	/* Initialize run-time limits with sensor's default. */
-	minGain_ = sensor_.minGain_;
-	maxGain_ = sensor_.maxGain_;
-
-	setMaxExposure(sensorConfig.minExposureTime_, sensorConfig.maxExposureTime_,
-		       sensorConfig.maxFrameDuration_);
+	setShutterLimits({}, sensorConfig.maxFrameDuration_);
+	setGainLimits({});
 }
 
 /**
  * \brief Set the exposure time and gain limits
- * \param[in] minExposureTime The minimum exposure time supported
- * \param[in] maxExposureTime The maximum exposure time supported
+ * \param[in] shutterTime The (optional) fixed shutter time
+ * \param[in] gain The (optional) fixed gain
  * \param[in] maxFrameDuration The maximum frame duration
- * \param[in] minGain The minimum analogue gain supported
- * \param[in] maxGain The maximum analogue gain supported
  *
- * This function configures the exposure time and analogue gain limits that need
+ * This function configures the shutter time and analogue gain limits that need
  * to be adhered to as the helper divides up exposure. Note that this function
  * *must* be called whenever those limits change and before splitExposure() is
  * used.
  *
- * If the algorithm using the helpers needs to indicate that either exposure time
- * or analogue gain or both should be fixed it can do so by setting both the
- * minima and maxima to the same value.
+ * If the algorithm using the helpers needs to indicate that the shutter time
+ * should be fixed it should populate the optional \a shutterTime argument.
+ * If the shutter time is not fixed, the maximum achievable shutter time is
+ * calculated using \a maxFrameDuration as the upper bound while the minimum
+ * exposure time is reset to the sensor's default.
  *
- * The exposure time limits are calculated using \a maxFrameDuration as the
- * upper bound, the \a maxExposureTime paramter effectivelly only serves
- * to indicate that the caller wants a fixed exposure value.
+ * If the analogue gain should be fixed the optional \a gain argument should
+ * be populated. If the analogue gain is not fixed its min and max values are
+ * reset to the sensor's default.
  */
-void ExposureModeHelper::setLimits(utils::Duration minExposureTime,
-				   utils::Duration maxExposureTime,
-				   utils::Duration maxFrameDuration,
-				   double minGain, double maxGain)
+void ExposureModeHelper::setExposureLimits(std::optional<utils::Duration> shutterTime,
+					   std::optional<double> gain,
+					    utils::Duration maxFrameDuration)
 {
-	minGain_ = minGain;
-	maxGain_ = maxGain;
-	setMaxExposure(minExposureTime, maxExposureTime, maxFrameDuration);
+	setShutterLimits(shutterTime, maxFrameDuration);
+	setGainLimits(gain);
 }
 
 utils::Duration ExposureModeHelper::clampExposureTime(utils::Duration exposureTime,

@@ -573,34 +573,23 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	 * Set the AGC limits using the fixed exposure time and/or gain in
 	 * manual mode, or the sensor limits in auto mode.
 	 */
-	utils::Duration minExposureTime;
-	utils::Duration maxExposureTime;
-	double minAnalogueGain;
-	double maxAnalogueGain;
+	std::optional<utils::Duration> shutterTime;
+	std::optional<double> gain;
 
-	if (frameContext.agc.autoExposureEnabled) {
-		minExposureTime = context.configuration.sensor.minExposureTime;
-		maxExposureTime = context.configuration.sensor.maxExposureTime;
-	} else {
-		minExposureTime = context.configuration.sensor.lineDuration
-				* frameContext.agc.exposure;
-		maxExposureTime = minExposureTime;
+	if (!frameContext.agc.autoExposureEnabled) {
+		shutterTime = context.configuration.sensor.lineDuration
+			    * frameContext.agc.exposure;
 	}
 
-	if (frameContext.agc.autoGainEnabled) {
-		minAnalogueGain = context.configuration.sensor.minAnalogueGain;
-		maxAnalogueGain = context.configuration.sensor.maxAnalogueGain;
-	} else {
-		minAnalogueGain = frameContext.agc.gain;
-		maxAnalogueGain = frameContext.agc.gain;
-	}
+	if (!frameContext.agc.autoGainEnabled)
+		gain = frameContext.agc.gain;
 
 	std::vector<AgcMeanLuminance::AgcConstraint> additionalConstraints;
 	if (context.activeState.wdr.mode != controls::WdrOff)
 		additionalConstraints.push_back(context.activeState.wdr.constraint);
 
-	setLimits(minExposureTime, maxExposureTime, frameContext.agc.maxFrameDuration,
-		  minAnalogueGain, maxAnalogueGain, std::move(additionalConstraints));
+	setExposureLimits(shutterTime, gain, frameContext.agc.maxFrameDuration,
+			  std::move(additionalConstraints));
 
 	/*
 	 * The Agc algorithm needs to know the effective exposure value that was
