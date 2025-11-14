@@ -127,14 +127,30 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 void ExposureModeHelper::configure(const SensorConfiguration &sensorConfig,
 				   const CameraSensorHelper *sensorHelper)
 {
+	ASSERT(sensorHelper);
+
 	sensor_ = sensorConfig;
 	sensorHelper_ = sensorHelper;
 
 	/* Initialize run-time limits with sensor's default. */
-	minExposureTime_ = sensor_.minExposureTime_;
-	maxExposureTime_ = sensor_.maxExposureTime_;
 	minGain_ = sensor_.minGain_;
 	maxGain_ = sensor_.maxGain_;
+
+	minExposureTime_ = sensor_.minExposureTime_;
+
+	/*
+	 * Compute the maximum shutter time.
+	 *
+	 * If maxExposureTime is equal to minExposureTime then we use them
+	 * to fix the exposure time.
+	 *
+	 * Otherwise, if the exposure can range between a min and max delegate
+	 * the maximum shutter time calculation to the sensor helper.
+	 */
+	maxExposureTime_ = minExposureTime_ != sensorConfig.maxExposureTime_
+			 ? sensorHelper_->maxShutterTime(sensorConfig.maxFrameDuration_,
+							 sensorConfig.lineDuration_)
+			 : minExposureTime_;
 }
 
 /**
