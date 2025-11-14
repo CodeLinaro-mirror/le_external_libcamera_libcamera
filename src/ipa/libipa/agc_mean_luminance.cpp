@@ -96,6 +96,35 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  */
 
 /**
+ * \struct AgcMeanLuminance::SensorConfiguration
+ * \brief The sensor configuration parameters
+ *
+ * This structure collects the sensor configuration parameters which need
+ * to be provided to the AGC algorithm at configure() time.
+ *
+ * Each time configure() is called the sensor configuration need to be updated
+ * with new parameters.
+ *
+ * \todo Remove it once all the information are available from the
+ * CameraSensorHelper.
+ *
+ * \var AgcMeanLuminance::SensorConfiguration::lineDuration
+ * \brief The line duration in microseconds
+ *
+ * \var AgcMeanLuminance::SensorConfiguration::minExposureTime
+ * \brief The sensor minimum exposure time in microseconds
+ *
+ * \var AgcMeanLuminance::SensorConfiguration::maxExposureTime
+ * \brief The sensor maximum exposure time in microseconds
+ *
+ * \var AgcMeanLuminance::SensorConfiguration::minAnalogueGain
+ * \brief The sensor minimum analogue gain absolute value
+ *
+ * \var AgcMeanLuminance::SensorConfiguration::maxAnalogueGain
+ * \brief The sensor maximum analogue gain absolute value
+ */
+
+/**
  * \class AgcMeanLuminance
  * \brief A mean-based auto-exposure algorithm
  *
@@ -314,17 +343,34 @@ int AgcMeanLuminance::parseExposureModes(const YamlObject &tuningData)
 
 /**
  * \brief Configure the exposure mode helpers
- * \param[in] lineDuration The sensor line length
+ * \param[in] config The sensor configuration
  * \param[in] sensorHelper The sensor helper
  *
- * This function configures the exposure mode helpers so they can correctly
+ * This function configures the exposure mode helpers by providing them the
+ * sensor configuration parameters and the sensor helper, so they can correctly
  * take quantization effects into account.
  */
-void AgcMeanLuminance::configure(utils::Duration lineDuration,
+void AgcMeanLuminance::configure(const SensorConfiguration &config,
 				 const CameraSensorHelper *sensorHelper)
 {
-	for (auto &[id, helper] : exposureModeHelpers_)
-		helper->configure(lineDuration, sensorHelper);
+	for (auto &[id, helper] : exposureModeHelpers_) {
+		/*
+		 * Translate from the SensorConfiguration to the
+		 * ExposureModeHelper::SensorConfiguration.
+		 *
+		 * These are just place holders before all the information are
+		 * available from the sensor helper.
+		 */
+
+		ExposureModeHelper::SensorConfiguration sensorConfig;
+		sensorConfig.lineDuration_ = config.lineDuration;
+		sensorConfig.minExposureTime_ = config.minExposureTime;
+		sensorConfig.maxExposureTime_ = config.maxExposureTime;
+		sensorConfig.minGain_ = config.minAnalogueGain;
+		sensorConfig.maxGain_ = config.maxAnalogueGain;
+
+		helper->configure(sensorConfig, sensorHelper);
+	}
 }
 
 /**

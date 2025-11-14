@@ -42,7 +42,16 @@ public:
 		double yTarget;
 	};
 
-	void configure(utils::Duration lineDuration, const CameraSensorHelper *sensorHelper);
+	struct SensorConfiguration {
+		utils::Duration lineDuration;
+		utils::Duration minExposureTime;
+		utils::Duration maxExposureTime;
+		double minAnalogueGain;
+		double maxAnalogueGain;
+	};
+
+	void configure(const SensorConfiguration &config,
+		       const CameraSensorHelper *sensorHelper);
 	int parseTuningData(const YamlObject &tuningData);
 
 	void setExposureCompensation(double gain)

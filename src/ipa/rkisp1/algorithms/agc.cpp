@@ -200,13 +200,14 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.configuration.agc.measureWindow.h_size = configInfo.outputSize.width;
 	context.configuration.agc.measureWindow.v_size = configInfo.outputSize.height;
 
-	AgcMeanLuminance::configure(context.configuration.sensor.lineDuration,
-				    context.camHelper.get());
+	AgcMeanLuminance::SensorConfiguration sensorConfig;
+	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
+	sensorConfig.minExposureTime = context.configuration.sensor.minExposureTime;
+	sensorConfig.maxExposureTime = context.configuration.sensor.maxExposureTime;
+	sensorConfig.minAnalogueGain = context.configuration.sensor.minAnalogueGain;
+	sensorConfig.maxAnalogueGain = context.configuration.sensor.maxAnalogueGain;
 
-	setLimits(context.configuration.sensor.minExposureTime,
-		  context.configuration.sensor.maxExposureTime,
-		  context.configuration.sensor.minAnalogueGain,
-		  context.configuration.sensor.maxAnalogueGain, {});
+	AgcMeanLuminance::configure(sensorConfig, context.camHelper.get());
 
 	context.activeState.agc.automatic.yTarget = effectiveYTarget();
 

@@ -115,9 +115,17 @@ int Agc::configure(IPAContext &context,
 	context.activeState.agc.constraintMode = constraintModes().begin()->first;
 	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
 
-	/* \todo Run this again when FrameDurationLimits is passed in */
-	setLimits(minExposureTime_, maxExposureTime_, minAnalogueGain_,
-		  maxAnalogueGain_, {});
+	AgcMeanLuminance::SensorConfiguration sensorConfig;
+	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
+	sensorConfig.minExposureTime = minExposureTime_;
+	sensorConfig.maxExposureTime = maxExposureTime_;
+	sensorConfig.minAnalogueGain = minAnalogueGain_;
+	sensorConfig.maxAnalogueGain = maxAnalogueGain_;
+
+	AgcMeanLuminance::configure(sensorConfig, context.camHelper.get());
+
+	/* \todo Update AGC limits when FrameDurationLimits is passed in */
+
 	resetFrameCount();
 
 	return 0;
