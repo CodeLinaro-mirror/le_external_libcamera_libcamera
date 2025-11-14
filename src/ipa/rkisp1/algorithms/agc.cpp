@@ -207,7 +207,8 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	sensorConfig.minAnalogueGain = context.configuration.sensor.minAnalogueGain;
 	sensorConfig.maxAnalogueGain = context.configuration.sensor.maxAnalogueGain;
 
-	AgcMeanLuminance::configure(sensorConfig, context.camHelper.get());
+	context.activeState.agc.maxFrameDuration =
+		AgcMeanLuminance::configure(sensorConfig, context.camHelper.get());
 
 	context.activeState.agc.automatic.yTarget = effectiveYTarget();
 

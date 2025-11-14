@@ -353,10 +353,29 @@ int AgcMeanLuminance::parseExposureModes(const YamlObject &tuningData)
  * This function configures the exposure mode helpers by providing them the
  * sensor configuration parameters and the sensor helper, so they can correctly
  * take quantization effects into account.
+ *
+ * It computes a reasonable frame duration in the sensor's limits and returns it
+ * to the IPA for configuring the sensor's blankings.
+ *
  */
-void AgcMeanLuminance::configure(const SensorConfiguration &config,
-				 const CameraSensorHelper *sensorHelper)
+utils::Duration AgcMeanLuminance::configure(const SensorConfiguration &config,
+					    const CameraSensorHelper *sensorHelper)
 {
+
+	utils::Duration minFrameDuration = config.minFrameDuration;
+	utils::Duration maxFrameDuration = config.maxFrameDuration;
+
+	static constexpr utils::Duration duration30fps = 33333 * 1us;
+	static constexpr utils::Duration duration15fps = 66666 * 1us;
+	static constexpr utils::Duration duration10fps = 100000 * 1us;
+	utils::Duration frameDuration = minFrameDuration < duration30fps
+				      ? duration30fps
+				        : minFrameDuration < duration15fps
+					? duration15fps
+					  : minFrameDuration < duration10fps
+					  ? duration10fps : minFrameDuration;
+	frameDuration = std::min(frameDuration, maxFrameDuration);
+
 	for (auto &[id, helper] : exposureModeHelpers_) {
 		/*
 		 * Translate from the SensorConfiguration to the
@@ -370,7 +389,7 @@ void AgcMeanLuminance::configure(const SensorConfiguration &config,
 		sensorConfig.lineDuration_ = config.lineDuration;
 		sensorConfig.minExposureTime_ = config.minExposureTime;
 		sensorConfig.minFrameDuration_ = config.minFrameDuration;
-		sensorConfig.maxFrameDuration_ = config.maxFrameDuration;
+		sensorConfig.maxFrameDuration_ = frameDuration;
 		sensorConfig.minGain_ = config.minAnalogueGain;
 		sensorConfig.maxGain_ = config.maxAnalogueGain;
 
@@ -378,6 +397,8 @@ void AgcMeanLuminance::configure(const SensorConfiguration &config,
 	}
 
 	resetFrameCount();
+
+	return frameDuration;
 }
 
 /**

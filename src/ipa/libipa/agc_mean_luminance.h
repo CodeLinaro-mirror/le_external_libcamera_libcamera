@@ -51,8 +51,8 @@ public:
 		double maxAnalogueGain;
 	};
 
-	void configure(const SensorConfiguration &config,
-		       const CameraSensorHelper *sensorHelper);
+	utils::Duration configure(const SensorConfiguration &config,
+				  const CameraSensorHelper *sensorHelper);
 	int parseTuningData(const YamlObject &tuningData);
 
 	void setExposureCompensation(double gain)
