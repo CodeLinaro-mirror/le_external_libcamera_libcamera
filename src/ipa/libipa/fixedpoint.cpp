@@ -140,6 +140,15 @@ namespace ipa {
  */
 
 /**
+ * \typedef Q5_4
+ * \brief 5.4 signed fixed-point quantizer
+ *
+ * A Quantized type using 5 bits for the integer part and 4 bits for the
+ * fractional part, stored in a signed 16-bit integer (\c int16_t). Represents
+ * values in the range [-16.0, 15.9375] with a resolution of 1/16.
+ */
+
+/**
  * \typedef Q12_4
  * \brief 12.4 signed fixed-point quantizer
  *
