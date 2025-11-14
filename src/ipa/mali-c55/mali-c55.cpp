@@ -74,9 +74,6 @@ private:
 
 	ControlInfoMap sensorControls_;
 
-	/* Interface to the Camera Helper */
-	std::unique_ptr<CameraSensorHelper> camHelper_;
-
 	/* Local parameter storage */
 	struct IPAContext context_;
 };
@@ -98,8 +95,8 @@ std::string IPAMaliC55::logPrefix() const
 int IPAMaliC55::init(const IPASettings &settings, const IPAConfigInfo &ipaConfig,
 		     ControlInfoMap *ipaControls)
 {
-	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
-	if (!camHelper_) {
+	context_.camHelper = CameraSensorHelperFactoryBase::create(settings.sensorModel);
+	if (!context_.camHelper) {
 		LOG(IPAMaliC55, Error)
 			<< "Failed to create camera sensor helper for "
 			<< settings.sensorModel;
@@ -142,10 +139,10 @@ void IPAMaliC55::setControls()
 
 	if (activeState.agc.autoEnabled) {
 		exposure = activeState.agc.automatic.exposure;
-		gain = camHelper_->gainCode(activeState.agc.automatic.sensorGain);
+		gain = context_.camHelper->gainCode(activeState.agc.automatic.sensorGain);
 	} else {
 		exposure = activeState.agc.manual.exposure;
-		gain = camHelper_->gainCode(activeState.agc.manual.sensorGain);
+		gain = context_.camHelper->gainCode(activeState.agc.manual.sensorGain);
 	}
 
 	ControlList ctrls(sensorControls_);
@@ -191,17 +188,17 @@ void IPAMaliC55::updateSessionConfiguration(const IPACameraSensorInfo &info,
 	context_.configuration.agc.minShutterSpeed = minExposure * context_.configuration.sensor.lineDuration;
 	context_.configuration.agc.maxShutterSpeed = maxExposure * context_.configuration.sensor.lineDuration;
 	context_.configuration.agc.defaultExposure = defExposure;
-	context_.configuration.agc.minAnalogueGain = camHelper_->gain(minGain);
-	context_.configuration.agc.maxAnalogueGain = camHelper_->gain(maxGain);
+	context_.configuration.agc.minAnalogueGain = context_.camHelper->gain(minGain);
+	context_.configuration.agc.maxAnalogueGain = context_.camHelper->gain(maxGain);
 
-	if (camHelper_->blackLevel().has_value()) {
+	if (context_.camHelper->blackLevel().has_value()) {
 		/*
 		 * The black level from CameraSensorHelper is a 16-bit value.
 		 * The Mali-C55 ISP expects 20-bit settings, so we shift it to
 		 * the appropriate width
 		 */
 		context_.configuration.sensor.blackLevel =
-			camHelper_->blackLevel().value() << 4;
+			context_.camHelper->blackLevel().value() << 4;
 	}
 }
 
@@ -252,9 +249,9 @@ void IPAMaliC55::updateControls(const IPACameraSensorInfo &sensorInfo,
 
 	/* Compute the analogue gain limits. */
 	const ControlInfo &v4l2Gain = sensorControls.find(V4L2_CID_ANALOGUE_GAIN)->second;
-	float minGain = camHelper_->gain(v4l2Gain.min().get<int32_t>());
-	float maxGain = camHelper_->gain(v4l2Gain.max().get<int32_t>());
-	float defGain = camHelper_->gain(v4l2Gain.def().get<int32_t>());
+	float minGain = context_.camHelper->gain(v4l2Gain.min().get<int32_t>());
+	float maxGain = context_.camHelper->gain(v4l2Gain.max().get<int32_t>());
+	float defGain = context_.camHelper->gain(v4l2Gain.def().get<int32_t>());
 	ctrlMap[&controls::AnalogueGain] = ControlInfo(minGain, maxGain, defGain);
 
 	/*
@@ -362,7 +359,7 @@ void IPAMaliC55::processStats(unsigned int request, unsigned int bufferId,
 	frameContext.agc.exposure =
 		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
 	frameContext.agc.sensorGain =
-		camHelper_->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
+		context_.camHelper->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
 
 	ControlList metadata(controls::controls);
 
