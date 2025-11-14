@@ -21,17 +21,17 @@ namespace ipa::mali_c55 {
 
 struct IPASessionConfiguration {
 	struct {
-		utils::Duration minShutterSpeed;
-		utils::Duration maxShutterSpeed;
 		uint32_t defaultExposure;
-		double minAnalogueGain;
-		double maxAnalogueGain;
 	} agc;
 
 	struct {
 		BayerFormat::Order bayerOrder;
 		utils::Duration lineDuration;
 		uint32_t blackLevel;
+		utils::Duration minShutterSpeed;
+		utils::Duration maxShutterSpeed;
+		double minAnalogueGain;
+		double maxAnalogueGain;
 	} sensor;
 };
 

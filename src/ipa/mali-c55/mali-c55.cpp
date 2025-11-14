@@ -185,11 +185,12 @@ void IPAMaliC55::updateSessionConfiguration(const IPACameraSensorInfo &info,
 	 * \todo take VBLANK into account for maximum shutter speed
 	 */
 	context_.configuration.sensor.lineDuration = info.minLineLength * 1.0s / info.pixelRate;
-	context_.configuration.agc.minShutterSpeed = minExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.agc.maxShutterSpeed = maxExposure * context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.minShutterSpeed = minExposure * context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.maxShutterSpeed = maxExposure * context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);
+	context_.configuration.sensor.maxAnalogueGain = context_.camHelper->gain(maxGain);
+
 	context_.configuration.agc.defaultExposure = defExposure;
-	context_.configuration.agc.minAnalogueGain = context_.camHelper->gain(minGain);
-	context_.configuration.agc.maxAnalogueGain = context_.camHelper->gain(maxGain);
 
 	if (context_.camHelper->blackLevel().has_value()) {
 		/*

@@ -160,20 +160,20 @@ int Agc::configure(IPAContext &context,
 	 * minimum analogue gain. AEGC is _active_ by default.
 	 */
 	context.activeState.agc.autoEnabled = true;
-	context.activeState.agc.automatic.sensorGain = context.configuration.agc.minAnalogueGain;
+	context.activeState.agc.automatic.sensorGain = context.configuration.sensor.minAnalogueGain;
 	context.activeState.agc.automatic.exposure = context.configuration.agc.defaultExposure;
 	context.activeState.agc.automatic.ispGain = kMinDigitalGain;
-	context.activeState.agc.manual.sensorGain = context.configuration.agc.minAnalogueGain;
+	context.activeState.agc.manual.sensorGain = context.configuration.sensor.minAnalogueGain;
 	context.activeState.agc.manual.exposure = context.configuration.agc.defaultExposure;
 	context.activeState.agc.manual.ispGain = kMinDigitalGain;
 	context.activeState.agc.constraintMode = constraintModes().begin()->first;
 	context.activeState.agc.exposureMode = exposureModeHelpers().begin()->first;
 
 	/* \todo Run this again when FrameDurationLimits is passed in */
-	setLimits(context.configuration.agc.minShutterSpeed,
-		  context.configuration.agc.maxShutterSpeed,
-		  context.configuration.agc.minAnalogueGain,
-		  context.configuration.agc.maxAnalogueGain,
+	setLimits(context.configuration.sensor.minShutterSpeed,
+		  context.configuration.sensor.maxShutterSpeed,
+		  context.configuration.sensor.minAnalogueGain,
+		  context.configuration.sensor.maxAnalogueGain,
 		  {});
 
 	resetFrameCount();
