@@ -20,6 +20,9 @@ using namespace std;
 using namespace libcamera;
 using namespace ipa;
 
+/* Q4_7(-8 .. 7.99219)  Min: [0x0400:-8] -- Max: [0x03ff:7.99219] Step:0.0078125 */
+using Q4_7 = Quantized<FixedPointQTraits<4, 7, int16_t>>;
+
 class FixedPointUtilsTest : public Test
 {
 protected:
@@ -171,6 +174,21 @@ protected:
 		fails += quantizedCheck<UQ1_7>(0.0f,   0b0'0000000, 0.0f);		/* Min / Zero */
 		fails += quantizedCheck<UQ1_7>(1.0f,   0b1'0000000, 1.0f);		/* Mid */
 		fails += quantizedCheck<UQ1_7>(1.992f, 0b1'1111111, 1.99219f);		/* Max */
+
+		/* Q4_7(-8 .. 7.99219)  Min: [0x0400:-8] -- Max: [0x03ff:7.99219] Step:0.0078125 */
+		introduce<Q4_7>("Q4_7");
+		fails += quantizedCheck<Q4_7>(-8.0f,   0b1000'0000000, -8.0f);		/* Min */
+		fails += quantizedCheck<Q4_7>(-0.008f, 0b1111'1111111, -0.0078125);	/* -1 step */
+		fails += quantizedCheck<Q4_7>( 0.0f,   0b0000'0000000,  0.0f);		/* Zero */
+		fails += quantizedCheck<Q4_7>( 0.008f, 0b0000'0000001,  0.0078125f);	/* +1 step */
+		fails += quantizedCheck<Q4_7>( 7.992f, 0b0111'1111111,  7.99219f);	/* Max */
+
+		/* Retain additional tests from original testFixedPoint() */
+		fails += quantizedCheck<Q4_7>( 0.2f, 0b0000'0011010,  0.203125f);	/* 0x01a */
+		fails += quantizedCheck<Q4_7>(-0.2f, 0b1111'1100110, -0.203125f);	/* 0x7e6 */
+		fails += quantizedCheck<Q4_7>(-0.8f, 0b1111'0011010, -0.796875f);	/* 0x79a */
+		fails += quantizedCheck<Q4_7>(-0.4f, 0b1111'1001101, -0.398438f);	/* 0x7cd */
+		fails += quantizedCheck<Q4_7>(-1.4f, 0b1110'1001101, -1.39844f);	/* 0x74d */
 
 		/* Q12.4(-2048 .. 2047.94)  Min: [0x8000:-2048] -- Max: [0x7fff:2047.94] Step:0.0625 */
 		introduce<Q12_4>("Q12_4");
