@@ -33,6 +33,8 @@ public:
 	double quantizeGain(double gain, double *quantizationGain) const;
 	utils::Duration maxShutterTime(utils::Duration maxFrameDuration,
 				       utils::Duration lineDuration) const;
+	utils::Duration minFrameDuration(utils::Duration exposureTime,
+					 utils::Duration lineDuration) const;
 
 protected:
 	struct AnalogueGainLinear {

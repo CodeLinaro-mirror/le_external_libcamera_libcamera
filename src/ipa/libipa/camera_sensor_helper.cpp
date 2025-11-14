@@ -185,6 +185,39 @@ utils::Duration CameraSensorHelper::maxShutterTime(utils::Duration maxFrameDurat
 }
 
 /**
+ * \brief Compute the minimum frame duration required for a desired exposure
+ * \param[in] shutterTime The shutter time
+ * \param[in] lineDuration The current sensor line duration
+ *
+ * This function returns the minimum frame duration required to achieve the
+ * desired \a shutterTime. The frame duration is calculated by adding to
+ * \a shutterTime the difference between the frame length and the maximum
+ * achievable integration time.
+ *
+ * The intended users of this function are IPA modules that want to calculate
+ * the minium required frame duration give a newly calculated shutter time.
+ *
+ * \todo The line duration should be a property of the CameraSensorHelper class
+ * instead of being provided by the IPA.
+ *
+ * \return The minimum frame duration required to achieve the desired shutter
+ * time
+ */
+utils::Duration CameraSensorHelper::minFrameDuration(utils::Duration shutterTime,
+						     utils::Duration lineDuration) const
+{
+	/* Use a static to rate-limit the error message. */
+	static uint32_t exposureMargin = exposureMargin_.has_value()
+				       ? exposureMargin_.value() : 0;
+	if (!exposureMargin_.has_value() && !exposureMargin) {
+		LOG(CameraSensorHelper, Warning)
+			<< "Exposure margin not known. Default to 4";
+		exposureMargin = 4;
+	}
+
+	return shutterTime + exposureMargin * lineDuration;
+}
+/**
  * \struct CameraSensorHelper::AnalogueGainLinear
  * \brief Analogue gain constants for the linear gain model
  *
