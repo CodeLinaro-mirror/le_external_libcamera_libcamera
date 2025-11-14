@@ -57,11 +57,6 @@ static constexpr utils::Duration kMaxExposureTime = 60ms;
 /* Histogram constants */
 static constexpr uint32_t knumHistogramBins = 256;
 
-Agc::Agc()
-	: minExposureTime_(0s), maxExposureTime_(0s)
-{
-}
-
 /**
  * \brief Initialise the AGC algorithm from tuning files
  * \param[in] context The shared IPA context
@@ -101,10 +96,6 @@ int Agc::configure(IPAContext &context,
 	stride_ = configuration.grid.stride;
 	bdsGrid_ = configuration.grid.bdsGrid;
 
-	minExposureTime_ = configuration.sensor.minExposureTime;
-	maxExposureTime_ = std::min(configuration.sensor.maxExposureTime,
-				    kMaxExposureTime);
-
 	minAnalogueGain_ = std::max(configuration.sensor.minAnalogueGain, kMinAnalogueGain);
 	maxAnalogueGain_ = configuration.sensor.maxAnalogueGain;
 
@@ -117,10 +108,10 @@ int Agc::configure(IPAContext &context,
 
 	AgcMeanLuminance::SensorConfiguration sensorConfig;
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
-	sensorConfig.minExposureTime = minExposureTime_;
+	sensorConfig.minExposureTime = configuration.sensor.minExposureTime;
 	sensorConfig.minFrameDuration = context.configuration.sensor.minFrameDuration;
-	sensorConfig.maxFrameDuration = context.configuration.sensor.maxFrameDuration;
-	sensorConfig.maxExposureTime = maxExposureTime_;
+	sensorConfig.maxFrameDuration = std::min(context.configuration.sensor.maxFrameDuration,
+						 kMaxExposureTime);
 	sensorConfig.minAnalogueGain = minAnalogueGain_;
 	sensorConfig.maxAnalogueGain = maxAnalogueGain_;
 

@@ -269,7 +269,6 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	 * on the sensor, update it with the controls.
 	 */
 	context_.configuration.sensor.minExposureTime = minExposure * lineDuration;
-	context_.configuration.sensor.maxExposureTime = maxExposure * lineDuration;
 	context_.configuration.sensor.minFrameDuration = frameHeights[0] * lineDuration;
 	context_.configuration.sensor.maxFrameDuration = frameHeights[1] * lineDuration;
 	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);

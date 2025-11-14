@@ -27,7 +27,6 @@ namespace ipa::ipu3::algorithms {
 class Agc : public Algorithm, public AgcMeanLuminance
 {
 public:
-	Agc();
 	~Agc() = default;
 
 	int init(IPAContext &context, const YamlObject &tuningData) override;
@@ -41,9 +40,6 @@ private:
 	double estimateLuminance(double gain) const override;
 	Histogram parseStatistics(const ipu3_uapi_stats_3a *stats,
 				  const ipu3_uapi_grid_config &grid);
-
-	utils::Duration minExposureTime_;
-	utils::Duration maxExposureTime_;
 
 	double minAnalogueGain_;
 	double maxAnalogueGain_;

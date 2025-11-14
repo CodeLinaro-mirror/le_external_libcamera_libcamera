@@ -111,9 +111,6 @@ namespace libcamera::ipa::ipu3 {
  * \var IPASessionConfiguration::agc.minExposureTime
  * \brief Minimum exposure time supported with the configured sensor
  *
- * \var IPASessionConfiguration::agc.maxExposureTime
- * \brief Maximum exposure time supported with the configured sensor
- *
  * \var IPASessionConfiguration::agc.minAnalogueGain
  * \brief Minimum analogue gain supported with the configured sensor
  *

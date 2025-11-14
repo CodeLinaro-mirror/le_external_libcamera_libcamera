@@ -115,9 +115,6 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  * \var AgcMeanLuminance::SensorConfiguration::minExposureTime
  * \brief The sensor minimum exposure time in microseconds
  *
- * \var AgcMeanLuminance::SensorConfiguration::maxExposureTime
- * \brief The sensor maximum exposure time in microseconds
- *
  * \var AgcMeanLuminance::SensorConfiguration::minFrameDuration
  * \brief The sensor minimum frame duration in microseconds
  *
@@ -372,7 +369,6 @@ void AgcMeanLuminance::configure(const SensorConfiguration &config,
 		ExposureModeHelper::SensorConfiguration sensorConfig;
 		sensorConfig.lineDuration_ = config.lineDuration;
 		sensorConfig.minExposureTime_ = config.minExposureTime;
-		sensorConfig.maxExposureTime_ = config.maxExposureTime;
 		sensorConfig.minFrameDuration_ = config.minFrameDuration;
 		sensorConfig.maxFrameDuration_ = config.maxFrameDuration;
 		sensorConfig.minGain_ = config.minAnalogueGain;

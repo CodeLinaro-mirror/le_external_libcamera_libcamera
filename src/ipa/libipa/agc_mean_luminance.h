@@ -45,7 +45,6 @@ public:
 	struct SensorConfiguration {
 		utils::Duration lineDuration;
 		utils::Duration minExposureTime;
-		utils::Duration maxExposureTime;
 		utils::Duration minFrameDuration;
 		utils::Duration maxFrameDuration;
 		double minAnalogueGain;

@@ -170,7 +170,6 @@ void IPAMaliC55::updateSessionConfiguration(const IPACameraSensorInfo &info,
 
 	const ControlInfo &v4l2Exposure = sensorControls.find(V4L2_CID_EXPOSURE)->second;
 	int32_t minExposure = v4l2Exposure.min().get<int32_t>();
-	int32_t maxExposure = v4l2Exposure.max().get<int32_t>();
 	int32_t defExposure = v4l2Exposure.def().get<int32_t>();
 
 	const ControlInfo &v4l2Gain = sensorControls.find(V4L2_CID_ANALOGUE_GAIN)->second;
@@ -191,7 +190,6 @@ void IPAMaliC55::updateSessionConfiguration(const IPACameraSensorInfo &info,
 	utils::Duration lineDuration = info.minLineLength * 1.0s / info.pixelRate;
 	context_.configuration.sensor.lineDuration = lineDuration;
 	context_.configuration.sensor.minShutterSpeed = minExposure * lineDuration;
-	context_.configuration.sensor.maxShutterSpeed = maxExposure * lineDuration;
 	context_.configuration.sensor.minFrameDuration = frameHeights[0] * lineDuration;
 	context_.configuration.sensor.maxFrameDuration = frameHeights[1] * lineDuration;
 	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);

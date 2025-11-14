@@ -89,9 +89,6 @@ namespace libcamera::ipa::rkisp1 {
  * \var IPASessionConfiguration::sensor.minExposureTime
  * \brief Minimum exposure time supported with the sensor
  *
- * \var IPASessionConfiguration::sensor.maxExposureTime
- * \brief Maximum exposure time supported with the sensor
- *
  * \var IPASessionConfiguration::sensor.minAnalogueGain
  * \brief Minimum analogue gain supported with the sensor
  *

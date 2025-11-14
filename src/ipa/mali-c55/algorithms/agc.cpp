@@ -176,7 +176,6 @@ int Agc::configure(IPAContext &context,
 	AgcMeanLuminance::SensorConfiguration sensorConfig;
 	sensorConfig.lineDuration = context.configuration.sensor.lineDuration;
 	sensorConfig.minExposureTime = context.configuration.sensor.minShutterSpeed;
-	sensorConfig.maxExposureTime = context.configuration.sensor.maxShutterSpeed;
 	sensorConfig.minFrameDuration = context.configuration.sensor.minFrameDuration;
 	sensorConfig.maxFrameDuration = context.configuration.sensor.maxFrameDuration;
 	sensorConfig.minAnalogueGain = context.configuration.sensor.minAnalogueGain;

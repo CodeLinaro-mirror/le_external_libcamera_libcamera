@@ -206,7 +206,6 @@ void IPAIPU3::updateSessionConfiguration(const IPACameraSensorInfo &sensorInfo,
 
 	const ControlInfo &v4l2Exposure = sensorControls.find(V4L2_CID_EXPOSURE)->second;
 	int32_t minExposure = v4l2Exposure.min().get<int32_t>();
-	int32_t maxExposure = v4l2Exposure.max().get<int32_t>();
 
 	const ControlInfo &v4l2Gain = sensorControls.find(V4L2_CID_ANALOGUE_GAIN)->second;
 	int32_t minGain = v4l2Gain.min().get<int32_t>();
@@ -226,7 +225,6 @@ void IPAIPU3::updateSessionConfiguration(const IPACameraSensorInfo &sensorInfo,
 	 * \todo take VBLANK into account for maximum exposure time
 	 */
 	context_.configuration.sensor.minExposureTime = minExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.sensor.maxExposureTime = maxExposure * context_.configuration.sensor.lineDuration;
 	context_.configuration.sensor.minFrameDuration = frameHeights[0] *
 							 context_.configuration.sensor.lineDuration;
 	context_.configuration.sensor.maxFrameDuration = frameHeights[1] *

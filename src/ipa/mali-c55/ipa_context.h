@@ -29,7 +29,6 @@ struct IPASessionConfiguration {
 		utils::Duration lineDuration;
 		uint32_t blackLevel;
 		utils::Duration minShutterSpeed;
-		utils::Duration maxShutterSpeed;
 		utils::Duration minFrameDuration;
 		utils::Duration maxFrameDuration;
 		double minAnalogueGain;

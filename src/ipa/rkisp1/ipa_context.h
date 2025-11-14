@@ -61,7 +61,6 @@ struct IPASessionConfiguration {
 
 	struct {
 		utils::Duration minExposureTime;
-		utils::Duration maxExposureTime;
 		utils::Duration minFrameDuration;
 		utils::Duration maxFrameDuration;
 		double minAnalogueGain;
