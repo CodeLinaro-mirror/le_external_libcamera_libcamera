@@ -21,8 +21,6 @@
 
 namespace libcamera {
 
-using namespace std::literals::chrono_literals;
-
 LOG_DEFINE_CATEGORY(ExposureModeHelper)
 
 namespace ipa {
@@ -60,6 +58,40 @@ namespace ipa {
  */
 
 /**
+ * \struct ExposureModeHelper::SensorConfiguration
+ * \brief The sensor configuration parameters
+ *
+ * This struct represents the sensor configuration paramters. Sensor
+ * configuration parameters are set at configure() time and remain valid for
+ * the duration of the streaming session.
+ *
+ * \todo Remove it once all the information are available from the
+ * CameraSensorHelper.
+ *
+ * \var SensorConfiguration::lineDuration_
+ * \brief The sensor line duration
+ *
+ * \var SensorConfiguration::minExposureTime_
+ * \brief The sensor min exposure time in microseconds
+ *
+ * \var SensorConfiguration::maxExposureTime_
+ * \brief The sensor max exposure time in microseconds
+ * \todo Remove the max exposure time and calculcate it from the frame duration
+ *
+ * \var SensorConfiguration::minFrameDuration_
+ * \brief The sensor min frame duration in microseconds
+ *
+ * \var SensorConfiguration::maxFrameDuration_
+ * \brief The sensor max frame duration in microseconds
+ *
+ * \var SensorConfiguration::minGain_
+ * \brief The sensor minimum analogue gain value
+ *
+ * \var SensorConfiguration::maxGain_
+ * \brief The sensor maximum analogue gain value
+ */
+
+/**
  * \brief Construct an ExposureModeHelper instance
  * \param[in] stages The vector of paired exposure time and gain limits
  *
@@ -70,8 +102,6 @@ namespace ipa {
  * the runtime limits set through setLimits() instead.
  */
 ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, double>> stages)
-	: lineDuration_(1us), minExposureTime_(0us), maxExposureTime_(0us),
-	  minGain_(0), maxGain_(0), sensorHelper_(nullptr)
 {
 	for (const auto &[s, g] : stages) {
 		exposureTimes_.push_back(s);
@@ -97,7 +127,7 @@ ExposureModeHelper::ExposureModeHelper(const Span<std::pair<utils::Duration, dou
 void ExposureModeHelper::configure(utils::Duration lineDuration,
 				   const CameraSensorHelper *sensorHelper)
 {
-	lineDuration_ = lineDuration;
+	sensor_.lineDuration_ = lineDuration;
 	sensorHelper_ = sensorHelper;
 }
 
@@ -134,7 +164,8 @@ utils::Duration ExposureModeHelper::clampExposureTime(utils::Duration exposureTi
 	utils::Duration exp;
 
 	clamped = std::clamp(exposureTime, minExposureTime_, maxExposureTime_);
-	exp = static_cast<long>(clamped / lineDuration_) * lineDuration_;
+	exp = static_cast<long>(clamped / sensor_.lineDuration_)
+	    * sensor_.lineDuration_;
 	if (quantizationGain)
 		*quantizationGain = clamped / exp;
 

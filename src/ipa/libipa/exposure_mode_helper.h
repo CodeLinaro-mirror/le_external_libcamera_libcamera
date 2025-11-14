@@ -20,9 +20,21 @@ namespace libcamera {
 
 namespace ipa {
 
+using namespace std::literals::chrono_literals;
+
 class ExposureModeHelper
 {
 public:
+	struct SensorConfiguration {
+		utils::Duration lineDuration_;
+		utils::Duration minExposureTime_;
+		utils::Duration maxExposureTime_;
+		utils::Duration minFrameDuration_;
+		utils::Duration maxFrameDuration_;
+		double minGain_;
+		double maxGain_;
+	};
+
 	ExposureModeHelper(const Span<std::pair<utils::Duration, double>> stages);
 	~ExposureModeHelper() = default;
 
@@ -41,12 +53,14 @@ private:
 	std::vector<utils::Duration> exposureTimes_;
 	std::vector<double> gains_;
 
-	utils::Duration lineDuration_;
+	SensorConfiguration sensor_;
+	const CameraSensorHelper *sensorHelper_ = nullptr;
+
+	/* Runtime parameters, used to split exposure. */
 	utils::Duration minExposureTime_;
 	utils::Duration maxExposureTime_;
 	double minGain_;
 	double maxGain_;
-	const CameraSensorHelper *sensorHelper_;
 };
 
 } /* namespace ipa */
