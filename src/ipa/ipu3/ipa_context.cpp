@@ -96,8 +96,17 @@ namespace libcamera::ipa::ipu3 {
  */
 
 /**
- * \var IPASessionConfiguration::agc
- * \brief AGC parameters configuration of the IPA
+ * \var IPASessionConfiguration::sensor
+ * \brief Sensor-specific configuration of the IPA
+ *
+ * \var IPASessionConfiguration::sensor.lineDuration
+ * \brief Line duration in microseconds
+ *
+ * \var IPASessionConfiguration::sensor.defVBlank
+ * \brief The default vblank value of the sensor
+ *
+ * \var IPASessionConfiguration::sensor.size
+ * \brief Sensor output resolution
  *
  * \var IPASessionConfiguration::agc.minExposureTime
  * \brief Minimum exposure time supported with the configured sensor
@@ -110,20 +119,6 @@ namespace libcamera::ipa::ipu3 {
  *
  * \var IPASessionConfiguration::agc.maxAnalogueGain
  * \brief Maximum analogue gain supported with the configured sensor
- */
-
-/**
- * \var IPASessionConfiguration::sensor
- * \brief Sensor-specific configuration of the IPA
- *
- * \var IPASessionConfiguration::sensor.lineDuration
- * \brief Line duration in microseconds
- *
- * \var IPASessionConfiguration::sensor.defVBlank
- * \brief The default vblank value of the sensor
- *
- * \var IPASessionConfiguration::sensor.size
- * \brief Sensor output resolution
  */
 
 /**

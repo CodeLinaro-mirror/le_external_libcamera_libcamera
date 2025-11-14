@@ -34,16 +34,13 @@ struct IPASessionConfiguration {
 	} af;
 
 	struct {
+		int32_t defVBlank;
+		utils::Duration lineDuration;
+		Size size;
 		utils::Duration minExposureTime;
 		utils::Duration maxExposureTime;
 		double minAnalogueGain;
 		double maxAnalogueGain;
-	} agc;
-
-	struct {
-		int32_t defVBlank;
-		utils::Duration lineDuration;
-		Size size;
 	} sensor;
 };
 

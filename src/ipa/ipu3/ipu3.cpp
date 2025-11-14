@@ -217,10 +217,10 @@ void IPAIPU3::updateSessionConfiguration(const ControlInfoMap &sensorControls)
 	 *
 	 * \todo take VBLANK into account for maximum exposure time
 	 */
-	context_.configuration.agc.minExposureTime = minExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.agc.maxExposureTime = maxExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.agc.minAnalogueGain = context_.camHelper->gain(minGain);
-	context_.configuration.agc.maxAnalogueGain = context_.camHelper->gain(maxGain);
+	context_.configuration.sensor.minExposureTime = minExposure * context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.maxExposureTime = maxExposure * context_.configuration.sensor.lineDuration;
+	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);
+	context_.configuration.sensor.maxAnalogueGain = context_.camHelper->gain(maxGain);
 }
 
 /**

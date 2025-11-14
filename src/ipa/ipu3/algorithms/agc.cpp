@@ -101,12 +101,12 @@ int Agc::configure(IPAContext &context,
 	stride_ = configuration.grid.stride;
 	bdsGrid_ = configuration.grid.bdsGrid;
 
-	minExposureTime_ = configuration.agc.minExposureTime;
-	maxExposureTime_ = std::min(configuration.agc.maxExposureTime,
+	minExposureTime_ = configuration.sensor.minExposureTime;
+	maxExposureTime_ = std::min(configuration.sensor.maxExposureTime,
 				    kMaxExposureTime);
 
-	minAnalogueGain_ = std::max(configuration.agc.minAnalogueGain, kMinAnalogueGain);
-	maxAnalogueGain_ = configuration.agc.maxAnalogueGain;
+	minAnalogueGain_ = std::max(configuration.sensor.minAnalogueGain, kMinAnalogueGain);
+	maxAnalogueGain_ = configuration.sensor.maxAnalogueGain;
 
 	/* Configure the default exposure and gain. */
 	activeState.agc.gain = minAnalogueGain_;
