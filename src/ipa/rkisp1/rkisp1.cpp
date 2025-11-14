@@ -227,6 +227,7 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 			 const std::map<uint32_t, IPAStream> &streamConfig,
 			 ControlInfoMap *ipaControls)
 {
+	const IPACameraSensorInfo &info = ipaConfig.sensorInfo;
 	sensorControls_ = ipaConfig.sensorControls;
 
 	const auto itExp = sensorControls_.find(V4L2_CID_EXPOSURE);
@@ -236,6 +237,12 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	const auto itGain = sensorControls_.find(V4L2_CID_ANALOGUE_GAIN);
 	int32_t minGain = itGain->second.min().get<int32_t>();
 	int32_t maxGain = itGain->second.max().get<int32_t>();
+
+	const auto itVBlank = sensorControls_.find(V4L2_CID_VBLANK);
+	std::array<uint32_t, 2> frameHeights{
+		itVBlank->second.min().get<int32_t>() + info.outputSize.height,
+		itVBlank->second.max().get<int32_t>() + info.outputSize.height,
+	};
 
 	LOG(IPARkISP1, Debug)
 		<< "Exposure: [" << minExposure << ", " << maxExposure
@@ -248,11 +255,10 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 
 	context_.configuration.paramFormat = ipaConfig.paramFormat;
 
-	const IPACameraSensorInfo &info = ipaConfig.sensorInfo;
-	const ControlInfo vBlank = sensorControls_.find(V4L2_CID_VBLANK)->second;
-	context_.configuration.sensor.defVBlank = vBlank.def().get<int32_t>();
+	utils::Duration lineDuration = info.minLineLength * 1.0s / info.pixelRate;
+	context_.configuration.sensor.defVBlank = itVBlank->second.def().get<int32_t>();
 	context_.configuration.sensor.size = info.outputSize;
-	context_.configuration.sensor.lineDuration = info.minLineLength * 1.0s / info.pixelRate;
+	context_.configuration.sensor.lineDuration = lineDuration;
 
 	/* Update the camera controls using the new sensor settings. */
 	updateControls(info, sensorControls_, ipaControls);
@@ -261,17 +267,13 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	 * When the AGC computes the new exposure values for a frame, it needs
 	 * to know the limits for exposure time and analogue gain. As it depends
 	 * on the sensor, update it with the controls.
-	 *
-	 * \todo take VBLANK into account for maximum exposure time
 	 */
-	context_.configuration.sensor.minExposureTime =
-		minExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.sensor.maxExposureTime =
-		maxExposure * context_.configuration.sensor.lineDuration;
-	context_.configuration.sensor.minAnalogueGain =
-		context_.camHelper->gain(minGain);
-	context_.configuration.sensor.maxAnalogueGain =
-		context_.camHelper->gain(maxGain);
+	context_.configuration.sensor.minExposureTime = minExposure * lineDuration;
+	context_.configuration.sensor.maxExposureTime = maxExposure * lineDuration;
+	context_.configuration.sensor.minFrameDuration = frameHeights[0] * lineDuration;
+	context_.configuration.sensor.maxFrameDuration = frameHeights[1] * lineDuration;
+	context_.configuration.sensor.minAnalogueGain = context_.camHelper->gain(minGain);
+	context_.configuration.sensor.maxAnalogueGain = context_.camHelper->gain(maxGain);
 
 	context_.configuration.raw = std::any_of(streamConfig.begin(), streamConfig.end(),
 		[](auto &cfg) -> bool {
@@ -436,12 +438,20 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 		uint64_t frameSize = lineLength * frameHeights[i];
 		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
 	}
-
-	/* \todo Move this (and other agc-related controls) to agc */
-	context_.ctrlMap[&controls::FrameDurationLimits] =
+	ctrlMap[&controls::FrameDurationLimits] =
 		ControlInfo(frameDurations[0], frameDurations[1], frameDurations[2]);
 
-	ctrlMap.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
+	/*
+	 * Store the min/max frame duration in the active context to initialize
+	 * the AGC algorithm.
+	 *
+	 * \todo Move this (and other agc-related controls) to agc
+	 */
+	context_.activeState.agc.minFrameDuration = std::chrono::microseconds(frameDurations[0]);
+	context_.activeState.agc.maxFrameDuration = std::chrono::microseconds(frameDurations[1]);
+
+	ctrlMap.merge(context_.ctrlMap);
+
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
 }
 

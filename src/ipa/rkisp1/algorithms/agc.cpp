@@ -190,10 +190,10 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 	context.activeState.agc.meteringMode =
 		static_cast<controls::AeMeteringModeEnum>(meteringModes_.begin()->first);
 
-	/* Limit the frame duration to match current initialisation */
-	ControlInfo &frameDurationLimits = context.ctrlMap[&controls::FrameDurationLimits];
-	context.activeState.agc.minFrameDuration = std::chrono::microseconds(frameDurationLimits.min().get<int64_t>());
-	context.activeState.agc.maxFrameDuration = std::chrono::microseconds(frameDurationLimits.max().get<int64_t>());
+	context.activeState.agc.minFrameDuration =
+		context.configuration.sensor.minFrameDuration;
+	context.activeState.agc.maxFrameDuration =
+		context.configuration.sensor.maxFrameDuration;
 
 	context.configuration.agc.measureWindow.h_offs = 0;
 	context.configuration.agc.measureWindow.v_offs = 0;
@@ -320,16 +320,16 @@ void Agc::queueRequest(IPAContext &context,
 
 	const auto &frameDurationLimits = controls.get(controls::FrameDurationLimits);
 	if (frameDurationLimits) {
-		/* Limit the control value to the limits in ControlInfo */
-		ControlInfo &limits = context.ctrlMap[&controls::FrameDurationLimits];
-		int64_t minFrameDuration =
-			std::clamp((*frameDurationLimits).front(),
-				   limits.min().get<int64_t>(),
-				   limits.max().get<int64_t>());
-		int64_t maxFrameDuration =
-			std::clamp((*frameDurationLimits).back(),
-				   limits.min().get<int64_t>(),
-				   limits.max().get<int64_t>());
+		/* Limit the control value to the sensor constraints. */
+		int64_t sensorMinFrameDuration =
+			context.configuration.sensor.minFrameDuration.get<std::micro>();
+		int64_t sensorMaxFrameDuration =
+			context.configuration.sensor.maxFrameDuration.get<std::micro>();
+
+		int64_t minFrameDuration = std::clamp((*frameDurationLimits).front(),
+						      sensorMinFrameDuration, sensorMaxFrameDuration);
+		int64_t maxFrameDuration = std::clamp((*frameDurationLimits).back(),
+						      sensorMinFrameDuration, sensorMaxFrameDuration);
 
 		agc.minFrameDuration = std::chrono::microseconds(minFrameDuration);
 		agc.maxFrameDuration = std::chrono::microseconds(maxFrameDuration);
