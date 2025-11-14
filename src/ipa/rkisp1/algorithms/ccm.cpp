@@ -115,10 +115,11 @@ void Ccm::setParameters(struct rkisp1_cif_isp_ctk_config &config,
 	 * 4 bit integer and 7 bit fractional, ranging from -8 (0x400) to
 	 * +7.9921875 (0x3ff)
 	 */
+	using Q4_7 = Quantized<FixedPointQTraits<4, 7, int16_t>>;
+
 	for (unsigned int i = 0; i < 3; i++) {
 		for (unsigned int j = 0; j < 3; j++)
-			config.coeff[i][j] =
-				floatingToFixedPoint<4, 7, uint16_t, double>(matrix[i][j]);
+			config.coeff[i][j] = Q4_7(matrix[i][j]).quantized();
 	}
 
 	for (unsigned int i = 0; i < 3; i++)
