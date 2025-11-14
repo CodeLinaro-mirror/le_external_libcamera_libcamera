@@ -10,6 +10,8 @@
 #include <libcamera/base/utils.h>
 #include <libcamera/controls.h>
 
+#include <libcamera/ipa/core_ipa_interface.h>
+
 #include "libcamera/internal/bayer_format.h"
 
 #include <libipa/camera_sensor_helper.h>
@@ -67,6 +69,9 @@ struct IPAFrameContext : public FrameContext {
 		uint32_t exposure;
 		double sensorGain;
 		double ispGain;
+		uint32_t vblank;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 	} agc;
 
 	struct {
@@ -81,6 +86,7 @@ struct IPAContext {
 	{
 	}
 
+	IPACameraSensorInfo sensorInfo;
 	IPASessionConfiguration configuration;
 	IPAActiveState activeState;
 
