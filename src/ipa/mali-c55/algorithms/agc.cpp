@@ -38,8 +38,8 @@ static constexpr unsigned int kNumHistogramBins = 256;
  * format, a range of 0.0 to (very nearly) 32.0. We clamp from 1.0 to the actual
  * max value which is 8191 * 2^-8.
  */
-static constexpr double kMinDigitalGain = 1.0;
-static constexpr double kMaxDigitalGain = 31.99609375;
+static constexpr float kMinDigitalGain = 1.0;
+static constexpr float kMaxDigitalGain = UQ5_8::TraitsType::max;
 
 uint32_t AgcStatistics::decodeBinValue(uint16_t binVal)
 {
@@ -236,7 +236,7 @@ void Agc::queueRequest(IPAContext &context, const uint32_t frame,
 		agc.manual.ispGain = *digitalGain;
 
 		LOG(MaliC55Agc, Debug)
-			<< "Digital gain set to " << agc.manual.ispGain
+			<< "Digital gain set to " << agc.manual.ispGain.value()
 			<< " on request sequence " << frame;
 	}
 }
@@ -245,7 +245,7 @@ size_t Agc::fillGainParamBlock(IPAContext &context, IPAFrameContext &frameContex
 			       mali_c55_params_block block)
 {
 	IPAActiveState &activeState = context.activeState;
-	double gain;
+	UQ5_8 gain;
 
 	if (activeState.agc.autoEnabled)
 		gain = activeState.agc.automatic.ispGain;
@@ -256,7 +256,7 @@ size_t Agc::fillGainParamBlock(IPAContext &context, IPAFrameContext &frameContex
 	block.header->flags = MALI_C55_PARAM_BLOCK_FL_NONE;
 	block.header->size = sizeof(struct mali_c55_params_digital_gain);
 
-	block.digital_gain->gain = floatingToFixedPoint<5, 8, uint16_t, double>(gain);
+	block.digital_gain->gain = gain.quantized();
 	frameContext.agc.ispGain = gain;
 
 	return block.header->size;
@@ -376,7 +376,7 @@ void Agc::process(IPAContext &context,
 	 */
 	uint32_t exposure = frameContext.agc.exposure;
 	double analogueGain = frameContext.agc.sensorGain;
-	double digitalGain = frameContext.agc.ispGain;
+	double digitalGain = frameContext.agc.ispGain.value();
 	double totalGain = analogueGain * digitalGain;
 	utils::Duration currentShutter = exposure * configuration.sensor.lineDuration;
 	utils::Duration effectiveExposureValue = currentShutter * totalGain;
@@ -388,19 +388,19 @@ void Agc::process(IPAContext &context,
 			       activeState.agc.exposureMode, statistics_.yHist,
 			       effectiveExposureValue);
 
-	dGain = std::clamp(dGain, kMinDigitalGain, kMaxDigitalGain);
+	UQ5_8 dGainQ = static_cast<float>(dGain);
 
 	LOG(MaliC55Agc, Debug)
 		<< "Divided up shutter, analogue gain and digital gain are "
-		<< shutterTime << ", " << aGain << " and " << dGain;
+		<< shutterTime << ", " << aGain << " and " << dGainQ.value();
 
 	activeState.agc.automatic.exposure = shutterTime / configuration.sensor.lineDuration;
 	activeState.agc.automatic.sensorGain = aGain;
-	activeState.agc.automatic.ispGain = dGain;
+	activeState.agc.automatic.ispGain = dGainQ;
 
 	metadata.set(controls::ExposureTime, currentShutter.get<std::micro>());
 	metadata.set(controls::AnalogueGain, frameContext.agc.sensorGain);
-	metadata.set(controls::DigitalGain, frameContext.agc.ispGain);
+	metadata.set(controls::DigitalGain, frameContext.agc.ispGain.value());
 	metadata.set(controls::ColourTemperature, context.activeState.agc.temperatureK);
 }
 
