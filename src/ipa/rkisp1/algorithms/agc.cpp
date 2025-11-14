@@ -213,8 +213,6 @@ int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 
 	context.activeState.agc.automatic.yTarget = effectiveYTarget();
 
-	resetFrameCount();
-
 	return 0;
 }
 

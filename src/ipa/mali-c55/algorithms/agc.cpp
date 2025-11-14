@@ -186,8 +186,6 @@ int Agc::configure(IPAContext &context,
 
 	/* \todo Update AGC limits when FrameDurationLimits is passed in */
 
-	resetFrameCount();
-
 	return 0;
 }
 

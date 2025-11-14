@@ -87,11 +87,6 @@ public:
 
 	double effectiveYTarget() const;
 
-	void resetFrameCount()
-	{
-		frameCount_ = 0;
-	}
-
 private:
 	virtual double estimateLuminance(const double gain) const = 0;
 
@@ -104,6 +99,10 @@ private:
 				   const Histogram &hist,
 				   double gain);
 	utils::Duration filterExposure(utils::Duration exposureValue);
+	void resetFrameCount()
+	{
+		frameCount_ = 0;
+	}
 
 	double exposureCompensation_;
 	uint64_t frameCount_;

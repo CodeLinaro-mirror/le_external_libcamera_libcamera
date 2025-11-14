@@ -171,9 +171,10 @@ static constexpr double kMaxRelativeLuminanceTarget = 0.95;
  *
  * IPA modules that want to use this class to implement their AEGC algorithm
  * should derive it and provide an overriding estimateLuminance() function for
- * this class to use. They must call parseTuningData() in init(), and must also
- * call resetFrameCounter() in configure(). They may then use calculateNewEv()
- * in process(). To update the algorithm limits for example, in response to a
+ * this class to use. They must call parseTuningData() in init() and the use the
+ * sensor configuration data to call AgcMeanLuminance::configure() in their
+ * configure() implementation. They may then use calculateNewEv() in process().
+ * To update the algorithm limits for example, in response to a
  * FrameDurationLimit control being passed in queueRequest()) then
  * setExposureLimits() must be called with the new values.
  */
@@ -379,6 +380,8 @@ void AgcMeanLuminance::configure(const SensorConfiguration &config,
 
 		helper->configure(sensorConfig, sensorHelper);
 	}
+
+	resetFrameCount();
 }
 
 /**
@@ -691,16 +694,6 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	frameCount_++;
 	return exposureModeHelper->splitExposure(newExposureValue);
 }
-
-/**
- * \fn AgcMeanLuminance::resetFrameCount()
- * \brief Reset the frame counter
- *
- * This function resets the internal frame counter, which exists to help the
- * algorithm decide whether it should respond instantly or not. The expectation
- * is for derived classes to call this function before each camera start call in
- * their configure() function.
- */
 
 } /* namespace ipa */
 
