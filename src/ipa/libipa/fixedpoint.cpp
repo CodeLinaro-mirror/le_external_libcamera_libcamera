@@ -140,6 +140,15 @@ namespace ipa {
  */
 
 /**
+ * \typedef UQ4_8
+ * \brief 4.8 unsigned fixed-point quantizer
+ *
+ * A Quantized type using 4 bits for the integer part and 8 bits for the
+ * fractional part, stored in an unsigned 16-bit integer (\c uint16_t). Represents
+ * values in the range [0.0, 15.9961] with a resolution of 1/256.
+ */
+
+/**
  * \typedef Q5_4
  * \brief 5.4 signed fixed-point quantizer
  *

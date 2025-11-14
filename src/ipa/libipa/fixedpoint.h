@@ -105,6 +105,8 @@ struct FixedPointQTraits {
 using Q1_7 = Quantized<FixedPointQTraits<1, 7, int8_t>>;
 using UQ1_7 = Quantized<FixedPointQTraits<1, 7, uint8_t>>;
 
+using UQ4_8 = Quantized<FixedPointQTraits<4, 8, uint16_t>>;
+
 using Q5_4 = Quantized<FixedPointQTraits<5, 4, int16_t>>;
 using UQ5_8 = Quantized<FixedPointQTraits<5, 8, uint16_t>>;
 
