@@ -710,7 +710,7 @@ void SimpleCameraData::tryPipeline(unsigned int code, const Size &size)
 		<< " ]";
 
 	for (const auto &videoFormat : videoFormats) {
-		PixelFormat pixelFormat = videoFormat.first.toPixelFormat();
+		PixelFormat pixelFormat = videoFormat.first.toPixelFormat(false);
 		if (!pixelFormat)
 			continue;
 
