@@ -47,6 +47,7 @@ private:
 	unsigned int lastCt_;
 	std::optional<float> lastSaturation_;
 	Interpolator<Matrix<float, 3, 3>> ccm_;
+	Matrix<float, 3, 3> currentCcm_;
 };
 
 } /* namespace ipa::soft::algorithms */
