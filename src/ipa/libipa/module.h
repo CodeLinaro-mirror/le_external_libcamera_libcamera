@@ -55,6 +55,15 @@ public:
 				return -EINVAL;
 			}
 
+			if (algo.contains("enabled")) {
+				if (algo["enabled"].get<bool>() == false) {
+					LOG(IPAModuleAlgo, Debug)
+						<< "Algorithm " << i
+						<< " is disabled via tuning file";
+					continue;
+				}
+			}
+
 			int ret = createAlgorithm(context, algo);
 			if (ret) {
 				algorithms_.clear();
