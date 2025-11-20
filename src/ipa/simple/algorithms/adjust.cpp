@@ -90,24 +90,22 @@ void Adjust::applySaturation(Matrix<float, 3, 3> &matrix, float saturation)
 }
 
 void Adjust::prepare(IPAContext &context,
-		     const uint32_t frame,
+		     [[maybe_unused]] const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     [[maybe_unused]] DebayerParams *params)
+		     DebayerParams *params)
 {
 	frameContext.contrast = context.activeState.knobs.contrast;
 
-	if (!context.ccmEnabled)
-		return;
-
 	auto &saturation = context.activeState.knobs.saturation;
-	frameContext.saturation = saturation;
-	if (saturation)
+	if (context.ccmEnabled && saturation) {
 		applySaturation(context.activeState.combinedMatrix, saturation.value());
-
-	if (frame == 0 || saturation != lastSaturation_) {
-		context.activeState.matrixChanged = true;
-		lastSaturation_ = saturation;
+		frameContext.saturation = saturation;
 	}
+
+	params->gamma = context.activeState.knobs.gamma.value_or(kDefaultGamma);
+	params->contrast =
+		context.activeState.knobs.contrast.value_or(kDefaultContrast);
+	params->combinedMatrix = context.activeState.combinedMatrix;
 }
 
 void Adjust::process([[maybe_unused]] IPAContext &context,

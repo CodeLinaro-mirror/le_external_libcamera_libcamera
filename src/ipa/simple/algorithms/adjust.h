@@ -47,8 +47,6 @@ public:
 
 private:
 	void applySaturation(Matrix<float, 3, 3> &ccm, float saturation);
-
-	std::optional<float> lastSaturation_;
 };
 
 } /* namespace ipa::soft::algorithms */

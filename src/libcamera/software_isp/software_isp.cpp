@@ -80,23 +80,6 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
 		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
 {
-	/*
-	 * debayerParams_ must be initialized because the initial value is used for
-	 * the first two frames, i.e. until stats processing starts providing its
-	 * own parameters.
-	 *
-	 * \todo This should be handled in the same place as the related
-	 * operations, in the IPA module.
-	 */
-	std::array<uint8_t, 256> gammaTable;
-	for (unsigned int i = 0; i < 256; i++)
-		gammaTable[i] = UINT8_MAX * std::pow(i / 256.0, 0.5);
-	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-		debayerParams_.red[i] = gammaTable[i];
-		debayerParams_.green[i] = gammaTable[i];
-		debayerParams_.blue[i] = gammaTable[i];
-	}
-
 	if (!dmaHeap_.isValid()) {
 		LOG(SoftwareIsp, Error) << "Failed to create DmaBufAllocator object";
 		return;

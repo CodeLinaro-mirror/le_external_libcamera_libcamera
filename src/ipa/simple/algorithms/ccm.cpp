@@ -42,7 +42,7 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData
 }
 
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, [[maybe_unused]] DebayerParams *params)
+		  IPAFrameContext &frameContext, DebayerParams *params)
 {
 	const unsigned int ct = context.activeState.awb.temperatureK;
 
@@ -51,13 +51,13 @@ void Ccm::prepare(IPAContext &context, const uint32_t frame,
 	    utils::abs_diff(ct, lastCt_) >= kTemperatureThreshold) {
 		currentCcm_ = ccm_.getInterpolated(ct);
 		lastCt_ = ct;
-		context.activeState.matrixChanged = true;
 	}
 
 	context.activeState.combinedMatrix =
 		currentCcm_ * context.activeState.combinedMatrix;
 	context.activeState.ccm = currentCcm_;
 	frameContext.ccm = currentCcm_;
+	params->combinedMatrix = context.activeState.combinedMatrix;
 }
 
 void Ccm::process([[maybe_unused]] IPAContext &context,

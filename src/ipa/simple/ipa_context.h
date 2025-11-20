@@ -53,17 +53,8 @@ struct IPAActiveState {
 		unsigned int temperatureK;
 	} awb;
 
-	static constexpr unsigned int kGammaLookupSize = 1024;
-	struct {
-		std::array<double, kGammaLookupSize> gammaTable;
-		uint8_t blackLevel;
-		float gamma;
-		float contrast;
-	} gamma;
-
 	Matrix<float, 3, 3> ccm;
 	Matrix<float, 3, 3> combinedMatrix;
-	bool matrixChanged = false;
 
 	struct {
 		std::optional<float> gamma;
