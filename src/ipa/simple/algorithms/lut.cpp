@@ -18,6 +18,8 @@
 
 #include "simple/ipa_context.h"
 
+#include "adjust.h"
+
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(IPASoftLut)
@@ -27,8 +29,6 @@ namespace ipa::soft::algorithms {
 int Lut::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	/* Gamma value is fixed */
-	context.configuration.gamma = 0.5;
 	updateGammaTable(context);
 
 	return 0;
@@ -39,6 +39,8 @@ void Lut::updateGammaTable(IPAContext &context)
 	auto &gammaTable = context.activeState.gamma.gammaTable;
 	const auto blackLevel = context.activeState.blc.level;
 	const unsigned int blackIndex = blackLevel * gammaTable.size() / 256;
+	const auto gamma =
+		1.0 / context.activeState.knobs.gamma.value_or(kDefaultGamma);
 	const auto contrast = context.activeState.knobs.contrast.value_or(1.0);
 
 	const float divisor = gammaTable.size() - blackIndex - 1.0;
@@ -52,7 +54,7 @@ void Lut::updateGammaTable(IPAContext &context)
 		else
 			normalized = 1.0 - 0.5 * std::pow((1.0 - normalized) / 0.5, contrastExp);
 		gammaTable[i] = UINT8_MAX *
-				std::pow(normalized, context.configuration.gamma);
+				std::pow(normalized, gamma);
 	}
 	/*
 	 * Due to CCM operations, the table lookup may reach indices below the black
@@ -63,6 +65,7 @@ void Lut::updateGammaTable(IPAContext &context)
 	std::fill(gammaTable.begin(), gammaTable.begin() + blackIndex,
 		  gammaTable[blackIndex]);
 
+	context.activeState.gamma.gamma = gamma;
 	context.activeState.gamma.blackLevel = blackLevel;
 	context.activeState.gamma.contrast = contrast;
 }
