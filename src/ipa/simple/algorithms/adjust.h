@@ -20,6 +20,8 @@ namespace libcamera {
 namespace ipa::soft::algorithms {
 
 const float kDefaultGamma = 2.2f;
+const float kDefaultContrast = 1.0f;
+const float kDefaultSaturation = 1.0f;
 
 class Adjust : public Algorithm
 {
