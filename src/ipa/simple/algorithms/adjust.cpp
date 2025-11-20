@@ -33,9 +33,9 @@ int Adjust::init(IPAContext &context, [[maybe_unused]] const YamlObject &tuningD
 int Adjust::configure(IPAContext &context,
 		      [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	context.activeState.knobs.gamma = std::optional<double>();
-	context.activeState.knobs.contrast = std::optional<double>();
-	context.activeState.knobs.saturation = std::optional<double>();
+	context.activeState.knobs.gamma = std::optional<float>();
+	context.activeState.knobs.contrast = std::optional<float>();
+	context.activeState.knobs.saturation = std::optional<float>();
 
 	return 0;
 }
