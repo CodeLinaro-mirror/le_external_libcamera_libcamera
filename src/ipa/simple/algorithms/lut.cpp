@@ -87,7 +87,7 @@ void Lut::updateGammaTable(IPAContext &context)
 	context.activeState.gamma.contrast = contrast;
 }
 
-int16_t Lut::ccmValue(unsigned int i, float ccm) const
+int16_t Lut::matrixValue(unsigned int i, float ccm) const
 {
 	return std::round(i * ccm);
 }
@@ -126,23 +126,23 @@ void Lut::prepare(IPAContext &context,
 			params->blue[i] = gammaTable[static_cast<unsigned int>(lutGains.b())];
 		}
 	} else if (context.activeState.matrixChanged || gammaUpdateNeeded) {
-		Matrix<float, 3, 3> gainCcm = { { gains.r(), 0, 0,
-						  0, gains.g(), 0,
-						  0, 0, gains.b() } };
-		auto ccm = context.activeState.ccm * gainCcm;
+		Matrix<float, 3, 3> gainMatrix = { { gains.r(), 0, 0,
+						     0, gains.g(), 0,
+						     0, 0, gains.b() } };
+		auto matrix = context.activeState.ccm * gainMatrix;
 		auto &red = params->redCcm;
 		auto &green = params->greenCcm;
 		auto &blue = params->blueCcm;
 		for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {
-			red[i].r = ccmValue(i, ccm[0][0]);
-			red[i].g = ccmValue(i, ccm[1][0]);
-			red[i].b = ccmValue(i, ccm[2][0]);
-			green[i].r = ccmValue(i, ccm[0][1]);
-			green[i].g = ccmValue(i, ccm[1][1]);
-			green[i].b = ccmValue(i, ccm[2][1]);
-			blue[i].r = ccmValue(i, ccm[0][2]);
-			blue[i].g = ccmValue(i, ccm[1][2]);
-			blue[i].b = ccmValue(i, ccm[2][2]);
+			red[i].r = matrixValue(i, matrix[0][0]);
+			red[i].g = matrixValue(i, matrix[1][0]);
+			red[i].b = matrixValue(i, matrix[2][0]);
+			green[i].r = matrixValue(i, matrix[0][1]);
+			green[i].g = matrixValue(i, matrix[1][1]);
+			green[i].b = matrixValue(i, matrix[2][1]);
+			blue[i].r = matrixValue(i, matrix[0][2]);
+			blue[i].g = matrixValue(i, matrix[1][2]);
+			blue[i].b = matrixValue(i, matrix[2][2]);
 			params->gammaLut[i] = gammaTable[i / div];
 		}
 		context.activeState.matrixChanged = false;
