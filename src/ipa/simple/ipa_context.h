@@ -60,10 +60,8 @@ struct IPAActiveState {
 		double contrast;
 	} gamma;
 
-	struct {
-		Matrix<float, 3, 3> ccm;
-		bool changed;
-	} ccm;
+	Matrix<float, 3, 3> ccm;
+	bool matrixChanged = false;
 
 	struct {
 		/* 0..2 range, 1.0 = normal */
