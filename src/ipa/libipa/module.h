@@ -81,6 +81,17 @@ private:
 			return -EINVAL;
 		}
 
+		/*
+		 * Optionally, algorithms can be disabled via the tuning file by including
+		 * enabled: false as a parameter within the algorithm tuning data.
+		 * This is not an error, so we return 0.
+		 */
+		if (!algoData["enabled"].get<bool>(true)) {
+			LOG(IPAModuleAlgo, Debug)
+				<< "Algorithm '" << name << "' disabled via tuning file";
+			return 0;
+		}
+
 		int ret = algo->init(context, algoData);
 		if (ret) {
 			LOG(IPAModuleAlgo, Error)
