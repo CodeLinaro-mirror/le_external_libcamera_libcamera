@@ -216,6 +216,11 @@ void Filter::prepare([[maybe_unused]] IPAContext &context,
 			config->fac_bl1 /= 2;
 		}
 	}
+	/* Set bit 0 of the config->mode to toggle on/off sharpness
+	 * if sharpness > 1, enable sharpness,  viseverse disable it
+	 */
+	config->mode &= ~(1u << 0);
+	config->mode |= static_cast<uint32_t>(sharpness > 1) << 0;
 }
 
 REGISTER_IPA_ALGORITHM(Filter, "Filter")
