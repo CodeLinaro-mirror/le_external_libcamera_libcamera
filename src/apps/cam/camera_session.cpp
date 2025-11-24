@@ -447,7 +447,7 @@ int CameraSession::queueRequest(Request *request)
 		return 0;
 
 	if (script_)
-		request->controls() = script_->frameControls(queueCount_);
+		request->controls().merge(script_->frameControls(queueCount_));
 
 	queueCount_++;
 
