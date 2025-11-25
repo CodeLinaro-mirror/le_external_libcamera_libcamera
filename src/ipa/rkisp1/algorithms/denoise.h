@@ -31,10 +31,20 @@ protected:
 	{
 		return true;
 	}
+	virtual void handleReductionModeControl([[maybe_unused]] const ControlList &controls,
+						[[maybe_unused]] IPAFrameContext &frameContext,
+						[[maybe_unused]] IPAContext &context,
+						[[maybe_unused]] uint32_t frame)
+	{
+	}
+	virtual int32_t getRunningMode() const { return currentRunMode_; }
+	virtual void setRunningMode(int32_t mode) { currentRunMode_ = mode; }
 
 private:
 	/**< Developer mode state for advanced controls */
 	bool devMode_ = false;
+	/**< Current denoise running mode */
+	int32_t currentRunMode_ = controls::rkisp1::DenoiseModeDisabled;
 };
 
 inline unsigned DenoiseBaseAlgorithm::computeExposureIndex(const IPAContext &context,

@@ -49,7 +49,13 @@ private:
 	std::vector<ExposureIndexLevelConfig> exposureIndexLevels_;
 	std::vector<ModeConfig> modes_;
 	bool useExposureIndexLevels_ = false;
+	int32_t currentReductionMode_ = controls::draft::NoiseReductionModeOff;
 
+	void handleReductionModeControl(const ControlList &controls,
+					IPAFrameContext &frameContext,
+					IPAContext &context,
+					uint32_t frame) override;
+	void loadReductionModeConfig(IPAFrameContext &frameContext);
 	bool parseConfig(const YamlObject &tuningData) override;
 	bool parseSingleConfig(const YamlObject &tuningData,
 			       rkisp1_cif_isp_dpf_config &config,

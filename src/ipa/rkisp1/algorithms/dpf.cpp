@@ -309,6 +309,55 @@ bool Dpf::parseSingleConfig(const YamlObject &tuningData,
 	return true;
 }
 
+void Dpf::handleReductionModeControl(const ControlList &controls,
+				     IPAFrameContext &frameContext,
+				     IPAContext &context,
+				     [[maybe_unused]] uint32_t frame)
+{
+	auto &dpf = context.activeState.dpf;
+	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
+	if (!denoise) {
+		frameContext.dpf.denoise = dpf.denoise;
+		return;
+	}
+	LOG(RkISP1Dpf, Debug) << "Set denoise mode to " << *denoise;
+
+	const auto requestedMode = static_cast<int32_t>(*denoise);
+	if (requestedMode == currentReductionMode_) {
+		frameContext.dpf.denoise = dpf.denoise;
+		return;
+	}
+
+	currentReductionMode_ = requestedMode;
+	if (requestedMode == controls::draft::NoiseReductionModeOff) {
+		dpf.denoise = false;
+		frameContext.dpf.denoise = false;
+		return;
+	}
+
+	dpf.denoise = true;
+	frameContext.dpf.denoise = true;
+	frameContext.dpf.update = true;
+}
+void Dpf::loadReductionModeConfig(IPAFrameContext &frameContext)
+{
+	/* Find mode config */
+	auto it = std::find_if(modes_.begin(), modes_.end(),
+			       [this](const ModeConfig &mode) {
+				       return mode.modeValue == currentReductionMode_;
+			       });
+	if (it == modes_.end()) {
+		LOG(RkISP1Dpf, Warning)
+			<< "No DPF config for reduction mode "
+			<< static_cast<int>(currentReductionMode_);
+		return;
+	}
+
+	/* Apply mode config */
+	config_ = it->dpf;
+	strengthConfig_ = it->strength;
+	frameContext.dpf.update = true;
+}
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -317,38 +366,14 @@ void Dpf::queueRequest(IPAContext &context,
 		       IPAFrameContext &frameContext,
 		       const ControlList &controls)
 {
-	auto &dpf = context.activeState.dpf;
-	bool update = false;
+	frameContext.dpf.update = false;
+	auto currentRunnungMode = getRunningMode();
+	handleReductionModeControl(controls, frameContext, context, frame);
 
-	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
-	if (denoise) {
-		LOG(RkISP1Dpf, Debug) << "Set denoise to " << *denoise;
-
-		switch (*denoise) {
-		case controls::draft::NoiseReductionModeOff:
-			if (dpf.denoise) {
-				dpf.denoise = false;
-				update = true;
-			}
-			break;
-		case controls::draft::NoiseReductionModeMinimal:
-		case controls::draft::NoiseReductionModeHighQuality:
-		case controls::draft::NoiseReductionModeFast:
-			if (!dpf.denoise) {
-				dpf.denoise = true;
-				update = true;
-			}
-			break;
-		default:
-			LOG(RkISP1Dpf, Error)
-				<< "Unsupported denoise value "
-				<< *denoise;
-			break;
-		}
+	if (currentRunnungMode == controls::rkisp1::DenoiseModeReduction && currentReductionMode_ != controls::draft::NoiseReductionModeOff) {
+		loadReductionModeConfig(frameContext);
+		return;
 	}
-
-	frameContext.dpf.denoise = dpf.denoise;
-	frameContext.dpf.update = update;
 }
 
 /**
