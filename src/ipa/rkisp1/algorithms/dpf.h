@@ -97,6 +97,11 @@ private:
 				int32_t exposureBandIndex,
 				bool anyOverride,
 				const IPAFrameContext &frameContext);
+	void prepareDisabledMode(IPAContext &context, const uint32_t frame,
+				 IPAFrameContext &frameContext,
+				 RkISP1Params *params) override;
+	void prepareEnabledMode(IPAContext &context, const uint32_t frame,
+				IPAFrameContext &frameContext, RkISP1Params *params) override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */

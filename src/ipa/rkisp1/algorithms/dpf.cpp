@@ -748,39 +748,104 @@ void Dpf::prepare(IPAContext &context, const uint32_t frame,
 {
 	if (!frameContext.dpf.update && frame > 0)
 		return;
-
-	auto config = params->block<BlockType::Dpf>();
-	config.setEnabled(frameContext.dpf.denoise);
-
-	auto strengthConfig = params->block<BlockType::DpfStrength>();
-	strengthConfig.setEnabled(frameContext.dpf.denoise);
-
-	if (frameContext.dpf.denoise) {
-		*config = config_;
-		*strengthConfig = strengthConfig_;
-
-		const auto &awb = context.configuration.awb;
-		const auto &lsc = context.configuration.lsc;
-
-		auto &mode = config->gain.mode;
-
-		/*
-		 * The DPF needs to take into account the total amount of
-		 * digital gain, which comes from the AWB and LSC modules. The
-		 * DPF hardware can be programmed with a digital gain value
-		 * manually, but can also use the gains supplied by the AWB and
-		 * LSC modules automatically when they are enabled. Use that
-		 * mode of operation as it simplifies control of the DPF.
-		 */
-		if (awb.enabled && lsc.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS;
-		else if (awb.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS;
-		else if (lsc.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS;
-		else
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED;
+	/* Check if denoise toggle off */
+	if (!frameContext.dpf.denoise) {
+		auto cfg = params->block<BlockType::Dpf>();
+		cfg.setEnabled(false);
+		auto str = params->block<BlockType::DpfStrength>();
+		str.setEnabled(false);
+		setRunningMode(controls::rkisp1::DenoiseModeDisabled);
+		return;
 	}
+
+	switch (getRunningMode()) {
+	case controls::rkisp1::DenoiseModeDisabled:
+		prepareDisabledMode(context, frame, frameContext, params);
+		break;
+	case controls::rkisp1::DenoiseModeAuto:
+	case controls::rkisp1::DenoiseModeManual:
+	case controls::rkisp1::DenoiseModeReduction:
+		prepareEnabledMode(context, frame, frameContext, params);
+		break;
+	default:
+		LOG(RkISP1Dpf, Warning) << "DPF in unknown mode";
+		break;
+	}
+}
+
+void Dpf::prepareEnabledMode(IPAContext &context, const uint32_t frame,
+			     IPAFrameContext &frameContext, RkISP1Params *params)
+{
+	uint32_t exposureGainIndex = computeExposureIndex(context, frameContext);
+
+	if (!frameContext.dpf.update && frame > 0)
+		return;
+
+	/* Select different DPF config determined by exposure index level for Auto mode */
+	if (getRunningMode() == controls::rkisp1::DenoiseModeAuto && useExposureIndexLevels_) {
+		int32_t idx =
+			DenoiseBaseAlgorithm::selectExposureIndexBand(
+				exposureGainIndex, exposureIndexLevels_);
+		if (idx >= 0 && idx != lastExposureGainIndex_) {
+			config_ = exposureIndexLevels_[idx].dpf;
+			strengthConfig_ = exposureIndexLevels_[idx].strength;
+			frameContext.dpf.update = true;
+			lastExposureGainIndex_ = idx;
+		}
+	}
+
+	auto cfgBlock = params->block<BlockType::Dpf>();
+	cfgBlock.setEnabled(true);
+	*cfgBlock = config_;
+
+	/*
+	 * The DPF needs to take into account the total amount of
+	 * digital gain, which comes from the AWB and LSC modules. The
+	 * DPF hardware can be programmed with a digital gain value
+	 * manually, but can also use the gains supplied by the AWB and
+	 * LSC modules automatically when they are enabled. Use that
+	 * mode of operation as it simplifies control of the DPF.
+	 */
+	const auto &awb = context.configuration.awb;
+	const auto &lsc = context.configuration.lsc;
+	auto &mode = cfgBlock->gain.mode;
+
+	if (awb.enabled && lsc.enabled)
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS;
+	else if (awb.enabled)
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS;
+	else if (lsc.enabled)
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS;
+	else
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED;
+
+	config_.gain.mode = mode;
+
+	auto strBlock = params->block<BlockType::DpfStrength>();
+	strBlock.setEnabled(true);
+
+	*strBlock = strengthConfig_;
+	bool anyOverride = false;
+	if (getRunningMode() == controls::rkisp1::DenoiseModeManual)
+		applyOverridesTo(*cfgBlock, *strBlock, anyOverride);
+
+	int32_t exposureGainIdx = lastExposureGainIndex_;
+	if (getRunningMode() == controls::rkisp1::DenoiseModeReduction)
+		exposureGainIdx = -1;
+
+	logConfigIfChanged(exposureGainIndex, exposureGainIdx, anyOverride, frameContext);
+}
+
+void Dpf::prepareDisabledMode([[maybe_unused]] IPAContext &context,
+			      [[maybe_unused]] const uint32_t frame,
+			      [[maybe_unused]] IPAFrameContext &frameContext,
+			      RkISP1Params *params)
+{
+	frameContext.dpf.denoise = false;
+	auto cfg = params->block<BlockType::Dpf>();
+	cfg.setEnabled(false);
+	auto str = params->block<BlockType::DpfStrength>();
+	str.setEnabled(false);
 }
 
 REGISTER_IPA_ALGORITHM(Dpf, "Dpf")

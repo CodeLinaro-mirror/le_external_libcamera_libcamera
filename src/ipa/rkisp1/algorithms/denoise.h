@@ -58,6 +58,18 @@ protected:
 	}
 	virtual int32_t getRunningMode() const { return currentRunMode_; }
 	virtual void setRunningMode(int32_t mode) { currentRunMode_ = mode; }
+	virtual void prepareDisabledMode([[maybe_unused]] IPAContext &context,
+					 [[maybe_unused]] const uint32_t frame,
+					 [[maybe_unused]] IPAFrameContext &frameContext,
+					 [[maybe_unused]] RkISP1Params *params)
+	{
+	}
+	virtual void prepareEnabledMode([[maybe_unused]] IPAContext &context,
+					[[maybe_unused]] const uint32_t frame,
+					[[maybe_unused]] IPAFrameContext &frameContext,
+					[[maybe_unused]] RkISP1Params *params)
+	{
+	}
 private:
 	/**< Developer mode state for advanced controls */
 	bool devMode_ = false;
