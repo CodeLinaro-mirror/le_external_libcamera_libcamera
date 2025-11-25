@@ -346,6 +346,13 @@ void ConverterDW100Module::updateControlInfos(const Stream *stream, ControlInfoM
 	if (dewarpParams_.has_value())
 		controls[&controls::LensDewarpEnable] = ControlInfo(false, true, true);
 
+	controls[&controls::Dw100Scale] = ControlInfo(0.2f, 8.0f, 1.0f);
+	controls[&controls::Dw100Rotation] = ControlInfo(-180.0f, 180.0f, 0.0f);
+	controls[&controls::Dw100Offset] =
+		ControlInfo(Point(-10000, -10000), Point(10000, 10000), Point(0, 0));
+	controls[&controls::Dw100ScaleMode] =
+		ControlInfo(controls::Dw100ScaleModeValues, controls::Dw100ScaleModeFill);
+
 	if (!converter_.supportsRequests())
 		LOG(Converter, Warning)
 			<< "dw100 kernel driver has no requests support."
@@ -368,6 +375,30 @@ void ConverterDW100Module::setControls(const Stream *stream, const ControlList &
 
 	auto &info = vertexMaps_[stream];
 	auto &vertexMap = info.map;
+
+	const auto &scale = controls.get(controls::Dw100Scale);
+	if (scale) {
+		vertexMap.setScale(*scale);
+		info.update = true;
+	}
+
+	const auto &rotation = controls.get(controls::Dw100Rotation);
+	if (rotation) {
+		vertexMap.setRotation(*rotation);
+		info.update = true;
+	}
+
+	const auto &offset = controls.get(controls::Dw100Offset);
+	if (offset) {
+		vertexMap.setOffset(*offset);
+		info.update = true;
+	}
+
+	const auto &scaleMode = controls.get(controls::Dw100ScaleMode);
+	if (scaleMode) {
+		vertexMap.setMode(static_cast<Dw100VertexMap::ScaleMode>(*scaleMode));
+		info.update = true;
+	}
 
 	const auto &lensDewarpEnable = controls.get(controls::LensDewarpEnable);
 	if (lensDewarpEnable) {
@@ -402,6 +433,11 @@ void ConverterDW100Module::populateMetadata(const Stream *stream, ControlList &m
 
 	auto &vertexMap = vertexMaps_[stream].map;
 
+	std::array<float, 2> effectiveScale = vertexMap.effectiveScale();
+	meta.set(controls::Dw100EffectiveScale, effectiveScale);
+	meta.set(controls::Dw100Scale, (effectiveScale[0] + effectiveScale[1]) / 2.0);
+	meta.set(controls::Dw100Rotation, vertexMap.rotation());
+	meta.set(controls::Dw100Offset, vertexMap.effectiveOffset());
 	meta.set(controls::ScalerCrop, vertexMap.effectiveScalerCrop());
 
 	if (dewarpParams_.has_value())

@@ -1353,4 +1353,54 @@ controls:
         Enable or disable lens dewarping. This control is only available if lens
         dewarp parameters are configured in the tuning file.
 
+  - Dw100ScaleMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Scale mode of the dewarper.
+      enum:
+        - name: Dw100ScaleModeFill
+          value: 0
+          description: |
+            Fills the given output size with the largest rectangle possible.
+            Aspect ratio is not preserved. Dw100Scale is ignored.
+        - name: Dw100ScaleModeCrop
+          value: 1
+          description: |
+            Crops to the given output size. The scale factor can be specified
+            using Dw100Scale. Aspect ratio is preserved.
+
+  - Dw100Scale:
+      type: float
+      direction: inout
+      description: |
+        Scale factor applied to the image when Dw100ScaleMode is set to Crop.
+        This value is clamped, so that all pixels have valid input data.
+        Therefore a value of 0 always provides the largest possible field of
+        view. Scaling happens centered around the center of the ScalerCrop +
+        Dw10Offset.
+
+  - Dw100Rotation:
+      type: float
+      direction: inout
+      description: |
+        Rotates the image by the given angle in degrees in clockwise direction
+        around the center of ScalerCrop + Dw100Offset
+
+  - Dw100Offset:
+      type: Point
+      direction: inout
+      description: |
+        Moves the image by the given values in x and y direction in sensor
+        coordinate space. This is clamped, so that all output pixels contain
+        valid data. The offset is therefore ignored when the Dw100Scale value is
+        too small.
+
+  - Dw100EffectiveScale:
+      type: float
+      direction: out
+      description: |
+        Effective scale
+      size: [2]
+
 ...
