@@ -339,6 +339,17 @@ void Dpf::handleReductionModeControl(const ControlList &controls,
 	frameContext.dpf.denoise = true;
 	frameContext.dpf.update = true;
 }
+
+void Dpf::handleDisableMode(IPAFrameContext &frameContext, IPAContext &context)
+{
+	/* Reset reduction mode to Off when DPF is disabled */
+	currentReductionMode_ = controls::draft::NoiseReductionModeOff;
+
+	/* Ensure denoise is disabled */
+	context.activeState.dpf.denoise = false;
+	frameContext.dpf.denoise = false;
+}
+
 void Dpf::loadReductionModeConfig(IPAFrameContext &frameContext)
 {
 	/* Find mode config */
@@ -474,6 +485,76 @@ bool Dpf::checkOverridesChanged()
 	return false;
 }
 
+void Dpf::snapshotCurrentToOverrides()
+{
+	/* clear previous overrides */
+	overrides_.clear();
+	overrides_.strength = DpfStrengthSettings{
+		strengthConfig_.r,
+		strengthConfig_.g,
+		strengthConfig_.b
+	};
+	if (!isDevMode())
+		return;
+	/* Snapshot current config to overrides */
+	DpfSpatialGreenSettings green;
+	std::copy_n(std::begin(config_.g_flt.spatial_coeff),
+		    RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS,
+		    green.coeffs.begin());
+	overrides_.spatialGreen = green;
+	DpfSpatialRbSettings rb;
+	std::copy_n(std::begin(config_.rb_flt.spatial_coeff),
+		    RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS,
+		    rb.coeffs.begin());
+	rb.size = (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9)
+			  ? 1
+			  : 0;
+	overrides_.spatialRb = rb;
+	overrides_.rbSize = rb.size;
+	DpfNllSettings nll;
+	std::copy_n(std::begin(config_.nll.coeff),
+		    RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS,
+		    nll.coeffs.begin());
+	nll.scaleMode = (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC)
+				? 1
+				: 0;
+	overrides_.nll = nll;
+}
+
+void Dpf::restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext)
+{
+	/* clear previous overrides */
+	overrides_.clear();
+	if (useExposureIndexLevels_) {
+		uint32_t exposureIndex = computeExposureIndex(context, frameContext);
+		int32_t idx =
+			DenoiseBaseAlgorithm::selectExposureIndexBand(exposureIndex,
+								      exposureIndexLevels_);
+		if (idx >= 0) {
+			config_ = exposureIndexLevels_[idx].dpf;
+			strengthConfig_ = exposureIndexLevels_[idx].strength;
+			lastExposureGainIndex_ = idx;
+		}
+	} else {
+		config_ = baseConfig_;
+		strengthConfig_ = baseStrengthConfig_;
+		lastExposureGainIndex_ = -1;
+	}
+	frameContext.dpf.update = true;
+}
+
+bool Dpf::processModeChange(const ControlList &controls, [[maybe_unused]] uint32_t currentFrame)
+{
+	const auto &cMode = controls.get(controls::rkisp1::DenoiseMode);
+	if (!cMode)
+		return false;
+	int32_t requestedMode = static_cast<int32_t>(*cMode);
+	auto currentMode = getRunningMode();
+
+	setRunningMode(requestedMode);
+	return (currentMode != getRunningMode());
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -483,13 +564,45 @@ void Dpf::queueRequest(IPAContext &context,
 		       const ControlList &controls)
 {
 	frameContext.dpf.update = false;
-	auto currentRunnungMode = getRunningMode();
-	handleReductionModeControl(controls, frameContext, context, frame);
 
-	if (currentRunnungMode == controls::rkisp1::DenoiseModeReduction && currentReductionMode_ != controls::draft::NoiseReductionModeOff) {
-		loadReductionModeConfig(frameContext);
+	auto modeChanged = processModeChange(controls, frame);
+	switch (getRunningMode()) {
+	case controls::rkisp1::DenoiseModeManual:
+		snapshotCurrentToOverrides();
+		collectManualOverrides(controls);
+		if (checkOverridesChanged()) {
+			frameContext.dpf.update = true;
+		}
+		LOG(RkISP1Dpf, Debug) << "DPF mode=Manual (snapshot captured)";
+		break;
+	case controls::rkisp1::DenoiseModeAuto:
+		restoreAutoConfig(context, frameContext);
+		LOG(RkISP1Dpf, Debug) << "DPF mode=Auto (restored auto config)";
+		break;
+	case controls::rkisp1::DenoiseModeReduction:
+		handleReductionModeControl(controls,
+					   frameContext,
+					   context,
+					   frame); /* Check reduction mode first */
+		if (currentReductionMode_ != controls::draft::NoiseReductionModeOff) {
+			loadReductionModeConfig(frameContext);
+		}
+		LOG(RkISP1Dpf, Debug) << "DPF mode=Reduction (config loaded)";
+		break;
+	case controls::rkisp1::DenoiseModeDisabled:
+		handleDisableMode(frameContext, context);
+		break;
+	default:
+		LOG(RkISP1Dpf, Warning) << "DPF mode=Disabled";
 		return;
 	}
+	/* Set denoise based on mode */
+
+	if (modeChanged)
+		frameContext.dpf.update = true;
+	bool denoise = (getRunningMode() != controls::rkisp1::DenoiseModeDisabled);
+	context.activeState.dpf.denoise = denoise;
+	frameContext.dpf.denoise = denoise;
 }
 
 /**

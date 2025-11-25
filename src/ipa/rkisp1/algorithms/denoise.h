@@ -35,10 +35,25 @@ protected:
 	virtual void collectManualOverrides([[maybe_unused]] const ControlList &controls)
 	{
 	}
+	virtual bool processModeChange([[maybe_unused]] const ControlList &controls,
+				       [[maybe_unused]] uint32_t currentFrame)
+	{
+		return false;
+	}
+	virtual void snapshotCurrentToOverrides()
+	{
+	}
+	virtual void restoreAutoConfig([[maybe_unused]] IPAContext &context, [[maybe_unused]] IPAFrameContext &frameContext)
+	{
+	}
 	virtual void handleReductionModeControl([[maybe_unused]] const ControlList &controls,
 						[[maybe_unused]] IPAFrameContext &frameContext,
 						[[maybe_unused]] IPAContext &context,
 						[[maybe_unused]] uint32_t frame)
+	{
+	}
+	virtual void handleDisableMode([[maybe_unused]] IPAFrameContext &frameContext,
+				       [[maybe_unused]] IPAContext &context)
 	{
 	}
 	virtual int32_t getRunningMode() const { return currentRunMode_; }

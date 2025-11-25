@@ -71,12 +71,14 @@ private:
 	std::vector<ExposureIndexLevelConfig> exposureIndexLevels_;
 	std::vector<ModeConfig> modes_;
 	bool useExposureIndexLevels_ = false;
+	int32_t lastExposureGainIndex_ = -1;
 	int32_t currentReductionMode_ = controls::draft::NoiseReductionModeOff;
 
 	void handleReductionModeControl(const ControlList &controls,
 					IPAFrameContext &frameContext,
 					IPAContext &context,
 					uint32_t frame) override;
+	void handleDisableMode(IPAFrameContext &frameContext, IPAContext &context) override;
 	void loadReductionModeConfig(IPAFrameContext &frameContext);
 	void collectManualOverrides(const ControlList &controls) override;
 	bool checkOverridesChanged();
@@ -84,6 +86,12 @@ private:
 	bool parseSingleConfig(const YamlObject &tuningData,
 			       rkisp1_cif_isp_dpf_config &config,
 			       rkisp1_cif_isp_dpf_strength_config &strengthConfig);
+
+	bool processModeChange(const ControlList &controls, uint32_t currentFrame) override;
+
+	void snapshotCurrentToOverrides() override;
+
+	void restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext) override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
