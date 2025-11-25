@@ -33,6 +33,17 @@ LOG_DECLARE_CATEGORY(Converter)
  * and it has direct support for libcamera controls.
  */
 
+namespace {
+
+/*
+ * This flag allows to use dynamic dewarp maps to support pan, zoom, rotate when
+ * the kernel driver doesn't support requests. Only needed for legacy customer
+ * kernels.
+ */
+static constexpr bool kAllowDynamicDewarpMapsWithoutRequests = true;
+
+} /* namespace */
+
 ConverterDW100Module::ConverterDW100Module(std::shared_ptr<MediaDevice> media)
 	: converter_(media), running_(false)
 {
@@ -353,7 +364,7 @@ void ConverterDW100Module::updateControlInfos(const Stream *stream, ControlInfoM
 	controls[&controls::Dw100ScaleMode] =
 		ControlInfo(controls::Dw100ScaleModeValues, controls::Dw100ScaleModeFill);
 
-	if (!converter_.supportsRequests())
+	if (!converter_.supportsRequests() && !kAllowDynamicDewarpMapsWithoutRequests)
 		LOG(Converter, Warning)
 			<< "dw100 kernel driver has no requests support."
 			   " Dynamic configuration is not possible.";
