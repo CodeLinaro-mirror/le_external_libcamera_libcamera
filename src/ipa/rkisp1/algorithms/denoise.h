@@ -22,6 +22,7 @@ protected:
 	~DenoiseBaseAlgorithm() = default;
 	virtual void setDevMode(bool dev) { devMode_ = dev; }
 	virtual bool isDevMode() const { return devMode_; }
+
 	virtual uint32_t computeExposureIndex(const IPAContext &context,
 					      const IPAFrameContext &frameContext) const;
 	template<typename LevelContainer>
@@ -31,6 +32,9 @@ protected:
 	{
 		return true;
 	}
+	virtual void collectManualOverrides([[maybe_unused]] const ControlList &controls)
+	{
+	}
 	virtual void handleReductionModeControl([[maybe_unused]] const ControlList &controls,
 						[[maybe_unused]] IPAFrameContext &frameContext,
 						[[maybe_unused]] IPAContext &context,
@@ -39,7 +43,6 @@ protected:
 	}
 	virtual int32_t getRunningMode() const { return currentRunMode_; }
 	virtual void setRunningMode(int32_t mode) { currentRunMode_ = mode; }
-
 private:
 	/**< Developer mode state for advanced controls */
 	bool devMode_ = false;
