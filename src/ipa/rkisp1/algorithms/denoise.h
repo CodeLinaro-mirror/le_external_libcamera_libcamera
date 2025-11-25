@@ -70,6 +70,7 @@ protected:
 					[[maybe_unused]] RkISP1Params *params)
 	{
 	}
+	virtual ControlInfoMap::Map getControlMap() const;
 private:
 	/**< Developer mode state for advanced controls */
 	bool devMode_ = false;
@@ -99,6 +100,14 @@ uint32_t DenoiseBaseAlgorithm::selectExposureIndexBand(unsigned exposureIndex,
 	return idx;
 }
 
+inline ControlInfoMap::Map DenoiseBaseAlgorithm::getControlMap() const
+{
+	ControlInfoMap::Map map;
+	map[&controls::rkisp1::DenoiseMode] =
+		ControlInfo(controls::rkisp1::DenoiseModeValues);
+	map[&controls::rkisp1::ExposureGainIndex] = ControlInfo(0, 6400, 0);
+	return map;
+}
 } /* namespace ipa::rkisp1::algorithms */
 
 } /* namespace libcamera */

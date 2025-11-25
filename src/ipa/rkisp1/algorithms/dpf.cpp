@@ -84,6 +84,9 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< " mode(s) from tuning";
 	}
 
+	/* Init controls value from YAML */
+	auto dpfMap = getControlMap();
+	context.ctrlMap.insert(dpfMap.begin(), dpfMap.end());
 	return 0;
 }
 
@@ -688,6 +691,66 @@ void Dpf::logConfigIfChanged(uint32_t exposureGainIndex,
 	lastCfg = config_;
 	lastStr = strengthConfig_;
 	haveLast = true;
+}
+
+ControlInfoMap::Map Dpf::getControlMap() const
+{
+	ControlInfoMap::Map map = DenoiseBaseAlgorithm::getControlMap();
+
+	std::array<int32_t, 3> strengthDefault = {
+		static_cast<int32_t>(baseStrengthConfig_.r),
+		static_cast<int32_t>(baseStrengthConfig_.g),
+		static_cast<int32_t>(baseStrengthConfig_.b),
+	};
+	map[&controls::rkisp1::DpfChannelStrengths] =
+		ControlInfo(0, 255, Span<const int32_t, 3>(strengthDefault));
+
+	if (!isDevMode())
+		return map;
+
+	const auto copyCoefficients = [](const auto &src, auto &dest) {
+		for (size_t i = 0; i < dest.size(); ++i)
+			dest[i] = static_cast<int32_t>(src[i]);
+	};
+
+	std::array<int32_t, RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS> greenCoeffs{};
+	copyCoefficients(baseConfig_.g_flt.spatial_coeff, greenCoeffs);
+	map[&controls::rkisp1::DpfGreenSpatialCoefficients] =
+		ControlInfo(0, 63,
+			    Span<const int32_t,
+				 RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS>(greenCoeffs));
+
+	std::array<int32_t, RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS> rbCoeffs{};
+	copyCoefficients(baseConfig_.rb_flt.spatial_coeff, rbCoeffs);
+	map[&controls::rkisp1::DpfRedBlueSpatialCoefficients] =
+		ControlInfo(0, 63,
+			    Span<const int32_t,
+				 RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS>(rbCoeffs));
+
+	int32_t rbSizeDefault = baseConfig_.rb_flt.fltsize ==
+						RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+					? 1
+					: 0;
+	map[&controls::rkisp1::DpfRbFilterSize] =
+		ControlInfo(controls::rkisp1::DpfRbFilterSizeValues,
+			    ControlValue(rbSizeDefault));
+
+	std::array<int32_t, RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS> nllCoeffs{};
+	copyCoefficients(baseConfig_.nll.coeff, nllCoeffs);
+	map[&controls::rkisp1::DpfNoiseLevelLookupCoefficients] =
+		ControlInfo(0, 1023,
+			    Span<const int32_t,
+				 RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS>(nllCoeffs));
+
+	int32_t scaleModeDefault = baseConfig_.nll.scale_mode ==
+						   RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC
+					   ? 1
+					   : 0;
+	map[&controls::rkisp1::DpfNoiseLevelLookupScaleMode] =
+		ControlInfo(controls::rkisp1::DpfNoiseLevelLookupScaleModeValues,
+			    ControlValue(scaleModeDefault));
+
+	return map;
 }
 
 /**

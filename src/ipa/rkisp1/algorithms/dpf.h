@@ -102,6 +102,7 @@ private:
 				 RkISP1Params *params) override;
 	void prepareEnabledMode(IPAContext &context, const uint32_t frame,
 				IPAFrameContext &frameContext, RkISP1Params *params) override;
+	ControlInfoMap::Map getControlMap() const override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
