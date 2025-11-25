@@ -766,8 +766,16 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 	sensorFormat_ = sensor->getFormat(mbusCodes, accumulatedSensorSize,
 					  mainPath->maxResolution());
 
-	if (sensorFormat_.size.isNull())
+	if (sensorFormat_.size.isNull()) {
+		/*
+		 * \todo When can this happen? Should we return a failure in
+		 * this case?
+		 */
 		sensorFormat_.size = sensor->resolution();
+		LOG(RkISP1, Warning)
+			<< "Failed to select sensor format. Default to "
+			<< sensorFormat_;
+	}
 
 	return status;
 }
