@@ -79,6 +79,7 @@ private:
 					uint32_t frame) override;
 	void loadReductionModeConfig(IPAFrameContext &frameContext);
 	void collectManualOverrides(const ControlList &controls) override;
+	bool checkOverridesChanged();
 	bool parseConfig(const YamlObject &tuningData) override;
 	bool parseSingleConfig(const YamlObject &tuningData,
 			       rkisp1_cif_isp_dpf_config &config,

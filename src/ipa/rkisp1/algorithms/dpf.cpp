@@ -424,6 +424,56 @@ void Dpf::collectManualOverrides(const ControlList &controls)
 	}
 }
 
+bool Dpf::checkOverridesChanged()
+{
+	/* Check strength always (not dev-mode specific) */
+	if (overrides_.strength) {
+		if (overrides_.strength->r != strengthConfig_.r ||
+		    overrides_.strength->g != strengthConfig_.g ||
+		    overrides_.strength->b != strengthConfig_.b) {
+			return true;
+		}
+	}
+
+	if (!isDevMode())
+		return false;
+
+	if (overrides_.spatialGreen &&
+	    !std::equal(overrides_.spatialGreen->coeffs.begin(), overrides_.spatialGreen->coeffs.end(),
+			config_.g_flt.spatial_coeff)) {
+		return true;
+	}
+	if (overrides_.spatialRb &&
+	    !std::equal(overrides_.spatialRb->coeffs.begin(), overrides_.spatialRb->coeffs.end(),
+			config_.rb_flt.spatial_coeff)) {
+		return true;
+	}
+	if (overrides_.rbSize) {
+		bool currentRbSize =
+			(config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9)
+				? 1
+				: 0;
+		if (*overrides_.rbSize != currentRbSize) {
+			return true;
+		}
+	}
+	if (overrides_.nll) {
+		bool coeffsChanged =
+			!std::equal(overrides_.nll->coeffs.begin(),
+				    overrides_.nll->coeffs.end(),
+				    config_.nll.coeff);
+		bool scaleChanged =
+			overrides_.nll->scaleMode !=
+			(config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC
+				 ? 1
+				 : 0);
+		if (coeffsChanged || scaleChanged) {
+			return true;
+		}
+	}
+	return false;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
