@@ -8,6 +8,7 @@
 #include "dpf.h"
 
 #include <algorithm>
+#include <array>
 #include <string>
 #include <vector>
 
@@ -37,7 +38,7 @@ namespace ipa::rkisp1::algorithms {
 LOG_DEFINE_CATEGORY(RkISP1Dpf)
 
 Dpf::Dpf()
-	: config_({}), strengthConfig_({})
+	: config_({}), strengthConfig_({}), baseConfig_({}), baseStrengthConfig_({})
 {
 }
 
@@ -47,14 +48,130 @@ Dpf::Dpf()
 int Dpf::init([[maybe_unused]] IPAContext &context,
 	      const YamlObject &tuningData)
 {
-	std::vector<uint8_t> values;
+	/* Parse tuning block */
+	if (!parseConfig(tuningData))
+		return -EINVAL;
 
+	/* Log parsed base tuning (counts are always full-sized for base). */
+	LOG(RkISP1Dpf, Info)
+		<< "DPF init: base tuning parsed, G coeffs="
+		<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
+		<< ", RB fltsize="
+		<< (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9 ? "13x9" : "9x9")
+		<< ", NLL coeffs=" << RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS
+		<< ", NLL scale="
+		<< (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC ? "log" : "linear")
+		<< ", Strength (r,g,b)="
+		<< (int)strengthConfig_.r << "," << (int)strengthConfig_.g
+		<< "," << (int)strengthConfig_.b;
+
+	/* Preserve base (non-exposure index) YAML configuration for restoration after manual mode. */
+	baseConfig_ = config_;
+	baseStrengthConfig_ = strengthConfig_;
+
+	/* Optional exposure index-banded tuning */
+	if (useExposureIndexLevels_) {
+		LOG(RkISP1Dpf, Info)
+			<< "DPF init: loaded " << exposureIndexLevels_.size()
+			<< " exposureIndex level(s) from tuning";
+	}
+
+	/* Optional mode tuning */
+	if (!modes_.empty()) {
+		LOG(RkISP1Dpf, Info)
+			<< "DPF init: loaded " << modes_.size()
+			<< " mode(s) from tuning";
+	}
+
+	return 0;
+}
+
+bool Dpf::parseConfig(const YamlObject &tuningData)
+{
+	/* Parse base config */
+	if (!parseSingleConfig(tuningData, config_, strengthConfig_))
+		return false;
+
+	baseConfig_ = config_;
+	baseStrengthConfig_ = strengthConfig_;
+
+	/* Optional developer mode flag (default true). If false, only basic manual controls available. */
+	bool devMode = tuningData["devmode"].get<bool>().value_or(true);
+	setDevMode(devMode);
+
+	/* Parse exposure index levels */
+	if (tuningData.contains("ExposureIndexLevels")) {
+		useExposureIndexLevels_ = true;
+		exposureIndexLevels_.clear();
+		for (const auto &entry : tuningData["ExposureIndexLevels"].asList()) {
+			std::optional<uint32_t> maxExposureIndexOpt =
+				entry["maxExposureIndex"].get<uint32_t>();
+			if (!maxExposureIndexOpt) {
+				LOG(RkISP1Dpf, Error) << "ExposureIndexLevels entry missing maxExposureIndex";
+				continue;
+			}
+			ExposureIndexLevelConfig lvl{};
+			lvl.maxExposureIndex = *maxExposureIndexOpt;
+			if (!parseSingleConfig(entry, lvl.dpf, lvl.strength))
+				continue;
+			exposureIndexLevels_.push_back(lvl);
+		}
+		std::sort(exposureIndexLevels_.begin(), exposureIndexLevels_.end(),
+			  [](const ExposureIndexLevelConfig &a, const ExposureIndexLevelConfig &b) {
+				  return a.maxExposureIndex < b.maxExposureIndex;
+			  });
+	}
+
+	/* Parse modes */
+	if (tuningData.contains("NoiseReductionMode")) {
+		modes_.clear();
+		for (const auto &entry : tuningData["NoiseReductionMode"].asList()) {
+			std::optional<std::string> typeOpt =
+				entry["type"].get<std::string>();
+			if (!typeOpt) {
+				LOG(RkISP1Dpf, Error) << "Modes entry missing type";
+				continue;
+			}
+
+			int32_t modeValue;
+			if (*typeOpt == "minimal") {
+				modeValue = controls::draft::NoiseReductionModeMinimal;
+			} else if (*typeOpt == "highquality") {
+				modeValue = controls::draft::NoiseReductionModeHighQuality;
+			} else if (*typeOpt == "fast") {
+				modeValue = controls::draft::NoiseReductionModeFast;
+			} else if (*typeOpt == "zsl") {
+				modeValue = controls::draft::NoiseReductionModeZSL;
+			} else {
+				LOG(RkISP1Dpf, Error) << "Unknown mode type: " << *typeOpt;
+				continue;
+			}
+
+			ModeConfig mode{};
+			mode.modeValue = modeValue;
+			if (!parseSingleConfig(entry, mode.dpf, mode.strength))
+				continue;
+			modes_.push_back(mode);
+		}
+	}
+
+	return true;
+}
+
+bool Dpf::parseSingleConfig(const YamlObject &tuningData,
+			    rkisp1_cif_isp_dpf_config &config,
+			    rkisp1_cif_isp_dpf_strength_config &strengthConfig)
+{
+	std::vector<uint8_t> values;
 	/*
 	 * The domain kernel is configured with a 9x9 kernel for the green
 	 * pixels, and a 13x9 or 9x9 kernel for red and blue pixels.
 	 */
+	if (!tuningData.contains("DomainFilter")) {
+		LOG(RkISP1Dpf, Error) << "DomainFilter section missing";
+		return false;
+	}
 	const YamlObject &dFObject = tuningData["DomainFilter"];
-
 	/*
 	 * For the green component, we have the 9x9 kernel specified
 	 * as 6 coefficients:
@@ -78,14 +195,14 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< "Invalid 'DomainFilter:g': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
 			<< " elements, got " << values.size();
-		return -EINVAL;
+		return false;
 	}
 
 	std::copy_n(values.begin(), values.size(),
-		    std::begin(config_.g_flt.spatial_coeff));
+		    std::begin(config.g_flt.spatial_coeff));
 
-	config_.g_flt.gr_enable = true;
-	config_.g_flt.gb_enable = true;
+	config.g_flt.gr_enable = true;
+	config.g_flt.gb_enable = true;
 
 	/*
 	 * For the red and blue components, we have the 13x9 kernel specified
@@ -116,24 +233,28 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1
 			<< " or " << RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
 			<< " elements, got " << values.size();
-		return -EINVAL;
+		return false;
 	}
 
-	config_.rb_flt.fltsize = values.size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
-			       ? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
-			       : RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
+	config.rb_flt.fltsize = values.size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
+					? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+					: RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
 
 	std::copy_n(values.begin(), values.size(),
-		    std::begin(config_.rb_flt.spatial_coeff));
+		    std::begin(config.rb_flt.spatial_coeff));
 
-	config_.rb_flt.r_enable = true;
-	config_.rb_flt.b_enable = true;
+	config.rb_flt.r_enable = true;
+	config.rb_flt.b_enable = true;
 
 	/*
 	 * The range kernel is configured with a noise level lookup table (NLL)
 	 * which stores a piecewise linear function that characterizes the
 	 * sensor noise profile as a noise level function curve (NLF).
 	 */
+	if (!tuningData.contains("NoiseLevelFunction")) {
+		LOG(RkISP1Dpf, Error) << "NoiseLevelFunction section missing";
+		return false;
+	}
 	const YamlObject &rFObject = tuningData["NoiseLevelFunction"];
 
 	std::vector<uint16_t> nllValues;
@@ -143,32 +264,49 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< "Invalid 'RangeFilter:coeff': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS
 			<< " elements, got " << nllValues.size();
-		return -EINVAL;
+		return false;
 	}
 
 	std::copy_n(nllValues.begin(), nllValues.size(),
-		    std::begin(config_.nll.coeff));
+		    std::begin(config.nll.coeff));
 
 	std::string scaleMode = rFObject["scale-mode"].get<std::string>("");
 	if (scaleMode == "linear") {
-		config_.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
+		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
 	} else if (scaleMode == "logarithmic") {
-		config_.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
+		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
 	} else {
 		LOG(RkISP1Dpf, Error)
 			<< "Invalid 'RangeFilter:scale-mode': expected "
 			<< "'linear' or 'logarithmic' value, got "
 			<< scaleMode;
-		return -EINVAL;
+		return false;
 	}
 
+	if (!tuningData.contains("Gain")) {
+		LOG(RkISP1Dpf, Error) << "Gain section missing";
+		return false;
+	}
+	const YamlObject &gObject = tuningData["Gain"];
+
+	config.gain.mode =
+		gObject["gain_mode"].get<uint32_t>().value_or(
+			RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS);
+	config.gain.nf_r_gain = gObject["nf_r_gain"].get<uint16_t>().value_or(256);
+	config.gain.nf_b_gain = gObject["nf_b_gain"].get<uint16_t>().value_or(256);
+	config.gain.nf_gr_gain = gObject["nf_gr_gain"].get<uint16_t>().value_or(256);
+	config.gain.nf_gb_gain = gObject["nf_gb_gain"].get<uint16_t>().value_or(256);
+
+	if (!tuningData.contains("FilterStrength")) {
+		LOG(RkISP1Dpf, Error) << "FilterStrength section missing";
+		return false;
+	}
 	const YamlObject &fSObject = tuningData["FilterStrength"];
 
-	strengthConfig_.r = fSObject["r"].get<uint16_t>(64);
-	strengthConfig_.g = fSObject["g"].get<uint16_t>(64);
-	strengthConfig_.b = fSObject["b"].get<uint16_t>(64);
-
-	return 0;
+	strengthConfig.r = fSObject["r"].get<uint8_t>().value_or(64);
+	strengthConfig.g = fSObject["g"].get<uint8_t>().value_or(64);
+	strengthConfig.b = fSObject["b"].get<uint8_t>().value_or(64);
+	return true;
 }
 
 /**

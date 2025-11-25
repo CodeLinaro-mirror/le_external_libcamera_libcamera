@@ -20,12 +20,21 @@ class DenoiseBaseAlgorithm : public ipa::rkisp1::Algorithm
 protected:
 	DenoiseBaseAlgorithm() = default;
 	~DenoiseBaseAlgorithm() = default;
-
+	virtual void setDevMode(bool dev) { devMode_ = dev; }
+	virtual bool isDevMode() const { return devMode_; }
 	virtual uint32_t computeExposureIndex(const IPAContext &context,
 					      const IPAFrameContext &frameContext) const;
 	template<typename LevelContainer>
 	uint32_t selectExposureIndexBand(unsigned exposureIndex,
 					 const LevelContainer &levels) const;
+	virtual bool parseConfig([[maybe_unused]] const YamlObject &tuningData)
+	{
+		return true;
+	}
+
+private:
+	/**< Developer mode state for advanced controls */
+	bool devMode_ = false;
 };
 
 inline unsigned DenoiseBaseAlgorithm::computeExposureIndex(const IPAContext &context,

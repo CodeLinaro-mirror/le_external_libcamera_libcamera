@@ -10,12 +10,13 @@
 #include <sys/types.h>
 
 #include "algorithm.h"
+#include "denoise.h"
 
 namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
 
-class Dpf : public Algorithm
+class Dpf : public DenoiseBaseAlgorithm
 {
 public:
 	Dpf();
@@ -32,6 +33,27 @@ public:
 private:
 	struct rkisp1_cif_isp_dpf_config config_;
 	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_;
+	struct rkisp1_cif_isp_dpf_config baseConfig_;
+	struct rkisp1_cif_isp_dpf_strength_config baseStrengthConfig_;
+	struct ExposureIndexLevelConfig {
+		uint32_t maxExposureIndex; /* inclusive upper bound */
+		struct rkisp1_cif_isp_dpf_config dpf;
+		struct rkisp1_cif_isp_dpf_strength_config strength;
+	};
+	struct ModeConfig {
+		int32_t modeValue;
+		struct rkisp1_cif_isp_dpf_config dpf;
+		struct rkisp1_cif_isp_dpf_strength_config strength;
+	};
+
+	std::vector<ExposureIndexLevelConfig> exposureIndexLevels_;
+	std::vector<ModeConfig> modes_;
+	bool useExposureIndexLevels_ = false;
+
+	bool parseConfig(const YamlObject &tuningData) override;
+	bool parseSingleConfig(const YamlObject &tuningData,
+			       rkisp1_cif_isp_dpf_config &config,
+			       rkisp1_cif_isp_dpf_strength_config &strengthConfig);
 };
 
 } /* namespace ipa::rkisp1::algorithms */
