@@ -71,6 +71,10 @@ protected:
 	{
 	}
 	virtual ControlInfoMap::Map getControlMap() const;
+	virtual void fillMetadata(IPAContext &context,
+				  IPAFrameContext &frameContext,
+				  ControlList &metadata);
+
 private:
 	/**< Developer mode state for advanced controls */
 	bool devMode_ = false;
@@ -108,6 +112,18 @@ inline ControlInfoMap::Map DenoiseBaseAlgorithm::getControlMap() const
 	map[&controls::rkisp1::ExposureGainIndex] = ControlInfo(0, 6400, 0);
 	return map;
 }
+
+inline void DenoiseBaseAlgorithm::fillMetadata(IPAContext &context,
+					       IPAFrameContext &frameContext,
+					       ControlList &metadata)
+{
+	uint32_t exposureIndex = computeExposureIndex(context, frameContext);
+	metadata.set(controls::rkisp1::ExposureGainIndex, static_cast<int32_t>(exposureIndex));
+
+	auto currentMode = getRunningMode();
+	metadata.set(controls::rkisp1::DenoiseMode, currentMode);
+}
+
 } /* namespace ipa::rkisp1::algorithms */
 
 } /* namespace libcamera */

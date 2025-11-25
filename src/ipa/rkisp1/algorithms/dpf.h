@@ -29,6 +29,10 @@ public:
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     RkISP1Params *params) override;
+	void process(IPAContext &context, const uint32_t frame [[maybe_unused]],
+		     IPAFrameContext &frameContext,
+		     const rkisp1_stat_buffer *stats [[maybe_unused]],
+		     ControlList &metadata) override;
 
 private:
 	struct rkisp1_cif_isp_dpf_config config_;
@@ -103,6 +107,9 @@ private:
 	void prepareEnabledMode(IPAContext &context, const uint32_t frame,
 				IPAFrameContext &frameContext, RkISP1Params *params) override;
 	ControlInfoMap::Map getControlMap() const override;
+	void fillMetadata(IPAContext &context,
+			  IPAFrameContext &frameContext,
+			  ControlList &metadata) override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
