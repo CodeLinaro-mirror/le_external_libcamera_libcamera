@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -553,6 +554,140 @@ bool Dpf::processModeChange(const ControlList &controls, [[maybe_unused]] uint32
 
 	setRunningMode(requestedMode);
 	return (currentMode != getRunningMode());
+}
+
+void Dpf::applyOverridesTo(rkisp1_cif_isp_dpf_config &config,
+			   rkisp1_cif_isp_dpf_strength_config &strengthConfig,
+			   bool &anyOverride)
+{
+	if (getRunningMode() != controls::rkisp1::DenoiseModeManual)
+		return;
+	/* only apply overrides in manual mode */
+	if (overrides_.strength) {
+		strengthConfig.r = overrides_.strength->r;
+		strengthConfig.g = overrides_.strength->g;
+		strengthConfig.b = overrides_.strength->b;
+		anyOverride = true;
+	}
+	if (overrides_.spatialGreen) {
+		std::copy(overrides_.spatialGreen->coeffs.begin(), overrides_.spatialGreen->coeffs.end(),
+			  config.g_flt.spatial_coeff);
+		anyOverride = true;
+	}
+	if (overrides_.spatialRb) {
+		std::copy(overrides_.spatialRb->coeffs.begin(), overrides_.spatialRb->coeffs.end(),
+			  config.rb_flt.spatial_coeff);
+		anyOverride = true;
+		config.rb_flt.fltsize = *overrides_.rbSize
+						? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+						: RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
+		anyOverride = true;
+	}
+	if (overrides_.nll) {
+		std::copy(overrides_.nll->coeffs.begin(), overrides_.nll->coeffs.end(),
+			  config.nll.coeff);
+		config.nll.scale_mode = overrides_.nll->scaleMode
+						? RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC
+						: RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
+		anyOverride = true;
+	}
+	if (!anyOverride)
+		return;
+	/* Log applied overrides */
+	config_ = config;
+	strengthConfig_ = strengthConfig;
+	LOG(RkISP1Dpf, Info)
+		<< "DPF manual overrides applied: strength="
+		<< (int)strengthConfig_.r << ","
+		<< (int)strengthConfig_.g << ","
+		<< (int)strengthConfig_.b
+		<< (overrides_.spatialGreen ? " gKernel" : "")
+		<< (overrides_.spatialRb ? " rbKernel" : "")
+		<< (overrides_.rbSize ? " rbSize" : "")
+		<< (overrides_.nll ? " nll" : "");
+}
+
+void Dpf::logConfigIfChanged(uint32_t exposureGainIndex,
+			     int32_t exposureBandIndex,
+			     bool anyOverride,
+			     const IPAFrameContext &frameContext)
+{
+	static rkisp1_cif_isp_dpf_config lastCfg{};
+	static rkisp1_cif_isp_dpf_strength_config lastStr{};
+	static bool haveLast = false;
+
+	/* Check if the DPF configuration or strength settings have changed since the last log */
+	/* Use memcmp for byte-wise comparison of the C structs (no operator== defined) */
+	bool cfgChanged = !haveLast || memcmp(&lastCfg, &config_, sizeof(config_)) != 0;
+	bool strChanged = !haveLast || memcmp(&lastStr, &strengthConfig_, sizeof(strengthConfig_)) != 0;
+
+	if (!cfgChanged && !strChanged)
+		return;
+
+	std::string gCoeffsStr = "[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i > 0)
+			gCoeffsStr += ",";
+		gCoeffsStr += std::to_string(static_cast<int>(config_.g_flt.spatial_coeff[i]));
+	}
+	gCoeffsStr += "]";
+
+	std::string rbCoeffsStr = "[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i > 0)
+			rbCoeffsStr += ",";
+		rbCoeffsStr += std::to_string(static_cast<int>(config_.rb_flt.spatial_coeff[i]));
+	}
+	rbCoeffsStr += "]";
+
+	std::string nllCoeffsStr = "[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i) {
+		if (i > 0)
+			nllCoeffsStr += ",";
+		nllCoeffsStr += std::to_string(config_.nll.coeff[i]);
+	}
+	nllCoeffsStr += "]";
+
+	std::string rbFilterSizeStr =
+		config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+			? "13x9"
+			: "9x9";
+	std::string nllScaleStr =
+		config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC
+			? "log"
+			: "linear";
+	std::string denoiseStr = (frameContext.dpf.denoise ? "enabled" : "disabled");
+	std::string overrideStr = (anyOverride ? " (overrides applied)" : "");
+
+	std::string exposureIndexBandStr;
+	if (useExposureIndexLevels_ && exposureBandIndex >= 0) {
+		exposureIndexBandStr =
+			", exposureIndex_band=" + std::to_string(exposureBandIndex);
+		if (lastExposureGainIndex_ != exposureBandIndex) {
+			exposureIndexBandStr += "(new)";
+		}
+	}
+
+	LOG(RkISP1Dpf, Info)
+		<< "DPF config update: rb_fltsize=" << rbFilterSizeStr
+		<< ", nll_scale=" << nllScaleStr
+		<< ", gain_mode=" << config_.gain.mode
+		<< ", strength=" << (int)strengthConfig_.r << ","
+		<< (int)strengthConfig_.g << ","
+		<< (int)strengthConfig_.b
+		<< ", g=" << gCoeffsStr
+		<< ", rb=" << rbCoeffsStr
+		<< ", nll=" << nllCoeffsStr
+		<< ", exposureIndex=" << exposureGainIndex
+		<< exposureIndexBandStr
+		<< ", control mode=" << static_cast<int>(getRunningMode())
+		<< ", reduction mode=" << static_cast<int>(currentReductionMode_)
+		<< ", denoise=" << denoiseStr
+		<< overrideStr;
+
+	lastCfg = config_;
+	lastStr = strengthConfig_;
+	haveLast = true;
 }
 
 /**

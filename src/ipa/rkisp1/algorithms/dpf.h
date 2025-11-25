@@ -88,10 +88,15 @@ private:
 			       rkisp1_cif_isp_dpf_strength_config &strengthConfig);
 
 	bool processModeChange(const ControlList &controls, uint32_t currentFrame) override;
-
 	void snapshotCurrentToOverrides() override;
-
 	void restoreAutoConfig(IPAContext &context, IPAFrameContext &frameContext) override;
+	void applyOverridesTo(rkisp1_cif_isp_dpf_config &config,
+			      rkisp1_cif_isp_dpf_strength_config &strengthConfig,
+			      bool &anyOverride);
+	void logConfigIfChanged(uint32_t exposureGainIndex,
+				int32_t exposureBandIndex,
+				bool anyOverride,
+				const IPAFrameContext &frameContext);
 };
 
 } /* namespace ipa::rkisp1::algorithms */
