@@ -49,7 +49,7 @@ public:
 
 	void reuse(ReuseFlag flags = Default);
 
-	ControlList &controls() { return *controls_; }
+	const ControlList &controls() const { return *controls_; }
 	const ControlList &metadata() const;
 	const BufferMap &buffers() const { return bufferMap_; }
 	int addBuffer(const Stream *stream, FrameBuffer *buffer,
@@ -63,6 +63,31 @@ public:
 	bool hasPendingBuffers() const;
 
 	std::string toString() const;
+
+	template<typename T, typename V>
+	void setControl(const Control<T> &ctrl, const V &value)
+	{
+		controls_->set(ctrl, value);
+	}
+
+#ifndef __DOXYGEN__
+	template<typename T, typename V, std::size_t Size>
+	void setControl(const Control<Span<const T, Size>> &ctrl,
+			const Span<const V, Size> &values)
+	{
+		controls_->set(ctrl, values);
+	}
+#endif
+
+	void setControls(const ControlList &other)
+	{
+		controls_->merge(other);
+	}
+
+	void setControl(unsigned int id, const ControlValue &value)
+	{
+		controls_->set(id, value);
+	}
 
 private:
 	LIBCAMERA_DISABLE_COPY(Request)

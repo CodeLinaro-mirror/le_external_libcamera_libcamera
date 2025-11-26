@@ -804,19 +804,19 @@ int CameraDevice::processControls(Camera3RequestDescriptor *descriptor)
 		return 0;
 
 	/* Translate the Android request settings to libcamera controls. */
-	ControlList &controls = descriptor->request_->controls();
+	Request *req = descriptor->request_.get();
 	camera_metadata_ro_entry_t entry;
 	if (settings.getEntry(ANDROID_SCALER_CROP_REGION, &entry)) {
 		const int32_t *data = entry.data.i32;
 		Rectangle cropRegion{ data[0], data[1],
 				      static_cast<unsigned int>(data[2]),
 				      static_cast<unsigned int>(data[3]) };
-		controls.set(controls::ScalerCrop, cropRegion);
+		req->setControl(controls::ScalerCrop, cropRegion);
 	}
 
 	if (settings.getEntry(ANDROID_STATISTICS_FACE_DETECT_MODE, &entry)) {
 		const uint8_t *data = entry.data.u8;
-		controls.set(controls::draft::FaceDetectMode, data[0]);
+		req->setControl(controls::draft::FaceDetectMode, data[0]);
 	}
 
 	if (settings.getEntry(ANDROID_SENSOR_TEST_PATTERN_MODE, &entry)) {
@@ -854,7 +854,7 @@ int CameraDevice::processControls(Camera3RequestDescriptor *descriptor)
 			return -EINVAL;
 		}
 
-		controls.set(controls::draft::TestPatternMode, testPatternMode);
+		req->setControl(controls::draft::TestPatternMode, testPatternMode);
 	}
 
 	return 0;

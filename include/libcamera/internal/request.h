@@ -36,6 +36,7 @@ public:
 	Camera *camera() const { return camera_; }
 	bool hasPendingBuffers() const;
 
+	ControlList &controls();
 	ControlList &metadata() { return *metadata_; }
 
 	bool completeBuffer(FrameBuffer *buffer);

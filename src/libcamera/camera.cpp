@@ -1366,7 +1366,7 @@ int Camera::queueRequest(Request *request)
 	}
 
 	/* Pre-process AeEnable. */
-	patchControlList(request->controls());
+	patchControlList(request->_d()->controls());
 
 	d->pipe_->invokeMethod(&PipelineHandler::queueRequest,
 			       ConnectionTypeQueued, request);

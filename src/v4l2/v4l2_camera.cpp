@@ -269,7 +269,7 @@ int V4L2Camera::qbuf(unsigned int index)
 		return 0;
 	}
 
-	request->controls().merge(std::move(controls_));
+	request->setControls(controls_);
 
 	ret = camera_->queueRequest(request);
 	if (ret < 0) {

@@ -88,6 +88,16 @@ bool Request::Private::hasPendingBuffers() const
 }
 
 /**
+ * \fn Request::Private::controls()
+ * \brief Retrieve the request's ControlList
+ * \return A reference to the ControlList in this request
+ */
+ControlList &Request::Private::controls()
+{
+	return *_o<Request>()->controls_;
+}
+
+/**
  * \fn Request::Private::metadata()
  * \brief Retrieve the request's metadata
  * \return The metadata associated with the request
@@ -414,19 +424,9 @@ void Request::reuse(ReuseFlag flags)
 }
 
 /**
- * \fn Request::controls()
- * \brief Retrieve the request's ControlList
- *
- * Requests store a list of controls to be applied to all frames captured for
- * the request. They are created with an empty list of controls that can be
- * accessed through this function. Control values can be retrieved using
- * ControlList::get() and updated using ControlList::set().
- *
- * Only controls supported by the camera to which this request will be
- * submitted shall be included in the controls list. Attempting to add an
- * unsupported control causes undefined behaviour.
- *
- * \return A reference to the ControlList in this request
+ * \fn Request::controls() const
+ * \brief Retrieve a const reference to the request's ControlList
+ * \return A const reference to the ControlList in this request
  */
 
 /**
@@ -622,5 +622,25 @@ std::ostream &operator<<(std::ostream &out, const Request &r)
 
 	return out;
 }
+
+/**
+ * \fn Request::setControl(const Control<T> &ctrl, const V &value)
+ * \brief Set control \a ctrl in the Request
+ * \param[in] ctrl The control
+ * \param[in] value The control value
+ */
+
+/**
+ * \fn Request::setControls(const ControlList &other)
+ * \brief Merge the control list \a other in the Request
+ * \param[in] other The control list to add to the Request
+ */
+
+/**
+ * \fn Request::setControl(unsigned int id, const ControlValue &value)
+ * \brief Set control \a id in the Request to \a value
+ * \param[in] id The control numerical id
+ * \param[in] value The control value
+ */
 
 } /* namespace libcamera */

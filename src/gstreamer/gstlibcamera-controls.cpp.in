@@ -276,7 +276,7 @@ void GstCameraControls::setCamera(const std::shared_ptr<libcamera::Camera> &cam)
 
 void GstCameraControls::applyControls(std::unique_ptr<libcamera::Request> &request)
 {
-	request->controls().merge(controls_);
+	request->setControls(controls_);
 	controls_.clear();
 }
 
