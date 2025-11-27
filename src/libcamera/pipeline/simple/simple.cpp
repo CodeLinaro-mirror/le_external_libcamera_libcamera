@@ -1153,12 +1153,18 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 	}
 
 	/* Find the largest stream size. */
-	Size maxStreamSize;
-	for (const StreamConfiguration &cfg : config_)
-		maxStreamSize.expandTo(cfg.size);
+	Size maxProcessedStreamSize;
+	Size maxRawStreamSize;
+	for (const StreamConfiguration &cfg : config_) {
+		if (isRaw(cfg))
+			maxRawStreamSize.expandTo(cfg.size);
+		else
+			maxProcessedStreamSize.expandTo(cfg.size);
+	}
 
 	LOG(SimplePipeline, Debug)
-		<< "Largest stream size is " << maxStreamSize;
+		<< "Largest stream size is "
+		<< maxProcessedStreamSize << "/" << maxRawStreamSize;
 
 	/* Cap the number of raw stream configurations */
 	unsigned int rawCount = 0;
@@ -1217,8 +1223,10 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		const Size &captureSize = pipeConfig->captureSize;
 		const Size &maxOutputSize = pipeConfig->outputSizes.max;
 
-		if (maxOutputSize.width >= maxStreamSize.width &&
-		    maxOutputSize.height >= maxStreamSize.height) {
+		if (maxOutputSize.width >= maxProcessedStreamSize.width &&
+		    maxOutputSize.height >= maxProcessedStreamSize.height &&
+		    captureSize.width >= maxRawStreamSize.width &&
+		    captureSize.height >= maxRawStreamSize.height) {
 			if (!pipeConfig_ || captureSize < pipeConfig_->captureSize)
 				pipeConfig_ = pipeConfig;
 		}
@@ -1236,7 +1244,8 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
 		<< V4L2SubdeviceFormat{ pipeConfig_->code, pipeConfig_->sensorSize, {} }
 		<< " -> " << pipeConfig_->captureSize
 		<< "-" << pipeConfig_->captureFormat
-		<< " for max stream size " << maxStreamSize;
+		<< " for max stream size "
+		<< maxProcessedStreamSize << "/" << maxRawStreamSize;
 
 	/*
 	 * Adjust the requested streams.
