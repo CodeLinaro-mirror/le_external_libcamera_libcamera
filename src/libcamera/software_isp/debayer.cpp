@@ -100,6 +100,11 @@ namespace libcamera {
  * \brief Gamma lookup table used with color correction matrix
  */
 
+ /**
+  * \var DebayerParams::ccm
+  * \brief Per frame colour correction matrix for GPUISP
+  */
+
 /**
  * \class Debayer
  * \brief Base debayering class
