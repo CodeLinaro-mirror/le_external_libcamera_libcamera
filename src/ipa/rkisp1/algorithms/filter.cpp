@@ -37,7 +37,7 @@ namespace ipa::rkisp1::algorithms {
 LOG_DEFINE_CATEGORY(RkISP1Filter)
 
 static constexpr uint32_t kFiltLumWeightDefault = 0x00022040;
-static constexpr uint32_t kFiltModeDefault = 0x000004f2;
+static constexpr uint32_t kFiltModeDefault = 0x000004f3;
 
 /**
  * \copydoc libcamera::ipa::Algorithm::init
