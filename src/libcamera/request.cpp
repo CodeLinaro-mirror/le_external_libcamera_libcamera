@@ -121,7 +121,7 @@ void Request::Private::complete()
 {
 	Request *request = _o<Request>();
 
-	ASSERT(request->status() == RequestPending);
+	ASSERT(request->status() == RequestInProgress);
 	ASSERT(!hasPendingBuffers());
 
 	request->status_ = cancelled_ ? RequestCancelled : RequestComplete;
@@ -159,7 +159,7 @@ void Request::Private::cancel()
 	LIBCAMERA_TRACEPOINT(request_cancel, this);
 
 	Request *request = _o<Request>();
-	ASSERT(request->status() == RequestPending);
+	ASSERT(request->status() == RequestInProgress);
 
 	doCancelRequest();
 }
@@ -222,6 +222,8 @@ void Request::Private::emitPrepareCompleted()
  */
 void Request::Private::prepare(std::chrono::milliseconds timeout)
 {
+	_o<Request>()->status_ = RequestInProgress;
+
 	/* Create and connect one notifier for each synchronization fence. */
 	for (FrameBuffer *buffer : pending_) {
 		const Fence *fence = buffer->_d()->fence();
@@ -309,8 +311,10 @@ void Request::Private::timeout()
 /**
  * \enum Request::Status
  * Request completion status
- * \var Request::RequestPending
- * The request hasn't completed yet
+ * \var Request::RequestIdle
+ * The request is idle
+ * \var Request::RequestInProgress
+ * The request is being processed
  * \var Request::RequestComplete
  * The request has completed
  * \var Request::RequestCancelled
@@ -354,7 +358,7 @@ void Request::Private::timeout()
  */
 Request::Request(Camera *camera, uint64_t cookie)
 	: Extensible(std::make_unique<Private>(camera)),
-	  cookie_(cookie), status_(RequestPending)
+	  cookie_(cookie), status_(RequestIdle)
 {
 	controls_ = new ControlList(controls::controls,
 				    camera->_d()->validator());
@@ -391,6 +395,10 @@ void Request::reuse(ReuseFlag flags)
 {
 	LIBCAMERA_TRACEPOINT(request_reuse, this);
 
+	ASSERT(status_ == RequestIdle ||
+	       status_ == RequestComplete ||
+	       status_ == RequestCancelled);
+
 	_d()->reset();
 
 	if (flags & ReuseBuffers) {
@@ -403,7 +411,7 @@ void Request::reuse(ReuseFlag flags)
 		bufferMap_.clear();
 	}
 
-	status_ = RequestPending;
+	status_ = RequestIdle;
 
 	controls_->clear();
 	metadata_->clear();
@@ -563,11 +571,11 @@ uint32_t Request::sequence() const
  * \fn Request::status()
  * \brief Retrieve the request completion status
  *
- * The request status indicates whether the request has completed successfully
- * or with an error. When requests are created and before they complete the
- * request status is set to RequestPending, and is updated at completion time
- * to RequestComplete. If a request is cancelled at capture stop before it has
- * completed, its status is set to RequestCancelled.
+ * The request status indicates whether the request has completed successfully or with
+ * an error. When requests are created the request status is set to RequestIdle; when
+ * they are queued, the status is set to RequestInProgress. Then it is updated at
+ * completion time to RequestComplete. If a request is cancelled at capture stop before
+ * it has completed, its status is set to RequestCancelled.
  *
  * \return The request completion status
  */
@@ -607,8 +615,8 @@ std::string Request::toString() const
  */
 std::ostream &operator<<(std::ostream &out, const Request &r)
 {
-	/* Pending, Completed, Cancelled(X). */
-	static const char *statuses = "PCX";
+	/* Idle, InProgress(P), Completed, Cancelled(X). */
+	static const char statuses[] = "IPCX";
 
 	/* Example Output: Request(55:P:1/2:6523524) */
 	out << "Request(" << r.sequence() << ":" << statuses[r.status()] << ":"

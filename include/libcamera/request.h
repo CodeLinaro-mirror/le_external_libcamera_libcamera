@@ -32,7 +32,8 @@ class Request : public Extensible
 
 public:
 	enum Status {
-		RequestPending,
+		RequestIdle,
+		RequestInProgress,
 		RequestComplete,
 		RequestCancelled,
 	};

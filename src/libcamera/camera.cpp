@@ -1340,7 +1340,7 @@ int Camera::queueRequest(Request *request)
 		return -EXDEV;
 	}
 
-	if (request->status() != Request::RequestPending) {
+	if (request->status() != Request::RequestIdle) {
 		LOG(Camera, Error) << request->toString() << " is not valid";
 		return -EINVAL;
 	}

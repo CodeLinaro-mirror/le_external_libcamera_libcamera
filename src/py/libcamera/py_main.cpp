@@ -486,7 +486,8 @@ PYBIND11_MODULE(_libcamera, m)
 		.def("__str__", &Request::toString);
 
 	pyRequestStatus
-		.value("Pending", Request::RequestPending)
+		.value("Idle", Request::RequestIdle)
+		.value("InProgress", Request::RequestInProgress)
 		.value("Complete", Request::RequestComplete)
 		.value("Cancelled", Request::RequestCancelled);
 
