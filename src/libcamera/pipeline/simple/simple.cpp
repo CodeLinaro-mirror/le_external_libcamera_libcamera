@@ -27,7 +27,6 @@
 #include <libcamera/camera.h>
 #include <libcamera/color_space.h>
 #include <libcamera/control_ids.h>
-#include <libcamera/request.h>
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/camera.h"
@@ -41,6 +40,7 @@
 #include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
+#include "libcamera/internal/request.h"
 #include "libcamera/internal/software_isp/software_isp.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
@@ -927,8 +927,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	}
 
 	if (request)
-		request->metadata().set(controls::SensorTimestamp,
-					buffer->metadata().timestamp);
+		request->_d()->metadata().set(controls::SensorTimestamp,
+					      buffer->metadata().timestamp);
 
 	/*
 	 * Queue the captured and the request buffer to the converter or Software
@@ -1015,7 +1015,7 @@ void SimpleCameraData::metadataReady(uint32_t frame, const ControlList &metadata
 	if (!info)
 		return;
 
-	info->request->metadata().merge(metadata);
+	info->request->_d()->metadata().merge(metadata);
 	info->metadataProcessed = true;
 	tryCompleteRequest(info->request);
 }
