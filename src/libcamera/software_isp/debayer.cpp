@@ -337,6 +337,15 @@ Debayer::~Debayer()
  */
 
 /**
+ * \fn void Debayer::stop()
+ * \brief Stop the debayering process and perform cleanup
+ *
+ * In the DebayerCPU case this is an empty stub function but
+ * for the GPU case this does something useful. The stub here is to
+ * ensure the right version of the virtual gets called.
+ */
+
+/**
  * \fn void Debayer::setParams(DebayerParams &params)
  * \brief Select the bayer params to use for the next frame debayer
  * \param[in] params The parameters to be used in debayering
