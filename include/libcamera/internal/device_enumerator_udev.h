@@ -32,8 +32,8 @@ public:
 	DeviceEnumeratorUdev();
 	~DeviceEnumeratorUdev();
 
-	int init();
-	int enumerate();
+	int init() override;
+	int enumerate() override;
 
 private:
 	using DependencyMap = std::map<dev_t, std::list<MediaEntity *>>;
