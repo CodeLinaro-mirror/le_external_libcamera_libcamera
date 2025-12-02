@@ -470,6 +470,8 @@ void PipelineHandler::queueRequest(Request *request)
 {
 	LIBCAMERA_TRACEPOINT(request_queue, request);
 
+	ASSERT(request->_d()->hasBeenQueued());
+
 	Camera *camera = request->_d()->camera();
 	Camera::Private *data = camera->_d();
 	data->waitingRequests_.push(request);
@@ -591,6 +593,7 @@ void PipelineHandler::completeRequest(Request *request)
 
 	while (!data->queuedRequests_.empty()) {
 		Request *req = data->queuedRequests_.front();
+		ASSERT(req->_d()->hasBeenQueued());
 		if (req->status() == Request::RequestPending)
 			break;
 

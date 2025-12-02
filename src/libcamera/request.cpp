@@ -83,6 +83,23 @@ bool Request::Private::hasPendingBuffers() const
 }
 
 /**
+ * \fn Request::Private::hasBeenQueued()
+ * \brief Check if a the request has the "queued" flag set
+ * \return True if the request has been marked as queued
+ */
+
+/**
+ * \fn Request::Private::tryQueue()
+ * \brief Try to set the "queued" flag if not already set
+ * \return True if it has been set successfully
+ */
+
+/**
+ * \fn Request::Private::unQueue()
+ * \brief Clear the "queued" flag
+ */
+
+/**
  * \brief Complete a buffer for the request
  * \param[in] buffer The buffer that has completed
  *
@@ -123,6 +140,7 @@ void Request::Private::complete()
 
 	ASSERT(request->status() == RequestPending);
 	ASSERT(!hasPendingBuffers());
+	ASSERT(hasBeenQueued());
 
 	request->status_ = cancelled_ ? RequestCancelled : RequestComplete;
 
@@ -160,6 +178,7 @@ void Request::Private::cancel()
 
 	Request *request = _o<Request>();
 	ASSERT(request->status() == RequestPending);
+	ASSERT(hasBeenQueued());
 
 	doCancelRequest();
 }
@@ -175,6 +194,7 @@ void Request::Private::reset()
 	sequence_ = 0;
 	cancelled_ = false;
 	prepared_ = false;
+	unQueue();
 	pending_.clear();
 	notifiers_.clear();
 	timer_.reset();
@@ -390,6 +410,8 @@ Request::~Request()
 void Request::reuse(ReuseFlag flags)
 {
 	LIBCAMERA_TRACEPOINT(request_reuse, this);
+
+	ASSERT(!(status_ == RequestPending && _d()->hasBeenQueued()));
 
 	_d()->reset();
 

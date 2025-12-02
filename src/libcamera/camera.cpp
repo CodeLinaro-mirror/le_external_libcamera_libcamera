@@ -1340,10 +1340,14 @@ int Camera::queueRequest(Request *request)
 		return -EXDEV;
 	}
 
-	if (request->status() != Request::RequestPending) {
+	if (request->status() != Request::RequestPending || !request->_d()->tryQueue()) {
 		LOG(Camera, Error) << request->toString() << " is not valid";
 		return -EINVAL;
 	}
+
+	utils::scope_exit queuedFlagGuard([&] {
+		request->_d()->unQueue();
+	});
 
 	/*
 	 * The camera state may change until the end of the function. No locking
@@ -1370,6 +1374,8 @@ int Camera::queueRequest(Request *request)
 
 	d->pipe_->invokeMethod(&PipelineHandler::queueRequest,
 			       ConnectionTypeQueued, request);
+
+	queuedFlagGuard.release();
 
 	return 0;
 }

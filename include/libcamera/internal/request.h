@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <chrono>
 #include <map>
 #include <memory>
@@ -35,6 +36,15 @@ public:
 
 	Camera *camera() const { return camera_; }
 	bool hasPendingBuffers() const;
+	bool hasBeenQueued() const { return queued_.load(std::memory_order_relaxed); }
+
+	bool tryQueue()
+	{
+		bool expected = false;
+		return queued_.compare_exchange_strong(expected, true, std::memory_order_relaxed);
+	}
+
+	void unQueue() { queued_.store(false, std::memory_order_relaxed); }
 
 	bool completeBuffer(FrameBuffer *buffer);
 	void complete();
@@ -57,6 +67,7 @@ private:
 	bool cancelled_;
 	uint32_t sequence_ = 0;
 	bool prepared_ = false;
+	std::atomic_bool queued_ = false;
 
 	std::unordered_set<FrameBuffer *> pending_;
 	std::map<FrameBuffer *, EventNotifier> notifiers_;
