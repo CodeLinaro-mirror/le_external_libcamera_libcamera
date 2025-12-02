@@ -267,7 +267,7 @@ int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 
 	ispWorkerThread_.start();
 
-	ret = debayer_->invokeMethod(&DebayerCpu::configure,
+	ret = debayer_->invokeMethod(&Debayer::configure,
 				     ConnectionTypeBlocking, inputCfg,
 				     outputCfgs, ccmEnabled_);
 	if (ret) {
@@ -367,7 +367,7 @@ int SoftwareIsp::start()
  */
 void SoftwareIsp::stop()
 {
-	debayer_->invokeMethod(&DebayerCpu::stop,
+	debayer_->invokeMethod(&Debayer::stop,
 			       ConnectionTypeBlocking);
 
 	ispWorkerThread_.exit();
@@ -401,7 +401,7 @@ void SoftwareIsp::stop()
 void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
 	ipa_->computeParams(frame);
-	debayer_->invokeMethod(&DebayerCpu::process,
+	debayer_->invokeMethod(&Debayer::process,
 			       ConnectionTypeQueued, frame, input, output, debayerParams_);
 }
 
