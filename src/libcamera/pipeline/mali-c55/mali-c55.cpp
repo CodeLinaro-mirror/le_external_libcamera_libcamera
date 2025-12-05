@@ -1021,8 +1021,11 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 		ret = csi2Entity->getPadByIndex(1)->links()[0]->setEnabled(true);
 		break;
 	}
-	case MaliC55CameraData::Memory:
+	case MaliC55CameraData::Memory: {
+		const MediaEntity *ivcEntity = ivc_->entity();
+		ret = ivcEntity->getPadByIndex(1)->links()[0]->setEnabled(true);
 		break;
+	}
 	}
 	if (ret)
 		return ret;
@@ -1049,8 +1052,27 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 		ret = data->inlineInput.csi2_->getFormat(1, &subdevFormat);
 
 		break;
-	case MaliC55CameraData::Memory:
+	case MaliC55CameraData::Memory: {
+		V4L2DeviceFormat inputFormat;
+		ret = data->memoryInput.cru_->configure(&subdevFormat, &inputFormat);
+		if (ret)
+			return ret;
+
+		/* Propagate the CRU format to the IVC input. */
+		ret = ivc_->setFormat(0, &subdevFormat);
+		if (ret)
+			return ret;
+
+		ret = ivc_->getFormat(1, &subdevFormat);
+		if (ret)
+			return ret;
+
+		ret = input_->setFormat(&inputFormat);
+		if (ret)
+			return ret;
+
 		break;
+	}
 	}
 	if (ret)
 		return ret;
