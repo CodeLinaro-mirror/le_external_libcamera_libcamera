@@ -37,7 +37,9 @@ namespace ipa::rkisp1::algorithms {
 LOG_DEFINE_CATEGORY(RkISP1Dpf)
 
 Dpf::Dpf()
-	: config_({}), strengthConfig_({})
+	: config_({}), strengthConfig_({}),
+	  noiseReductionModes_({}),
+	  runningMode_(controls::draft::NoiseReductionModeOff)
 {
 }
 
@@ -61,6 +63,53 @@ bool Dpf::parseConfig(const YamlObject &tuningData)
 	if (!parseSingleConfig(tuningData, config_, strengthConfig_)) {
 		return false;
 	}
+
+	/* Parse modes. */
+	if (!parseModes(tuningData)) {
+		return false;
+	}
+
+	return true;
+}
+
+bool Dpf::parseModes(const YamlObject &tuningData)
+{
+	/* Parse noise reduction modes. */
+	if (!tuningData.contains("modes")) {
+		return true;
+	}
+
+	noiseReductionModes_.clear();
+	for (const auto &entry : tuningData["modes"].asList()) {
+		std::optional<std::string> typeOpt =
+			entry["type"].get<std::string>();
+		if (!typeOpt) {
+			LOG(RkISP1Dpf, Error) << "Modes entry missing type";
+			return false;
+		}
+
+		int32_t modeValue = controls::draft::NoiseReductionModeOff;
+		if (*typeOpt == "minimal") {
+			modeValue = controls::draft::NoiseReductionModeMinimal;
+		} else if (*typeOpt == "fast") {
+			modeValue = controls::draft::NoiseReductionModeFast;
+		} else if (*typeOpt == "highquality") {
+			modeValue = controls::draft::NoiseReductionModeHighQuality;
+		} else if (*typeOpt == "zsl") {
+			modeValue = controls::draft::NoiseReductionModeZSL;
+		} else {
+			LOG(RkISP1Dpf, Error) << "Unknown mode type: " << *typeOpt;
+			return false;
+		}
+
+		ModeConfig mode{};
+		mode.modeValue = modeValue;
+		if (!parseSingleConfig(entry, mode.dpf, mode.strength)) {
+			return false;
+		}
+		noiseReductionModes_.push_back(mode);
+	}
+
 	return true;
 }
 
@@ -192,6 +241,29 @@ bool Dpf::parseSingleConfig(const YamlObject &tuningData,
 	return true;
 }
 
+bool Dpf::loadReductionConfig(int32_t mode)
+{
+	auto it = std::find_if(noiseReductionModes_.begin(), noiseReductionModes_.end(),
+			       [mode](const ModeConfig &m) {
+				       return m.modeValue == mode;
+			       });
+	if (it == noiseReductionModes_.end()) {
+		LOG(RkISP1Dpf, Warning)
+			<< "No DPF config for reduction mode "
+			<< static_cast<int>(mode);
+		return false;
+	}
+
+	config_ = it->dpf;
+	strengthConfig_ = it->strength;
+
+	LOG(RkISP1Dpf, Info)
+		<< "DPF mode=Reduction (config loaded)"
+		<< " mode=" << static_cast<int>(mode);
+
+	return true;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -207,6 +279,7 @@ void Dpf::queueRequest(IPAContext &context,
 	if (denoise) {
 		LOG(RkISP1Dpf, Debug) << "Set denoise to " << *denoise;
 
+		runningMode_ = *denoise;
 		switch (*denoise) {
 		case controls::draft::NoiseReductionModeOff:
 			if (dpf.denoise) {
@@ -217,8 +290,12 @@ void Dpf::queueRequest(IPAContext &context,
 		case controls::draft::NoiseReductionModeMinimal:
 		case controls::draft::NoiseReductionModeHighQuality:
 		case controls::draft::NoiseReductionModeFast:
-			if (!dpf.denoise) {
+		case controls::draft::NoiseReductionModeZSL:
+			if (loadReductionConfig(runningMode_)) {
+				update = true;
 				dpf.denoise = true;
+			} else {
+				dpf.denoise = false;
 				update = true;
 			}
 			break;
