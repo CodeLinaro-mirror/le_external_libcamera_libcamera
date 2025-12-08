@@ -274,6 +274,54 @@ bool Dpf::loadReductionConfig(int32_t mode)
 	return true;
 }
 
+void Dpf::logConfigIfChanged(const IPAFrameContext &frameContext)
+{
+	if (!frameContext.dpf.update) {
+		return;
+	}
+
+	std::ostringstream ss;
+
+	ss << "DPF config update: ";
+	ss << " control mode=" << static_cast<int>(runningMode_);
+	ss << ", denoise=" << (frameContext.dpf.denoise ? "enabled" : "disabled, ");
+
+	ss << "rb_fltsize="
+	   << (config_.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9 ? "13x9" : "9x9");
+	ss << ", nll_scale="
+	   << (config_.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC ? "log" : "linear");
+	ss << ", gain_mode=" << config_.gain.mode;
+	ss << ", strength=" << int(strengthConfig_.r) << ',' << int(strengthConfig_.g) << ',' << int(strengthConfig_.b);
+
+	ss << ", g=[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i) {
+			ss << ',';
+		}
+		ss << int(config_.g_flt.spatial_coeff[i]);
+	}
+	ss << "]";
+
+	ss << ", rb=[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i) {
+			ss << ',';
+		}
+		ss << int(config_.rb_flt.spatial_coeff[i]);
+	}
+	ss << "]";
+
+	ss << ", nll=[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i) {
+		if (i) {
+			ss << ',';
+		}
+		ss << int(config_.nll.coeff[i]);
+	}
+	ss << "]";
+	LOG(RkISP1Dpf, Info) << ss.str();
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -386,6 +434,7 @@ void Dpf::prepareEnabledMode(IPAContext &context,
 	strengthConfig.setEnabled(true);
 
 	*strengthConfig = strengthConfig_;
+	logConfigIfChanged(frameContext);
 }
 
 REGISTER_IPA_ALGORITHM(Dpf, "Dpf")
