@@ -23,6 +23,125 @@
 
 namespace libcamera {
 
+template<>
+std::optional<rkisp1_cif_isp_dpf_strength_config>
+YamlObject::Getter<rkisp1_cif_isp_dpf_strength_config>::get(const YamlObject &obj) const
+{
+	rkisp1_cif_isp_dpf_strength_config config = {};
+
+	config.r = obj["r"].get<uint8_t>().value_or(64);
+	config.g = obj["g"].get<uint8_t>().value_or(64);
+	config.b = obj["b"].get<uint8_t>().value_or(64);
+
+	return config;
+}
+
+template<>
+std::optional<rkisp1_cif_isp_dpf_config>
+YamlObject::Getter<rkisp1_cif_isp_dpf_config>::get(const YamlObject &obj) const
+{
+	rkisp1_cif_isp_dpf_config config = {};
+	std::vector<uint8_t> values;
+
+	/*
+	 * The domain kernel is configured with a 9x9 kernel for the green
+	 * pixels, and a 13x9 or 9x9 kernel for red and blue pixels.
+	 */
+	const YamlObject &dFObject = obj["filter"];
+
+	/*
+	 * For the green component, we have the 9x9 kernel specified
+	 * as 6 coefficients:
+	 *    Y
+	 *    ^
+	 *  4 | 6   5   4   5   6
+	 *  3 |   5   3   3   5
+	 *  2 | 5   3   2   3   5
+	 *  1 |   3   1   1   3
+	 *  0 - 4   2   0   2   4
+	 * -1 |   3   1   1   3
+	 * -2 | 5   3   2   3   5
+	 * -3 |   5   3   3   5
+	 * -4 | 6   5   4   5   6
+	 *    +---------|--------> X
+	 *     -4....-1 0 1 2 3 4
+	 */
+	values = dFObject["g"].getList<uint8_t>().value_or(std::vector<uint8_t>{});
+	if (values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS) {
+		return std::nullopt;
+	}
+
+	std::copy_n(values.begin(), values.size(),
+		    std::begin(config.g_flt.spatial_coeff));
+
+	config.g_flt.gr_enable = true;
+	config.g_flt.gb_enable = true;
+
+	/*
+	 * For the red and blue components, we have the 13x9 kernel specified
+	 * as 6 coefficients:
+	 *
+	 *    Y
+	 *    ^
+	 *  4 | 6   5   4   3   4   5   6
+	 *    |
+	 *  2 | 5   4   2   1   2   4   5
+	 *    |
+	 *  0 - 5   3   1   0   1   3   5
+	 *    |
+	 * -2 | 5   4   2   1   2   4   5
+	 *    |
+	 * -4 | 6   5   4   3   4   5   6
+	 *    +-------------|------------> X
+	 *     -6  -4  -2   0   2   4   6
+	 *
+	 * For a 9x9 kernel, columns -6 and 6 are dropped, so coefficient
+	 * number 6 is not used.
+	 */
+	values = dFObject["rb"].getList<uint8_t>().value_or(std::vector<uint8_t>{});
+	if (values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS &&
+	    values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1) {
+		return std::nullopt;
+	}
+
+	config.rb_flt.fltsize = values.size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
+					? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+					: RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
+
+	std::copy_n(values.begin(), values.size(),
+		    std::begin(config.rb_flt.spatial_coeff));
+
+	config.rb_flt.r_enable = true;
+	config.rb_flt.b_enable = true;
+
+	/*
+	 * The range kernel is configured with a noise level lookup table (NLL)
+	 * which stores a piecewise linear function that characterizes the
+	 * sensor noise profile as a noise level function curve (NLF).
+	 */
+	const YamlObject &rFObject = obj["nll"];
+
+	std::vector<uint16_t> nllValues;
+	nllValues = rFObject["coeff"].getList<uint16_t>().value_or(std::vector<uint16_t>{});
+	if (nllValues.size() != RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS) {
+		return std::nullopt;
+	}
+
+	std::copy_n(nllValues.begin(), nllValues.size(),
+		    std::begin(config.nll.coeff));
+
+	std::string scaleMode = rFObject["scale-mode"].get<std::string>().value_or("");
+	if (scaleMode == "linear") {
+		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
+	} else if (scaleMode == "logarithmic") {
+		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
+	} else {
+		return std::nullopt;
+	}
+
+	return config;
+}
+
 namespace ipa::rkisp1::algorithms {
 
 /**
@@ -117,126 +236,17 @@ bool Dpf::parseSingleConfig(const YamlObject &tuningData,
 			    rkisp1_cif_isp_dpf_config &config,
 			    rkisp1_cif_isp_dpf_strength_config &strengthConfig)
 {
-	std::vector<uint8_t> values;
-
-	/*
-	 * The domain kernel is configured with a 9x9 kernel for the green
-	 * pixels, and a 13x9 or 9x9 kernel for red and blue pixels.
-	 */
-	const YamlObject &dFObject = tuningData["filter"];
-
-	/*
-	 * For the green component, we have the 9x9 kernel specified
-	 * as 6 coefficients:
-	 *    Y
-	 *    ^
-	 *  4 | 6   5   4   5   6
-	 *  3 |   5   3   3   5
-	 *  2 | 5   3   2   3   5
-	 *  1 |   3   1   1   3
-	 *  0 - 4   2   0   2   4
-	 * -1 |   3   1   1   3
-	 * -2 | 5   3   2   3   5
-	 * -3 |   5   3   3   5
-	 * -4 | 6   5   4   5   6
-	 *    +---------|--------> X
-	 *     -4....-1 0 1 2 3 4
-	 */
-	values = dFObject["g"].getList<uint8_t>().value_or(std::vector<uint8_t>{});
-	if (values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS) {
-		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'filter:g': expected "
-			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
-			<< " elements, got " << values.size();
+	auto dpfConfig = tuningData.get<rkisp1_cif_isp_dpf_config>();
+	if (!dpfConfig)
 		return false;
-	}
 
-	std::copy_n(values.begin(), values.size(),
-		    std::begin(config.g_flt.spatial_coeff));
+	config = *dpfConfig;
 
-	config.g_flt.gr_enable = true;
-	config.g_flt.gb_enable = true;
-
-	/*
-	 * For the red and blue components, we have the 13x9 kernel specified
-	 * as 6 coefficients:
-	 *
-	 *    Y
-	 *    ^
-	 *  4 | 6   5   4   3   4   5   6
-	 *    |
-	 *  2 | 5   4   2   1   2   4   5
-	 *    |
-	 *  0 - 5   3   1   0   1   3   5
-	 *    |
-	 * -2 | 5   4   2   1   2   4   5
-	 *    |
-	 * -4 | 6   5   4   3   4   5   6
-	 *    +-------------|------------> X
-	 *     -6  -4  -2   0   2   4   6
-	 *
-	 * For a 9x9 kernel, columns -6 and 6 are dropped, so coefficient
-	 * number 6 is not used.
-	 */
-	values = dFObject["rb"].getList<uint8_t>().value_or(std::vector<uint8_t>{});
-	if (values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS &&
-	    values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1) {
-		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'filter:rb': expected "
-			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1
-			<< " or " << RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
-			<< " elements, got " << values.size();
+	auto strength = tuningData["strength"].get<rkisp1_cif_isp_dpf_strength_config>();
+	if (!strength)
 		return false;
-	}
 
-	config.rb_flt.fltsize = values.size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
-					? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
-					: RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
-
-	std::copy_n(values.begin(), values.size(),
-		    std::begin(config.rb_flt.spatial_coeff));
-
-	config.rb_flt.r_enable = true;
-	config.rb_flt.b_enable = true;
-
-	/*
-	 * The range kernel is configured with a noise level lookup table (NLL)
-	 * which stores a piecewise linear function that characterizes the
-	 * sensor noise profile as a noise level function curve (NLF).
-	 */
-	const YamlObject &rFObject = tuningData["nll"];
-
-	std::vector<uint16_t> nllValues;
-	nllValues = rFObject["coeff"].getList<uint16_t>().value_or(std::vector<uint16_t>{});
-	if (nllValues.size() != RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS) {
-		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'nll:coeff': expected "
-			<< RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS
-			<< " elements, got " << nllValues.size();
-		return false;
-	}
-
-	std::copy_n(nllValues.begin(), nllValues.size(),
-		    std::begin(config.nll.coeff));
-
-	std::string scaleMode = rFObject["scale-mode"].get<std::string>("");
-	if (scaleMode == "linear") {
-		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
-	} else if (scaleMode == "logarithmic") {
-		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
-	} else {
-		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'nll:scale-mode': expected "
-			<< "'linear' or 'logarithmic' value, got "
-			<< scaleMode;
-		return false;
-	}
-
-	const YamlObject &fSObject = tuningData["strength"];
-
-	strengthConfig.r = fSObject["r"].get<uint8_t>().value_or(64);
-	strengthConfig.g = fSObject["g"].get<uint8_t>().value_or(64);
-	strengthConfig.b = fSObject["b"].get<uint8_t>().value_or(64);
+	strengthConfig = *strength;
 
 	return true;
 }
