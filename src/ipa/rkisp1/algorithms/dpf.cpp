@@ -47,6 +47,27 @@ Dpf::Dpf()
 int Dpf::init([[maybe_unused]] IPAContext &context,
 	      const YamlObject &tuningData)
 {
+	/* Parse tuning block. */
+	if (!parseConfig(tuningData)) {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+bool Dpf::parseConfig(const YamlObject &tuningData)
+{
+	/* Parse base config. */
+	if (!parseSingleConfig(tuningData, config_, strengthConfig_)) {
+		return false;
+	}
+	return true;
+}
+
+bool Dpf::parseSingleConfig(const YamlObject &tuningData,
+			    rkisp1_cif_isp_dpf_config &config,
+			    rkisp1_cif_isp_dpf_strength_config &strengthConfig)
+{
 	std::vector<uint8_t> values;
 
 	/*
@@ -78,14 +99,14 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< "Invalid 'DomainFilter:g': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
 			<< " elements, got " << values.size();
-		return -EINVAL;
+		return false;
 	}
 
 	std::copy_n(values.begin(), values.size(),
-		    std::begin(config_.g_flt.spatial_coeff));
+		    std::begin(config.g_flt.spatial_coeff));
 
-	config_.g_flt.gr_enable = true;
-	config_.g_flt.gb_enable = true;
+	config.g_flt.gr_enable = true;
+	config.g_flt.gb_enable = true;
 
 	/*
 	 * For the red and blue components, we have the 13x9 kernel specified
@@ -116,18 +137,18 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1
 			<< " or " << RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
 			<< " elements, got " << values.size();
-		return -EINVAL;
+		return false;
 	}
 
-	config_.rb_flt.fltsize = values.size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
-			       ? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
-			       : RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
+	config.rb_flt.fltsize = values.size() == RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
+					? RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9
+					: RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_9x9;
 
 	std::copy_n(values.begin(), values.size(),
-		    std::begin(config_.rb_flt.spatial_coeff));
+		    std::begin(config.rb_flt.spatial_coeff));
 
-	config_.rb_flt.r_enable = true;
-	config_.rb_flt.b_enable = true;
+	config.rb_flt.r_enable = true;
+	config.rb_flt.b_enable = true;
 
 	/*
 	 * The range kernel is configured with a noise level lookup table (NLL)
@@ -143,32 +164,32 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 			<< "Invalid 'RangeFilter:coeff': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS
 			<< " elements, got " << nllValues.size();
-		return -EINVAL;
+		return false;
 	}
 
 	std::copy_n(nllValues.begin(), nllValues.size(),
-		    std::begin(config_.nll.coeff));
+		    std::begin(config.nll.coeff));
 
 	std::string scaleMode = rFObject["scale-mode"].get<std::string>("");
 	if (scaleMode == "linear") {
-		config_.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
+		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LINEAR;
 	} else if (scaleMode == "logarithmic") {
-		config_.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
+		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
 	} else {
 		LOG(RkISP1Dpf, Error)
 			<< "Invalid 'RangeFilter:scale-mode': expected "
 			<< "'linear' or 'logarithmic' value, got "
 			<< scaleMode;
-		return -EINVAL;
+		return false;
 	}
 
 	const YamlObject &fSObject = tuningData["FilterStrength"];
 
-	strengthConfig_.r = fSObject["r"].get<uint16_t>(64);
-	strengthConfig_.g = fSObject["g"].get<uint16_t>(64);
-	strengthConfig_.b = fSObject["b"].get<uint16_t>(64);
+	strengthConfig.r = fSObject["r"].get<uint8_t>().value_or(64);
+	strengthConfig.g = fSObject["g"].get<uint8_t>().value_or(64);
+	strengthConfig.b = fSObject["b"].get<uint8_t>().value_or(64);
 
-	return 0;
+	return true;
 }
 
 /**
