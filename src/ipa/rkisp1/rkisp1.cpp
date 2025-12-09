@@ -292,6 +292,19 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 			return format.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
 		});
 
+	/*
+	 * Many formats are supported by the ISP in bypass mode, and are not RAW. Some support
+	 * both RAW and bypass, but for now we can keep track of those that are not RAW,
+	 * so we can attempt to use bypass for them.
+	 */
+	context_.configuration.bypass = std::any_of(streamConfig.begin(), streamConfig.end(),
+		[](auto &cfg) -> bool {
+			PixelFormat pixelFormat{ cfg.second.pixelFormat };
+			const PixelFormatInfo &format = PixelFormatInfo::info(pixelFormat);
+			return format.colourEncoding != PixelFormatInfo::ColourEncodingRAW;
+		});
+
+
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 
@@ -374,7 +387,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 	 * provided.
 	 */
 	const rkisp1_stat_buffer *stats = nullptr;
-	if (!context_.configuration.raw)
+	if (!context_.configuration.bypass)
 		stats = reinterpret_cast<rkisp1_stat_buffer *>(
 			mappedBuffers_.at(bufferId).planes()[0].data());
 

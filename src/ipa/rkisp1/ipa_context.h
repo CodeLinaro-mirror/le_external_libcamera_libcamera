@@ -70,7 +70,9 @@ struct IPASessionConfiguration {
 		Size size;
 	} sensor;
 
+	bool bypass;
 	bool raw;
+
 	uint32_t paramFormat;
 };
 
