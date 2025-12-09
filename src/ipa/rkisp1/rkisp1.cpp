@@ -227,15 +227,24 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 			 const std::map<uint32_t, IPAStream> &streamConfig,
 			 ControlInfoMap *ipaControls)
 {
+	int32_t minExposure = 0;
+	int32_t minGain = 0;
+	int32_t maxExposure = 0;
+	int32_t maxGain = 0;
+
 	sensorControls_ = ipaConfig.sensorControls;
 
 	const auto itExp = sensorControls_.find(V4L2_CID_EXPOSURE);
-	int32_t minExposure = itExp->second.min().get<int32_t>();
-	int32_t maxExposure = itExp->second.max().get<int32_t>();
+	if (itExp != sensorControls_.end()) {
+		minExposure = itExp->second.min().get<int32_t>();
+		maxExposure = itExp->second.max().get<int32_t>();
+	}
 
 	const auto itGain = sensorControls_.find(V4L2_CID_ANALOGUE_GAIN);
-	int32_t minGain = itGain->second.min().get<int32_t>();
-	int32_t maxGain = itGain->second.max().get<int32_t>();
+	if (itGain != sensorControls_.end()) {
+		minGain = itGain->second.min().get<int32_t>();
+		maxGain = itGain->second.max().get<int32_t>();
+	}
 
 	LOG(IPARkISP1, Debug)
 		<< "Exposure: [" << minExposure << ", " << maxExposure
@@ -249,8 +258,11 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	context_.configuration.paramFormat = ipaConfig.paramFormat;
 
 	const IPACameraSensorInfo &info = ipaConfig.sensorInfo;
-	const ControlInfo vBlank = sensorControls_.find(V4L2_CID_VBLANK)->second;
-	context_.configuration.sensor.defVBlank = vBlank.def().get<int32_t>();
+	if (sensorControls_.idmap().find(V4L2_CID_VBLANK) != sensorControls_.idmap().end()) {
+		const ControlInfo vBlank = sensorControls_.find(V4L2_CID_VBLANK)->second;
+		context_.configuration.sensor.defVBlank = vBlank.def().get<int32_t>();
+	}
+
 	context_.configuration.sensor.size = info.outputSize;
 	context_.configuration.sensor.lineDuration = info.minLineLength * 1.0s / info.pixelRate;
 
@@ -391,6 +403,12 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 			       ControlInfoMap *ipaControls)
 {
 	ControlInfoMap::Map ctrlMap = rkisp1Controls;
+
+	if (sensorControls.idmap().find(V4L2_CID_EXPOSURE) == sensorControls.idmap().end()) {
+		LOG(IPARkISP1, Debug) << "Sensor does not support V4L2_CID_EXPOSURE,"
+				      << " cannot compute exposure time limits";
+		return;
+	}
 
 	/*
 	 * Compute exposure time limits from the V4L2_CID_EXPOSURE control
