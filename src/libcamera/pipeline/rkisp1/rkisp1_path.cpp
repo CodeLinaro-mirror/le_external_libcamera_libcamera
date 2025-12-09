@@ -238,11 +238,10 @@ RkISP1Path::generateConfiguration(const CameraSensor *sensor, const Size &size,
 		if (!rawFormat.isValid()) {
 			LOG(RkISP1, Error)
 				<< "Sensor " << sensor->model()
-				<< " doesn't support raw capture";
-			return {};
+				<< " doesn't support raw/bypass capture";
+		} else {
+			format = rawFormat;
 		}
-
-		format = rawFormat;
 	} else {
 		format = formats::NV12;
 	}

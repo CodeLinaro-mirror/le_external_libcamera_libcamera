@@ -77,7 +77,7 @@ public:
 	RkISP1Frames(PipelineHandler *pipe);
 
 	RkISP1FrameInfo *create(const RkISP1CameraData *data, Request *request,
-				bool isRaw);
+				bool isIspBypassed);
 	int destroy(unsigned int frame);
 	void clear();
 
@@ -232,7 +232,7 @@ private:
 	std::unique_ptr<V4L2VideoDevice> stat_;
 
 	bool hasSelfPath_;
-	bool isRaw_;
+	bool isIspBypassed_;
 
 	RkISP1MainPath mainPath_;
 	RkISP1SelfPath selfPath_;
@@ -257,7 +257,7 @@ RkISP1Frames::RkISP1Frames(PipelineHandler *pipe)
 }
 
 RkISP1FrameInfo *RkISP1Frames::create(const RkISP1CameraData *data, Request *request,
-				      bool isRaw)
+				      bool isIspBypassed)
 {
 	unsigned int frame = data->frame_;
 
@@ -266,7 +266,7 @@ RkISP1FrameInfo *RkISP1Frames::create(const RkISP1CameraData *data, Request *req
 	FrameBuffer *mainPathBuffer = nullptr;
 	FrameBuffer *selfPathBuffer = nullptr;
 
-	if (!isRaw) {
+	if (!isIspBypassed) {
 		if (pipe_->availableParamBuffers_.empty()) {
 			LOG(RkISP1, Error) << "Parameters buffer underrun";
 			return nullptr;
@@ -970,8 +970,15 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 
 	Rectangle outputCrop = inputCrop;
 
+	/* We cannot convert YUV to bayer, so YUV must be passthrough */
+	isIspBypassed_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW ||
+			 info.colourEncoding == PixelFormatInfo::ColourEncodingYUV;
+
+	LOG(RkISP1, Debug)
+		<< "ISP is " << (isIspBypassed_ ? "in " : "not in ") << "bypass";
+
 	/* YUYV8_2X8 is required on the ISP source path pad for YUV output. */
-	if (!isRaw_)
+	if (!isIspBypassed_)
 		format.code = MEDIA_BUS_FMT_YUYV8_2X8;
 
 	/*
@@ -1047,7 +1054,7 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 			 * the isp output to the same size as the sensor output.
 			 */
 			StreamConfiguration ispCfg = cfg;
-			if (data->usesDewarper_) {
+			if (data->usesDewarper_ && !isIspBypassed_) {
 				outputCfgs.push_back(const_cast<StreamConfiguration &>(cfg));
 
 				ispCfg.bufferCount = kRkISP1MinBufferCount;
@@ -1151,7 +1158,7 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 		mainPathBuffers_.clear();
 	} };
 
-	if (!isRaw_) {
+	if (!isIspBypassed_) {
 		ret = param_->allocateBuffers(kRkISP1MinBufferCount, &paramBuffers_);
 		if (ret < 0)
 			return ret;
@@ -1248,7 +1255,7 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 
 	data->frame_ = 0;
 
-	if (!isRaw_) {
+	if (!isIspBypassed_) {
 		ret = param_->streamOn();
 		if (ret) {
 			LOG(RkISP1, Error)
@@ -1312,7 +1319,7 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 		selfPath_.stop();
 	mainPath_.stop();
 
-	if (!isRaw_) {
+	if (!isIspBypassed_) {
 		ret = stat_->streamOff();
 		if (ret)
 			LOG(RkISP1, Warning)
@@ -1339,12 +1346,12 @@ int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
 {
 	RkISP1CameraData *data = cameraData(camera);
 
-	RkISP1FrameInfo *info = data->frameInfo_.create(data, request, isRaw_);
+	RkISP1FrameInfo *info = data->frameInfo_.create(data, request, isIspBypassed_);
 	if (!info)
 		return -ENOENT;
 
 	data->ipa_->queueRequest(data->frame_, request->controls());
-	if (isRaw_) {
+	if (isIspBypassed_) {
 		if (info->mainPathBuffer)
 			data->mainPath_->queueBuffer(info->mainPathBuffer);
 
@@ -1588,10 +1595,10 @@ void PipelineHandlerRkISP1::tryCompleteRequest(RkISP1FrameInfo *info)
 	if (request->hasPendingBuffers())
 		return;
 
-	if (!info->metadataProcessed)
+	if (!isIspBypassed_ && !info->metadataProcessed)
 		return;
 
-	if (!isRaw_ && !info->paramDequeued)
+	if (!isIspBypassed_ && !info->paramDequeued)
 		return;
 
 	data->frameInfo_.destroy(info->frame);
@@ -1646,14 +1653,14 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		request->metadata().set(controls::SensorTimestamp,
 					metadata.timestamp);
 
-		if (isRaw_) {
+		/* We do not have stats buffers in bypass mode */
+		if (!isIspBypassed_) {
 			const ControlList &ctrls =
 				data->delayedCtrls_->get(metadata.sequence);
 			data->ipa_->processStats(info->frame, 0, ctrls);
 		}
 	} else {
-		if (isRaw_)
-			info->metadataProcessed = true;
+		info->metadataProcessed = true;
 	}
 
 	if (!data->usesDewarper_) {
