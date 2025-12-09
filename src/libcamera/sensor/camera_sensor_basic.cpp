@@ -97,6 +97,7 @@ public:
 	int setTestPatternMode(controls::draft::TestPatternModeEnum mode) override;
 	const CameraSensorProperties::SensorDelays &sensorDelays() override;
 	BayerFormat::Order bayerOrder(Transform t) const override;
+	Orientation mountingOrientation() const override { return mountingOrientation_; }
 
 protected:
 	std::string logPrefix() const override;

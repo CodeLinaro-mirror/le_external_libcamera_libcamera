@@ -520,7 +520,9 @@ void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &meta
 namespace {
 
 /* Keep in sync with the supported raw formats in rkisp1_path.cpp. */
-const std::map<PixelFormat, uint32_t> rawFormats = {
+const std::map<PixelFormat, uint32_t> bypassFormats = {
+	{ formats::UYVY, MEDIA_BUS_FMT_UYVY8_1X16 },
+	{ formats::YUYV, MEDIA_BUS_FMT_YUYV8_1X16 },
 	{ formats::SBGGR8, MEDIA_BUS_FMT_SBGGR8_1X8 },
 	{ formats::SGBRG8, MEDIA_BUS_FMT_SGBRG8_1X8 },
 	{ formats::SGRBG8, MEDIA_BUS_FMT_SGRBG8_1X8 },
@@ -755,10 +757,27 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 
 	std::vector<unsigned int> mbusCodes;
 
-	if (isRaw) {
-		mbusCodes = { rawFormats.at(config_[0].pixelFormat) };
+	if (isRaw)
+		mbusCodes = { bypassFormats.at(config_[0].pixelFormat) };
+
+	/* Select the sensor format. */
+	PixelFormat bypassFormat;
+	Size maxSize;
+
+	for (const StreamConfiguration &cfg : config_) {
+		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
+		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW ||
+		    info.colourEncoding == PixelFormatInfo::ColourEncodingYUV)
+			bypassFormat = cfg.pixelFormat;
+
+		maxSize = std::max(maxSize, cfg.size);
+	}
+
+	if (bypassFormat.isValid()) {
+		LOG(RkISP1, Info) << "Using bypass format " << bypassFormat;
+		mbusCodes = { bypassFormats.at(bypassFormat) };
 	} else {
-		std::transform(rawFormats.begin(), rawFormats.end(),
+		std::transform(bypassFormats.begin(), bypassFormats.end(),
 			       std::back_inserter(mbusCodes),
 			       [](const auto &value) { return value.second; });
 	}
@@ -919,8 +938,8 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 
 	const PixelFormat &streamFormat = config->at(0).pixelFormat;
 	const PixelFormatInfo &info = PixelFormatInfo::info(streamFormat);
-	isRaw_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
-	data->usesDewarper_ = data->canUseDewarper_ && !isRaw_;
+	isIspBypassed_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
+	data->usesDewarper_ = data->canUseDewarper_ && !isIspBypassed_;
 
 	Transform transform = config->combinedTransform();
 	bool transposeAfterIsp = false;
