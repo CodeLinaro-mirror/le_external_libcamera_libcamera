@@ -761,19 +761,24 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
 		mbusCodes = { bypassFormats.at(config_[0].pixelFormat) };
 
 	/* Select the sensor format. */
-	PixelFormat bypassFormat;
+	PixelFormat bypassFormat, rawFormat;
 	Size maxSize;
 
 	for (const StreamConfiguration &cfg : config_) {
 		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
-		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW ||
-		    info.colourEncoding == PixelFormatInfo::ColourEncodingYUV)
+		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRAW)
+			rawFormat = cfg.pixelFormat;
+		else
 			bypassFormat = cfg.pixelFormat;
 
 		maxSize = std::max(maxSize, cfg.size);
 	}
 
-	if (bypassFormat.isValid()) {
+	/* We want to prefer to use the RAW format if available */
+	if (rawFormat.isValid()) {
+		LOG(RkISP1, Info) << "Using RAW format " << rawFormat;
+		mbusCodes = { bypassFormats.at(rawFormat) };
+	} else if (bypassFormat.isValid()) {
 		LOG(RkISP1, Info) << "Using bypass format " << bypassFormat;
 		mbusCodes = { bypassFormats.at(bypassFormat) };
 	} else {
