@@ -209,6 +209,9 @@ public:
 	Formats formats(uint32_t code = 0);
 
 	int getFrameInterval(std::chrono::microseconds *interval);
+	int setFrameInterval(std::chrono::microseconds *interval);
+	std::optional<std::array<std::chrono::microseconds, 2>>
+	getFrameIntervalLimits(V4L2PixelFormat pixelFormat, Size size);
 
 	int getSelection(unsigned int target, Rectangle *rect);
 	int setSelection(unsigned int target, Rectangle *rect);

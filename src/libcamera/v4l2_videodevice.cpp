@@ -1202,6 +1202,122 @@ int V4L2VideoDevice::getFrameInterval(std::chrono::microseconds *interval)
 	return 0;
 }
 
+/**
+ * \brief Configure the frame interval
+ * \param[inout] interval The frame interval
+ *
+ * Apply the supplied \a interval as the time-per-frame stream parameter
+ * on the device, and return the actually applied value.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int V4L2VideoDevice::setFrameInterval(std::chrono::microseconds *interval)
+{
+	v4l2_fract *frameInterval = nullptr;
+	uint32_t *caps = nullptr;
+	v4l2_streamparm sparm = {};
+
+	sparm.type = bufferType_;
+
+	switch (sparm.type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
+		frameInterval = &sparm.parm.capture.timeperframe;
+		caps = &sparm.parm.capture.capability;
+		break;
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
+		frameInterval = &sparm.parm.output.timeperframe;
+		caps = &sparm.parm.output.capability;
+		break;
+	}
+
+	if (!frameInterval)
+		return -EINVAL;
+
+	constexpr auto max = std::numeric_limits<decltype(frameInterval->numerator)>::max();
+	if (interval->count() <= 0 || interval->count() > max)
+		return -EINVAL;
+
+	frameInterval->numerator = interval->count();
+	frameInterval->denominator = std::chrono::microseconds(std::chrono::seconds(1)).count();
+
+	int ret = ioctl(VIDIOC_S_PARM, &sparm);
+	if (ret)
+		return ret;
+
+	if (!(*caps & V4L2_CAP_TIMEPERFRAME))
+		return -ENOTSUP;
+
+	*interval = v4l2FractionToMs(*frameInterval);
+
+	return 0;
+}
+
+/**
+ * \brief Retrieve the frame interval limits
+ * \param[in] pixelFormat The pixel format
+ * \param[in] size The size
+ *
+ * Retrieve the minimum and maximum available frame interval for
+ * the given \a pixelFormat and \a size.
+ *
+ * \return The min and max frame interval or std::nullopt otherwise
+ */
+std::optional<std::array<std::chrono::microseconds, 2>>
+V4L2VideoDevice::getFrameIntervalLimits(V4L2PixelFormat pixelFormat, Size size)
+{
+	auto min = std::chrono::microseconds::max();
+	auto max = std::chrono::microseconds::min();
+	unsigned int index = 0;
+	int ret;
+
+	for (;; index++) {
+		struct v4l2_frmivalenum frameInterval = {};
+		frameInterval.index = index;
+		frameInterval.pixel_format = pixelFormat;
+		frameInterval.width = size.width;
+		frameInterval.height = size.height;
+
+		ret = ioctl(VIDIOC_ENUM_FRAMEINTERVALS, &frameInterval);
+		if (ret)
+			break;
+
+		switch (frameInterval.type) {
+		case V4L2_FRMIVAL_TYPE_DISCRETE: {
+			auto ms = v4l2FractionToMs(frameInterval.discrete);
+
+			min = std::min(min, ms);
+			max = std::max(max, ms);
+			break;
+		}
+		case V4L2_FRMIVAL_TYPE_CONTINUOUS:
+		case V4L2_FRMIVAL_TYPE_STEPWISE: {
+			min = std::min(min, v4l2FractionToMs(frameInterval.stepwise.min));
+			max = std::max(max, v4l2FractionToMs(frameInterval.stepwise.max));
+			break;
+		}
+		default:
+			LOG(V4L2, Error)
+				<< "Unknown v4l2_frmsizetypes value "
+				<< frameInterval.type;
+			return {};
+		}
+	}
+
+	if (ret && ret != -EINVAL) {
+		LOG(V4L2, Error)
+			<< "Unable to enumerate pixel formats: "
+			<< strerror(-ret);
+		return {};
+	}
+
+	if (index <= 0)
+		return {};
+
+	return {{ min, max }};
+}
+
 std::vector<V4L2PixelFormat> V4L2VideoDevice::enumPixelformats(uint32_t code)
 {
 	std::vector<V4L2PixelFormat> formats;

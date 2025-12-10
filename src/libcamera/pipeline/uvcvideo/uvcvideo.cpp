@@ -57,6 +57,7 @@ public:
 	std::unique_ptr<V4L2VideoDevice> video_;
 	Stream stream_;
 	std::map<PixelFormat, std::vector<SizeRange>> formats_;
+	std::map<std::pair<PixelFormat, Size>, std::array<std::chrono::microseconds, 2>> frameIntervals_;
 
 	std::optional<v4l2_exposure_auto_type> autoExposureMode_;
 	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
@@ -277,6 +278,22 @@ int PipelineHandlerUVC::configure(Camera *camera, CameraConfiguration *config)
 	    format.fourcc != data->video_->toV4L2PixelFormat(cfg.pixelFormat))
 		return -EINVAL;
 
+	auto it = data->controlInfo_.find(&controls::FrameDurationLimits);
+	if (it != data->controlInfo_.end()) {
+		auto it2 = data->frameIntervals_.find({ cfg.pixelFormat, cfg.size });
+		if (it2 != data->frameIntervals_.end()) {
+			std::chrono::microseconds current;
+
+			ret = data->video_->getFrameInterval(&current);
+
+			it->second = ControlInfo{
+				int64_t(it2->second[0].count()),
+				int64_t(it2->second[1].count()),
+				ret == 0 ? ControlValue(int64_t(current.count())) : ControlValue()
+			};
+		}
+	}
+
 	cfg.setStream(&data->stream_);
 
 	return 0;
@@ -306,6 +323,19 @@ int PipelineHandlerUVC::start(Camera *camera, const ControlList *controls)
 		ret = processControls(data, *controls);
 		if (ret < 0)
 			goto err_release_buffers;
+
+		/* Can only be set before starting. */
+		auto fdl = controls->get(controls::FrameDurationLimits);
+		if (fdl) {
+			const auto wantMin = std::chrono::microseconds((*fdl)[0]);
+			const auto wantMax = std::chrono::microseconds((*fdl)[1]);
+			auto want = (wantMin + wantMax) / 2;
+
+			/* Let the kernel choose something close to the middle. */
+			ret = data->video_->setFrameInterval(&want);
+			if (ret == 0)
+				data->timePerFrame_ = want;
+		}
 	}
 
 	ret = data->video_->streamOn();
@@ -355,6 +385,8 @@ int PipelineHandlerUVC::processControl(const UVCCameraData *data, ControlList *c
 		cid = V4L2_CID_GAMMA;
 	else if (id == controls::AeEnable)
 		return 0; /* Handled in `Camera::queueRequest()`. */
+	else if (id == controls::FrameDurationLimits)
+		return 0; /* Handled in `start()` */
 	else
 		return -EINVAL;
 
@@ -555,6 +587,23 @@ int UVCCameraData::init(std::shared_ptr<MediaDevice> media)
 	 * resolution from the largest size it advertises.
 	 */
 	Size resolution;
+	auto minFrameInterval = std::chrono::microseconds::max();
+	auto maxFrameInterval = std::chrono::microseconds::min();
+
+	const auto processFrameIntervals = [&](PixelFormat pf, V4L2PixelFormat v4l2pf, SizeRange size) {
+		if (size.min != size.max)
+			return;
+
+		auto frameIntervals = video_->getFrameIntervalLimits(v4l2pf, size.min);
+		if (!frameIntervals)
+			return;
+
+		minFrameInterval = std::min(minFrameInterval, (*frameIntervals)[0]);
+		maxFrameInterval = std::max(maxFrameInterval, (*frameIntervals)[1]);
+
+		frameIntervals_.try_emplace({ pf, size.min }, *frameIntervals);
+	};
+
 	for (const auto &format : video_->formats()) {
 		PixelFormat pixelFormat = format.first.toPixelFormat();
 		if (!pixelFormat.isValid())
@@ -566,6 +615,8 @@ int UVCCameraData::init(std::shared_ptr<MediaDevice> media)
 		for (const SizeRange &sizeRange : sizeRanges) {
 			if (sizeRange.max > resolution)
 				resolution = sizeRange.max;
+
+			processFrameIntervals(pixelFormat, format.first, sizeRange);
 		}
 	}
 
@@ -623,6 +674,14 @@ int UVCCameraData::init(std::shared_ptr<MediaDevice> media)
 	if (autoExposureMode_ && manualExposureMode_) {
 		/* \todo Move this to the Camera class */
 		ctrls[&controls::AeEnable] = ControlInfo(false, true, true);
+	}
+
+	/* Use the global min/max here, limits will be updated in `configure()`. */
+	if (!frameIntervals_.empty()) {
+		ctrls[&controls::FrameDurationLimits] = ControlInfo{
+			int64_t(minFrameInterval.count()),
+			int64_t(maxFrameInterval.count()),
+		};
 	}
 
 	controlInfo_ = ControlInfoMap(std::move(ctrls), controls::controls);
