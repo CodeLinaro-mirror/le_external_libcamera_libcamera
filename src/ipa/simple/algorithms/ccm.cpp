@@ -27,13 +27,26 @@ namespace ipa::soft::algorithms {
 
 LOG_DEFINE_CATEGORY(IPASoftCcm)
 
-int Ccm::init([[maybe_unused]] IPAContext &context, const YamlObject &tuningData)
+int Ccm::init([[maybe_unused]] IPAContext &context,[[maybe_unused]] const YamlObject &tuningData)
 {
-	int ret = ccm_.readYaml(tuningData["ccms"], "ct", "ccm");
-	if (ret < 0) {
-		LOG(IPASoftCcm, Error)
-			<< "Failed to parse 'ccm' parameter from tuning file.";
-		return ret;
+	if (!context.selfInitialising) {
+		int ret = ccm_.readYaml(tuningData["ccms"], "ct", "ccm");
+		if (ret < 0) {
+			LOG(IPASoftCcm, Error)
+				<< "Failed to parse 'ccm' parameter from tuning file.";
+			return ret;
+		}
+	} else {
+		/* Initialize with identity CCM at standard D65 color temperature */
+		float identity[] = { 1, 0, 0,
+				     0, 1, 0,
+				     0, 0, 1 };
+		Matrix<float, 3, 3> identityMatrix(identity);
+
+		std::map<unsigned int, Matrix<float, 3, 3>> ccmData;
+		ccmData[6500] = identityMatrix;
+
+		ccm_ = Interpolator<Matrix<float, 3, 3>>(std::move(ccmData));
 	}
 
 	context.ccmEnabled = true;
