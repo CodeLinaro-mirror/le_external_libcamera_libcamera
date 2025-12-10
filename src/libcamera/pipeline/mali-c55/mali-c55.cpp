@@ -92,17 +92,28 @@ struct MaliC55FrameInfo {
 class MaliC55CameraData : public Camera::Private
 {
 public:
-	MaliC55CameraData(PipelineHandler *pipe, MediaEntity *entity)
-		: Camera::Private(pipe), entity_(entity)
+	enum CameraType {
+		Tpg,
+		Inline,
+	};
+
+	MaliC55CameraData(PipelineHandler *pipe)
+		: Camera::Private(pipe)
 	{
 	}
 
-	int init();
 	int loadIPA();
 
+	CameraType type() const { return type_; }
+
 	/* Deflect these functionalities to either TPG or CameraSensor. */
-	std::vector<Size> sizes(unsigned int mbusCode) const;
-	Size resolution() const;
+	virtual int init(MediaEntity *entity) = 0;
+
+	virtual std::vector<Size> sizes(unsigned int mbusCode) const = 0;
+	virtual V4L2Subdevice *subdev() const = 0;
+	virtual CameraSensor *sensor() const = 0;
+	virtual V4L2Subdevice *csi2() const = 0;
+	virtual Size resolution() const = 0;
 
 	int pixfmtToMbusCode(const PixelFormat &pixFmt) const;
 	const PixelFormat &bestRawFormat() const;
@@ -112,11 +123,6 @@ public:
 	PixelFormat adjustRawFormat(const PixelFormat &pixFmt) const;
 	Size adjustRawSizes(const PixelFormat &pixFmt, const Size &rawSize) const;
 
-	std::unique_ptr<CameraSensor> sensor_;
-
-	MediaEntity *entity_;
-	std::unique_ptr<V4L2Subdevice> csi_;
-	std::unique_ptr<V4L2Subdevice> sd_;
 	Stream frStream_;
 	Stream dsStream_;
 
@@ -126,58 +132,106 @@ public:
 
 	std::unique_ptr<DelayedControls> delayedCtrls_;
 
-private:
-	void initTPGData();
-	void setSensorControls(const ControlList &sensorControls);
+protected:
+	CameraType type_;
 
+private:
+	void setSensorControls(const ControlList &sensorControls);
 	std::string id_;
-	Size tpgResolution_;
 };
 
-int MaliC55CameraData::init()
+class MaliC55TpgCameraData : public MaliC55CameraData
 {
-	int ret;
+public:
+	MaliC55TpgCameraData(PipelineHandler *pipe);
 
-	sd_ = std::make_unique<V4L2Subdevice>(entity_);
-	ret = sd_->open();
-	if (ret) {
-		LOG(MaliC55, Error) << "Failed to open sensor subdevice";
-		return ret;
+	int init(MediaEntity *entity) override;
+
+	std::vector<Size> sizes(unsigned int mbusCode) const override;
+
+	Size resolution() const override
+	{
+		return resolution_;
 	}
 
-	/* If this camera is created from TPG, we return here. */
-	if (entity_->name() == "mali-c55 tpg") {
-		initTPGData();
-		return 0;
+	V4L2Subdevice *subdev() const override
+	{
+		return sd_.get();
 	}
 
-	/*
-	 * Register a CameraSensor if we connect to a sensor and create
-	 * an entity for the connected CSI-2 receiver.
-	 */
-	sensor_ = CameraSensorFactoryBase::create(entity_);
-	if (!sensor_)
-		return -ENODEV;
-
-	const MediaPad *sourcePad = entity_->getPadByIndex(0);
-	MediaEntity *csiEntity = sourcePad->links()[0]->sink()->entity();
-
-	csi_ = std::make_unique<V4L2Subdevice>(csiEntity);
-	ret = csi_->open();
-	if (ret) {
-		LOG(MaliC55, Error) << "Failed to open CSI-2 subdevice";
-		return ret;
+	CameraSensor *sensor() const override
+	{
+		ASSERT(false);
+		return nullptr;
 	}
 
-	return 0;
+	V4L2Subdevice *csi2() const override
+	{
+		ASSERT(false);
+		return nullptr;
+	}
+
+private:
+	Size resolution_;
+	std::unique_ptr<V4L2Subdevice> sd_;
+};
+
+class MaliC55InlineCameraData : public MaliC55CameraData
+{
+public:
+	MaliC55InlineCameraData(PipelineHandler *pipe);
+
+	int init(MediaEntity *entity) override;
+
+	std::vector<Size> sizes(unsigned int mbusCode) const override
+	{
+		return sensor_->sizes(mbusCode);
+	}
+
+	Size resolution() const override
+	{
+		return sensor_->resolution();
+	}
+
+	V4L2Subdevice *subdev() const override
+	{
+		return sensor_->device();
+	}
+
+	CameraSensor *sensor() const override
+	{
+		return sensor_.get();
+	}
+
+	V4L2Subdevice *csi2() const override
+	{
+		return csi2_.get();
+	}
+
+private:
+	std::unique_ptr<V4L2Subdevice> csi2_;
+	std::unique_ptr<CameraSensor> sensor_;
+};
+
+MaliC55TpgCameraData::MaliC55TpgCameraData(PipelineHandler *pipe)
+	: MaliC55CameraData(pipe)
+{
+	type_ = CameraType::Tpg;
 }
 
-void MaliC55CameraData::initTPGData()
+int MaliC55TpgCameraData::init(MediaEntity *tpg)
 {
+	sd_ = std::make_unique<V4L2Subdevice>(tpg);
+	int ret = sd_->open();
+	if (ret) {
+		LOG(MaliC55, Error) << "Failed to open TPG subdevice";
+		return ret;
+	}
+
 	/* Replicate the CameraSensor implementation for TPG. */
 	V4L2Subdevice::Formats formats = sd_->formats(0);
 	if (formats.empty())
-		return;
+		return -EINVAL;
 
 	std::vector<Size> tpgSizes;
 
@@ -187,19 +241,13 @@ void MaliC55CameraData::initTPGData()
 			       [](const SizeRange &range) { return range.max; });
 	}
 
-	tpgResolution_ = tpgSizes.back();
+	resolution_ = tpgSizes.back();
+
+	return 0;
 }
 
-void MaliC55CameraData::setSensorControls(const ControlList &sensorControls)
+std::vector<Size> MaliC55TpgCameraData::sizes(unsigned int mbusCode) const
 {
-	delayedCtrls_->push(sensorControls);
-}
-
-std::vector<Size> MaliC55CameraData::sizes(unsigned int mbusCode) const
-{
-	if (sensor_)
-		return sensor_->sizes(mbusCode);
-
 	V4L2Subdevice::Formats formats = sd_->formats(0);
 	if (formats.empty())
 		return {};
@@ -218,12 +266,35 @@ std::vector<Size> MaliC55CameraData::sizes(unsigned int mbusCode) const
 	return sizes;
 }
 
-Size MaliC55CameraData::resolution() const
+MaliC55InlineCameraData::MaliC55InlineCameraData(PipelineHandler *pipe)
+	: MaliC55CameraData(pipe)
 {
-	if (sensor_)
-		return sensor_->resolution();
+	type_ = CameraType::Inline;
+}
 
-	return tpgResolution_;
+int MaliC55InlineCameraData::init(MediaEntity *sensor)
+{
+	/* Register a CameraSensor create an entity for the CSI-2 receiver. */
+	sensor_ = CameraSensorFactoryBase::create(sensor);
+	if (!sensor_)
+		return -EINVAL;
+
+	const MediaPad *sourcePad = sensor->getPadByIndex(0);
+	MediaEntity *csiEntity = sourcePad->links()[0]->sink()->entity();
+
+	csi2_ = std::make_unique<V4L2Subdevice>(csiEntity);
+	int ret = csi2_->open();
+	if (ret) {
+		LOG(MaliC55, Error) << "Failed to open CSI-2 subdevice";
+		return ret;
+	}
+
+	return ret;
+}
+
+void MaliC55CameraData::setSensorControls(const ControlList &sensorControls)
+{
+	delayedCtrls_->push(sensorControls);
 }
 
 /*
@@ -242,7 +313,7 @@ int MaliC55CameraData::pixfmtToMbusCode(const PixelFormat &pixFmt) const
 	if (!bayerFormat.isValid())
 		return -EINVAL;
 
-	V4L2Subdevice::Formats formats = sd_->formats(0);
+	V4L2Subdevice::Formats formats = subdev()->formats(0);
 	unsigned int sensorMbusCode = 0;
 	unsigned int bitDepth = 0;
 
@@ -280,7 +351,7 @@ const PixelFormat &MaliC55CameraData::bestRawFormat() const
 {
 	static const PixelFormat invalidPixFmt = {};
 
-	for (const auto &fmt : sd_->formats(0)) {
+	for (const auto &fmt : subdev()->formats(0)) {
 		BayerFormat sensorBayer = BayerFormat::fromMbusCode(fmt.first);
 
 		if (!sensorBayer.isValid())
@@ -302,11 +373,11 @@ const PixelFormat &MaliC55CameraData::bestRawFormat() const
 
 void MaliC55CameraData::updateControls(const ControlInfoMap &ipaControls)
 {
-	if (!sensor_)
+	if (type_ == CameraType::Tpg)
 		return;
 
 	IPACameraSensorInfo sensorInfo;
-	int ret = sensor_->sensorInfo(&sensorInfo);
+	int ret = sensor()->sensorInfo(&sensorInfo);
 	if (ret) {
 		LOG(MaliC55, Error) << "Failed to retrieve sensor info";
 		return;
@@ -379,7 +450,7 @@ int MaliC55CameraData::loadIPA()
 	int ret;
 
 	/* Do not initialize IPA for TPG. */
-	if (!sensor_)
+	if (type_ == CameraType::Tpg)
 		return 0;
 
 	ipa_ = IPAManager::createIPA<ipa::mali_c55::IPAProxyMaliC55>(pipe(), 1, 1);
@@ -388,20 +459,20 @@ int MaliC55CameraData::loadIPA()
 
 	ipa_->setSensorControls.connect(this, &MaliC55CameraData::setSensorControls);
 
-	std::string ipaTuningFile = ipa_->configurationFile(sensor_->model() + ".yaml",
+	std::string ipaTuningFile = ipa_->configurationFile(sensor()->model() + ".yaml",
 							    "uncalibrated.yaml");
 
 	/* We need to inform the IPA of the sensor configuration */
 	ipa::mali_c55::IPAConfigInfo ipaConfig{};
 
-	ret = sensor_->sensorInfo(&ipaConfig.sensorInfo);
+	ret = sensor()->sensorInfo(&ipaConfig.sensorInfo);
 	if (ret)
 		return ret;
 
-	ipaConfig.sensorControls = sensor_->controls();
+	ipaConfig.sensorControls = sensor()->controls();
 
 	ControlInfoMap ipaControls;
-	ret = ipa_->init({ ipaTuningFile, sensor_->model() }, ipaConfig,
+	ret = ipa_->init({ ipaTuningFile, sensor()->model() }, ipaConfig,
 			 &ipaControls);
 	if (ret) {
 		LOG(MaliC55, Error) << "Failed to initialise the Mali-C55 IPA";
@@ -444,13 +515,13 @@ CameraConfiguration::Status MaliC55CameraConfiguration::validate()
 	 * The TPG doesn't support flips, so we only need to calculate a
 	 * transform if we have a sensor.
 	 */
-	if (data_->sensor_) {
+	if (data_->type() == MaliC55CameraData::CameraType::Tpg) {
+		combinedTransform_ = Transform::Rot0;
+	} else {
 		Orientation requestedOrientation = orientation;
-		combinedTransform_ = data_->sensor_->computeTransform(&orientation);
+		combinedTransform_ = data_->sensor()->computeTransform(&orientation);
 		if (orientation != requestedOrientation)
 			status = Adjusted;
-	} else {
-		combinedTransform_ = Transform::Rot0;
 	}
 
 	/* Only 2 streams available. */
@@ -927,11 +998,17 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 
 	/* Link the graph depending if we are operating the TPG or a sensor. */
 	MaliC55CameraData *data = cameraData(camera);
-	if (data->csi_) {
-		const MediaEntity *csiEntity = data->csi_->entity();
-		ret = csiEntity->getPadByIndex(1)->links()[0]->setEnabled(true);
-	} else {
-		ret = data->entity_->getPadByIndex(0)->links()[0]->setEnabled(true);
+	switch (data->type()) {
+	case MaliC55CameraData::CameraType::Tpg: {
+		const MediaEntity *tpgEntity = data->subdev()->entity();
+		ret = tpgEntity->getPadByIndex(0)->links()[0]->setEnabled(true);
+		break;
+	}
+	case MaliC55CameraData::CameraType::Inline: {
+		const MediaEntity *csi2Entity = data->csi2()->entity();
+		ret = csi2Entity->getPadByIndex(1)->links()[0]->setEnabled(true);
+		break;
+	}
 	}
 	if (ret)
 		return ret;
@@ -939,26 +1016,30 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 	MaliC55CameraConfiguration *maliConfig =
 		static_cast<MaliC55CameraConfiguration *>(config);
 	V4L2SubdeviceFormat subdevFormat = maliConfig->sensorFormat_;
-	ret = data->sd_->getFormat(0, &subdevFormat);
+
+	/* Apply format to the origin of the pipeline and propagate it. */
+	switch (data->type()) {
+	case MaliC55CameraData::CameraType::Tpg: {
+		ret = data->subdev()->setFormat(0, &subdevFormat);
+		break;
+	}
+	case MaliC55CameraData::CameraType::Inline: {
+		ret = data->sensor()->setFormat(&subdevFormat,
+						maliConfig->combinedTransform());
+		if (ret)
+			return ret;
+
+		ret = data->csi2()->setFormat(0, &subdevFormat);
+		if (ret)
+			return ret;
+
+		ret = data->csi2()->getFormat(1, &subdevFormat);
+
+		break;
+	}
+	}
 	if (ret)
 		return ret;
-
-	if (data->sensor_) {
-		ret = data->sensor_->setFormat(&subdevFormat,
-					       maliConfig->combinedTransform());
-		if (ret)
-			return ret;
-	}
-
-	if (data->csi_) {
-		ret = data->csi_->setFormat(0, &subdevFormat);
-		if (ret)
-			return ret;
-
-		ret = data->csi_->getFormat(1, &subdevFormat);
-		if (ret)
-			return ret;
-	}
 
 	V4L2DeviceFormat statsFormat;
 	ret = stats_->getFormat(&statsFormat);
@@ -973,8 +1054,6 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 	/*
 	 * Propagate the format to the ISP sink pad and configure the input
 	 * crop rectangle (no crop at the moment).
-	 *
-	 * \todo Configure the CSI-2 receiver.
 	 */
 	ret = isp_->setFormat(0, &subdevFormat);
 	if (ret)
@@ -1058,18 +1137,18 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 	/* We need to inform the IPA of the sensor configuration */
 	ipa::mali_c55::IPAConfigInfo ipaConfig{};
 
-	ret = data->sensor_->sensorInfo(&ipaConfig.sensorInfo);
+	ret = data->sensor()->sensorInfo(&ipaConfig.sensorInfo);
 	if (ret)
 		return ret;
 
-	ipaConfig.sensorControls = data->sensor_->controls();
+	ipaConfig.sensorControls = data->sensor()->controls();
 
 	/*
 	 * And we also need to tell the IPA the bayerOrder of the data (as
 	 * affected by any flips that we've configured)
 	 */
 	const Transform &combinedTransform = maliConfig->combinedTransform();
-	BayerFormat::Order bayerOrder = data->sensor_->bayerOrder(combinedTransform);
+	BayerFormat::Order bayerOrder = data->sensor()->bayerOrder(combinedTransform);
 
 	ControlInfoMap ipaControls;
 	ret = data->ipa_->configure(ipaConfig, utils::to_underlying(bayerOrder),
@@ -1283,7 +1362,7 @@ void PipelineHandlerMaliC55::applyScalerCrop(Camera *camera,
 	if (!scalerCrop)
 		return;
 
-	if (!data->sensor_) {
+	if (data->type() == MaliC55CameraData::CameraType::Tpg) {
 		LOG(MaliC55, Error) << "ScalerCrop not supported for TPG";
 		return;
 	}
@@ -1291,7 +1370,7 @@ void PipelineHandlerMaliC55::applyScalerCrop(Camera *camera,
 	Rectangle nativeCrop = *scalerCrop;
 
 	IPACameraSensorInfo sensorInfo;
-	int ret = data->sensor_->sensorInfo(&sensorInfo);
+	int ret = data->sensor()->sensorInfo(&sensorInfo);
 	if (ret) {
 		LOG(MaliC55, Error) << "Failed to retrieve sensor info";
 		return;
@@ -1573,10 +1652,11 @@ bool PipelineHandlerMaliC55::registerTPGCamera(MediaLink *link)
 	}
 
 	std::unique_ptr<MaliC55CameraData> data =
-		std::make_unique<MaliC55CameraData>(this, link->source()->entity());
+		std::make_unique<MaliC55TpgCameraData>(this);
 
-	if (data->init())
-		return false;
+	int ret = data->init(link->source()->entity());
+	if (ret)
+		return ret;
 
 	return registerMaliCamera(std::move(data), name);
 }
@@ -1600,21 +1680,24 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 			continue;
 
 		std::unique_ptr<MaliC55CameraData> data =
-			std::make_unique<MaliC55CameraData>(this, sensor);
-		if (data->init())
-			return false;
+			std::make_unique<MaliC55InlineCameraData>(this);
 
-		data->properties_ = data->sensor_->properties();
+		int ret = data->init(sensor);
+		if (ret)
+			return ret;
 
-		const CameraSensorProperties::SensorDelays &delays = data->sensor_->sensorDelays();
+		data->properties_ = data->sensor()->properties();
+
+		const CameraSensorProperties::SensorDelays &delays =
+			data->sensor()->sensorDelays();
 		std::unordered_map<uint32_t, DelayedControls::ControlParams> params = {
 			{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
 			{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
 		};
 
-		data->delayedCtrls_ =
-			std::make_unique<DelayedControls>(data->sensor_->device(),
-							  params);
+		V4L2Subdevice *sensorSubdev = data->sensor()->device();
+		data->delayedCtrls_ = std::make_unique<DelayedControls>(sensorSubdev,
+									params);
 		isp_->frameStart.connect(data->delayedCtrls_.get(),
 					 &DelayedControls::applyControls);
 
