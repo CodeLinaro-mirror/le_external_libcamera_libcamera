@@ -1147,6 +1147,61 @@ V4L2VideoDevice::Formats V4L2VideoDevice::formats(uint32_t code)
 	return formats;
 }
 
+namespace {
+
+std::chrono::microseconds
+v4l2FractionToMs(const v4l2_fract &f)
+{
+	auto seconds = std::chrono::duration<float>(f.numerator) / f.denominator;
+	return std::chrono::duration_cast<std::chrono::microseconds>(seconds);
+}
+
+}
+
+/**
+ * \brief Retrieve the frame interval set on the V4L2 video device
+ * \param[out] interval The frame interval applied on the device
+ *
+ * Retrieve the current time-per-frame parameter from the device.
+ *
+ * \return 0 on success or a negative error code otherwise
+ */
+int V4L2VideoDevice::getFrameInterval(std::chrono::microseconds *interval)
+{
+	const v4l2_fract *frameInterval = nullptr;
+	v4l2_streamparm sparm = {};
+	uint32_t caps = 0;
+
+	sparm.type = bufferType_;
+
+	int ret = ioctl(VIDIOC_G_PARM, &sparm);
+	if (ret)
+		return ret;
+
+	switch (sparm.type) {
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
+	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
+		frameInterval = &sparm.parm.capture.timeperframe;
+		caps = sparm.parm.capture.capability;
+		break;
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
+	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
+		frameInterval = &sparm.parm.output.timeperframe;
+		caps = sparm.parm.output.capability;
+		break;
+	}
+
+	if (!frameInterval)
+		return -EINVAL;
+
+	if (!(caps & V4L2_CAP_TIMEPERFRAME))
+		return -ENOTSUP;
+
+	*interval = v4l2FractionToMs(*frameInterval);
+
+	return 0;
+}
+
 std::vector<V4L2PixelFormat> V4L2VideoDevice::enumPixelformats(uint32_t code)
 {
 	std::vector<V4L2PixelFormat> formats;

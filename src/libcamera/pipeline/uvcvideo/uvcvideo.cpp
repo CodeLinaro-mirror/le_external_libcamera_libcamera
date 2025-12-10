@@ -60,6 +60,7 @@ public:
 
 	std::optional<v4l2_exposure_auto_type> autoExposureMode_;
 	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
+	std::optional<std::chrono::microseconds> timePerFrame_;
 
 private:
 	bool generateId();
@@ -295,6 +296,8 @@ int PipelineHandlerUVC::start(Camera *camera, const ControlList *controls)
 	UVCCameraData *data = cameraData(camera);
 	unsigned int count = data->stream_.configuration().bufferCount;
 
+	data->timePerFrame_.reset();
+
 	int ret = data->video_->importBuffers(count);
 	if (ret < 0)
 		return ret;
@@ -308,6 +311,13 @@ int PipelineHandlerUVC::start(Camera *camera, const ControlList *controls)
 	ret = data->video_->streamOn();
 	if (ret < 0)
 		goto err_release_buffers;
+
+	if (!data->timePerFrame_) {
+		std::chrono::microseconds interval;
+		ret = data->video_->getFrameInterval(&interval);
+		if (ret == 0)
+			data->timePerFrame_ = interval;
+	}
 
 	return 0;
 
@@ -897,6 +907,9 @@ void UVCCameraData::imageBufferReady(FrameBuffer *buffer)
 	/* \todo Use the UVC metadata to calculate a more precise timestamp */
 	request->metadata().set(controls::SensorTimestamp,
 				buffer->metadata().timestamp);
+
+	if (timePerFrame_)
+		request->metadata().set(controls::FrameDuration, timePerFrame_->count());
 
 	pipe()->completeBuffer(request, buffer);
 	pipe()->completeRequest(request);
