@@ -27,9 +27,9 @@
 namespace libcamera {
 
 static const std::map<uint8_t, V4L2PixelFormat> bitDepthToFmt{
-	{ 10, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU10) },
-	{ 12, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU12) },
-	{ 14, V4L2PixelFormat(V4L2_PIX_FMT_RAW_CRU14) },
+	{ 10, V4L2PixelFormat(V4L2_PIX_FMT_SBGGR10) },
+	{ 12, V4L2PixelFormat(V4L2_PIX_FMT_SBGGR12) },
+	{ 14, V4L2PixelFormat(V4L2_PIX_FMT_SBGGR14) },
 };
 
 LOG_DEFINE_CATEGORY(RZG2LCRU)
