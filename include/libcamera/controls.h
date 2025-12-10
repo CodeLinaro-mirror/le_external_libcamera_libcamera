@@ -457,14 +457,18 @@ public:
 		val->set<T>(value);
 	}
 
-	template<typename T, typename V, size_t Size>
-	void set(const Control<Span<T, Size>> &ctrl, const std::initializer_list<V> &value)
+	template<typename T, size_t Size>
+	void set(const Control<Span<T, Size>> &ctrl,
+		 const std::initializer_list<std::remove_cv_t<T>> &value)
 	{
+		if constexpr (Size != dynamic_extent)
+			assert(Size == value.size());
+
 		ControlValue *val = find(ctrl.id());
 		if (!val)
 			return;
 
-		val->set(Span<const typename std::remove_cv_t<V>, Size>{ value.begin(), value.size() });
+		val->set(Span<const T, Size>{ value.begin(), value.size() });
 	}
 
 	const ControlValue &get(unsigned int id) const;

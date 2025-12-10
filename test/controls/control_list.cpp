@@ -246,6 +246,20 @@ protected:
 			return TestFail;
 		}
 
+		ControlList list2;
+
+		/* Check deduced type of init list */
+		{
+			const auto &ctrl = controls::FrameDurationLimits;
+
+			list2.set(ctrl, { 1, 2 });
+
+			if (list2.get(ctrl.id()).type() != static_cast<const ControlId &>(ctrl).type()) {
+				cout << "Type of init list has been incorrectly deduced";
+				return TestFail;
+			}
+		}
+
 		return TestPass;
 	}
 };
