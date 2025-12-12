@@ -104,6 +104,7 @@ struct IPAContext {
 	ControlInfoMap::Map ctrlMap;
 	bool ccmEnabled = false;
 	bool selfInitialising = false;
+	bool gpuIspEnabled = false;
 };
 
 } /* namespace ipa::soft */
