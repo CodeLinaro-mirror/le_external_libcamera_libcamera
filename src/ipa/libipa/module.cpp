@@ -84,6 +84,40 @@ namespace ipa {
  */
 
 /**
+ * \fn int Module::createSelfEnumeratingAlgorithm(Context &context, const std::string &name)
+ * \brief Create and initialise a self-enumerating algorithm by name
+ *
+ * This function creates an algorithm instance from the registered algorithm
+ * factories using only the algorithm name, without requiring YAML configuration
+ * data.
+ *
+ * This is useful for algorithms that don't require external configuration
+ * parameters and can self-configure or use default values.
+ *
+ * \param[in] context The IPA context to pass to the algorithm's init function
+ * \param[in] name The name of the algorithm to instantiate
+ *
+ * \return 0 on success, negative errno value on failure:
+ *         -EINVAL if the algorithm is not found in the factory registry
+ *         Other negative values if algorithm initialisation fails
+ */
+
+/**
+ * \fn int Module::createAlgorithmCommon(Context &context, const YamlObject &algoData, const std::string &name)
+ * \brief Common helper fucntion to allow createSelfEnumeratingAlgorithm and createAlgorithm share code
+ *
+ * Worker method which allows sharing of common code in the Yaml and self-initialising algorithm case
+ *
+ * \param[in] context The IPA context to pass to the algorithm's init function
+ * \param[in] algoData Yaml object
+ * \param[in] name The name of the algorithm to instantiate
+ *
+ * \return 0 on success, negative errno value on failure:
+ *         -EINVAL if the algorithm is not found in the factory registry
+ *         Other negative values if algorithm initialisation fails
+ */
+
+/**
  * \fn Module::createAlgorithms()
  * \brief Create algorithms from YAML configuration data
  * \param[in] context The IPA context

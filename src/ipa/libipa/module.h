@@ -70,22 +70,25 @@ public:
 		factories().push_back(factory);
 	}
 
-private:
-	int createAlgorithm(Context &context, const YamlObject &data)
+	int createSelfEnumeratingAlgorithm(Context &context, const std::string &name)
 	{
-		const auto &[name, algoData] = *data.asDict().begin();
+		YamlObject dummy;
 
-		/*
-		 * Optionally, algorithms can be disabled via the tuning file
-		 * by including enabled: false as a parameter within the
-		 * algorithm tuning data. This is not an error, so we return 0.
-		 */
-		if (!algoData["enabled"].get<bool>(true)) {
-			LOG(IPAModuleAlgo, Info)
-				<< "Algorithm '" << name << "' disabled via tuning file";
-			return 0;
+		std::unique_ptr<Algorithm<Module>> algo = createAlgorithm(name);
+		if (!algo) {
+			LOG(IPAModuleAlgo, Error)
+				<< "Algorithm '" << name << "' not found";
+			return -EINVAL;
 		}
 
+		context.selfInitialising = true;
+
+		return createAlgorithmCommon(context, dummy, name);
+	}
+
+private:
+	int createAlgorithmCommon(Context &context, const YamlObject &algoData, const std::string &name)
+	{
 		std::unique_ptr<Algorithm<Module>> algo = createAlgorithm(name);
 		if (!algo) {
 			LOG(IPAModuleAlgo, Error)
@@ -104,7 +107,26 @@ private:
 			<< "Instantiated algorithm '" << name << "'";
 
 		algorithms_.push_back(std::move(algo));
+
 		return 0;
+	}
+
+	int createAlgorithm(Context &context, const YamlObject &data)
+	{
+		const auto &[name, algoData] = *data.asDict().begin();
+
+		/*
+		 * Optionally, algorithms can be disabled via the tuning file
+		 * by including enabled: false as a parameter within the
+		 * algorithm tuning data. This is not an error, so we return 0.
+		 */
+		if (!algoData["enabled"].get<bool>(true)) {
+			LOG(IPAModuleAlgo, Info)
+				<< "Algorithm '" << name << "' disabled via tuning file";
+			return 0;
+		}
+
+		return createAlgorithmCommon(context, algoData, name);
 	}
 
 	static std::unique_ptr<Algorithm<Module>> createAlgorithm(const std::string &name)
