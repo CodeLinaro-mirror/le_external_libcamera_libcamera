@@ -121,6 +121,8 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
+	bool gpuIspEnabled;
+
 #if HAVE_DEBAYER_EGL
 	std::optional<std::string> softISPMode = configuration.envOption("LIBCAMERA_SOFTISP_MODE", { "software_isp", "mode" });
 	if (softISPMode) {
@@ -137,10 +139,13 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			LOG(SoftwareIsp, Error) << "Failed to instantiate GPUISP";
 			return;
 		}
+		gpuIspEnabled = true;
 	}
 #endif
-	if (!debayer_)
+	if (!debayer_) {
 		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), configuration);
+		gpuIspEnabled = false;
+	}
 
 	if (!debayer_) {
 		LOG(SoftwareIsp, Error) << "Failed to create Debayer object";
@@ -177,6 +182,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 sharedParams_.fd(),
 			 sensorInfo,
 			 sensor->controls(),
+			 gpuIspEnabled,
 			 ipaControls,
 			 &ccmEnabled_);
 	if (ret) {
