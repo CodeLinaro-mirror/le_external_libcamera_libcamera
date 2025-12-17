@@ -170,7 +170,7 @@ a comma separated list with ``-Dpipelines`` when generating a build directory:
 
 .. code-block:: shell
 
-    meson build -Dpipelines=ipu3,uvcvideo,vivid
+    meson setup build -Dpipelines=ipu3,uvcvideo,vivid
 
 Read the `Meson build configuration`_ documentation for more information on
 configuring a build directory.
@@ -201,12 +201,12 @@ stub implementations for the overridden class members.
    public:
           PipelineHandlerVivid(CameraManager *manager);
 
-          CameraConfiguration *generateConfiguration(Camera *camera,
-          Span<const StreamRole> roles) override;
+          std::unique_ptr<CameraConfiguration>
+                  generateConfiguration(Camera *camera, Span<const StreamRole> roles) override;
           int configure(Camera *camera, CameraConfiguration *config) override;
 
           int exportFrameBuffers(Camera *camera, Stream *stream,
-          std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
+                                 std::vector<std::unique_ptr<FrameBuffer>> *buffers) override;
 
           int start(Camera *camera, const ControlList *controls) override;
           void stopDevice(Camera *camera) override;
@@ -293,8 +293,7 @@ Run the following commands:
 
 .. code-block:: shell
 
-   meson build
-   ninja -C build
+   meson compile -C build
 
 To build the libcamera code base, and confirm that the build system found the
 new pipeline handler by running:
@@ -307,7 +306,7 @@ And you should see output like the below:
 
 .. code-block:: shell
 
-    DEBUG Camera camera_manager.cpp:148 Found registered pipeline handler 'PipelineHandlerVivid'
+    DEBUG Camera camera_manager.cpp:143 Found registered pipeline handler 'vivid
 
 Matching devices
 ~~~~~~~~~~~~~~~~
@@ -352,7 +351,7 @@ Add the following below ``dm.add("vivid-000-vid-cap");``:
 
 .. code-block:: cpp
 
-   MediaDevice *media = acquireMediaDevice(enumerator, dm);
+   std::shared_ptr<MediaDevice> media = acquireMediaDevice(enumerator, dm);
    if (!media)
            return false;
 
@@ -382,7 +381,7 @@ running
 
 .. code-block:: shell
 
-   ninja -C build
+   meson compile -C build
    LIBCAMERA_LOG_LEVELS=Pipeline,VIVID:0 ./build/src/cam/cam -l
 
 And you should see output like the below:
@@ -423,21 +422,15 @@ it will be used:
    class VividCameraData : public Camera::Private
    {
    public:
-          VividCameraData(PipelineHandler *pipe, MediaDevice *media)
-                : Camera::Private(pipe), media_(media), video_(nullptr)
+          VividCameraData(PipelineHandler *pipe)
+                : Camera::Private(pipe)
           {
           }
 
-          ~VividCameraData()
-          {
-                delete video_;
-          }
-
-          int init();
+          int init(const MediaDevice *media);
           void bufferReady(FrameBuffer *buffer);
 
-          MediaDevice *media_;
-          V4L2VideoDevice *video_;
+          std::unique_ptr<V4L2VideoDevice> video_;
           Stream stream_;
    };
 
@@ -466,9 +459,9 @@ open a single capture device named 'vivid-000-vid-cap' by the device.
 
 .. code-block:: cpp
 
-   int VividCameraData::init()
+   int VividCameraData::init(const MediaDevice *media)
    {
-          video_ = new V4L2VideoDevice(media_->getEntityByName("vivid-000-vid-cap"));
+          video_ = std::make_unique<V4L2VideoDevice>(media->getEntityByName("vivid-000-vid-cap"));
           if (video_->open())
                 return -ENODEV;
 
@@ -487,9 +480,9 @@ handler.
 
 .. code-block:: cpp
 
-   std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this, media);
+   std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this);
 
-   if (data->init())
+   if (data->init(media.get()))
            return false;
 
 
@@ -506,7 +499,8 @@ PipelineHandler successfully matched and constructed a device.
 .. code-block:: cpp
 
    std::set<Stream *> streams{ &data->stream_ };
-   std::shared_ptr<Camera> camera = Camera::create(std::move(data), data->video_->deviceName(), streams);
+   const char *id = data->video_->deviceName();
+   std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
    registerCamera(std::move(camera));
 
    return true;
@@ -521,19 +515,20 @@ Our match function should now look like the following:
    	DeviceMatch dm("vivid");
    	dm.add("vivid-000-vid-cap");
 
-   	MediaDevice *media = acquireMediaDevice(enumerator, dm);
+   	std::shared_ptr<MediaDevice> media = acquireMediaDevice(enumerator, dm);
    	if (!media)
    		return false;
 
-   	std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this, media);
+   	std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this);
 
    	/* Locate and open the capture video node. */
-   	if (data->init())
+   	if (data->init(media.get()))
    		return false;
 
    	/* Create and register the camera. */
    	std::set<Stream *> streams{ &data->stream_ };
-   	std::shared_ptr<Camera> camera = Camera::create(std::move(data), data->video_->deviceName(), streams);
+   	const char *id = data->video_->deviceName();
+   	std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
    	registerCamera(std::move(camera));
 
    	return true;
@@ -897,7 +892,7 @@ Add the following function implementation to your file:
            const std::vector<libcamera::PixelFormat> &formats = cfg.formats().pixelformats();
            if (std::find(formats.begin(), formats.end(), cfg.pixelFormat) == formats.end()) {
                   cfg.pixelFormat = formats[0];
-                  LOG(VIVID, Debug) << "Adjusting format to " << cfg.pixelFormat.toString();
+                  LOG(VIVID, Debug) << "Adjusting format to " << cfg.pixelFormat;
                   status = Adjusted;
            }
 
@@ -912,7 +907,7 @@ codebase, and test:
 
 .. code-block:: shell
 
-   ninja -C build
+   meson compile -C build
    LIBCAMERA_LOG_LEVELS=Pipeline,VIVID:0 ./build/src/cam/cam -c vivid -I
 
 You should see the following output showing the capabilites of our new pipeline
@@ -989,8 +984,9 @@ Add the following code beneath the code from above:
 
 .. code-block:: cpp
 
+   const V4L2PixelFormat fourcc = data->video_->toV4L2PixelFormat(cfg.pixelFormat);
    V4L2DeviceFormat format = {};
-   format.fourcc = data->video_->toV4L2PixelFormat(cfg.pixelFormat);
+   format.fourcc = fourcc;
    format.size = cfg.size;
 
 Set the video device format defined above using the
@@ -1007,8 +1003,7 @@ Continue the implementation with the following code:
    if (ret)
           return ret;
 
-   if (format.size != cfg.size ||
-          format.fourcc != data->video_->toV4L2PixelFormat(cfg.pixelFormat))
+   if (format.size != cfg.size || format.fourcc != fourcc)
           return -EINVAL;
 
 Finally, store and set stream-specific data reflecting the state of the stream.
@@ -1262,8 +1257,7 @@ before being set.
    {
           ControlList controls(data->video_->controls());
 
-          for (auto it : request->controls()) {
-                 unsigned int id = it.first;
+          for (const auto &[id, v] : request->controls()) {
                  unsigned int offset;
                  uint32_t cid;
 
@@ -1280,7 +1274,7 @@ before being set.
                         continue;
                  }
 
-                 int32_t value = std::lround(it.second.get<float>() * 128 + offset);
+                 int32_t value = std::lround(v.get<float>() * 128 + offset);
                  controls.set(cid, std::clamp(value, 0, 255));
           }
 
@@ -1421,7 +1415,7 @@ capture through the pipeline through both of the cam and qcam utilities.
 
 .. code-block:: shell
 
-   ninja -C build
+   meson compile -C build
    ./build/src/cam/cam -c vivid -C5
 
 To test that the pipeline handler can detect a device, and capture input.
