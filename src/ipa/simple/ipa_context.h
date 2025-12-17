@@ -103,6 +103,7 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 	ControlInfoMap::Map ctrlMap;
 	bool ccmEnabled = false;
+	bool selfInitialising = false;
 };
 
 } /* namespace ipa::soft */
