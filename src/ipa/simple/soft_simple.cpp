@@ -137,6 +137,23 @@ int IPASoftSimple::init(const IPASettings &settings,
 	if (ret)
 		return ret;
 
+	bool ccmLoaded = false;
+
+	for (auto &algo : algorithms()) {
+		Algorithm<Module> *algoPtr = algo.get();
+		const std::type_info &info = typeid(*algoPtr);
+
+		if (std::string(info.name()).find("Ccm") != std::string::npos) {
+			ccmLoaded = true;
+		}
+	}
+
+	if (context_.gpuIspEnabled && !ccmLoaded) {
+		ret = createSelfEnumeratingAlgorithm(context_, std::string("Ccm"));
+		if (ret)
+			return ret;
+	}
+
 	*ccmEnabled = context_.ccmEnabled;
 
 	params_ = nullptr;
