@@ -74,9 +74,9 @@ protected:
 	std::string logPrefix() const override;
 
 private:
-	void updateControls(const IPACameraSensorInfo &sensorInfo,
-			    const ControlInfoMap &sensorControls,
-			    ControlInfoMap *ipaControls);
+	void addControls(const IPACameraSensorInfo &sensorInfo,
+			 const ControlInfoMap &sensorControls);
+	void updateControls(ControlInfoMap *ipaControls) const;
 	void setControls(unsigned int frame);
 
 	std::map<unsigned int, FrameBuffer> buffers_;
@@ -202,12 +202,14 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 		return -EINVAL;
 	}
 
+	/* Initialize controls. */
+	addControls(sensorInfo, sensorControls);
+
 	int ret = createAlgorithms(context_, (*data)["algorithms"]);
 	if (ret)
 		return ret;
 
-	/* Initialize controls. */
-	updateControls(sensorInfo, sensorControls, ipaControls);
+	updateControls(ipaControls);
 
 	return 0;
 }
@@ -254,9 +256,6 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	context_.configuration.sensor.size = info.outputSize;
 	context_.configuration.sensor.lineDuration = info.minLineLength * 1.0s / info.pixelRate;
 
-	/* Update the camera controls using the new sensor settings. */
-	updateControls(info, sensorControls_, ipaControls);
-
 	/*
 	 * When the AGC computes the new exposure values for a frame, it needs
 	 * to know the limits for exposure time and analogue gain. As it depends
@@ -280,6 +279,9 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 			return format.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
 		});
 
+	/* Update the camera controls using the new sensor settings. */
+	addControls(info, sensorControls_);
+
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 
@@ -292,6 +294,8 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 		if (ret)
 			return ret;
 	}
+
+	updateControls(ipaControls);
 
 	return 0;
 }
@@ -386,12 +390,9 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 	metadataReady.emit(frame, metadata);
 }
 
-void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
-			       const ControlInfoMap &sensorControls,
-			       ControlInfoMap *ipaControls)
+void IPARkISP1::addControls(const IPACameraSensorInfo &sensorInfo,
+			    const ControlInfoMap &sensorControls)
 {
-	ControlInfoMap::Map ctrlMap = rkisp1Controls;
-
 	/*
 	 * Compute exposure time limits from the V4L2_CID_EXPOSURE control
 	 * limits and the line duration.
@@ -401,18 +402,14 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 	int32_t minExposure = v4l2Exposure.min().get<int32_t>() * lineDuration;
 	int32_t maxExposure = v4l2Exposure.max().get<int32_t>() * lineDuration;
 	int32_t defExposure = v4l2Exposure.def().get<int32_t>() * lineDuration;
-	ctrlMap.emplace(std::piecewise_construct,
-			std::forward_as_tuple(&controls::ExposureTime),
-			std::forward_as_tuple(minExposure, maxExposure, defExposure));
+	context_.ctrlMap[&controls::ExposureTime] = ControlInfo(minExposure, maxExposure, defExposure);
 
 	/* Compute the analogue gain limits. */
 	const ControlInfo &v4l2Gain = sensorControls.find(V4L2_CID_ANALOGUE_GAIN)->second;
 	float minGain = context_.camHelper->gain(v4l2Gain.min().get<int32_t>());
 	float maxGain = context_.camHelper->gain(v4l2Gain.max().get<int32_t>());
 	float defGain = context_.camHelper->gain(v4l2Gain.def().get<int32_t>());
-	ctrlMap.emplace(std::piecewise_construct,
-			std::forward_as_tuple(&controls::AnalogueGain),
-			std::forward_as_tuple(minGain, maxGain, defGain));
+	context_.ctrlMap[&controls::AnalogueGain] = ControlInfo(minGain, maxGain, defGain);
 
 	/*
 	 * Compute the frame duration limits.
@@ -441,6 +438,11 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 	context_.ctrlMap[&controls::FrameDurationLimits] =
 		ControlInfo(frameDurations[0], frameDurations[1],
 			    ControlValue(Span<const int64_t, 2>{ { frameDurations[2], frameDurations[2] } }));
+}
+
+void IPARkISP1::updateControls(ControlInfoMap *ipaControls) const
+{
+	ControlInfoMap::Map ctrlMap = rkisp1Controls;
 
 	ctrlMap.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
