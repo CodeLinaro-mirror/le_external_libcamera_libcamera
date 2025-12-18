@@ -30,6 +30,11 @@ public:
 		     RkISP1Params *params) override;
 
 private:
+	int parseConfig(const YamlObject &tuningData);
+	int parseSingleConfig(const YamlObject &tuningData,
+			      rkisp1_cif_isp_dpf_config &config,
+			      rkisp1_cif_isp_dpf_strength_config &strengthConfig);
+
 	struct rkisp1_cif_isp_dpf_config config_;
 	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_;
 };
