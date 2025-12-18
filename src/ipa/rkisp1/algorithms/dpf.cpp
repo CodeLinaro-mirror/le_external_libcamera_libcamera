@@ -126,7 +126,7 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 	 * The domain kernel is configured with a 9x9 kernel for the green
 	 * pixels, and a 13x9 or 9x9 kernel for red and blue pixels.
 	 */
-	const YamlObject &dFObject = tuningData["DomainFilter"];
+	const YamlObject &dFObject = tuningData["filter"];
 
 	/*
 	 * For the green component, we have the 9x9 kernel specified
@@ -148,7 +148,7 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 	values = dFObject["g"].getList<uint8_t>().value_or(std::vector<uint8_t>{});
 	if (values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS) {
 		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'DomainFilter:g': expected "
+			<< "Invalid 'filter:g': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
 			<< " elements, got " << values.size();
 		return -EINVAL;
@@ -185,7 +185,7 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 	if (values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS &&
 	    values.size() != RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1) {
 		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'DomainFilter:rb': expected "
+			<< "Invalid 'filter:rb': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS - 1
 			<< " or " << RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS
 			<< " elements, got " << values.size();
@@ -207,13 +207,13 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 	 * which stores a piecewise linear function that characterizes the
 	 * sensor noise profile as a noise level function curve (NLF).
 	 */
-	const YamlObject &rFObject = tuningData["NoiseLevelFunction"];
+	const YamlObject &rFObject = tuningData["nll"];
 
 	std::vector<uint16_t> nllValues;
 	nllValues = rFObject["coeff"].getList<uint16_t>().value_or(std::vector<uint16_t>{});
 	if (nllValues.size() != RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS) {
 		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'RangeFilter:coeff': expected "
+			<< "Invalid 'nll:coeff': expected "
 			<< RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS
 			<< " elements, got " << nllValues.size();
 		return -EINVAL;
@@ -229,13 +229,13 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 		config.nll.scale_mode = RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC;
 	} else {
 		LOG(RkISP1Dpf, Error)
-			<< "Invalid 'RangeFilter:scale-mode': expected "
+			<< "Invalid 'nll:scale-mode': expected "
 			<< "'linear' or 'logarithmic' value, got "
 			<< scaleMode;
 		return -EINVAL;
 	}
 
-	const YamlObject &fSObject = tuningData["FilterStrength"];
+	const YamlObject &fSObject = tuningData["strength"];
 
 	strengthConfig.r = fSObject["r"].get<uint8_t>().value_or(64);
 	strengthConfig.g = fSObject["g"].get<uint8_t>().value_or(64);
