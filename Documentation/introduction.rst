@@ -29,8 +29,8 @@ interface to interact and control media devices.
 .. _Video for Linux 2: https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/v4l/v4l2.html
 .. _Media Controller: https://www.linuxtv.org/downloads/v4l-dvb-apis-new/userspace-api/mediactl/media-controller.html
 
-Included in this subsystem are drivers for camera sensors, CSI2 (Camera
-Serial Interface) receivers, and ISPs (Image Signal Processors).
+Included in this subsystem are camera sensors, :term:`CSI-2` receivers, and
+:term:`ISP` drivers.
 
 The usage of these drivers to provide a functioning camera stack is a
 responsibility that lies in userspace, and is commonly implemented separately
@@ -67,7 +67,7 @@ The library handles the rest for you. These documentary pages give more
 information on the internal workings of libcamera (and the kernel camera stack
 that lies behind it) as well as guidance on using libcamera in an application or
 extending the library with support for your hardware (through the pipeline
-handler and IPA module writer's guides).
+handler and :term:`IPA` module writer's guides).
 
 How should I use it?
 ====================
@@ -153,8 +153,8 @@ The camera stack comprises four software layers. From bottom to top:
 * The libcamera adaptation is an umbrella term designating the
   components that interface to libcamera in other frameworks.
   Notable examples are a V4L2 compatibility layer, a gstreamer
-  libcamera element, and an Android camera HAL implementation based
-  on libcamera.
+  libcamera element, and an Android camera :term:`HAL` implementation
+  based on libcamera.
 
   Those components can live in the libcamera project source code
   in separate repositories, or move to their respective project's
