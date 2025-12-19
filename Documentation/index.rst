@@ -21,6 +21,7 @@
 
    Contribute <contributing>
    Getting Started <getting-started>
+   Glossary <glossary>
    Camera Sensor Model <camera-sensor-model>
    IPA Writer's guide <guides/ipa>
    libcamera Architecture <libcamera_architecture>

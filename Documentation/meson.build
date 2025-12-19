@@ -161,6 +161,7 @@ if sphinx.found()
         'guides/ipa.rst',
         'guides/pipeline-handler.rst',
         'guides/tracing.rst',
+        'glossary.rst',
         'index.rst',
         'internal-api/index.rst',
         'introduction.rst',
