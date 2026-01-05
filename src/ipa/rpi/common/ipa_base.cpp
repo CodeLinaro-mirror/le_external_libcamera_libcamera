@@ -85,7 +85,8 @@ const ControlInfoMap::Map ipaControls{
 	{ &controls::ScalerCrop, ControlInfo(Rectangle{}, Rectangle(65535, 65535, 65535, 65535), Rectangle{}) },
 	{ &controls::FrameDurationLimits,
 	  ControlInfo(INT64_C(33333), INT64_C(120000),
-		      static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>())) },
+		      Span<const int64_t, 2>{ { static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>()),
+						static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>()) } }) },
 	{ &controls::draft::NoiseReductionMode, ControlInfo(controls::draft::NoiseReductionModeValues) },
 	{ &controls::rpi::StatsOutputEnable, ControlInfo(false, true, false) },
 };
