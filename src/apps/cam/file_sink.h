@@ -11,7 +11,7 @@
 #include <memory>
 #include <string>
 
-#include <libcamera/controls.h>
+#include <libcamera/metadata_list.h>
 #include <libcamera/stream.h>
 
 #include "frame_sink.h"
@@ -44,7 +44,7 @@ private:
 
 	void writeBuffer(const libcamera::Stream *stream,
 			 libcamera::FrameBuffer *buffer,
-			 const libcamera::ControlList &metadata);
+			 const libcamera::MetadataList &metadata);
 
 #ifdef HAVE_TIFF
 	const libcamera::Camera *camera_;

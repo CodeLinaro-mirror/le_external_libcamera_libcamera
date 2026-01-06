@@ -10,8 +10,8 @@
 #ifdef HAVE_TIFF
 
 #include <libcamera/camera.h>
-#include <libcamera/controls.h>
 #include <libcamera/framebuffer.h>
+#include <libcamera/metadata_list.h>
 #include <libcamera/stream.h>
 
 class DNGWriter
@@ -19,7 +19,7 @@ class DNGWriter
 public:
 	static int write(const char *filename, const libcamera::Camera *camera,
 			 const libcamera::StreamConfiguration &config,
-			 const libcamera::ControlList &metadata,
+			 const libcamera::MetadataList &metadata,
 			 const libcamera::FrameBuffer *buffer, const void *data);
 };
 

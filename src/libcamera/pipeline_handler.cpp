@@ -572,9 +572,9 @@ void PipelineHandler::metadataAvailable(Request *request, const ControlList &met
 {
 	Request::Private *d = request->_d();
 
-	d->metadata().merge(metadata);
+	d->metadata2().merge(metadata);
 
-	const auto diff = d->metadata2().merge(metadata);
+	const auto diff = d->metadata().merge(metadata);
 	if (!diff)
 		LOG(Pipeline, Fatal) << "Tried to add incompatible metadata items";
 

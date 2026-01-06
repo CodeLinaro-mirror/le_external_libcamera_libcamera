@@ -37,9 +37,9 @@ public:
 	Camera *camera() const { return camera_; }
 	bool hasPendingBuffers() const;
 
-	ControlList &metadata() { return metadata_; }
+	[[nodiscard]] MetadataList &metadata() { return metadata_; }
 #ifndef __DOXYGEN__
-	[[nodiscard]] MetadataList &metadata2() { return metadata2_; }
+	ControlList &metadata2() { return metadata2_; }
 #endif
 
 	bool completeBuffer(FrameBuffer *buffer);
@@ -67,8 +67,8 @@ private:
 	std::unordered_set<FrameBuffer *> pending_;
 	std::map<FrameBuffer *, EventNotifier> notifiers_;
 	std::unique_ptr<Timer> timer_;
-	ControlList metadata_;
-	MetadataList metadata2_;
+	MetadataList metadata_;
+	ControlList metadata2_;
 };
 
 } /* namespace libcamera */

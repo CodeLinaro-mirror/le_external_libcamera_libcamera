@@ -71,11 +71,11 @@ public:
 	{
 		Request::Private *d = request->_d();
 
-		auto &m = d->metadata2();
+		auto &m = d->metadata();
 		const auto c = m.checkpoint();
 
 		std::ignore = m.set(ctrl, value);
-		d->metadata().set(ctrl, value);
+		d->metadata2().set(ctrl, value);
 
 		const auto diff = c.diffSince();
 		if (diff)
@@ -90,8 +90,8 @@ public:
 		void operator()(const Control<T> &ctrl,
 			        const internal::cxx20::type_identity_t<T> &value) const
 		{
-			d->metadata().set(ctrl, value);
-			std::ignore = d->metadata2().set(ctrl, value);
+			std::ignore = d->metadata().set(ctrl, value);
+			d->metadata2().set(ctrl, value);
 		}
 	};
 
@@ -102,7 +102,7 @@ public:
 	void metadataAvailable(Request *request, Func func)
 	{
 		Request::Private *d = request->_d();
-		const auto c = d->metadata2().checkpoint();
+		const auto c = d->metadata().checkpoint();
 
 		std::invoke(func, MetadataSetter{ d });
 

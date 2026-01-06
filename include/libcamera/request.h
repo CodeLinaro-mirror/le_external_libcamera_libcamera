@@ -51,9 +51,9 @@ public:
 	void reuse(ReuseFlag flags = Default);
 
 	ControlList &controls() { return controls_; }
-	const ControlList &metadata() const;
+	[[nodiscard]] const MetadataList &metadata() const;
 #ifndef __DOXYGEN__
-	[[nodiscard]] const MetadataList &metadata2() const;
+	const ControlList &metadata2() const;
 #endif
 
 	const BufferMap &buffers() const { return bufferMap_; }
