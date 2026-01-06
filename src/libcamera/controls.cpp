@@ -17,7 +17,7 @@
 #include "libcamera/internal/control_validator.h"
 
 /**
- * \file controls.h
+ * \file libcamera/controls.h
  * \brief Framework to manage controls related to an object
  *
  * A control is a mean to govern or influence the operation of an object, and in
