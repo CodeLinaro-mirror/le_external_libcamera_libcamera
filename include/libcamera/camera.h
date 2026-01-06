@@ -21,6 +21,7 @@
 
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
+#include <libcamera/metadata_list.h>
 #include <libcamera/orientation.h>
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
@@ -123,6 +124,7 @@ public:
 
 	const std::string &id() const;
 
+	Signal<Request *, MetadataList::Diff> metadataAvailable;
 	Signal<Request *, FrameBuffer *> bufferCompleted;
 	Signal<Request *> requestCompleted;
 	Signal<> disconnected;

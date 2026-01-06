@@ -526,6 +526,7 @@ MetadataList::set(const Entry &e, ControlValueView v, State &s)
  * a series of consecutively added metadata items. Its main purposes is to
  * enable applications to receive a list of changes made to a MetadataList.
  *
+ * \sa Camera::metadataAvailable
  * \internal
  * \sa MetadataList::Checkpoint::diffSince()
  */

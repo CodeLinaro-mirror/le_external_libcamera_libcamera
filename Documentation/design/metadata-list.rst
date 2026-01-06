@@ -20,7 +20,7 @@ extra processing on the image, etc. using certain metadata items. For such an
 application it is likely best if the value of each metadata item is reported as
 soon as possible, thus allowing it to start processing as soon as possible.
 
-For this reason, libcamera provides the ``Camera::metadataAvailable`` signal.
+For this reason, libcamera provides the :doxy-int:`Camera::metadataAvailable` signal.
 This signal is dispatched whenever new metadata items become available for a
 queued request. This mechanism is completely optional, only interested applications
 need to subscribe, others are free to ignore it completely. :doxy-int:`Request::metadata`
