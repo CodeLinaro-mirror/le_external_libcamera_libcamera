@@ -350,6 +350,16 @@ void ControlValue::reserve(ControlType type, bool isArray, std::size_t numElemen
  */
 
 /**
+ * \internal
+ * \fn ControlValueView::ControlValueView(ControlType type, bool isArray,
+ *                                        std::size_t numElements, const std::byte *data)
+ * \brief Construct a view referring to \a data
+ *
+ * The constructed view will refer to the value stored in \a data, and thus
+ * \a data must not be modified or destroyed before the view is destroyed.
+ */
+
+/**
  * \fn ControlValueView::operator bool() const
  * \brief Determine if the referenced ControlValue is valid
  * \sa ControlValueView::isNone()

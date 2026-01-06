@@ -265,8 +265,6 @@ public:
 	{
 	}
 
-#ifndef __DOXYGEN__
-	// TODO: should have restricted access?
 	ControlValueView(ControlType type, bool isArray, std::size_t numElements,
 			 const std::byte *data) noexcept
 		: type_(type), isArray_(isArray), numElements_(numElements),
@@ -274,7 +272,6 @@ public:
 	{
 		assert(isArray || numElements == 1);
 	}
-#endif
 
 	[[nodiscard]] explicit operator bool() const { return type_ != ControlTypeNone; }
 	[[nodiscard]] ControlType type() const { return type_; }
