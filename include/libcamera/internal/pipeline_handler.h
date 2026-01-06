@@ -7,15 +7,20 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 #include <string>
 #include <sys/types.h>
 #include <vector>
 
+#include <libcamera/base/internal/cxx20.h>
 #include <libcamera/base/object.h>
 
+#include <libcamera/camera.h>
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
+
+#include "libcamera/internal/request.h"
 
 namespace libcamera {
 
@@ -57,6 +62,53 @@ public:
 
 	void registerRequest(Request *request);
 	void queueRequest(Request *request);
+
+	void metadataAvailable(Request *request, const ControlList &metadata);
+
+	template<typename T>
+	void metadataAvailable(Request *request, const Control<T> &ctrl,
+			       const internal::cxx20::type_identity_t<T> &value)
+	{
+		Request::Private *d = request->_d();
+
+		auto &m = d->metadata2();
+		const auto c = m.checkpoint();
+
+		std::ignore = m.set(ctrl, value);
+		d->metadata().set(ctrl, value);
+
+		const auto diff = c.diffSince();
+		if (diff)
+			d->camera()->metadataAvailable.emit(request, diff);
+	}
+
+#ifndef __DOXYGEN__
+	struct MetadataSetter {
+		Request::Private *d;
+
+		template<typename T>
+		void operator()(const Control<T> &ctrl,
+			        const internal::cxx20::type_identity_t<T> &value) const
+		{
+			d->metadata().set(ctrl, value);
+			std::ignore = d->metadata2().set(ctrl, value);
+		}
+	};
+
+	template<typename Func, std::enable_if_t<std::is_invocable_v<Func&, MetadataSetter>> * = nullptr>
+#else
+	template<typename Func>
+#endif
+	void metadataAvailable(Request *request, Func func)
+	{
+		Request::Private *d = request->_d();
+		const auto c = d->metadata2().checkpoint();
+
+		std::invoke(func, MetadataSetter{ d });
+
+		if (const auto diff = c.diffSince())
+			d->camera()->metadataAvailable.emit(request, diff);
+	}
 
 	bool completeBuffer(Request *request, FrameBuffer *buffer);
 	void completeRequest(Request *request);
