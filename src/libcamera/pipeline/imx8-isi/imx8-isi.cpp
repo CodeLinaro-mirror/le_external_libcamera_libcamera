@@ -1128,10 +1128,7 @@ void PipelineHandlerISI::bufferReady(FrameBuffer *buffer)
 	Request *request = buffer->request();
 
 	/* Record the sensor's timestamp in the request metadata. */
-	ControlList &metadata = request->_d()->metadata();
-	if (!metadata.contains(controls::SensorTimestamp.id()))
-		metadata.set(controls::SensorTimestamp,
-			     buffer->metadata().timestamp);
+	metadataAvailable(request, controls::SensorTimestamp, buffer->metadata().timestamp);
 
 	completeBuffer(request, buffer);
 	if (request->hasPendingBuffers())

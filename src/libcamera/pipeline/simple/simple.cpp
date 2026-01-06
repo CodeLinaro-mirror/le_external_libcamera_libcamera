@@ -940,8 +940,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	}
 
 	if (request)
-		request->_d()->metadata().set(controls::SensorTimestamp,
-					      buffer->metadata().timestamp);
+		pipe->metadataAvailable(request, controls::SensorTimestamp,
+					buffer->metadata().timestamp);
 
 	/*
 	 * Queue the captured and the request buffer to the converter or Software
@@ -1036,7 +1036,7 @@ void SimpleCameraData::metadataReady(uint32_t frame, const ControlList &metadata
 	if (!info)
 		return;
 
-	info->request->_d()->metadata().merge(metadata);
+	pipe()->metadataAvailable(info->request, metadata);
 	info->metadataProcessed = true;
 	tryCompleteRequest(info->request);
 }

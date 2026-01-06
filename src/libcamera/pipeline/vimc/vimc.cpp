@@ -620,8 +620,7 @@ void VimcCameraData::imageBufferReady(FrameBuffer *buffer)
 	}
 
 	/* Record the sensor's timestamp in the request metadata. */
-	request->_d()->metadata().set(controls::SensorTimestamp,
-				      buffer->metadata().timestamp);
+	pipe->metadataAvailable(request, controls::SensorTimestamp, buffer->metadata().timestamp);
 
 	pipe->completeBuffer(request, buffer);
 	pipe->completeRequest(request);

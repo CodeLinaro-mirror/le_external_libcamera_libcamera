@@ -507,7 +507,7 @@ void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &meta
 	if (!info)
 		return;
 
-	info->request->_d()->metadata().merge(metadata);
+	pipe()->metadataAvailable(info->request, metadata);
 	info->metadataProcessed = true;
 
 	pipe()->tryCompleteRequest(info);
@@ -1645,8 +1645,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		 * \todo The sensor timestamp should be better estimated by connecting
 		 * to the V4L2Device::frameStart signal.
 		 */
-		request->_d()->metadata().set(controls::SensorTimestamp,
-					      metadata.timestamp);
+		metadataAvailable(request, controls::SensorTimestamp, metadata.timestamp);
 
 		if (isRaw_) {
 			const ControlList &ctrls =
@@ -1688,7 +1687,10 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		return;
 	}
 
-	dewarper_->populateMetadata(&data->mainPathStream_, request->_d()->metadata());
+	// FIXME: !!!!
+	ControlList meta;
+	dewarper_->populateMetadata(&data->mainPathStream_, meta);
+	metadataAvailable(request, meta);
 }
 
 void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
