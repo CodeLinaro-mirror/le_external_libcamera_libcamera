@@ -16,6 +16,7 @@
 #include <libcamera/base/event_notifier.h>
 #include <libcamera/base/timer.h>
 
+#include <libcamera/metadata_list.h>
 #include <libcamera/request.h>
 
 using namespace std::chrono_literals;
@@ -37,6 +38,9 @@ public:
 	bool hasPendingBuffers() const;
 
 	ControlList &metadata() { return metadata_; }
+#ifndef __DOXYGEN__
+	[[nodiscard]] MetadataList &metadata2() { return metadata2_; }
+#endif
 
 	bool completeBuffer(FrameBuffer *buffer);
 	void complete();
@@ -64,6 +68,7 @@ private:
 	std::map<FrameBuffer *, EventNotifier> notifiers_;
 	std::unique_ptr<Timer> timer_;
 	ControlList metadata_;
+	MetadataList metadata2_;
 };
 
 } /* namespace libcamera */

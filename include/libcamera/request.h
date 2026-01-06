@@ -24,6 +24,7 @@ namespace libcamera {
 class Camera;
 class CameraControlValidator;
 class FrameBuffer;
+class MetadataList;
 class Stream;
 
 class Request : public Extensible
@@ -51,6 +52,10 @@ public:
 
 	ControlList &controls() { return controls_; }
 	const ControlList &metadata() const;
+#ifndef __DOXYGEN__
+	[[nodiscard]] const MetadataList &metadata2() const;
+#endif
+
 	const BufferMap &buffers() const { return bufferMap_; }
 	int addBuffer(const Stream *stream, FrameBuffer *buffer,
 		      std::unique_ptr<Fence> &&fence = {});

@@ -57,7 +57,8 @@ LOG_DEFINE_CATEGORY(Request)
  * \todo Add a validator for metadata controls.
  */
 Request::Private::Private(Camera *camera)
-	: camera_(camera), cancelled_(false), metadata_(controls::controls)
+	: camera_(camera), cancelled_(false), metadata_(controls::controls),
+	  metadata2_(camera->metadata())
 {
 }
 
@@ -405,6 +406,7 @@ void Request::reuse(ReuseFlag flags)
 
 	controls_.clear();
 	_d()->metadata_.clear();
+	_d()->metadata2_.clear();
 }
 
 /**
@@ -431,6 +433,13 @@ const ControlList &Request::metadata() const
 {
 	return _d()->metadata_;
 }
+
+#ifndef __DOXYGEN__
+const MetadataList &Request::metadata2() const
+{
+	return _d()->metadata2_;
+}
+#endif
 
 /**
  * \fn Request::buffers()
