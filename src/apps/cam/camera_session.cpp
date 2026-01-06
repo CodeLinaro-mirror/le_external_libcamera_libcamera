@@ -311,6 +311,17 @@ int CameraSession::start()
 
 	camera_->requestCompleted.connect(this, &CameraSession::requestComplete);
 
+	if (printMetadata_) {
+		camera_->metadataAvailable.connect(this, [](Request *r, MetadataList::Diff update) {
+			std::cout << ">> early metadata for " << r->sequence() << " with " << update.size() << " entries {\n";
+			for (auto &&[tag, v] : update) {
+				const auto *id = controls::controls.at(tag);
+				std::cout << '\t' << id->name() << " = " << v << '\n';
+			}
+			std::cout << "}" << std::endl;
+		});
+	}
+
 #ifdef HAVE_KMS
 	if (options_.isSet(OptDisplay))
 		sink_ = std::make_unique<KMSSink>(options_[OptDisplay].toString());
