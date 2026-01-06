@@ -55,7 +55,8 @@ public:
 		 uint32_t supportedBlocks,
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
-		 ControlInfoMap *ipaControls) override;
+		 ControlInfoMap *ipaControls,
+		 MetadataListPlan *metadataPlan) override;
 	int start() override;
 	void stop() override;
 
@@ -139,7 +140,8 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 		    uint32_t supportedBlocks,
 		    const IPACameraSensorInfo &sensorInfo,
 		    const ControlInfoMap &sensorControls,
-		    ControlInfoMap *ipaControls)
+		    ControlInfoMap *ipaControls,
+		    MetadataListPlan *metadataPlan)
 {
 	/* \todo Add support for other revisions */
 	switch (hwRevision) {
@@ -208,6 +210,8 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 
 	/* Initialize controls. */
 	updateControls(sensorInfo, sensorControls, ipaControls);
+
+	*metadataPlan = std::move(context_.metadataPlan);
 
 	return 0;
 }

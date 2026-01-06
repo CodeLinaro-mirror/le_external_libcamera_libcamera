@@ -60,6 +60,8 @@ int GammaOutCorrection::init(IPAContext &context, const YamlObject &tuningData)
 	defaultGamma_ = tuningData["gamma"].get<double>(kDefaultGamma);
 	context.ctrlMap[&controls::Gamma] = ControlInfo(0.1f, 10.0f, defaultGamma_);
 
+	context.metadataPlan.set(controls::Gamma);
+
 	return 0;
 }
 

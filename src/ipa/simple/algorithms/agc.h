@@ -19,6 +19,7 @@ public:
 	Agc();
 	~Agc() = default;
 
+	int init(IPAContext &context, const YamlObject &tuningData) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const SwIspStats *stats,

@@ -589,6 +589,9 @@ int PipelineHandlerBase::configure(Camera *camera, CameraConfiguration *config)
 
 	data->controlInfo_ = ControlInfoMap(std::move(ctrlMap), result.controlInfo.idmap());
 
+	/* Update `rpi::ScalerCrops` size for the corrent configuration. */
+	data->metadataPlan_.set(controls::rpi::ScalerCrops, config->size());
+
 	/* Setup the Video Mux/Bridge entities. */
 	for (auto &[device, link] : data->bridgeDevices_) {
 		/*
@@ -838,6 +841,11 @@ int PipelineHandlerBase::registerCamera(std::unique_ptr<RPi::CameraData> &camera
 
 	/* Initialize the camera properties. */
 	data->properties_ = data->sensor_->properties();
+
+	data->metadataPlan_ = std::move(result.metadataPlan);
+	data->metadataPlan_.set(controls::SensorTimestamp);
+	data->metadataPlan_.set(controls::FrameWallClock);
+	data->metadataPlan_.set(controls::ScalerCrop);
 
 	/*
 	 * The V4L2_CID_NOTIFY_GAINS control, if present, is used to inform the

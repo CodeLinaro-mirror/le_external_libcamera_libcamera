@@ -234,6 +234,7 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+	MetadataListPlan metadataPlan; // TODO: only needed during init(), how could be removed?
 
 	DebugMetadata debugMetadata;
 

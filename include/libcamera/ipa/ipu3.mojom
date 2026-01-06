@@ -20,7 +20,8 @@ interface IPAIPU3Interface {
 	init(libcamera.IPASettings settings,
 	     libcamera.IPACameraSensorInfo sensorInfo,
 	     libcamera.ControlInfoMap sensorControls)
-		=> (int32 ret, libcamera.ControlInfoMap ipaControls);
+		=> (int32 ret, libcamera.ControlInfoMap ipaControls,
+		    libcamera.MetadataListPlan metadata);
 	start() => (int32 ret);
 	stop();
 

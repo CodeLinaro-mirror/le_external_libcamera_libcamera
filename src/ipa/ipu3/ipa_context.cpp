@@ -54,6 +54,9 @@ namespace libcamera::ipa::ipu3 {
  *
  * \var IPAContext::ctrlMap
  * \brief A ControlInfoMap::Map of controls populated by the algorithms
+ *
+ * \var IPAContext::metadataPlan
+ * \brief A MetadataListPlan populated by the algorithms
  */
 
 /**

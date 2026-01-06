@@ -11,7 +11,8 @@ struct IPAConfigInfo {
 
 interface IPAMaliC55Interface {
 	init(libcamera.IPASettings settings, IPAConfigInfo configInfo)
-		=> (int32 ret, libcamera.ControlInfoMap ipaControls);
+		=> (int32 ret, libcamera.ControlInfoMap ipaControls,
+		    libcamera.MetadataListPlan metadataPlan);
 	start() => (int32 ret);
 	stop();
 

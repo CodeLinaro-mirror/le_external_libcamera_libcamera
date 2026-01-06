@@ -65,6 +65,9 @@ ConfigParser::parseConfigFile(File &file, PipelineHandler *pipe)
 		controls[&controls::draft::FaceDetectMode] = ControlInfo(supportedFaceDetectModes);
 
 		data->controlInfo_ = ControlInfoMap(std::move(controls), controls::controls);
+
+		data->metadataPlan_.set(controls::SensorTimestamp);
+
 		configurations.push_back(std::move(data));
 	}
 
