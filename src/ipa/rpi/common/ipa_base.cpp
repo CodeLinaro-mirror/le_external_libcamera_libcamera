@@ -184,6 +184,15 @@ int32_t IpaBase::init(const IPASettings &settings, const InitParams &params, Ini
 
 	result->controlInfo = ControlInfoMap(std::move(ctrlMap), controls::controls);
 
+	/*
+	 * This determines the minimum allowable inter-frame duration to run the
+	 * controller algorithms. If the pipeline handler provider frames at a
+	 * rate higher than this, we rate-limit the controller Prepare() and
+	 * Process() calls to lower than or equal to this rate.
+	 */
+	double dur_us = params.controllerMinFrameDurationUs;
+	controllerMinFrameDuration_ = std::chrono::duration<double, std::micro>(dur_us);
+
 	return platformInit(params, result);
 }
 
@@ -465,7 +474,7 @@ void IpaBase::prepareIsp(const PrepareParams &params)
 	/* Allow a 10% margin on the comparison below. */
 	Duration delta = (frameTimestamp - lastRunTimestamp_) * 1.0ns;
 	if (lastRunTimestamp_ && frameCount_ > invalidCount_ &&
-	    delta < controllerMinFrameDuration * 0.9 && !hdrChange) {
+	    delta < controllerMinFrameDuration_ * 0.9 && !hdrChange) {
 		/*
 		 * Ensure we merge the previous frame's metadata with the current
 		 * frame. This will not overwrite exposure/gain values for the
