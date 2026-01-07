@@ -168,7 +168,7 @@ if cc.get_id() == 'gcc'
     # disable the warning. With -Wpessimizing-move enabled, the compiler will
     # still warn of pessimizing moves, only the redundant but not pessimizing
     # moves will be ignored.
-    if cc.version().version_compare('>=13')
+    if cc.version().version_compare('>=11')
         cpp_arguments += [
             '-Wno-redundant-move',
         ]
