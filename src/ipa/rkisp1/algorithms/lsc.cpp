@@ -416,6 +416,8 @@ int LensShadingCorrection::init([[maybe_unused]] IPAContext &context,
 	if (ret)
 		return ret;
 
+	context.ctrlMap[&controls::LensShadingCorrectionEnable] = ControlInfo(false, true, true);
+
 	shadingDescriptors_ = std::move(lscData);
 
 	return 0;
@@ -460,7 +462,7 @@ int LensShadingCorrection::configure(IPAContext &context,
 
 	sets_.setData(std::move(shadingData));
 
-	context.configuration.lsc.enabled = true;
+	context.activeState.lsc.enabled = true;
 	return 0;
 }
 
@@ -482,6 +484,29 @@ void LensShadingCorrection::copyTable(rkisp1_cif_isp_lsc_config &config,
 }
 
 /**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void LensShadingCorrection::queueRequest(IPAContext &context,
+					 [[maybe_unused]] const uint32_t frame,
+					 IPAFrameContext &frameContext,
+					 const ControlList &controls)
+{
+	auto &lsc = context.activeState.lsc;
+
+	const auto &lscEnable = controls.get(controls::LensShadingCorrectionEnable);
+	if (lscEnable && *lscEnable != lsc.enabled) {
+		lsc.enabled = *lscEnable;
+
+		LOG(RkISP1Lsc, Debug)
+			<< (*lscEnable ? "Enabling" : "Disabling") << " Lsc";
+
+		frameContext.lsc.update = true;
+	}
+
+	frameContext.lsc.enabled = lsc.enabled;
+}
+
+/**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
@@ -493,14 +518,25 @@ void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
 	unsigned int quantizedCt = quantize(ct, kColourTemperatureChangeThreshhold);
 	int ctDiff = static_cast<int>(ct) - static_cast<int>(lastAppliedCt_);
 
-	if (quantizedCt == lastAppliedQuantizedCt_)
-		return;
 
-	if (std::abs(ctDiff) < kColourTemperatureChangeThreshhold)
-		return;
+	/* Check if we can skip the update. */
+	if (!frameContext.lsc.update) {
+		if (!frameContext.lsc.enabled)
+			return;
+
+		if (quantizedCt == lastAppliedQuantizedCt_)
+			return;
+
+		if (std::abs(ctDiff) < kColourTemperatureChangeThreshhold)
+			return;
+	}
 
 	auto config = params->block<BlockType::Lsc>();
-	config.setEnabled(true);
+	config.setEnabled(frameContext.lsc.enabled);
+
+	if (!frameContext.lsc.enabled)
+		return;
+
 	setParameters(*config);
 
 	const Components &set = sets_.getInterpolated(quantizedCt);
