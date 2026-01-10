@@ -288,6 +288,10 @@ int eGL::initEGLContext(GBM *gbmContext)
 	EGLint major;
 	EGLint minor;
 
+	const char *glVersion;
+	EGLint glMajor;
+	EGLint glMinor;
+
 	if (!eglBindAPI(EGL_OPENGL_ES_API)) {
 		LOG(eGL, Error) << "API bind fail";
 		goto fail;
@@ -327,6 +331,12 @@ int eGL::initEGLContext(GBM *gbmContext)
 		goto fail;
 	}
 
+	glGetString = (PFNGLGETSTRINGPROC)eglGetProcAddress("glGetString");
+	if (!glGetString) {
+		LOG(eGL, Error) << "glGetString not found";
+		goto fail;
+	}
+
 	if (eglChooseConfig(display_, configAttribs, &config, 1, &numConfigs) != EGL_TRUE) {
 		LOG(eGL, Error) << "eglChooseConfig fail";
 		goto fail;
@@ -341,6 +351,13 @@ int eGL::initEGLContext(GBM *gbmContext)
 	tid_ = Thread::currentId();
 
 	makeCurrent();
+
+	glVersion = (const char *)glGetString(GL_VERSION);
+	if (glVersion &&
+	    sscanf(glVersion, "OpenGL ES %d.%d", &glMajor, &glMinor) == 2 &&
+	    glMajor > 0 && glMinor >= 0) {
+		LOG(eGL, Info) << "GLES: version: " << glMajor << "." << glMinor;
+	}
 
 	return 0;
 fail:
