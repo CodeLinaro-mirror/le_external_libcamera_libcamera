@@ -34,11 +34,11 @@ Benchmark::Benchmark(const CameraManager &cm)
 	const GlobalConfiguration &configuration = cm._d()->configuration();
 
 	skipBeforeMeasure_ = configuration.option<unsigned int>(
-						{ "software_isp", "measure", "skip" })
-							.value_or(skipBeforeMeasure_);
-	framesToMeasure_ = configuration.option<unsigned int>(
-						{ "software_isp", "measure", "number" })
-							.value_or(framesToMeasure_);
+						{ "software_isp", "benchmark", "skip" })
+					  .value_or(skipBeforeMeasure_);
+        framesToMeasure_ = configuration.option<unsigned int>(
+						{ "software_isp", "benchmark", "number" })
+					.value_or(framesToMeasure_);
 }
 
 Benchmark::~Benchmark()
