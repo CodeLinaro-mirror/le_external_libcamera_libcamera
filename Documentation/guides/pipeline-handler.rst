@@ -424,20 +424,19 @@ it will be used:
    {
    public:
           VividCameraData(PipelineHandler *pipe, MediaDevice *media)
-                : Camera::Private(pipe), media_(media), video_(nullptr)
+                : Camera::Private(pipe), media_(media)
           {
           }
 
           ~VividCameraData()
           {
-                delete video_;
           }
 
           int init();
           void bufferReady(FrameBuffer *buffer);
 
           MediaDevice *media_;
-          V4L2VideoDevice *video_;
+          std::unique_ptr<V4L2VideoDevice> video_;
           Stream stream_;
    };
 
@@ -468,7 +467,7 @@ open a single capture device named 'vivid-000-vid-cap' by the device.
 
    int VividCameraData::init()
    {
-          video_ = new V4L2VideoDevice(media_->getEntityByName("vivid-000-vid-cap"));
+          video_ = std::make_unique<V4L2VideoDevice>(media_->getEntityByName("vivid-000-vid-cap"));
           if (video_->open())
                 return -ENODEV;
 

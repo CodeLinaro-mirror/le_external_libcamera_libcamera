@@ -86,8 +86,8 @@ private:
 };
 
 MainWindow::MainWindow(CameraManager *cm, const OptionsParser::Options &options)
-	: saveRaw_(nullptr), options_(options), cm_(cm), allocator_(nullptr),
-	  isCapturing_(false), captureRaw_(false)
+	: saveRaw_(nullptr), options_(options), cm_(cm), isCapturing_(false),
+	  captureRaw_(false)
 {
 	int ret;
 
@@ -449,7 +449,7 @@ int MainWindow::startCapture()
 		saveRaw_->setEnabled(config_->size() == 2);
 
 	/* Allocate and map buffers. */
-	allocator_ = new FrameBufferAllocator(camera_);
+	allocator_ = std::make_unique<FrameBufferAllocator>(camera_);
 	for (StreamConfiguration &config : *config_) {
 		Stream *stream = config.stream();
 
@@ -530,8 +530,7 @@ error:
 
 	freeBuffers_.clear();
 
-	delete allocator_;
-	allocator_ = nullptr;
+	allocator_.reset();
 
 	return ret;
 }
@@ -563,7 +562,7 @@ void MainWindow::stopCapture()
 	requests_.clear();
 	freeQueue_.clear();
 
-	delete allocator_;
+	allocator_.reset();
 
 	isCapturing_ = false;
 
