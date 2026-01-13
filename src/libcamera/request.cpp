@@ -52,12 +52,16 @@ LOG_DEFINE_CATEGORY(Request)
 
 /**
  * \brief Create a Request::Private
- * \param camera The Camera that creates the request
+ * \param[in] camera The Camera that creates the request
+ * \param[in] cookie Opaque cookie for application use
  *
  * \todo Add a validator for metadata controls.
  */
-Request::Private::Private(Camera *camera)
-	: camera_(camera), cancelled_(false), metadata_(controls::controls)
+Request::Private::Private(Camera *camera, uint64_t cookie)
+	: camera_(camera), cookie_(cookie), status_(RequestPending),
+	  cancelled_(false),
+	  controls_(camera->controls(), camera->_d()->validator()),
+	  metadata_(controls::controls)
 {
 }
 
@@ -132,7 +136,7 @@ void Request::Private::complete()
 	ASSERT(request->status() == RequestPending);
 	ASSERT(!hasPendingBuffers());
 
-	request->status_ = cancelled_ ? RequestCancelled : RequestComplete;
+	status_ = cancelled_ ? RequestCancelled : RequestComplete;
 
 	LOG(Request, Debug) << request->toString();
 
@@ -174,18 +178,38 @@ void Request::Private::cancel()
 
 /**
  * \brief Reset the request internal data to default values
+ * \param[in] flags Indicate whether or not to reuse the buffers
  *
  * After calling this function, all request internal data will have default
- * values as if the Request::Private instance had just been constructed.
+ * values as if the Request::Private instance had just been constructed, with
+ * the exception of bufferMap_ if the Request::ReuseFlag::ReuseBuffers flag is
+ * set in \a flags.
  */
-void Request::Private::reset()
+void Request::Private::reset(Request::ReuseFlag flags)
 {
-	sequence_ = 0;
+	status_ = RequestPending;
 	cancelled_ = false;
+	sequence_ = 0;
 	prepared_ = false;
+
+	controls_.clear();
+	metadata_.clear();
+
 	pending_.clear();
 	notifiers_.clear();
 	timer_.reset();
+
+	if (flags & ReuseBuffers) {
+		Request *request = _o<Request>();
+
+		for (auto pair : bufferMap_) {
+			FrameBuffer *buffer = pair.second;
+			buffer->_d()->setRequest(request);
+			pending_.insert(buffer);
+		}
+	} else {
+		bufferMap_.clear();
+	}
 }
 
 /*
@@ -286,9 +310,8 @@ void Request::Private::notifierActivated(FrameBuffer *buffer)
 	ASSERT(it != notifiers_.end());
 	notifiers_.erase(it);
 
-	Request *request = _o<Request>();
 	LOG(Request, Debug)
-		<< "Request " << request->cookie() << " buffer " << buffer
+		<< "Request " << cookie_ << " buffer " << buffer
 		<< " fence signalled";
 
 	if (!notifiers_.empty())
@@ -305,8 +328,7 @@ void Request::Private::timeout()
 	ASSERT(!notifiers_.empty());
 	notifiers_.clear();
 
-	Request *request = _o<Request>();
-	LOG(Request, Debug) << "Request prepare timeout: " << request->cookie();
+	LOG(Request, Debug) << "Request prepare timeout: " << cookie_;
 
 	cancel();
 
@@ -361,13 +383,11 @@ void Request::Private::timeout()
  * completely opaque to libcamera.
  */
 Request::Request(Camera *camera, uint64_t cookie)
-	: Extensible(std::make_unique<Private>(camera)),
-	  controls_(camera->controls(), camera->_d()->validator()),
-	  cookie_(cookie), status_(RequestPending)
+	: Extensible(std::make_unique<Private>(camera, cookie))
 {
 	LIBCAMERA_TRACEPOINT(request_construct, this);
 
-	LOG(Request, Debug) << "Created request - cookie: " << cookie_;
+	LOG(Request, Debug) << "Created request - cookie: " << cookie;
 }
 
 Request::~Request()
@@ -389,26 +409,10 @@ void Request::reuse(ReuseFlag flags)
 {
 	LIBCAMERA_TRACEPOINT(request_reuse, this);
 
-	_d()->reset();
-
-	if (flags & ReuseBuffers) {
-		for (auto pair : bufferMap_) {
-			FrameBuffer *buffer = pair.second;
-			buffer->_d()->setRequest(this);
-			_d()->pending_.insert(buffer);
-		}
-	} else {
-		bufferMap_.clear();
-	}
-
-	status_ = RequestPending;
-
-	controls_.clear();
-	_d()->metadata_.clear();
+	_d()->reset(flags);
 }
 
 /**
- * \fn Request::controls()
  * \brief Retrieve the request's ControlList
  *
  * Requests store a list of controls to be applied to all frames captured for
@@ -422,6 +426,10 @@ void Request::reuse(ReuseFlag flags)
  *
  * \return A reference to the ControlList in this request
  */
+ControlList &Request::controls()
+{
+	return _d()->controls_;
+}
 
 /**
  * \brief Retrieve the request's metadata
@@ -433,14 +441,19 @@ const ControlList &Request::metadata() const
 }
 
 /**
- * \fn Request::buffers()
  * \brief Retrieve the request's streams to buffers map
  *
  * Return a reference to the map that associates each Stream part of the
- * request to the FrameBuffer the Stream output should be directed to.
+ * request to the FrameBuffer the Stream output should be directed to. If a
+ * stream is not utilised in this request there will be no buffer for that
+ * stream in the map.
  *
  * \return The map of Stream to FrameBuffer
  */
+const Request::BufferMap &Request::buffers() const
+{
+	return _d()->bufferMap_;
+}
 
 /**
  * \brief Add a FrameBuffer with its associated Stream to the Request
@@ -493,7 +506,7 @@ int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
 		return -EEXIST;
 	}
 
-	auto [it, inserted] = bufferMap_.try_emplace(stream, buffer);
+	auto [it, inserted] = _d()->bufferMap_.try_emplace(stream, buffer);
 	if (!inserted) {
 		LOG(Request, Error) << "FrameBuffer already set for stream";
 		return -EEXIST;
@@ -509,15 +522,6 @@ int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
 }
 
 /**
- * \var Request::bufferMap_
- * \brief Mapping of streams to buffers for this request
- *
- * The bufferMap_ tracks the buffers associated with each stream. If a stream is
- * not utilised in this request there will be no buffer for that stream in the
- * map.
- */
-
-/**
  * \brief Return the buffer associated with a stream
  * \param[in] stream The stream the buffer is associated to
  * \return The buffer associated with the stream, or nullptr if the stream is
@@ -525,8 +529,8 @@ int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
  */
 FrameBuffer *Request::findBuffer(const Stream *stream) const
 {
-	const auto it = bufferMap_.find(stream);
-	if (it == bufferMap_.end())
+	const auto it = _d()->bufferMap_.find(stream);
+	if (it == _d()->bufferMap_.end())
 		return nullptr;
 
 	return it->second;
@@ -553,13 +557,15 @@ uint32_t Request::sequence() const
 }
 
 /**
- * \fn Request::cookie()
  * \brief Retrieve the cookie set when the request was created
  * \return The request cookie
  */
+uint64_t Request::cookie() const
+{
+	return _d()->cookie_;
+}
 
 /**
- * \fn Request::status()
  * \brief Retrieve the request completion status
  *
  * The request status indicates whether the request has completed successfully
@@ -570,6 +576,10 @@ uint32_t Request::sequence() const
  *
  * \return The request completion status
  */
+Request::Status Request::status() const
+{
+	return _d()->status_;
+}
 
 /**
  * \brief Check if a request has buffers yet to be completed

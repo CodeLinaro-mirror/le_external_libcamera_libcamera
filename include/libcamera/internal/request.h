@@ -30,7 +30,7 @@ class Request::Private : public Extensible::Private
 	LIBCAMERA_DECLARE_PUBLIC(Request)
 
 public:
-	Private(Camera *camera);
+	Private(Camera *camera, uint64_t cookie);
 	~Private();
 
 	Camera *camera() const { return camera_; }
@@ -41,7 +41,7 @@ public:
 	bool completeBuffer(FrameBuffer *buffer);
 	void complete();
 	void cancel();
-	void reset();
+	void reset(Request::ReuseFlag flags);
 
 	void prepare(std::chrono::milliseconds timeout = 0ms);
 	Signal<> prepared;
@@ -56,14 +56,20 @@ private:
 	void timeout();
 
 	Camera *camera_;
+	const uint64_t cookie_;
+
+	Status status_;
 	bool cancelled_;
 	uint32_t sequence_ = 0;
 	bool prepared_ = false;
 
+	ControlList controls_;
+	ControlList metadata_;
+	BufferMap bufferMap_;
+
 	std::unordered_set<FrameBuffer *> pending_;
 	std::map<FrameBuffer *, EventNotifier> notifiers_;
 	std::unique_ptr<Timer> timer_;
-	ControlList metadata_;
 };
 
 } /* namespace libcamera */
