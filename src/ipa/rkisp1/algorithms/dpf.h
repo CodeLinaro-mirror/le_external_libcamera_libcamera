@@ -43,6 +43,7 @@ private:
 			      rkisp1_cif_isp_dpf_strength_config &strengthConfig);
 
 	bool loadReductionConfig(int32_t mode);
+	void logConfig(const IPAFrameContext &frameContext);
 
 	void prepareDisabledMode(IPAContext &context, const uint32_t frame,
 				 IPAFrameContext &frameContext,
