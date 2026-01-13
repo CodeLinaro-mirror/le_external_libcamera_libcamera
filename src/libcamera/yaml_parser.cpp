@@ -284,27 +284,6 @@ void YamlObject::Accessor<std::string>::set(YamlObject &obj, std::string value)
 	obj.value_ = std::move(value);
 }
 
-template<>
-std::optional<Size>
-YamlObject::Accessor<Size>::get(const YamlObject &obj) const
-{
-	if (obj.type_ != Type::List)
-		return std::nullopt;
-
-	if (obj.list_.size() != 2)
-		return std::nullopt;
-
-	auto width = obj.list_[0].value->get<uint32_t>();
-	if (!width)
-		return std::nullopt;
-
-	auto height = obj.list_[1].value->get<uint32_t>();
-	if (!height)
-		return std::nullopt;
-
-	return Size(*width, *height);
-}
-
 template<typename T>
 struct YamlObject::Accessor<std::vector<T>, std::enable_if_t<
 	std::is_same_v<bool, T> ||
@@ -316,8 +295,7 @@ struct YamlObject::Accessor<std::vector<T>, std::enable_if_t<
 	std::is_same_v<uint16_t, T> ||
 	std::is_same_v<int32_t, T> ||
 	std::is_same_v<uint32_t, T> ||
-	std::is_same_v<std::string, T> ||
-	std::is_same_v<Size, T>>>
+	std::is_same_v<std::string, T>>>
 {
 	std::optional<std::vector<T>> get(const YamlObject &obj) const
 	{
@@ -348,7 +326,6 @@ template struct YamlObject::Accessor<std::vector<uint16_t>>;
 template struct YamlObject::Accessor<std::vector<int32_t>>;
 template struct YamlObject::Accessor<std::vector<uint32_t>>;
 template struct YamlObject::Accessor<std::vector<std::string>>;
-template struct YamlObject::Accessor<std::vector<Size>>;
 #endif /* __DOXYGEN__ */
 
 /**
