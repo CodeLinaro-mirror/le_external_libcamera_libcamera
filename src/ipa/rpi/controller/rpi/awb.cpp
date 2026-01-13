@@ -30,7 +30,7 @@ constexpr double kDefaultCT = 4500.0;
  * elsewhere (ALSC and AGC).
  */
 
-int AwbMode::read(const libcamera::YamlObject &params)
+int AwbMode::read(const libcamera::ValueNode &params)
 {
 	auto value = params["lo"].get<double>();
 	if (!value)
@@ -45,7 +45,7 @@ int AwbMode::read(const libcamera::YamlObject &params)
 	return 0;
 }
 
-int AwbPrior::read(const libcamera::YamlObject &params)
+int AwbPrior::read(const libcamera::ValueNode &params)
 {
 	auto value = params["lux"].get<double>();
 	if (!value)
@@ -56,7 +56,7 @@ int AwbPrior::read(const libcamera::YamlObject &params)
 	return prior.empty() ? -EINVAL : 0;
 }
 
-static int readCtCurve(ipa::Pwl &ctR, ipa::Pwl &ctB, const libcamera::YamlObject &params)
+static int readCtCurve(ipa::Pwl &ctR, ipa::Pwl &ctB, const libcamera::ValueNode &params)
 {
 	if (params.size() % 3) {
 		LOG(RPiAwb, Error) << "AwbConfig: incomplete CT curve entry";
@@ -92,7 +92,7 @@ static int readCtCurve(ipa::Pwl &ctR, ipa::Pwl &ctB, const libcamera::YamlObject
 	return 0;
 }
 
-int AwbConfig::read(const libcamera::YamlObject &params)
+int AwbConfig::read(const libcamera::ValueNode &params)
 {
 	int ret;
 
@@ -204,7 +204,7 @@ char const *Awb::name() const
 	return NAME;
 }
 
-int Awb::read(const libcamera::YamlObject &params)
+int Awb::read(const libcamera::ValueNode &params)
 {
 	return config_.read(params);
 }

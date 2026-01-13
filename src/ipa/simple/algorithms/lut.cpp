@@ -25,7 +25,7 @@ LOG_DEFINE_CATEGORY(IPASoftLut)
 namespace ipa::soft::algorithms {
 
 int Lut::init(IPAContext &context,
-	      [[maybe_unused]] const YamlObject &tuningData)
+	      [[maybe_unused]] const ValueNode &tuningData)
 {
 	context.ctrlMap[&controls::Contrast] = ControlInfo(0.0f, 2.0f, 1.0f);
 	return 0;
