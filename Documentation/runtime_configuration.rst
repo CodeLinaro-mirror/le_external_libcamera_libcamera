@@ -85,8 +85,8 @@ Configuration file example
          skip: 50
          number: 30
 
-List of variables and configuration options
--------------------------------------------
+List of environment variables and configuration options
+-------------------------------------------------------
 
 LIBCAMERA_LOG_FILE
    The custom destination for log output.
