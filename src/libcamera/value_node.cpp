@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include <libcamera/base/log.h>
+#include <libcamera/base/span.h>
 #include <libcamera/base/utils.h>
 
 /**
@@ -21,6 +23,8 @@
  */
 
 namespace libcamera {
+
+LOG_DEFINE_CATEGORY(ValueNode)
 
 namespace {
 
@@ -537,6 +541,58 @@ ValueNode *ValueNode::add(std::string key, std::unique_ptr<ValueNode> child)
 	Value &elem = list_.emplace_back(std::move(key), std::move(child));
 	dictionary_.emplace(elem.key, elem.value.get());
 	return elem.value.get();
+}
+
+/**
+ * \brief Add a child node at the given path
+ * \param[in] path The path
+ * \param[in] child The child node
+ *
+ * Add the \a child node at the given \a path starting at this node. Missing
+ * nodes are created along the path. Nodes along the path must be empty, in
+ * which case they are converted to the Type::Dictionary type, be a dictionary,
+ * or be missing. Otherwise, the \a child is discarded and the function returns
+ * a nullptr.
+ *
+ * Path elements are unique in the context of a parent node. If a child with the
+ * same \a key already exist at the end of the path, the \a child is discarded
+ * and the function returns a nullptr.
+ *
+ * \return A pointer to the \a child node if successfully added, nullptr
+ * otherwise
+ */
+ValueNode *ValueNode::add(std::initializer_list<std::string_view> path,
+			  std::unique_ptr<ValueNode> child)
+{
+	if (!path.size())
+		return NULL;
+
+	ValueNode *node = this;
+
+	for (const auto [i, name] : utils::enumerate(path)) {
+		auto iter = node->dictionary_.find(name);
+		if (iter == node->dictionary_.end()) {
+			std::unique_ptr<ValueNode> obj;
+
+			if (i < path.size() - 1)
+				obj = std::make_unique<ValueNode>();
+			else
+				obj = std::move(child);
+
+			node = node->add(std::string{ name }, std::move(obj));
+			if (!node) {
+				Span<const std::string_view> pathName{ std::data(path), i + 1 };
+				LOG(ValueNode, Error)
+					<< "Failed to populate '"
+					<< utils::join(pathName, "/") << "'";
+				return nullptr;
+			}
+		} else {
+			node = iter->second;
+		}
+	}
+
+	return node;
 }
 
 } /* namespace libcamera */
