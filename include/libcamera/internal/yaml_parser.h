@@ -196,6 +196,9 @@ public:
 	bool contains(std::string_view key) const;
 	const YamlObject &operator[](std::string_view key) const;
 
+	YamlObject *add(std::unique_ptr<YamlObject> child);
+	YamlObject *add(std::string key, std::unique_ptr<YamlObject> child);
+
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(YamlObject)
 
