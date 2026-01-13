@@ -1879,18 +1879,16 @@ bool SimplePipelineHandler::matchDevice(std::shared_ptr<MediaDevice> media,
 	}
 
 	swIspEnabled_ = info.swIspEnabled;
+
 	const GlobalConfiguration &configuration = cameraManager()->_d()->configuration();
-	for (GlobalConfiguration::Option entry :
-	     configuration.configuration()["pipelines"]["simple"]["devices"]
-		     .asList()) {
-		auto name = entry["driver"].get<std::string>();
-		if (name == info.driver) {
-			swIspEnabled_ = entry["software_isp"].get<bool>().value_or(swIspEnabled_);
-			LOG(SimplePipeline, Debug)
-				<< "Configuration file overrides software ISP for "
-				<< info.driver << " to " << swIspEnabled_;
-			break;
-		}
+	GlobalConfiguration::Option &cfg =
+		configuration.configuration()["pipelines"]["simple"]["devices"][info.driver];
+
+	if (cfg) {
+		swIspEnabled_ = cfg["software_isp"].get<bool>().value_or(swIspEnabled_);
+		LOG(SimplePipeline, Debug)
+			<< "Configuration file overrides software ISP for "
+			<< info.driver << " to " << swIspEnabled_;
 	}
 
 	/* Locate the sensors. */

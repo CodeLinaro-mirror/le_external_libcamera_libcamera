@@ -44,7 +44,7 @@ file structure:
     pipelines:
       simple:
         devices:
-          - driver: # driver name, e.g. `mxc-isi`
+          # driver name, e.g. `mxc-isi`:
             software_isp: # true/false
     software_isp:
       copy_input_buffer: # true/false
@@ -77,7 +77,7 @@ Configuration file example
      pipelines:
        simple:
          devices:
-           - driver: mxc-isi
+           mxc-isi:
              software_isp: true
      software_isp:
        copy_input_buffer: false
@@ -139,7 +139,7 @@ LIBCAMERA_<NAME>_TUNING_FILE
 
    Example value: ``/usr/local/share/libcamera/ipa/rpi/vc4/custom_sensor.json``
 
-pipelines.simple.devices.driver, pipelines.simple.devices.software_isp
+pipelines.simple.devices.<driver>.software_isp
    Override whether software ISP is enabled for the given driver.
 
    Example `driver` value: ``mxc-isi``
