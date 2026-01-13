@@ -12,6 +12,9 @@
 
 #include <libcamera/base/log.h>
 
+#include "libcamera/internal/camera_manager.h"
+#include "libcamera/internal/global_configuration.h"
+
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(Benchmark)
@@ -26,8 +29,10 @@ LOG_DEFINE_CATEGORY(Benchmark)
 /**
  * \brief Constructs a Benchmark object
  */
-Benchmark::Benchmark(const GlobalConfiguration &configuration)
+Benchmark::Benchmark(const CameraManager &cm)
 {
+	const GlobalConfiguration &configuration = cm._d()->configuration();
+
 	skipBeforeMeasure_ = configuration.option<unsigned int>(
 						{ "software_isp", "measure", "skip" })
 							.value_or(skipBeforeMeasure_);

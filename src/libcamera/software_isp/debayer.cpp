@@ -19,12 +19,6 @@ namespace libcamera {
  */
 
 /**
- * \fn Debayer::Debayer(const GlobalConfiguration &configuration)
- * \brief Construct a Debayer object
- * \param[in] configuration Global configuration reference
- */
-
-/**
  * \var DebayerParams::kRGBLookupSize
  * \brief Size of a color lookup table
  */
@@ -129,7 +123,12 @@ namespace libcamera {
 
 LOG_DEFINE_CATEGORY(Debayer)
 
-Debayer::Debayer(const GlobalConfiguration &configuration) : bench_(configuration)
+/**
+ * \brief Construct a Debayer object
+ * \param[in] cm The camera manager
+ */
+Debayer::Debayer(const CameraManager &cm)
+	: bench_(cm)
 {
 	/* Initialize color lookup tables */
 	for (unsigned int i = 0; i < DebayerParams::kRGBLookupSize; i++) {

@@ -12,15 +12,15 @@
 
 #include <stdint.h>
 #include <time.h>
-#include <libcamera/base/log.h>
-#include "libcamera/internal/global_configuration.h"
 
 namespace libcamera {
+
+class CameraManager;
 
 class Benchmark
 {
 public:
-	Benchmark(const GlobalConfiguration &configuration);
+	Benchmark(const CameraManager &cm);
 	~Benchmark();
 
 	void startFrame(void);
