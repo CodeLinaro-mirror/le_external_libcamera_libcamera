@@ -93,7 +93,12 @@ void GlobalConfiguration::load()
 
 	for (const auto &path : globalConfigurationFiles) {
 		if (loadFile(path))
-			return;
+			break;
+	}
+
+	if (configuration_->isEmpty()) {
+		configuration_->add("version", std::make_unique<ValueNode>(1));
+		configuration_->add("configuration", std::make_unique<ValueNode>());
 	}
 }
 
