@@ -1,0 +1,50 @@
+# ABI/API Compatibility log
+
+This file reports on ABI and API changes which occur between releases.
+
+The ABI can be checked and verified with the abi-checker tool. To report on the
+ABI and API compatibility of your local tree against the latest release, simply
+run:
+
+ ./utils/abi-compat.sh
+
+To check the API and ABI compatibility of a single commit specify the previous
+commit as the start point:
+
+ ./utils/abi-compat.sh $COMMIT^ $COMMIT
+
+## v0.7
+
+Commit: b7ed763f0dfb ("libcamera: request: Make controls_ a class instance")
+ struct Request
+  - Size of this type has been changed from 80 bytes to 152 bytes.
+    The fields or parameters of such data type may be incorrectly initialized or
+    accessed by old client applications.
+
+  - Type of field controls_ has been changed from struct ControlList* (8 bytes)
+    to struct ControlList (80 bytes).
+    Size of the inclusive type has been changed.
+
+ Impact:
+
+  The Request->controls() now has the ControlList allocated directly inside the
+  Request object. There is no API impact, but the change to the size and
+  offsets of the Request object is an ABI breakage and requires re-compilation
+  of users.
+
+
+Commit: dce2ef36f2ef ("libcamera: request: Move metadata_ to Private")
+  struct Request
+  - Size of this type has been changed from 88 bytes to 80 bytes.
+    The fields or parameters of such data type may be incorrectly initialized or
+    accessed by old client applications.
+
+  - Field metadata_ has been removed from this type.
+    Size of the inclusive type has been changed.
+
+  Impact:
+
+  The Request->metadata() usage now returns a const reference to the underlying
+  metadata control list. Users can not modify this data. The size and offsets
+  of the Request object is an ABI breakage and requires re-compilation of users.
+
