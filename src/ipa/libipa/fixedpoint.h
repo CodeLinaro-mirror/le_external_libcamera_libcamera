@@ -10,6 +10,8 @@
 #include <cmath>
 #include <type_traits>
 
+#include "quantized.h"
+
 namespace libcamera {
 
 namespace ipa {
@@ -62,6 +64,73 @@ constexpr R fixedToFloatingPoint(T number)
 	int t = static_cast<int>(static_cast<unsigned>(number) << remaining_bits) >> remaining_bits;
 	return static_cast<R>(t) / static_cast<R>(1 << F);
 }
+
+template<unsigned int I, unsigned int F, typename T>
+struct FixedPointQTraits {
+private:
+	static_assert(std::is_integral_v<T>, "FixedPointQTraits: T must be integral");
+	using UT = std::make_unsigned_t<T>;
+
+	static constexpr unsigned int bits = I + F;
+	static_assert(bits <= sizeof(T) * 8, "FixedPointQTraits: too many bits for type T");
+
+	static constexpr T bitMask = (bits < sizeof(T) * 8)
+				   ? static_cast<T>((UT{1} << bits) - 1)
+				   : static_cast<T>(~UT{0});
+
+public:
+	using QuantizedType = T;
+
+	static constexpr T qMin = std::is_signed_v<T>
+				? static_cast<T>(-(UT{1} << (bits - 1)))
+				: static_cast<T>(0);
+
+	static constexpr T qMax = std::is_signed_v<T>
+				? static_cast<T>((UT{1} << (bits - 1)) - 1)
+				: static_cast<T>((UT{1} << bits) - 1);
+
+	static constexpr float toFloat(QuantizedType q)
+	{
+		return fixedToFloatingPoint<I, F, float, QuantizedType>(q);
+	}
+
+	static constexpr float min = fixedToFloatingPoint<I, F, float>(qMin);
+	static constexpr float max = fixedToFloatingPoint<I, F, float>(qMax);
+
+	static_assert(min < max, "FixedPointQTraits: Minimum must be less than maximum");
+
+	/* Conversion functions required by Quantized<Traits> */
+	static QuantizedType fromFloat(float v)
+	{
+		v = std::clamp(v, min, max);
+		return floatingToFixedPoint<I, F, QuantizedType, float>(v);
+	}
+};
+
+namespace details {
+
+template<unsigned int Bits>
+constexpr auto qtype()
+{
+	static_assert(Bits <= 64);
+
+	if constexpr (Bits <= 8)
+		return int8_t();
+	else if constexpr (Bits <= 16)
+		return int16_t();
+	else if constexpr (Bits <= 32)
+		return int32_t();
+	else if constexpr (Bits <= 64)
+		return int64_t();
+}
+
+} /* namespace details */
+
+template<unsigned int I, unsigned int F>
+using Q = Quantized<FixedPointQTraits<I, F, decltype(details::qtype<I + F>())>>;
+
+template<unsigned int I, unsigned int F>
+using UQ = Quantized<FixedPointQTraits<I, F, std::make_unsigned_t<decltype(details::qtype<I + F>())>>>;
 
 } /* namespace ipa */
 
