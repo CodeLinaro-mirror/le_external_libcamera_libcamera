@@ -110,20 +110,6 @@ controls:
        row and the start of exposure of the last row. Currently identical to
        ANDROID_SENSOR_ROLLING_SHUTTER_SKEW
 
-  - LensShadingMapMode:
-      type: int32_t
-      direction: inout
-      description: |
-       Control to report if the lens shading map is available. Currently
-       identical to ANDROID_STATISTICS_LENS_SHADING_MAP_MODE.
-      enum:
-        - name: LensShadingMapModeOff
-          value: 0
-          description: No lens shading map mode is available.
-        - name: LensShadingMapModeOn
-          value: 1
-          description: The lens shading map mode is available.
-
   - PipelineDepth:
       type: int32_t
       direction: out
