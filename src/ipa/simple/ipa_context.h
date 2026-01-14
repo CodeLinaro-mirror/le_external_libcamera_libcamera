@@ -58,8 +58,8 @@ struct IPAActiveState {
 		std::array<double, kGammaLookupSize> gammaTable;
 		uint8_t blackLevel;
 		float gamma;
-		double contrast;
-		double contrastExp;
+		float contrast;
+		float contrastExp;
 	} gamma;
 
 	Matrix<float, 3, 3> ccm;
@@ -69,7 +69,7 @@ struct IPAActiveState {
 	struct {
 		std::optional<float> gamma;
 		/* 0..2 range, 1.0 = normal */
-		std::optional<double> contrast;
+		std::optional<float> contrast;
 		std::optional<float> saturation;
 	} knobs;
 };
@@ -88,7 +88,7 @@ struct IPAFrameContext : public FrameContext {
 	} gains;
 
 	std::optional<float> gamma;
-	std::optional<double> contrast;
+	std::optional<float> contrast;
 	std::optional<float> saturation;
 };
 
