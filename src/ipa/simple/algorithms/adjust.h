@@ -19,6 +19,8 @@ namespace libcamera {
 
 namespace ipa::soft::algorithms {
 
+const float kDefaultGamma = 2.2f;
+
 class Adjust : public Algorithm
 {
 public:
