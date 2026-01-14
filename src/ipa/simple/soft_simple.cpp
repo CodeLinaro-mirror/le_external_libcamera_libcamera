@@ -26,6 +26,7 @@
 #include "libcamera/internal/software_isp/swisp_stats.h"
 #include "libcamera/internal/yaml_parser.h"
 
+#include "algorithms/adjust.h"
 #include "libipa/camera_sensor_helper.h"
 
 #include "module.h"
@@ -161,6 +162,11 @@ int IPASoftSimple::init(const IPASettings &settings,
 		}
 
 		params_ = static_cast<DebayerParams *>(mem);
+		params_->blackLevel = { { 0.0, 0.0, 0.0 } };
+		params_->gamma = 1.0 / algorithms::kDefaultGamma;
+		params_->contrastExp = 1.0;
+		params_->gains = { { 1.0, 1.0, 1.0 } };
+		/* combinedMatrix is reset for each frame. */
 	}
 
 	{
@@ -282,7 +288,9 @@ void IPASoftSimple::queueRequest(const uint32_t frame, const ControlList &contro
 
 void IPASoftSimple::computeParams(const uint32_t frame)
 {
-	context_.activeState.combinedMatrix = Matrix<float, 3, 3>::identity();
+	Matrix<float, 3, 3> combinedMatrix = Matrix<float, 3, 3>::identity();
+	context_.activeState.combinedMatrix = combinedMatrix;
+	params_->combinedMatrix = combinedMatrix;
 
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	for (auto const &algo : algorithms())

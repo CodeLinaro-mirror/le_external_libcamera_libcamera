@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2024, Ideas On Board
- * Copyright (C) 2024-2025, Red Hat Inc.
+ * Copyright (C) 2024-2026, Red Hat Inc.
  *
  * Common image adjustments
  */
@@ -92,22 +92,20 @@ void Adjust::applySaturation(Matrix<float, 3, 3> &matrix, float saturation)
 void Adjust::prepare(IPAContext &context,
 		     [[maybe_unused]] const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     [[maybe_unused]] DebayerParams *params)
+		     DebayerParams *params)
 {
 	frameContext.contrast = context.activeState.knobs.contrast;
 
-	if (!context.ccmEnabled)
-		return;
-
 	auto &saturation = context.activeState.knobs.saturation;
-	frameContext.saturation = saturation;
-	if (saturation)
+	if (context.ccmEnabled && saturation) {
 		applySaturation(context.activeState.combinedMatrix, saturation.value());
-
-	if (saturation != lastSaturation_) {
-		context.activeState.matrixChanged = true;
-		lastSaturation_ = saturation;
+		frameContext.saturation = saturation;
 	}
+
+	params->gamma = 1.0 / context.activeState.knobs.gamma.value_or(kDefaultGamma);
+	const float contrast = context.activeState.knobs.contrast.value_or(kDefaultContrast);
+	params->contrastExp = tan(std::clamp(contrast * M_PI_4, 0.0, M_PI_2 - 0.00001));
+	params->combinedMatrix = context.activeState.combinedMatrix;
 }
 
 void Adjust::process([[maybe_unused]] IPAContext &context,
