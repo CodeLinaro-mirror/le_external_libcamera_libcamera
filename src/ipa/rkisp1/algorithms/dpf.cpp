@@ -8,6 +8,7 @@
 #include "dpf.h"
 
 #include <algorithm>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -36,8 +37,21 @@ namespace ipa::rkisp1::algorithms {
 
 LOG_DEFINE_CATEGORY(RkISP1Dpf)
 
+namespace {
+
+const std::map<int32_t, std::string> kModesMap = {
+	{ controls::draft::NoiseReductionModeMinimal, "minimal" },
+	{ controls::draft::NoiseReductionModeFast, "fast" },
+	{ controls::draft::NoiseReductionModeHighQuality, "highquality" },
+	{ controls::draft::NoiseReductionModeZSL, "zsl" },
+	{ controls::draft::NoiseReductionModeOff, "off" },
+};
+
+} /* namespace */
+
 Dpf::Dpf()
-	: config_({}), strengthConfig_({})
+	: config_({}), strengthConfig_({}), noiseReductionModes_({}),
+	  runningMode_(controls::draft::NoiseReductionModeOff)
 {
 }
 
@@ -57,10 +71,43 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 
 int Dpf::parseConfig(const YamlObject &tuningData)
 {
-	/* Parse base config. */
-	int ret = parseSingleConfig(tuningData, config_, strengthConfig_);
-	if (ret)
-		return ret;
+	/* Parse modes. */
+	return parseModes(tuningData);
+}
+
+int Dpf::parseModes(const YamlObject &tuningData)
+{
+	/* Parse noise reduction modes. */
+	if (!tuningData.contains("modes"))
+		return -EINVAL;
+
+	noiseReductionModes_.clear();
+	for (const auto &entry : tuningData["modes"].asList()) {
+		std::optional<std::string> typeOpt =
+			entry["type"].get<std::string>();
+		if (!typeOpt) {
+			LOG(RkISP1Dpf, Error) << "Modes entry missing type";
+			return -EINVAL;
+		}
+
+		ModeConfig mode;
+		auto it = std::find_if(kModesMap.begin(), kModesMap.end(),
+				       [&typeOpt](const auto &pair) {
+					       return pair.second == *typeOpt;
+				       });
+
+		if (it == kModesMap.end()) {
+			LOG(RkISP1Dpf, Error) << "Unknown mode type: " << *typeOpt;
+			return -EINVAL;
+		}
+
+		mode.modeValue = it->first;
+		auto ret = parseSingleConfig(entry, mode.dpf, mode.strength);
+		if (ret)
+			return ret;
+
+		noiseReductionModes_.push_back(mode);
+	}
 
 	return 0;
 }
@@ -193,6 +240,28 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 	return 0;
 }
 
+bool Dpf::loadReductionConfig(int32_t mode)
+{
+	auto it = std::find_if(noiseReductionModes_.begin(), noiseReductionModes_.end(),
+			       [mode](const ModeConfig &m) {
+				       return m.modeValue == mode;
+			       });
+	if (it == noiseReductionModes_.end()) {
+		LOG(RkISP1Dpf, Warning)
+			<< "No DPF config for reduction mode: " << kModesMap.at(mode);
+		return false;
+	}
+
+	config_ = it->dpf;
+	strengthConfig_ = it->strength;
+
+	LOG(RkISP1Dpf, Debug)
+		<< "DPF mode=Reduction (config loaded)"
+		<< " mode=" << kModesMap.at(mode);
+
+	return true;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -206,8 +275,6 @@ void Dpf::queueRequest(IPAContext &context,
 
 	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
 	if (denoise) {
-		LOG(RkISP1Dpf, Debug) << "Set denoise to " << *denoise;
-
 		switch (*denoise) {
 		case controls::draft::NoiseReductionModeOff:
 			if (dpf.denoise) {
@@ -218,9 +285,10 @@ void Dpf::queueRequest(IPAContext &context,
 		case controls::draft::NoiseReductionModeMinimal:
 		case controls::draft::NoiseReductionModeHighQuality:
 		case controls::draft::NoiseReductionModeFast:
-			if (!dpf.denoise) {
-				dpf.denoise = true;
+		case controls::draft::NoiseReductionModeZSL:
+			if (loadReductionConfig(*denoise)) {
 				update = true;
+				dpf.denoise = true;
 			}
 			break;
 		default:
@@ -228,6 +296,10 @@ void Dpf::queueRequest(IPAContext &context,
 				<< "Unsupported denoise value "
 				<< *denoise;
 			break;
+		}
+		if (update) {
+			runningMode_ = *denoise;
+			LOG(RkISP1Dpf, Debug) << "Set denoise to " << kModesMap.at(runningMode_);
 		}
 	}
 
