@@ -44,6 +44,13 @@ private:
 
 	bool loadReductionConfig(int32_t mode);
 
+	void prepareDisabledMode(IPAContext &context, const uint32_t frame,
+				 IPAFrameContext &frameContext,
+				 RkISP1Params *params);
+	void prepareEnabledMode(IPAContext &context, const uint32_t frame,
+				IPAFrameContext &frameContext,
+				RkISP1Params *params);
+
 	struct rkisp1_cif_isp_dpf_config config_;
 	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_;
 	std::vector<ModeConfig> noiseReductionModes_;
