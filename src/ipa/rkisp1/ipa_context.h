@@ -122,6 +122,7 @@ struct IPAActiveState {
 	} ccm;
 
 	struct {
+		float requestedBrightness;
 		BrightnessQ brightness;
 		ContrastQ contrast;
 		HueQ hue;

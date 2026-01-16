@@ -100,13 +100,9 @@ void ColorProcessing::queueRequest(IPAContext &context,
 
 	const auto &brightness = controls.get(controls::Brightness);
 	if (brightness) {
-		BrightnessQ value = *brightness;
-		if (cproc.brightness != value) {
-			cproc.brightness = value;
-			update = true;
-		}
-
-		LOG(RkISP1CProc, Debug) << "Set brightness to " << value;
+		cproc.requestedBrightness = *brightness;
+		LOG(RkISP1CProc, Debug) << "Set brightness to " << *brightness;
+		update = true;
 	}
 
 	const auto &contrast = controls.get(controls::Contrast);
@@ -118,6 +114,24 @@ void ColorProcessing::queueRequest(IPAContext &context,
 		}
 
 		LOG(RkISP1CProc, Debug) << "Set contrast to " << value;
+	}
+
+	/*
+	 * The CPROC module applies the transfer function
+	 *
+	 * Yout = Yin * contrast + brightness/2
+	 *
+	 * Most users expect that changing contrast doesn't change the middle
+	 * gray and that the brightness value is normalized to one. So they
+	 * expect a transfer function of
+	 *
+	 * Yout = (Yin - 0.5) * contrast + 0.5 + brightness
+	 *
+	 * To implement that with the given hardware we need to correct the
+	 * brightness value.
+	 */
+	if (update) {
+		cproc.brightness = (1 - cproc.contrast.value()) + 2 * cproc.requestedBrightness;
 	}
 
 	const auto &hue = controls.get(controls::Hue);
@@ -179,7 +193,15 @@ void ColorProcessing::process([[maybe_unused]] IPAContext &context,
 			      [[maybe_unused]] const rkisp1_stat_buffer *stats,
 			      ControlList &metadata)
 {
-	metadata.set(controls::Brightness, frameContext.cproc.brightness.value());
+	/*
+	 * Report the actually applied brightness value. See queueRequest() for
+	 * more details.
+	 */
+	float actualBrightness = (frameContext.cproc.brightness.value() -
+				  (1 - frameContext.cproc.contrast.value())) /
+				 2;
+
+	metadata.set(controls::Brightness, actualBrightness);
 	metadata.set(controls::Contrast, frameContext.cproc.contrast.value());
 	metadata.set(controls::Hue, frameContext.cproc.hue.value() * kHueScale);
 	metadata.set(controls::Saturation, frameContext.cproc.saturation.value());
