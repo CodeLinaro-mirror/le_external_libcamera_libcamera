@@ -111,4 +111,52 @@ algorithms:
                1438, 1226, 1059, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025, 1054, 1185,
                1326, 1334, 1334,
              ]
+  - Filter:
+      NoiseReductionModes:
+      - type: "ReductionMinimal"
+        mode: 1266           # 0x000004f2 in decimal
+        lum_weight: 139328   # 0x00022040 in decimal
+        grn_stage1: 6
+        chr_h_mode: 3
+        chr_v_mode: 3
+        thresh_bl0: 8
+        thresh_bl1: 2
+        thresh_sh0: 18
+        thresh_sh1: 33
+        fac_sh0: 4
+        fac_sh1: 4
+        fac_mid: 4
+        fac_bl0: 2
+        fac_bl1: 0
+      - type: "ReductionHighQuality"
+        mode: 1266           # 0x000004f2 in decimal
+        lum_weight: 139328   # 0x00022040 in decimal
+        grn_stage1: 6
+        chr_h_mode: 3
+        chr_v_mode: 3
+        thresh_bl0: 8
+        thresh_bl1: 2
+        thresh_sh0: 18
+        thresh_sh1: 33
+        fac_sh0: 4
+        fac_sh1: 4
+        fac_mid: 4
+        fac_bl0: 2
+        fac_bl1: 0
+      - type: "ReductionMinimal"
+        mode: 1266           # 0x000004f2 in decimal
+        lum_weight: 139328   # 0x00022040 in decimal
+        grn_stage1: 6
+        chr_h_mode: 3
+        chr_v_mode: 3
+        thresh_bl0: 8
+        thresh_bl1: 2
+        thresh_sh0: 18
+        thresh_sh1: 33
+        fac_sh0: 4
+        fac_sh1: 4
+        fac_mid: 4
+        fac_bl0: 2
+        fac_bl1: 0
+      ActiveMode: "ReductionHighQuality"
 ...
