@@ -27,19 +27,6 @@ namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
 
-/**
- * \class Filter
- * \brief RkISP1 Filter control
- *
- * Denoise and Sharpness filters will be applied by RkISP1 during the
- * demosaicing step. The denoise filter is responsible for removing noise from
- * the image, while the sharpness filter will enhance its acutance.
- *
- * \todo In current version the denoise and sharpness control is based on user
- * controls. In a future version it should be controlled automatically by the
- * algorithm.
- */
-
 LOG_DEFINE_CATEGORY(RkISP1Filter)
 
 namespace {
@@ -67,7 +54,43 @@ std::string modeName(int32_t mode)
 
 	return "ReductionUnknown";
 }
+
+struct SharpnessPreset {
+	uint32_t fac_sh0;
+	uint32_t fac_sh1;
+	uint32_t fac_mid;
+	uint32_t fac_bl0;
+	uint32_t fac_bl1;
+};
+
+/*
+ * Sharpness presets
+ * The presets are based on the following table.
+ */
+static constexpr SharpnessPreset kSharpnessPresets[] = {
+	{ 0x04, 0x04, 0x04, 0x02, 0x00 }, /* Level 0 */
+	{ 0x07, 0x08, 0x06, 0x02, 0x00 }, /* Level 1 */
+	{ 0x0a, 0x0c, 0x08, 0x04, 0x00 }, /* Level 2 */
+	{ 0x0c, 0x10, 0x0a, 0x06, 0x02 }, /* Level 3 */
+	{ 0x10, 0x16, 0x0c, 0x08, 0x04 }, /* Level 4 */
+	{ 0x14, 0x1b, 0x10, 0x0a, 0x04 }, /* Level 5 */
+	{ 0x1a, 0x20, 0x13, 0x0c, 0x06 }, /* Level 6 */
+	{ 0x1e, 0x26, 0x17, 0x10, 0x08 }, /* Level 7 */
+	{ 0x24, 0x2c, 0x1d, 0x15, 0x0d }, /* Level 8 */
+	{ 0x2a, 0x30, 0x22, 0x1a, 0x14 }, /* Level 9 */
+	{ 0x30, 0x3f, 0x28, 0x24, 0x20 }, /* Level 10 */
+};
 } /* namespace */
+
+
+/**
+ * \class Filter
+ * \brief RkISP1 Filter control
+ *
+ * Denoise and Sharpness filters will be applied by RkISP1 during the
+ * demosaicing step. The denoise filter is responsible for removing noise from
+ * the image, while the sharpness filter will enhance its acutance.
+ */
 
 Filter::Filter()
 	: noiseReductionModes_({}),
@@ -363,6 +386,42 @@ void Filter::prepare([[maybe_unused]] IPAContext &context,
 			config->fac_bl1 /= 2;
 		}
 	}
+}
+
+void Filter::prepareDisabledMode(RkISP1Params *params)
+{
+	auto config = params->block<BlockType::Flt>();
+	config.setEnabled(false);
+}
+
+void Filter::prepareEnabledMode(const uint32_t frame,
+				IPAFrameContext &frameContext,
+				RkISP1Params *params)
+{
+	auto config = params->block<BlockType::Flt>();
+	config.setEnabled(true);
+
+	if (frameContext.filter.update || frame == 0)
+		logConfig(*config);
+}
+
+void Filter::logConfig(const struct rkisp1_cif_isp_flt_config &config)
+{
+	LOG(RkISP1Filter, Debug)
+		<< "Filter config: mode=" << config.mode
+		<< " lum_weight=" << config.lum_weight
+		<< " grn_stage1=" << (int)config.grn_stage1
+		<< " chr_h_mode=" << (int)config.chr_h_mode
+		<< " chr_v_mode=" << (int)config.chr_v_mode
+		<< " thresh_bl0=" << config.thresh_bl0
+		<< " thresh_bl1=" << config.thresh_bl1
+		<< " thresh_sh0=" << config.thresh_sh0
+		<< " thresh_sh1=" << config.thresh_sh1
+		<< " fac_sh1=" << config.fac_sh1
+		<< " fac_sh0=" << config.fac_sh0
+		<< " fac_mid=" << config.fac_mid
+		<< " fac_bl0=" << config.fac_bl0
+		<< " fac_bl1=" << config.fac_bl1;
 }
 
 REGISTER_IPA_ALGORITHM(Filter, "Filter")

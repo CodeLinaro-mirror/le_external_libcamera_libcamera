@@ -40,6 +40,13 @@ private:
 			      struct rkisp1_cif_isp_flt_config &config);
 
 	bool loadConfig(int32_t mode);
+
+	void logConfig(const struct rkisp1_cif_isp_flt_config &config);
+	void prepareDisabledMode(RkISP1Params *params);
+	void prepareEnabledMode(const uint32_t frame,
+				IPAFrameContext &frameContext,
+				RkISP1Params *params);
+
 	std::vector<ModeConfig> noiseReductionModes_;
 	std::vector<ModeConfig>::const_iterator activeMode_;
 };
