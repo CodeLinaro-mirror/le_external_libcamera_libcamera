@@ -30,13 +30,21 @@ public:
 		     RkISP1Params *params) override;
 
 private:
+	struct ModeConfig {
+		int32_t modeValue;
+		rkisp1_cif_isp_dpf_config dpf;
+		rkisp1_cif_isp_dpf_strength_config strength;
+	};
+
 	int parseConfig(const YamlObject &tuningData);
 	int parseSingleConfig(const YamlObject &tuningData,
 			      rkisp1_cif_isp_dpf_config &config,
 			      rkisp1_cif_isp_dpf_strength_config &strengthConfig);
 
-	struct rkisp1_cif_isp_dpf_config config_;
-	struct rkisp1_cif_isp_dpf_strength_config strengthConfig_;
+	bool loadConfig(int32_t mode);
+
+	std::vector<ModeConfig> noiseReductionModes_;
+	std::vector<ModeConfig>::const_iterator activeMode_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
