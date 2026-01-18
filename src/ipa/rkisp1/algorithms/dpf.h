@@ -43,6 +43,9 @@ private:
 
 	bool loadConfig(int32_t mode);
 
+	void prepareDisabledMode(RkISP1Params *params);
+	void prepareEnabledMode(IPAContext &context, RkISP1Params *params);
+
 	std::vector<ModeConfig> noiseReductionModes_;
 	std::vector<ModeConfig>::const_iterator activeMode_;
 };

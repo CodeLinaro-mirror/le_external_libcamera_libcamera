@@ -338,40 +338,58 @@ void Dpf::prepare(IPAContext &context, const uint32_t frame,
 	if (!frameContext.dpf.update && frame > 0)
 		return;
 
+	if (!frameContext.dpf.denoise) {
+		prepareDisabledMode(params);
+		return;
+	}
+
+	prepareEnabledMode(context, params);
+}
+
+void Dpf::prepareDisabledMode(RkISP1Params *params)
+{
+	auto dpfConfig = params->block<BlockType::Dpf>();
+	dpfConfig.setEnabled(false);
+	auto dpfStrength = params->block<BlockType::DpfStrength>();
+	dpfStrength.setEnabled(false);
+}
+
+void Dpf::prepareEnabledMode(IPAContext &context, RkISP1Params *params)
+{
+	if (activeMode_ == noiseReductionModes_.end())
+		return;
+
+	const ModeConfig &modeConfig = *activeMode_;
+
 	auto config = params->block<BlockType::Dpf>();
-	config.setEnabled(frameContext.dpf.denoise);
+	config.setEnabled(true);
+	*config = modeConfig.dpf;
+
+	const auto &awb = context.configuration.awb;
+	const auto &lsc = context.configuration.lsc;
+
+	auto &mode = config->gain.mode;
+
+	/*
+	 * The DPF needs to take into account the total amount of
+	 * digital gain, which comes from the AWB and LSC modules. The
+	 * DPF hardware can be programmed with a digital gain value
+	 * manually, but can also use the gains supplied by the AWB and
+	 * LSC modules automatically when they are enabled. Use that
+	 * mode of operation as it simplifies control of the DPF.
+	 */
+	if (awb.enabled && lsc.enabled)
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS;
+	else if (awb.enabled)
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS;
+	else if (lsc.enabled)
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS;
+	else
+		mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED;
 
 	auto strengthConfig = params->block<BlockType::DpfStrength>();
-	strengthConfig.setEnabled(frameContext.dpf.denoise);
-
-	if (frameContext.dpf.denoise) {
-		const ModeConfig &modeConfig = *activeMode_;
-
-		*config = modeConfig.dpf;
-		*strengthConfig = modeConfig.strength;
-
-		const auto &awb = context.configuration.awb;
-		const auto &lsc = context.configuration.lsc;
-
-		auto &mode = config->gain.mode;
-
-		/*
-		 * The DPF needs to take into account the total amount of
-		 * digital gain, which comes from the AWB and LSC modules. The
-		 * DPF hardware can be programmed with a digital gain value
-		 * manually, but can also use the gains supplied by the AWB and
-		 * LSC modules automatically when they are enabled. Use that
-		 * mode of operation as it simplifies control of the DPF.
-		 */
-		if (awb.enabled && lsc.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_LSC_GAINS;
-		else if (awb.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_AWB_GAINS;
-		else if (lsc.enabled)
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_LSC_GAINS;
-		else
-			mode = RKISP1_CIF_ISP_DPF_GAIN_USAGE_DISABLED;
-	}
+	strengthConfig.setEnabled(true);
+	*strengthConfig = modeConfig.strength;
 }
 
 REGISTER_IPA_ALGORITHM(Dpf, "Dpf")
