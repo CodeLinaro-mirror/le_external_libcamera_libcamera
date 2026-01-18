@@ -286,6 +286,49 @@ bool Dpf::loadConfig(int32_t mode)
 	return true;
 }
 
+void Dpf::logConfig(const IPAFrameContext &frameContext,
+		    const struct rkisp1_cif_isp_dpf_config &config,
+		    const struct rkisp1_cif_isp_dpf_strength_config &strengthConfig) const
+{
+	std::ostringstream ss;
+
+	ss << "DPF config update: ";
+	ss << " control mode=" << modeName(activeMode_->modeValue);
+	ss << ", denoise=" << (frameContext.dpf.denoise ? "enabled" : "disabled");
+
+	ss << ", rb_fltsize="
+	   << (config.rb_flt.fltsize == RKISP1_CIF_ISP_DPF_RB_FILTERSIZE_13x9 ? "13x9" : "9x9");
+	ss << ", nll_scale="
+	   << (config.nll.scale_mode == RKISP1_CIF_ISP_NLL_SCALE_LOGARITHMIC ? "log" : "linear");
+	ss << ", gain_mode=" << config.gain.mode;
+	ss << ", strength=" << int(strengthConfig.r) << ',' << int(strengthConfig.g) << ',' << int(strengthConfig.b);
+
+	ss << ", g=[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i)
+			ss << ',';
+		ss << int(config.g_flt.spatial_coeff[i]);
+	}
+	ss << "]";
+
+	ss << ", rb=[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_SPATIAL_COEFFS; ++i) {
+		if (i)
+			ss << ',';
+		ss << int(config.rb_flt.spatial_coeff[i]);
+	}
+	ss << "]";
+
+	ss << ", nll=[";
+	for (size_t i = 0; i < RKISP1_CIF_ISP_DPF_MAX_NLF_COEFFS; ++i) {
+		if (i)
+			ss << ',';
+		ss << int(config.nll.coeff[i]);
+	}
+	ss << "]";
+	LOG(RkISP1Dpf, Debug) << ss.str();
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -343,7 +386,7 @@ void Dpf::prepare(IPAContext &context, const uint32_t frame,
 		return;
 	}
 
-	prepareEnabledMode(context, params);
+	prepareEnabledMode(context, frameContext, params);
 }
 
 void Dpf::prepareDisabledMode(RkISP1Params *params)
@@ -354,7 +397,8 @@ void Dpf::prepareDisabledMode(RkISP1Params *params)
 	dpfStrength.setEnabled(false);
 }
 
-void Dpf::prepareEnabledMode(IPAContext &context, RkISP1Params *params)
+void Dpf::prepareEnabledMode(IPAContext &context, IPAFrameContext &frameContext,
+			     RkISP1Params *params)
 {
 	if (activeMode_ == noiseReductionModes_.end())
 		return;
@@ -390,6 +434,9 @@ void Dpf::prepareEnabledMode(IPAContext &context, RkISP1Params *params)
 	auto strengthConfig = params->block<BlockType::DpfStrength>();
 	strengthConfig.setEnabled(true);
 	*strengthConfig = modeConfig.strength;
+
+	if (frameContext.dpf.update)
+		logConfig(frameContext, *config, *strengthConfig);
 }
 
 REGISTER_IPA_ALGORITHM(Dpf, "Dpf")
