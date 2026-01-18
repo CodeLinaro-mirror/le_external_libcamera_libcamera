@@ -190,7 +190,7 @@ struct IPAFrameContext : public FrameContext {
 	} dpf;
 
 	struct {
-		uint8_t denoise;
+		bool denoise;
 		uint8_t sharpness;
 		bool update;
 	} filter;

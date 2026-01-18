@@ -82,7 +82,6 @@ static constexpr SharpnessPreset kSharpnessPresets[] = {
 };
 } /* namespace */
 
-
 /**
  * \class Filter
  * \brief RkISP1 Filter control
@@ -245,26 +244,20 @@ void Filter::queueRequest(IPAContext &context,
 
 	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
 	if (denoise) {
-		LOG(RkISP1Filter, Debug) << "Set denoise to " << *denoise;
-
 		switch (*denoise) {
 		case controls::draft::NoiseReductionModeOff:
-			if (filter.denoise != 0) {
-				filter.denoise = 0;
+			if (filter.denoise) {
+				filter.denoise = false;
 				update = true;
 			}
 			break;
 		case controls::draft::NoiseReductionModeMinimal:
-			if (filter.denoise != 1) {
-				filter.denoise = 1;
-				update = true;
-			}
-			break;
 		case controls::draft::NoiseReductionModeHighQuality:
 		case controls::draft::NoiseReductionModeFast:
-			if (filter.denoise != 3) {
-				filter.denoise = 3;
+		case controls::draft::NoiseReductionModeZSL:
+			if (loadConfig(*denoise)) {
 				update = true;
+				filter.denoise = true;
 			}
 			break;
 		default:
@@ -273,6 +266,8 @@ void Filter::queueRequest(IPAContext &context,
 				<< *denoise;
 			break;
 		}
+		if (update)
+			LOG(RkISP1Filter, Debug) << "Set denoise to " << modeName(*denoise);
 	}
 
 	frameContext.filter.denoise = filter.denoise;
@@ -284,108 +279,19 @@ void Filter::queueRequest(IPAContext &context,
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void Filter::prepare([[maybe_unused]] IPAContext &context,
-		     [[maybe_unused]] const uint32_t frame,
+		     const uint32_t frame,
 		     IPAFrameContext &frameContext, RkISP1Params *params)
 {
 	/* Check if the algorithm configuration has been updated. */
 	if (!frameContext.filter.update)
 		return;
 
-	static constexpr uint16_t filt_fac_sh0[] = {
-		0x04, 0x07, 0x0a, 0x0c, 0x10, 0x14, 0x1a, 0x1e, 0x24, 0x2a, 0x30
-	};
-
-	static constexpr uint16_t filt_fac_sh1[] = {
-		0x04, 0x08, 0x0c, 0x10, 0x16, 0x1b, 0x20, 0x26, 0x2c, 0x30, 0x3f
-	};
-
-	static constexpr uint16_t filt_fac_mid[] = {
-		0x04, 0x06, 0x08, 0x0a, 0x0c, 0x10, 0x13, 0x17, 0x1d, 0x22, 0x28
-	};
-
-	static constexpr uint16_t filt_fac_bl0[] = {
-		0x02, 0x02, 0x04, 0x06, 0x08, 0x0a, 0x0c, 0x10, 0x15, 0x1a, 0x24
-	};
-
-	static constexpr uint16_t filt_fac_bl1[] = {
-		0x00, 0x00, 0x00, 0x02, 0x04, 0x04, 0x06, 0x08, 0x0d, 0x14, 0x20
-	};
-
-	static constexpr uint16_t filt_thresh_sh0[] = {
-		0, 18, 26, 36, 41, 75, 90, 120, 170, 250, 1023
-	};
-
-	static constexpr uint16_t filt_thresh_sh1[] = {
-		0, 33, 44, 51, 67, 100, 120, 150, 200, 300, 1023
-	};
-
-	static constexpr uint16_t filt_thresh_bl0[] = {
-		0, 8, 13, 23, 26, 50, 60, 80, 140, 180, 1023
-	};
-
-	static constexpr uint16_t filt_thresh_bl1[] = {
-		0, 2, 5, 10, 15, 20, 26, 51, 100, 150, 1023
-	};
-
-	static constexpr uint16_t stage1_select[] = {
-		6, 6, 4, 4, 3, 3, 2, 2, 2, 1, 0
-	};
-
-	static constexpr uint16_t filt_chr_v_mode[] = {
-		1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3
-	};
-
-	static constexpr uint16_t filt_chr_h_mode[] = {
-		0, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3
-	};
-
-	uint8_t denoise = frameContext.filter.denoise;
-	uint8_t sharpness = frameContext.filter.sharpness;
-
-	auto config = params->block<BlockType::Flt>();
-	config.setEnabled(true);
-
-	config->fac_sh0 = filt_fac_sh0[sharpness];
-	config->fac_sh1 = filt_fac_sh1[sharpness];
-	config->fac_mid = filt_fac_mid[sharpness];
-	config->fac_bl0 = filt_fac_bl0[sharpness];
-	config->fac_bl1 = filt_fac_bl1[sharpness];
-
-	config->lum_weight = kFiltLumWeightDefault;
-	config->mode = kFiltModeDefault;
-	config->thresh_sh0 = filt_thresh_sh0[denoise];
-	config->thresh_sh1 = filt_thresh_sh1[denoise];
-	config->thresh_bl0 = filt_thresh_bl0[denoise];
-	config->thresh_bl1 = filt_thresh_bl1[denoise];
-	config->grn_stage1 = stage1_select[denoise];
-	config->chr_v_mode = filt_chr_v_mode[denoise];
-	config->chr_h_mode = filt_chr_h_mode[denoise];
-
-	/*
-	 * Combined high denoising and high sharpening requires some
-	 * adjustments to the configuration of the filters. A first stage
-	 * filter with a lower strength must be selected, and the blur factors
-	 * must be decreased.
-	 */
-	if (denoise == 9) {
-		if (sharpness > 3)
-			config->grn_stage1 = 2;
-	} else if (denoise == 10) {
-		if (sharpness > 5)
-			config->grn_stage1 = 2;
-		else if (sharpness > 3)
-			config->grn_stage1 = 1;
+	if (!frameContext.filter.denoise && !frameContext.filter.sharpness) {
+		prepareDisabledMode(params);
+		return;
 	}
 
-	if (denoise > 7) {
-		if (sharpness > 7) {
-			config->fac_bl0 /= 2;
-			config->fac_bl1 /= 4;
-		} else if (sharpness > 4) {
-			config->fac_bl0 = config->fac_bl0 * 3 / 4;
-			config->fac_bl1 /= 2;
-		}
-	}
+	prepareEnabledMode(frame, frameContext, params);
 }
 
 void Filter::prepareDisabledMode(RkISP1Params *params)
@@ -398,8 +304,36 @@ void Filter::prepareEnabledMode(const uint32_t frame,
 				IPAFrameContext &frameContext,
 				RkISP1Params *params)
 {
+	/* Ensure we have a valid mode configuration */
+	if (activeMode_ == noiseReductionModes_.end() && frameContext.filter.sharpness == 0)
+		return;
+
+	const ModeConfig &modeConfig = *activeMode_;
+
 	auto config = params->block<BlockType::Flt>();
 	config.setEnabled(true);
+
+	/* Load the base configuration from the active noise reduction mode */
+	*config = modeConfig.config;
+
+	/*
+	 * Apply sharpness override if configured.
+	 * Sharpness control modulates the sharpening factors on top of
+	 * the base noise reduction mode configuration.
+	 */
+	uint8_t sharpness = frameContext.filter.sharpness;
+	if (sharpness > 0 && sharpness < std::size(kSharpnessPresets)) {
+		const SharpnessPreset &preset = kSharpnessPresets[sharpness];
+		config->fac_sh0 = preset.fac_sh0;
+		config->fac_sh1 = preset.fac_sh1;
+		config->fac_mid = preset.fac_mid;
+		config->fac_bl0 = preset.fac_bl0;
+		config->fac_bl1 = preset.fac_bl1;
+
+		/* Set mode to default if no active mode is configured */
+		if (activeMode_ == noiseReductionModes_.end())
+			config->mode = kFiltModeDefault;
+	}
 
 	if (frameContext.filter.update || frame == 0)
 		logConfig(*config);
