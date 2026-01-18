@@ -8,10 +8,16 @@
 #include "filter.h"
 
 #include <cmath>
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include <libcamera/base/log.h>
 
 #include <libcamera/control_ids.h>
+
+#include "linux/rkisp1-config.h"
 
 /**
  * \file filter.h
@@ -36,20 +42,161 @@ namespace ipa::rkisp1::algorithms {
 
 LOG_DEFINE_CATEGORY(RkISP1Filter)
 
+namespace {
+
 static constexpr uint32_t kFiltLumWeightDefault = 0x00022040;
 static constexpr uint32_t kFiltModeDefault = 0x000004f2;
+
+const std::map<std::string, int32_t> kModesMap = {
+	{ "ReductionMinimal", controls::draft::NoiseReductionModeMinimal },
+	{ "ReductionFast", controls::draft::NoiseReductionModeFast },
+	{ "ReductionHighQuality", controls::draft::NoiseReductionModeHighQuality },
+	{ "ReductionZSL", controls::draft::NoiseReductionModeZSL },
+	{ "ReductionOff", controls::draft::NoiseReductionModeOff },
+};
+
+std::string modeName(int32_t mode)
+{
+	auto it = std::find_if(kModesMap.begin(), kModesMap.end(),
+			       [mode](const auto &pair) {
+				       return pair.second == mode;
+			       });
+
+	if (it != kModesMap.end())
+		return it->first;
+
+	return "ReductionUnknown";
+}
+} /* namespace */
+
+Filter::Filter()
+	: noiseReductionModes_({}),
+	  activeMode_(noiseReductionModes_.end())
+{
+}
 
 /**
  * \copydoc libcamera::ipa::Algorithm::init
  */
 int Filter::init(IPAContext &context,
-		 [[maybe_unused]] const YamlObject &tuningData)
+		 const YamlObject &tuningData)
 {
 	auto &cmap = context.ctrlMap;
 	cmap[&controls::Sharpness] = ControlInfo(0.0f, 10.0f, 1.0f);
 
+	/* Parse tuning block. */
+	int ret = parseConfig(tuningData);
+	if (ret)
+		return ret;
+
 	return 0;
 }
+
+int Filter::parseConfig(const YamlObject &tuningData)
+{
+	/* Parse noise reduction modes. */
+	if (!tuningData.contains("NoiseReductionModes")) {
+		LOG(RkISP1Filter, Error) << "Missing modes in Filter tuning data";
+		return -EINVAL;
+	}
+
+	noiseReductionModes_.clear();
+	for (const auto &entry : tuningData["NoiseReductionModes"].asList()) {
+		std::optional<std::string> typeOpt =
+			entry["type"].get<std::string>();
+		if (!typeOpt) {
+			LOG(RkISP1Filter, Error) << "Modes entry missing type";
+			return -EINVAL;
+		}
+
+		ModeConfig mode;
+		auto it = kModesMap.find(*typeOpt);
+		if (it == kModesMap.end()) {
+			LOG(RkISP1Filter, Error) << "Unknown mode type: " << *typeOpt;
+			return -EINVAL;
+		}
+
+		mode.modeValue = it->second;
+		int ret = parseSingleConfig(entry, mode.config);
+		if (ret) {
+			LOG(RkISP1Filter, Error) << "Failed to parse mode: " << *typeOpt;
+			return ret;
+		}
+
+		noiseReductionModes_.push_back(mode);
+	}
+
+	/*
+	 * Parse the optional ActiveMode.
+	 * If not present, default to "ReductionOff".
+	 */
+	std::string activeMode = tuningData["ActiveMode"].get<std::string>().value_or("ReductionOff");
+	auto it = kModesMap.find(activeMode);
+	if (it == kModesMap.end()) {
+		LOG(RkISP1Filter, Warning) << "Invalid ActiveMode: " << activeMode;
+		activeMode_ = noiseReductionModes_.end();
+		return 0;
+	}
+
+	if (!loadConfig(it->second)) {
+		/* If the default "ReductionOff" mode is requested but not configured, disable Filter. */
+		if (it->second == controls::draft::NoiseReductionModeOff)
+			activeMode_ = noiseReductionModes_.end();
+		else
+			return -EINVAL;
+	}
+
+	return 0;
+}
+int Filter::parseSingleConfig(const YamlObject &tuningData,
+			      struct rkisp1_cif_isp_flt_config &config)
+{
+	if (!tuningData.contains("mode") || !tuningData.contains("lum_weight")) {
+		LOG(RkISP1Filter, Error) << "Modes entry missing mode or lum_weight";
+		return -EINVAL;
+	}
+
+	config.mode = tuningData["mode"].get<uint32_t>().value_or(kFiltModeDefault);
+	config.lum_weight = tuningData["lum_weight"].get<uint32_t>().value_or(kFiltLumWeightDefault);
+	config.grn_stage1 = tuningData["grn_stage1"].get<uint8_t>().value_or(config.grn_stage1);
+	config.chr_h_mode = tuningData["chr_h_mode"].get<uint8_t>().value_or(config.chr_h_mode);
+	config.chr_v_mode = tuningData["chr_v_mode"].get<uint8_t>().value_or(config.chr_v_mode);
+
+	config.thresh_bl0 = tuningData["thresh_bl0"].get<uint32_t>().value_or(config.thresh_bl0);
+	config.thresh_bl1 = tuningData["thresh_bl1"].get<uint32_t>().value_or(config.thresh_bl1);
+	config.thresh_sh0 = tuningData["thresh_sh0"].get<uint32_t>().value_or(config.thresh_sh0);
+	config.thresh_sh1 = tuningData["thresh_sh1"].get<uint32_t>().value_or(config.thresh_sh1);
+
+	config.fac_sh0 = tuningData["fac_sh0"].get<uint32_t>().value_or(config.fac_sh0);
+	config.fac_sh1 = tuningData["fac_sh1"].get<uint32_t>().value_or(config.fac_sh1);
+	config.fac_mid = tuningData["fac_mid"].get<uint32_t>().value_or(config.fac_mid);
+	config.fac_bl0 = tuningData["fac_bl0"].get<uint32_t>().value_or(config.fac_bl0);
+	config.fac_bl1 = tuningData["fac_bl1"].get<uint32_t>().value_or(config.fac_bl1);
+
+	return 0;
+}
+
+bool Filter::loadConfig(int32_t mode)
+{
+	auto it = std::find_if(noiseReductionModes_.begin(), noiseReductionModes_.end(),
+			       [mode](const ModeConfig &m) {
+				       return m.modeValue == mode;
+			       });
+	if (it == noiseReductionModes_.end()) {
+		LOG(RkISP1Filter, Warning)
+			<< "No Filter config for reduction mode: " << modeName(mode);
+		return false;
+	}
+
+	activeMode_ = it;
+
+	LOG(RkISP1Filter, Debug)
+		<< "Filter mode=Reduction (config loaded)"
+		<< " mode= " << modeName(mode);
+
+	return true;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */

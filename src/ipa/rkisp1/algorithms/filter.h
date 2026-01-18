@@ -18,7 +18,7 @@ namespace ipa::rkisp1::algorithms {
 class Filter : public Algorithm
 {
 public:
-	Filter() = default;
+	Filter();
 	~Filter() = default;
 
 	int init(IPAContext &context, const YamlObject &tuningData) override;
@@ -28,6 +28,20 @@ public:
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     RkISP1Params *params) override;
+
+private:
+	struct ModeConfig {
+		int32_t modeValue;
+		rkisp1_cif_isp_flt_config config;
+	};
+
+	int parseConfig(const YamlObject &tuningData);
+	int parseSingleConfig(const YamlObject &tuningData,
+			      struct rkisp1_cif_isp_flt_config &config);
+
+	bool loadConfig(int32_t mode);
+	std::vector<ModeConfig> noiseReductionModes_;
+	std::vector<ModeConfig>::const_iterator activeMode_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
