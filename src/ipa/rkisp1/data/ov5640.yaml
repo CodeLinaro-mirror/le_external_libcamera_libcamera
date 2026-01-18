@@ -232,19 +232,55 @@ algorithms:
             green: 2
             red-blue: 2
   - Dpf:
-      DomainFilter:
-        g: [ 16, 16, 16, 16, 16, 16 ]
-        rb: [ 16, 16, 16, 16, 16, 16 ]
-      NoiseLevelFunction:
-        coeff: [
-          1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
-          1023, 1023, 1023, 1023, 1023, 1023, 1023, 1023,
-          1023
-        ]
-        scale-mode: "linear"
-      FilterStrength:
-        r: 64
-        g: 64
-        b: 64
+      NoiseReductionModes:
+        - type: "ReductionMinimal"
+          DomainFilter:
+            g:  [ 14, 10,  7,  4,  2,  1 ]
+            rb: [ 14, 11,  8,  4,  2,  1 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 26, 52, 78, 106, 138, 172, 208, 248, 292, 340, 392,
+            448, 508, 572, 640, 712 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 60
+            g: 60
+            b: 60
+        - type: "ReductionHighQuality"
+          DomainFilter:
+            g:  [ 22, 18, 13,  8,  5,  2 ]
+            rb: [ 20, 18, 16, 11,  7,  3 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 26, 52, 78, 106, 138, 172, 208, 248, 292, 340, 392,
+            448, 508, 572, 640, 712 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 130
+            g: 130
+            b: 130
+        - type: "ReductionFast"
+          DomainFilter:
+            g:  [ 16, 12,  9,  5,  3,  1 ]
+            rb: [ 16, 13, 10,  6,  4,  2 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 16, 32, 48, 66, 86, 108, 132, 160, 192, 228, 268,
+            312, 360, 412, 468, 528 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 90
+            g: 90
+            b: 90
+        - type: "ReductionZsl"
+          DomainFilter:
+            g:  [ 18, 14, 10,  6,  3,  1 ]
+            rb: [ 18, 16, 13,  9,  5,  3 ]
+          NoiseLevelFunction:
+            coeff: [ 0, 20, 40, 60, 82, 106, 132, 160, 192, 228, 268, 312,
+            360, 412, 468, 528, 592 ]
+            scale-mode: "linear"
+          FilterStrength:
+            r: 110
+            g: 110
+            b: 110
+      ActiveMode: "ReductionHighQuality"
   - Filter:
 ...
