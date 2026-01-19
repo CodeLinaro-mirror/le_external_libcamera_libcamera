@@ -16,6 +16,11 @@
 #include <libcamera/base/span.h>
 #include <libcamera/base/utils.h>
 
+/* Workaround for build issues on Mesa < 23.3, see
+ * https://github.com/KhronosGroup/EGL-Registry/pull/130
+ */
+#define EGL_NO_X11
+
 #define EGL_EGLEXT_PROTOTYPES
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
