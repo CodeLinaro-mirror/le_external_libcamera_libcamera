@@ -77,6 +77,9 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 	if (ret)
 		return ret;
 
+	/* Register available controls. */
+	registerControls(context);
+
 	return 0;
 }
 
@@ -134,6 +137,24 @@ int Dpf::parseConfig(const YamlObject &tuningData)
 	}
 
 	return 0;
+}
+
+void Dpf::registerControls(IPAContext &context)
+{
+	/*
+	 * Populate the control map with the available noise reduction modes.
+	 * This allows applications to query and select from the modes defined
+	 * in the tuning data.
+	 */
+	std::vector<ControlValue> modes{ controls::draft::NoiseReductionModeOff };
+	for (const auto &mode : noiseReductionModes_) {
+		modes.emplace_back(mode.modeValue);
+	}
+	/*
+	 * Set the default mode to the active mode.
+	 */
+	context.ctrlMap[&controls::draft::NoiseReductionMode] =
+		ControlInfo(modes, activeMode_->modeValue);
 }
 
 int Dpf::parseSingleConfig(const YamlObject &tuningData,
