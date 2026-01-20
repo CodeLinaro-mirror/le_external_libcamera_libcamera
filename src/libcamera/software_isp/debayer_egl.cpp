@@ -386,7 +386,7 @@ DebayerEGL::strideAndFrameSize(const PixelFormat &outputFormat, const Size &size
 	return std::make_tuple(stride, stride * size.height);
 }
 
-void DebayerEGL::setShaderVariableValues(DebayerParams &params)
+void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 {
 	/*
 	 * Raw Bayer 8-bit, and packed raw Bayer 10-bit/12-bit formats
@@ -509,7 +509,7 @@ void DebayerEGL::setShaderVariableValues(DebayerParams &params)
 	return;
 }
 
-int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, DebayerParams &params)
+int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParams &params)
 {
 	/* eGL context switch */
 	egl_.makeCurrent();
@@ -536,7 +536,7 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, DebayerParams &par
 	return 0;
 }
 
-void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
 {
 	bench_.startFrame();
 

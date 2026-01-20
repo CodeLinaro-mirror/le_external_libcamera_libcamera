@@ -401,7 +401,7 @@ Debayer::~Debayer()
  * \brief Select the bayer params to use for the next frame debayer
  * \param[in] params The parameters to be used in debayering
  */
-void Debayer::setParams(DebayerParams &params)
+void Debayer::setParams(const DebayerParams &params)
 {
 	green_ = params.green;
 	greenCcm_ = params.greenCcm;

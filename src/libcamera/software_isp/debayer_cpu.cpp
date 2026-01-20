@@ -740,7 +740,7 @@ void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst)
 	}
 }
 
-void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
 {
 	bench_.startFrame();
 
