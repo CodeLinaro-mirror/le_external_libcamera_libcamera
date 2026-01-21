@@ -13,6 +13,9 @@
 #include <sys/types.h>
 #include <vector>
 
+#include <libcamera/framebuffer.h>
+#include <libcamera/geometry.h>
+
 #include "frame_generator.h"
 
 namespace libcamera {
