@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <libcamera/color_space.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/geometry.h>
 
@@ -18,6 +19,8 @@ public:
 	virtual ~FrameGenerator() = default;
 
 	virtual void configure(const Size &size) = 0;
+
+	virtual const ColorSpace colorspace() = 0;
 
 	virtual int generateFrame(const Size &size,
 				  const FrameBuffer *buffer) = 0;

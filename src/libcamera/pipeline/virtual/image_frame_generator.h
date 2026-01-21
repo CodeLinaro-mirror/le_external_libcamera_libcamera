@@ -13,6 +13,7 @@
 #include <sys/types.h>
 #include <vector>
 
+#include <libcamera/color_space.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/geometry.h>
 
@@ -41,6 +42,7 @@ private:
 
 	void configure(const Size &size) override;
 	int generateFrame(const Size &size, const FrameBuffer *buffer) override;
+	const ColorSpace colorspace() override;
 
 	std::vector<ImageFrameData> imageFrameDatas_;
 	std::vector<ImageFrameData> scaledFrameDatas_;

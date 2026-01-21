@@ -62,6 +62,24 @@ int TestPatternGenerator::generateFrame(const Size &size,
 	return ret;
 }
 
+/*
+ * libyuv internally converts ARGB<>YUV following the BT.601 colorspace.
+ * The corresponding YCbCr encoding is ColorSpace::YcbcrEncoding::Rec601
+ * with limited range.
+ *
+ * Since the test patterns generation occurs in RGB, transfer function is set
+ * to ColorSpace::TransferFunction::Srgb. Color primaries is assumed
+ * ColorSpace::Primaries::Rec709 for the RGB test patterns.
+ */
+const ColorSpace TestPatternGenerator::colorspace()
+{
+	ColorSpace colorspace{ ColorSpace::Primaries::Rec709,
+			       ColorSpace::TransferFunction::Srgb,
+			       ColorSpace::YcbcrEncoding::Rec601,
+			       ColorSpace::Range::Limited };
+	return colorspace;
+}
+
 void ColorBarsGenerator::configure(const Size &size)
 {
 	constexpr uint8_t kColorBar[8][3] = {

@@ -149,6 +149,15 @@ int ImageFrameGenerator::generateFrame(const Size &size, const FrameBuffer *buff
 	return 0;
 }
 
+const ColorSpace ImageFrameGenerator::colorspace()
+{
+	/*
+	 * libyuv ensures sYCC colorspace of frames during MJPGToNV12()
+	 * conversion.
+	 */
+	return ColorSpace::Sycc;
+}
+
 /*
  * \var ImageFrameGenerator::imageFrameDatas_
  * \brief List of pointers to the not scaled image buffers

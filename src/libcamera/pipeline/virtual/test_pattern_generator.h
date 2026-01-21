@@ -9,6 +9,7 @@
 
 #include <memory>
 
+#include <libcamera/color_space.h>
 #include <libcamera/framebuffer.h>
 #include <libcamera/geometry.h>
 
@@ -29,6 +30,9 @@ public:
 protected:
 	/* Buffer of test pattern template */
 	std::unique_ptr<uint8_t[]> template_;
+
+private:
+	const ColorSpace colorspace() override;
 };
 
 class ColorBarsGenerator : public TestPatternGenerator
