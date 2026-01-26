@@ -111,6 +111,10 @@ int DebayerEGL::getShaderVariableLocations(void)
 	textureUniformBayerFirstRed_ = glGetUniformLocation(programId_, "tex_bayer_first_red");
 	textureUniformProjMatrix_ = glGetUniformLocation(programId_, "proj_matrix");
 
+	textureUniformLSCRed_ = glGetUniformLocation(programId_, "lsc_tex_red");
+	textureUniformLSCGreen_ = glGetUniformLocation(programId_, "lsc_tex_green");
+	textureUniformLSCBlue_ = glGetUniformLocation(programId_, "lsc_tex_blue");
+
 	LOG(Debayer, Debug) << "vertexIn " << attributeVertex_ << " textureIn " << attributeTexture_
 			    << " tex_y " << textureUniformBayerDataIn_
 			    << " ccm " << ccmUniformDataIn_
@@ -139,6 +143,9 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 
 	/* Specify GL_OES_EGL_image_external */
 	egl_.pushEnv(shaderEnv, "#extension GL_OES_EGL_image_external: enable");
+
+	/* Always use LSC */
+	egl_.pushEnv(shaderEnv, "#define DO_LSC");
 
 	/*
 	 * Tell shaders how to re-order output taking account of how the pixels
@@ -349,6 +356,12 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	 */
 	stats_->setWindow(Rectangle(window_.size()));
 
+	eglImageLSCLookupRed_ = new eGLImage(20, 20, sizeof(GLubyte), GL_TEXTURE5, 5);
+	eglImageLSCLookupGreen_ = new eGLImage(20, 20, sizeof(GLubyte), GL_TEXTURE5, 5);
+	eglImageLSCLookupBlue_ = new eGLImage(20, 20, sizeof(GLubyte), GL_TEXTURE5, 5);
+	if (!eglImageLSCLookupRed_ || !eglImageLSCLookupGreen_ || !eglImageLSCLookupBlue_)
+		return -ENOMEM;
+
 	return 0;
 }
 
@@ -487,6 +500,14 @@ void DebayerEGL::setShaderVariableValues(DebayerParams &params)
 	};
 	glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
 	LOG(Debayer, Debug) << " ccmUniformDataIn_ " << ccmUniformDataIn_ << " data " << params.ccm;
+
+	egl_.createTexture2D(*eglImageLSCLookupRed_, GL_LUMINANCE, 16, 16, &params.LSC_red, GL_LINEAR);
+	egl_.createTexture2D(*eglImageLSCLookupBlue_, GL_LUMINANCE, 16, 16, &params.LSC_green, GL_LINEAR);
+	egl_.createTexture2D(*eglImageLSCLookupGreen_, GL_LUMINANCE, 16, 16, &params.LSC_blue, GL_LINEAR);
+
+	glUniform1i(textureUniformLSCRed_, eglImageLSCLookupRed_->texture_unit_uniform_id_);
+	glUniform1i(textureUniformLSCGreen_, eglImageLSCLookupGreen_->texture_unit_uniform_id_);
+	glUniform1i(textureUniformLSCBlue_, eglImageLSCLookupBlue_->texture_unit_uniform_id_);
 
 	/*
 	 * 0 = Red, 1 = Green, 2 = Blue
