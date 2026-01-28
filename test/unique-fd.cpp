@@ -189,7 +189,7 @@ protected:
 private:
 	int createFd()
 	{
-		fd_ = open("/tmp", O_TMPFILE | O_RDWR, S_IRUSR | S_IWUSR);
+		fd_ = open("/proc/self/exe", O_RDONLY);
 		if (fd_ < 0)
 			return TestFail;
 
