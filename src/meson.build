@@ -77,6 +77,7 @@ subdir('libcamera')
 
 subdir('android')
 subdir('ipa')
+subdir('layer')
 
 subdir('apps')
 
