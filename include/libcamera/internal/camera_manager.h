@@ -46,7 +46,7 @@ public:
 	}
 
 	IPAManager *ipaManager() const { return ipaManager_.get(); }
-	const LayerManager *layerManager() const { return &layerManager_; }
+	const LayerManager *layerManager() const { return layerManager_.get(); }
 
 protected:
 	void run() override;
@@ -73,7 +73,7 @@ private:
 	std::unique_ptr<DeviceEnumerator> enumerator_;
 
 	std::unique_ptr<IPAManager> ipaManager_;
-	LayerManager layerManager_;
+	std::unique_ptr<LayerManager> layerManager_;
 
 	const GlobalConfiguration configuration_;
 };

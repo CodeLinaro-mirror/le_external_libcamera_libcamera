@@ -43,6 +43,7 @@ CameraManager::Private::Private()
 	: Thread("CameraManager"), initialized_(false)
 {
 	ipaManager_ = std::make_unique<IPAManager>(this->configuration());
+	layerManager_ = std::make_unique<LayerManager>(this->configuration());
 }
 
 int CameraManager::Private::start()

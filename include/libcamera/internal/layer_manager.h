@@ -26,6 +26,8 @@
 #include <libcamera/request.h>
 #include <libcamera/stream.h>
 
+#include "libcamera/internal/global_configuration.h"
+
 namespace libcamera {
 
 LOG_DECLARE_CATEGORY(LayerLoaded)
@@ -150,7 +152,9 @@ struct LayerInstance {
 class LayerController
 {
 public:
-	LayerController(const Camera *camera, const ControlList &properties,
+	LayerController(const Camera *camera,
+			const GlobalConfiguration &configuration,
+			const ControlList &properties,
 			const ControlInfoMap &controlInfoMap,
 			const std::map<std::string, std::shared_ptr<LayerLoaded>> &layers);
 	~LayerController();
@@ -190,7 +194,7 @@ private:
 class LayerManager
 {
 public:
-	LayerManager();
+	LayerManager(const GlobalConfiguration &configuration);
 	~LayerManager() = default;
 
 	std::unique_ptr<LayerController>
@@ -200,6 +204,8 @@ public:
 
 private:
 	std::map<std::string, std::shared_ptr<LayerLoaded>> layers_;
+
+	const GlobalConfiguration &configuration_;
 };
 
 } /* namespace libcamera */

@@ -25,6 +25,7 @@
 #include <libcamera/control_ids.h>
 #include <libcamera/layer.h>
 
+#include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/utils.h"
 
 /**
@@ -276,6 +277,7 @@ LayerLoaded::LayerLoaded(const std::string &filename)
 /**
  * \brief Initialize the Layers
  * \param[in] camera The Camera for whom to initialize layers
+ * \param[in] configuration The global configuration
  * \param[in] properties The Camera properties
  * \param[in] controlInfoMap The Camera controls
  * \param[in] layers Map of available layers
@@ -290,29 +292,26 @@ LayerLoaded::LayerLoaded(const std::string &filename)
  * efficiently returned at properties() and controls(), respectively.
  */
 LayerController::LayerController(const Camera *camera,
+				 const GlobalConfiguration &configuration,
 				 const ControlList &properties,
 				 const ControlInfoMap &controlInfoMap,
 				 const std::map<std::string, std::shared_ptr<LayerLoaded>> &layers)
 {
 	/* Order the layers */
-	/* \todo Document this. First is closer to application, last is closer to libcamera */
-	/* \todo Get this from configuration file */
-	const char *layerList = utils::secure_getenv("LIBCAMERA_LAYERS_ENABLE");
-	if (layerList) {
-		for (const auto &layerName : utils::split(layerList, ",")) {
-			if (layerName.empty())
-				continue;
+	std::vector<std::string> configLayers =
+		configuration.envListOption("LIBCAMERA_LAYERS_ENABLE", { "layer", "layers" }, ",")
+			     .value_or(std::vector<std::string>());
 
-			const auto &it = layers.find(layerName);
-			if (it == layers.end()) {
-				LOG(LayerController, Warning)
-					<< "Requested layer '" << layerName
-					<< "' not found";
-				continue;
-			}
-
-			executionQueue_.emplace_back(std::make_unique<LayerInstance>(it->second));
+	for (const std::string &layerName : configLayers) {
+		const auto &it = layers.find(layerName);
+		if (it == layers.end()) {
+			LOG(LayerController, Warning)
+				<< "Requested layer '" << layerName
+				<< "' not found";
+			continue;
 		}
+
+		executionQueue_.emplace_back(std::make_unique<LayerInstance>(it->second));
 	}
 
 	for (std::unique_ptr<LayerInstance> &layer : executionQueue_)
@@ -532,7 +531,8 @@ void LayerController::stop()
  * LayerController is responsible for organizing them into queues to be
  * executed, and for managing closures for each Camera that they belong to.
  */
-LayerManager::LayerManager()
+LayerManager::LayerManager(const GlobalConfiguration &configuration)
+	: configuration_(configuration)
 {
 	/* This is so that we can capture it in the lambda below */
 	std::map<std::string, std::shared_ptr<LayerLoaded>> &layers = layers_;
@@ -560,19 +560,15 @@ LayerManager::LayerManager()
 	};
 
 	/* User-specified paths take precedence. */
-	/* \todo Document this */
-	const char *layerPaths = utils::secure_getenv("LIBCAMERA_LAYER_PATH");
-	if (layerPaths) {
-		for (const auto &dir : utils::split(layerPaths, ":")) {
-			if (dir.empty())
-				continue;
-
-			/*
-			 * \todo Move the shared objects into one directory
-			 * instead of each in their own subdir
-			 */
-			utils::findSharedObjects(dir.c_str(), 1, soHandler);
-		}
+	std::vector<std::string> layerPaths =
+		configuration.envListOption("LIBCAMERA_LAYER_PATH", { "layer", "path" })
+			     .value_or(std::vector<std::string>());
+	for (const auto &dir : layerPaths) {
+		/*
+		 * \todo Move the shared objects into one directory
+		 * instead of each in their own subdir
+		 */
+		utils::findSharedObjects(dir.c_str(), 1, soHandler);
 	}
 
 	/*
@@ -606,7 +602,8 @@ LayerManager::createController(const Camera *camera,
 			       const ControlList &properties,
 			       const ControlInfoMap &controlInfoMap) const
 {
-	return std::make_unique<LayerController>(camera, properties, controlInfoMap, layers_);
+	return std::make_unique<LayerController>(camera, configuration_,
+						 properties, controlInfoMap, layers_);
 }
 
 } /* namespace libcamera */

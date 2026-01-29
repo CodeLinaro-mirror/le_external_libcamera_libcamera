@@ -139,6 +139,19 @@ LIBCAMERA_<NAME>_TUNING_FILE
 
    Example value: ``/usr/local/share/libcamera/ipa/rpi/vc4/custom_sensor.json``
 
+LIBCAMERA_LAYER_PATH, layer.path
+   Define custom search locations for Layer implementations.
+
+   Example value: ``${HOME}/.libcamera/share/layer:/opt/libcamera/vendor/share/layer``
+
+LIBCAMERA_LAYERS_ENABLE, layer.layers
+  Define an ordered list of Layers to load. The layer names are declared in the
+  'name' field of their repsective LayerInfo structs. The layers declared first
+  are closer to the application, and the layers declared later are closer to
+  libcamera.
+
+  Example value: ``inject_controls,sync``
+
 pipelines.simple.supported_devices.driver, pipelines.simple.supported_devices.software_isp
    Override whether software ISP is enabled for the given driver.
 
