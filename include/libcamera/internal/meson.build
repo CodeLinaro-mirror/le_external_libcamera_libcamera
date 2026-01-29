@@ -31,6 +31,7 @@ libcamera_internal_headers = files([
     'ipa_proxy.h',
     'ipc_pipe.h',
     'ipc_unixsocket.h',
+    'layer_manager.h',
     'mapped_framebuffer.h',
     'matrix.h',
     'media_device.h',
