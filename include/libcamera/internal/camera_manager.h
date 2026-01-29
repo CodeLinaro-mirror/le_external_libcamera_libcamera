@@ -19,6 +19,7 @@
 #include <libcamera/base/thread_annotations.h>
 
 #include "libcamera/internal/global_configuration.h"
+#include "libcamera/internal/layer_manager.h"
 #include "libcamera/internal/process.h"
 
 namespace libcamera {
@@ -45,6 +46,7 @@ public:
 	}
 
 	IPAManager *ipaManager() const { return ipaManager_.get(); }
+	const LayerManager *layerManager() const { return &layerManager_; }
 
 protected:
 	void run() override;
@@ -71,6 +73,7 @@ private:
 	std::unique_ptr<DeviceEnumerator> enumerator_;
 
 	std::unique_ptr<IPAManager> ipaManager_;
+	LayerManager layerManager_;
 
 	const GlobalConfiguration configuration_;
 };
