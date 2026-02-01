@@ -37,6 +37,7 @@ private:
 	};
 
 	int parseConfig(const YamlObject &tuningData);
+	void registerControls(IPAContext &context);
 	int parseSingleConfig(const YamlObject &tuningData,
 			      rkisp1_cif_isp_dpf_config &config,
 			      rkisp1_cif_isp_dpf_strength_config &strengthConfig);
