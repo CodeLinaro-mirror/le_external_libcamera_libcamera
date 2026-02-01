@@ -37,7 +37,7 @@ namespace ipa::rkisp1::algorithms {
 LOG_DEFINE_CATEGORY(RkISP1Dpf)
 
 Dpf::Dpf()
-	: config_({}), strengthConfig_({})
+	: noiseReductionModes_({}), activeMode_(noiseReductionModes_.end())
 {
 }
 
@@ -57,10 +57,62 @@ int Dpf::init([[maybe_unused]] IPAContext &context,
 
 int Dpf::parseConfig(const YamlObject &tuningData)
 {
-	/* Parse base config. */
-	int ret = parseSingleConfig(tuningData, config_, strengthConfig_);
-	if (ret)
-		return ret;
+	/* Parse noise reduction modes. */
+	if (!tuningData.contains("NoiseReductionModes")) {
+		LOG(RkISP1Dpf, Error) << "Missing modes in DPF tuning data";
+		return -EINVAL;
+	}
+
+	const YamlObject &modesObject = tuningData["NoiseReductionModes"];
+	if (!modesObject.isDictionary()) {
+		LOG(RkISP1Dpf, Error) << "NoiseReductionModes must be a dictionary";
+		return -EINVAL;
+	}
+
+	noiseReductionModes_.clear();
+
+	/*
+	 * Always enable the Off mode, and ensure it is the first one.
+	 * It may be overridden by the tuning data.
+	 */
+	ModeConfig offMode{};
+	offMode.modeValue = controls::draft::NoiseReductionModeOff;
+	noiseReductionModes_.push_back(offMode);
+
+	for (const auto &[modeName, modeData] : modesObject.asDict()) {
+		auto it = controls::draft::NoiseReductionModeNameValueMap.find(modeName);
+		if (it == controls::draft::NoiseReductionModeNameValueMap.end()) {
+			LOG(RkISP1Dpf, Error) << "Unknown mode type: " << modeName;
+			return -EINVAL;
+		}
+
+		ModeConfig mode;
+		mode.modeValue = it->second;
+		int ret = parseSingleConfig(modeData, mode.dpf, mode.strength);
+		if (ret) {
+			LOG(RkISP1Dpf, Error) << "Failed to parse mode: " << modeName;
+			return ret;
+		}
+
+		noiseReductionModes_.push_back(mode);
+	}
+
+	/*
+	 * Parse the optional activeMode.
+	 * If not present, default to "NoiseReductionModeOff".
+	 */
+	std::string activeMode =
+		tuningData["activeMode"].get<std::string>().value_or("NoiseReductionModeOff");
+
+	auto it = controls::draft::NoiseReductionModeNameValueMap.find(activeMode);
+	if (it == controls::draft::NoiseReductionModeNameValueMap.end() || it->second == controls::draft::NoiseReductionModeOff) {
+		LOG(RkISP1Dpf, Warning) << "Invalid activeMode: " << activeMode;
+		activeMode_ = noiseReductionModes_.end();
+		return 0;
+	}
+
+	if (!loadConfig(it->second))
+		return -EINVAL;
 
 	return 0;
 }
@@ -193,6 +245,25 @@ int Dpf::parseSingleConfig(const YamlObject &tuningData,
 	return 0;
 }
 
+bool Dpf::loadConfig(int32_t mode)
+{
+	auto it = std::find_if(noiseReductionModes_.begin(), noiseReductionModes_.end(),
+			       [mode](const ModeConfig &m) {
+				       return m.modeValue == mode;
+			       });
+	if (it == noiseReductionModes_.end()) {
+		LOG(RkISP1Dpf, Warning)
+			<< "No DPF config for reduction mode: " << mode;
+		return false;
+	}
+
+	activeMode_ = it;
+
+	LOG(RkISP1Dpf, Debug) << "DPF mode = " << mode;
+
+	return true;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
@@ -206,8 +277,6 @@ void Dpf::queueRequest(IPAContext &context,
 
 	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
 	if (denoise) {
-		LOG(RkISP1Dpf, Debug) << "Set denoise to " << *denoise;
-
 		switch (*denoise) {
 		case controls::draft::NoiseReductionModeOff:
 			if (dpf.denoise) {
@@ -218,9 +287,10 @@ void Dpf::queueRequest(IPAContext &context,
 		case controls::draft::NoiseReductionModeMinimal:
 		case controls::draft::NoiseReductionModeHighQuality:
 		case controls::draft::NoiseReductionModeFast:
-			if (!dpf.denoise) {
-				dpf.denoise = true;
+		case controls::draft::NoiseReductionModeZSL:
+			if (loadConfig(*denoise)) {
 				update = true;
+				dpf.denoise = true;
 			}
 			break;
 		default:
@@ -229,6 +299,8 @@ void Dpf::queueRequest(IPAContext &context,
 				<< *denoise;
 			break;
 		}
+		if (update)
+			LOG(RkISP1Dpf, Debug) << "Set denoise to " << modeName(*denoise);
 	}
 
 	frameContext.dpf.denoise = dpf.denoise;
@@ -251,8 +323,10 @@ void Dpf::prepare(IPAContext &context, const uint32_t frame,
 	strengthConfig.setEnabled(frameContext.dpf.denoise);
 
 	if (frameContext.dpf.denoise) {
-		*config = config_;
-		*strengthConfig = strengthConfig_;
+		const ModeConfig &modeConfig = *activeMode_;
+
+		*config = modeConfig.dpf;
+		*strengthConfig = modeConfig.strength;
 
 		const auto &awb = context.configuration.awb;
 		const auto &lsc = context.activeState.lsc;
