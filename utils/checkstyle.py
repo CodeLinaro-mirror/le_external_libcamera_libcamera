@@ -381,12 +381,22 @@ class CheckerBase(metaclass=ClassRegistry):
 
         issues = []
 
-        for command in cls.dependencies:
+        for dep in cls.dependencies:
+            check = None
+            if type(dep) is str:
+                command = dep
+            else:
+                (command, check) = dep
+
             if command not in dependencies:
                 dependencies[command] = shutil.which(command)
 
             if not dependencies[command]:
                 issues.append(CommitIssue(f'Missing {command} to run {cls.__name__}'))
+            elif check:
+                issues_ = check()
+                if issues_:
+                    issues.extend(issues_)
 
         return issues
 
