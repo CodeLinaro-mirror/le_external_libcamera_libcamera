@@ -919,6 +919,36 @@ class StripTrailingSpaceFormatter(Formatter):
             lines[i] = lines[i].rstrip() + '\n'
         return ''.join(lines)
 
+class MesonFormatter(Formatter):
+    @staticmethod
+    def _check_meson_version():
+        # 1.5.0 for `meson format`
+        # 1.7.0 for stdin input
+        # 1.9.0 for `--source-file-path`
+        VERSION_REQ = (1, 9, 0)
+
+        ret = subprocess.run(['meson', '--version'],
+                             stdin=subprocess.DEVNULL,
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE)
+
+        ver = tuple(map(int, ret.stdout.decode('utf-8').split('.')))
+        if ver < VERSION_REQ:
+            return [
+                CommitIssue(f'Missing meson {".".join(map(str, VERSION_REQ))} to run `meson format`')
+            ]
+
+
+    dependencies = (('meson', _check_meson_version), )
+    patterns = ('meson.build', )
+
+    @classmethod
+    def format(cls, filename, data):
+        ret = subprocess.run(['meson', 'format', '-',
+                              '--source-file-path', filename],
+                             input=data.encode('utf-8'), stdout=subprocess.PIPE)
+        return ret.stdout.decode('utf-8')
+
 
 # ------------------------------------------------------------------------------
 # Style checking
