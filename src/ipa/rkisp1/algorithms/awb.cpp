@@ -30,7 +30,7 @@ namespace ipa::rkisp1::algorithms {
 
 /**
  * \class Awb
- * \brief A Grey world white balance correction algorithm
+ * \brief Process the RKISP1 AWB statistics for AwbGrey and AwbBayes
  */
 
 LOG_DEFINE_CATEGORY(RkISP1Awb)
