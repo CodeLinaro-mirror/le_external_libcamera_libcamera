@@ -54,7 +54,7 @@ void Ccm::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	}
 
 	context.activeState.combinedMatrix =
-		currentCcm_.value() * context.activeState.combinedMatrix;
+		context.activeState.combinedMatrix * currentCcm_.value();
 	frameContext.ccm = currentCcm_.value();
 }
 
