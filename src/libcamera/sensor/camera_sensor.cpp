@@ -479,12 +479,10 @@ std::unique_ptr<CameraSensor> CameraSensorFactoryBase::create(MediaEntity *entit
 			return std::get<std::unique_ptr<CameraSensor>>(std::move(result));
 		}
 
-		if (std::get<int>(result)) {
+		if (std::get<int>(result))
 			LOG(CameraSensor, Error)
 				<< "Failed to create sensor for '"
 				<< entity->name() << ": " << std::get<int>(result);
-			return nullptr;
-		}
 	}
 
 	return nullptr;
