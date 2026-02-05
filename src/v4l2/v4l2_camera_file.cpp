@@ -28,17 +28,22 @@ V4L2CameraFile::V4L2CameraFile(int dirfd, const char *path, int efd,
 		if (dirfd == AT_FDCWD) {
 			char *cwd = getcwd(nullptr, 0);
 			if (cwd) {
-				description_ = std::string(cwd) + "/";
+				description_ = std::string(cwd);
+				description_.push_back('/');
 				free(cwd);
 			} else {
 				description_ = std::string("(unreachable)/");
 			}
 		} else {
-			description_ = "(dirfd:" + std::to_string(dirfd) + ")/";
+			description_ = std::string("(dirfd:");
+			description_.append(std::to_string(dirfd)).append(")/");
 		}
 	}
 
-	description_ += std::string(path) + " (fd:" + std::to_string(efd) + ")";
+	description_.append(std::string(path))
+		    .append(" (fd:")
+		    .append(std::to_string(efd))
+		    .push_back(')');
 }
 
 V4L2CameraFile::~V4L2CameraFile()
