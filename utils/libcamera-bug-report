@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: LGPL-2.1-or-later
+
+REPORT="libcamera-report-$(hostname)-$(date +%Y%m%d-%H%M%S).txt"
+
+exec > >(tee "$REPORT") 2>&1
+
+section() {
+    echo
+    echo "=================================================="
+    echo "$1"
+    echo "=================================================="
+}
+
+run() {
+    echo
+    echo "\$ $*"
+    "$@" || echo "[WARN] Command failed: $*"
+}
+
+mark_kmsg() {
+    if [ -w /dev/kmsg ]; then
+        echo "libcamera-debug-report[$$]: $1" > /dev/kmsg
+    else
+        echo "[INFO] /dev/kmsg not writable, skipping kernel marker: $1"
+    fi
+}
+
+section "Report metadata"
+echo "Date: $(date -Is)"
+echo "Host: $(hostname)"
+echo "User: $(id)"
+
+section "Kernel & OS"
+run uname -a
+run cat /etc/os-release
+command -v lsb_release >/dev/null && run lsb_release -a
+
+section "Media / V4L2 tools"
+command -v media-ctl >/dev/null && run media-ctl --version
+command -v v4l2-ctl >/dev/null && run v4l2-ctl --version
+command -v v4l2-ctl >/dev/null && run v4l2-ctl --list-devices
+
+section "Device nodes"
+run ls -l /dev/video* /dev/v4l-* /dev/media* 2>/dev/null
+run grep . /sys/class/video4linux/*/name
+
+section "Deferred devices"
+run cat /sys/kernel/debug/devices_deferred
+
+section "V4L2 async pending subdevices"
+run cat /sys/kernel/debug/v4l2-async/pending_async_subdevices
+
+section "Media graph topology"
+for m in /dev/media*; do
+    echo
+    echo "Parsing $m"
+    command -v media-ctl >/dev/null && run media-ctl -p "$m"
+done
+
+section "libcamera & userspace"
+run which cam
+command -v cam >/dev/null && run ldd `which cam`
+
+section "libcamera probe (cam -l)"
+mark_kmsg "BEGIN cam -l"
+LIBCAMERA_LOG_LEVELS=*:0 run cam -l
+mark_kmsg "END cam -l"
+
+section "Kernel log (post cam -l)"
+run dmesg
+
+section "Permissions & capabilities"
+run id
+run groups
+command -v getcap >/dev/null && run getcap "$(which cam)"
+
+section "End of report"
+echo "Report saved to $REPORT"
