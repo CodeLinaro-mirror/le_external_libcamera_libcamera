@@ -30,35 +30,6 @@ controls:
             The camera will cancel any active or completed metering sequence.
             The AE algorithm is reset to its initial state.
 
-  - NoiseReductionMode:
-      type: int32_t
-      direction: inout
-      description: |
-       Control to select the noise reduction algorithm mode. Currently
-       identical to ANDROID_NOISE_REDUCTION_MODE.
-
-        Mode of operation for the noise reduction algorithm.
-      enum:
-        - name: NoiseReductionModeOff
-          value: 0
-          description: No noise reduction is applied
-        - name: NoiseReductionModeFast
-          value: 1
-          description: |
-            Noise reduction is applied without reducing the frame rate.
-        - name: NoiseReductionModeHighQuality
-          value: 2
-          description: |
-            High quality noise reduction at the expense of frame rate.
-        - name: NoiseReductionModeMinimal
-          value: 3
-          description: |
-            Minimal noise reduction is applied without reducing the frame rate.
-        - name: NoiseReductionModeZSL
-          value: 4
-          description: |
-            Noise reduction is applied at different levels to different streams.
-
   - ColorCorrectionAberrationMode:
       type: int32_t
       direction: inout

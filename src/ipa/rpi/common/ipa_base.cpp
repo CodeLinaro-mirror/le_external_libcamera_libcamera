@@ -88,7 +88,7 @@ const ControlInfoMap::Map ipaControls{
 		      static_cast<int64_t>(defaultMaxFrameDuration.get<std::micro>()),
 		      Span<const int64_t, 2>{ { static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>()),
 						static_cast<int64_t>(defaultMinFrameDuration.get<std::micro>()) } }) },
-	{ &controls::draft::NoiseReductionMode, ControlInfo(controls::draft::NoiseReductionModeValues) },
+	{ &controls::NoiseReductionMode, ControlInfo(controls::NoiseReductionModeValues) },
 	{ &controls::rpi::StatsOutputEnable, ControlInfo(false, true, false) },
 };
 
@@ -1290,9 +1290,9 @@ void IpaBase::applyControls(const ControlList &controls)
 			break;
 		}
 
-		case controls::draft::NOISE_REDUCTION_MODE:
+		case controls::NOISE_REDUCTION_MODE:
 			/* Handled below in handleControls() */
-			libcameraMetadata_.set(controls::draft::NoiseReductionMode,
+			libcameraMetadata_.set(controls::NoiseReductionMode,
 					       ctrl.second.get<int32_t>());
 			break;
 

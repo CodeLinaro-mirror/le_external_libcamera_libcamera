@@ -293,16 +293,16 @@ RPiController::StatisticsPtr IpaVc4::platformProcessStats(Span<uint8_t> mem)
 void IpaVc4::handleControls(const ControlList &controls)
 {
 	static const std::map<int32_t, RPiController::DenoiseMode> DenoiseModeTable = {
-		{ controls::draft::NoiseReductionModeOff, RPiController::DenoiseMode::Off },
-		{ controls::draft::NoiseReductionModeFast, RPiController::DenoiseMode::ColourFast },
-		{ controls::draft::NoiseReductionModeHighQuality, RPiController::DenoiseMode::ColourHighQuality },
-		{ controls::draft::NoiseReductionModeMinimal, RPiController::DenoiseMode::ColourOff },
-		{ controls::draft::NoiseReductionModeZSL, RPiController::DenoiseMode::ColourHighQuality },
+		{ controls::NoiseReductionModeOff, RPiController::DenoiseMode::Off },
+		{ controls::NoiseReductionModeFast, RPiController::DenoiseMode::ColourFast },
+		{ controls::NoiseReductionModeHighQuality, RPiController::DenoiseMode::ColourHighQuality },
+		{ controls::NoiseReductionModeMinimal, RPiController::DenoiseMode::ColourOff },
+		{ controls::NoiseReductionModeZSL, RPiController::DenoiseMode::ColourHighQuality },
 	};
 
 	for (auto const &ctrl : controls) {
 		switch (ctrl.first) {
-		case controls::draft::NOISE_REDUCTION_MODE: {
+		case controls::NOISE_REDUCTION_MODE: {
 			RPiController::DenoiseAlgorithm *sdn = dynamic_cast<RPiController::DenoiseAlgorithm *>(
 				controller_.getAlgorithm("SDN"));
 			/* Some platforms may have a combined "denoise" algorithm instead. */

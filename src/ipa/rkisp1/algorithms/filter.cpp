@@ -73,25 +73,25 @@ void Filter::queueRequest(IPAContext &context,
 		LOG(RkISP1Filter, Debug) << "Set sharpness to " << *sharpness;
 	}
 
-	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
+	const auto &denoise = controls.get(controls::NoiseReductionMode);
 	if (denoise) {
 		LOG(RkISP1Filter, Debug) << "Set denoise to " << *denoise;
 
 		switch (*denoise) {
-		case controls::draft::NoiseReductionModeOff:
+		case controls::NoiseReductionModeOff:
 			if (filter.denoise != 0) {
 				filter.denoise = 0;
 				update = true;
 			}
 			break;
-		case controls::draft::NoiseReductionModeMinimal:
+		case controls::NoiseReductionModeMinimal:
 			if (filter.denoise != 1) {
 				filter.denoise = 1;
 				update = true;
 			}
 			break;
-		case controls::draft::NoiseReductionModeHighQuality:
-		case controls::draft::NoiseReductionModeFast:
+		case controls::NoiseReductionModeHighQuality:
+		case controls::NoiseReductionModeFast:
 			if (filter.denoise != 3) {
 				filter.denoise = 3;
 				update = true;

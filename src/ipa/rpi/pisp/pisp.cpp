@@ -560,7 +560,7 @@ void IpaPiSP::handleControls(const ControlList &controls)
 			setHistogramWeights();
 			break;
 
-		case controls::draft::NOISE_REDUCTION_MODE: {
+		case controls::NOISE_REDUCTION_MODE: {
 			RPiController::DenoiseAlgorithm *denoise = dynamic_cast<RPiController::DenoiseAlgorithm *>(
 				controller_.getAlgorithm("denoise"));
 
@@ -570,7 +570,7 @@ void IpaPiSP::handleControls(const ControlList &controls)
 				return;
 			}
 
-			if (ctrl.second.get<int32_t>() == controls::draft::NoiseReductionModeOff)
+			if (ctrl.second.get<int32_t>() == controls::NoiseReductionModeOff)
 				denoise->setMode(RPiController::DenoiseMode::Off);
 			else
 				denoise->setMode(RPiController::DenoiseMode::ColourHighQuality);

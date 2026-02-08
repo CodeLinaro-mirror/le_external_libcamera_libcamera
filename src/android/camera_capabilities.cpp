@@ -1291,7 +1291,7 @@ int CameraCapabilities::initializeStaticMetadata()
 	{
 		std::vector<uint8_t> data;
 		data.reserve(5);
-		const auto &infoMap = controlsInfo.find(&controls::draft::NoiseReductionMode);
+		const auto &infoMap = controlsInfo.find(&controls::NoiseReductionMode);
 		if (infoMap != controlsInfo.end()) {
 			for (const auto &value : infoMap->second.values())
 				data.push_back(value.get<int32_t>());

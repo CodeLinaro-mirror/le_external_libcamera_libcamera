@@ -120,7 +120,7 @@ const IPAHwSettings ipaHwSettingsV12{
 /* List of controls handled by the RkISP1 IPA */
 const ControlInfoMap::Map rkisp1Controls{
 	{ &controls::DebugMetadataEnable, ControlInfo(false, true, false) },
-	{ &controls::draft::NoiseReductionMode, ControlInfo(controls::draft::NoiseReductionModeValues) },
+	{ &controls::NoiseReductionMode, ControlInfo(controls::NoiseReductionModeValues) },
 };
 
 } /* namespace */

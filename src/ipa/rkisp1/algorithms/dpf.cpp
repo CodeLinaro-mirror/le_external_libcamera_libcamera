@@ -182,20 +182,20 @@ void Dpf::queueRequest(IPAContext &context,
 	auto &dpf = context.activeState.dpf;
 	bool update = false;
 
-	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
+	const auto &denoise = controls.get(controls::NoiseReductionMode);
 	if (denoise) {
 		LOG(RkISP1Dpf, Debug) << "Set denoise to " << *denoise;
 
 		switch (*denoise) {
-		case controls::draft::NoiseReductionModeOff:
+		case controls::NoiseReductionModeOff:
 			if (dpf.denoise) {
 				dpf.denoise = false;
 				update = true;
 			}
 			break;
-		case controls::draft::NoiseReductionModeMinimal:
-		case controls::draft::NoiseReductionModeHighQuality:
-		case controls::draft::NoiseReductionModeFast:
+		case controls::NoiseReductionModeMinimal:
+		case controls::NoiseReductionModeHighQuality:
+		case controls::NoiseReductionModeFast:
 			if (!dpf.denoise) {
 				dpf.denoise = true;
 				update = true;
