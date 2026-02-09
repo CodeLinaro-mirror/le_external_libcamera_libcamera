@@ -33,6 +33,7 @@ public:
 
 	struct DewarpParams {
 		DewarpParams() : cm(Matrix<double, 3, 3>::identity()),
+				 cmNew(Matrix<double, 3, 3>::identity()),
 				 coefficients({})
 		{
 		}
@@ -40,6 +41,7 @@ public:
 		int setCoefficients(Span<const double> coeffs);
 
 		Matrix<double, 3, 3> cm;
+		Matrix<double, 3, 3> cmNew;
 
 		struct {
 			double k1;
