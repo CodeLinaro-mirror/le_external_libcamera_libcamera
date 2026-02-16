@@ -154,7 +154,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
-			 debayer_->getStatsFD(),
+			 fdStats,
 			 fdParams,
 			 sensorInfo,
 			 sensor->controls(),

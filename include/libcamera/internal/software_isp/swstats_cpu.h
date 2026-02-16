@@ -12,6 +12,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <stdint.h>
 
 #include <libcamera/base/signal.h>
@@ -45,10 +46,6 @@ public:
 	 * exposure changes have been applied.
 	 */
 	static constexpr uint32_t kStatPerNumFrames = 4;
-
-	bool isValid() const { return sharedStats_->begin()->second.fd().isValid(); }
-
-	const SharedFD &getStatsFD() { return sharedStats_->begin()->second.fd(); }
 
 	const Size &patternSize() { return patternSize_; }
 
@@ -118,7 +115,12 @@ private:
 	unsigned int stride_;
 
 	std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats_;
-	SwIspStats stats_;
+	struct SwIspStatsRef {
+		SharedMemObject<SwIspStats> &stats;
+		SwIspStatsRef(SharedMemObject<SwIspStats> &_stats)
+			: stats(_stats) {};
+	};
+	std::unique_ptr<SwIspStatsRef> stats_;
 	Benchmark bench_;
 };
 

@@ -49,20 +49,6 @@ namespace libcamera {
  */
 
 /**
- * \fn bool SwStatsCpu::isValid() const
- * \brief Gets whether the statistics object is valid
- *
- * \return True if it's valid, false otherwise
- */
-
-/**
- * \fn const SharedFD &SwStatsCpu::getStatsFD()
- * \brief Get the file descriptor for the statistics
- *
- * \return The file descriptor
- */
-
-/**
  * \fn const Size &SwStatsCpu::patternSize()
  * \brief Get the pattern size
  *
@@ -183,12 +169,12 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
 	yVal = r * kRedYMul;               \
 	yVal += g * kGreenYMul;            \
 	yVal += b * kBlueYMul;             \
-	stats_.yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++;
+	stats_->stats->yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++;
 
-#define SWSTATS_FINISH_LINE_STATS() \
-	stats_.sum_.r() += sumR;    \
-	stats_.sum_.g() += sumG;    \
-	stats_.sum_.b() += sumB;
+#define SWSTATS_FINISH_LINE_STATS()      \
+	stats_->stats->sum_.r() += sumR; \
+	stats_->stats->sum_.g() += sumG; \
+	stats_->stats->sum_.b() += sumB;
 
 void SwStatsCpu::statsBGGR8Line0(const uint8_t *src[])
 {
@@ -326,7 +312,7 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::startFrame(uint32_t frame, [[maybe_unused]] const uint32_t statsBufferId)
+void SwStatsCpu::startFrame(uint32_t frame, const uint32_t statsBufferId)
 {
 	if (frame % kStatPerNumFrames)
 		return;
@@ -334,8 +320,10 @@ void SwStatsCpu::startFrame(uint32_t frame, [[maybe_unused]] const uint32_t stat
 	if (window_.width == 0)
 		LOG(SwStatsCpu, Error) << "Calling startFrame() without setWindow()";
 
-	stats_.sum_ = RGB<uint64_t>({ 0, 0, 0 });
-	stats_.yHistogram.fill(0);
+	auto &s = sharedStats_->at(statsBufferId);
+	stats_ = std::make_unique<SwIspStatsRef>(s);
+	stats_->stats->sum_ = RGB<uint64_t>({ 0, 0, 0 });
+	stats_->stats->yHistogram.fill(0);
 }
 
 /**
@@ -348,8 +336,7 @@ void SwStatsCpu::startFrame(uint32_t frame, [[maybe_unused]] const uint32_t stat
 void SwStatsCpu::finishFrame(uint32_t frame,
 			     const uint32_t statsBufferId)
 {
-	stats_.valid = frame % kStatPerNumFrames == 0;
-	*(sharedStats_->at(statsBufferId)) = stats_;
+	stats_->stats->valid = frame % kStatPerNumFrames == 0;
 	statsReady.emit(frame, statsBufferId);
 }
 

@@ -48,7 +48,6 @@ public:
 		     FrameBuffer *input,
 		     FrameBuffer *output);
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
-	const SharedFD &getStatsFD() { return stats_->getStatsFD(); }
 
 private:
 	/**
