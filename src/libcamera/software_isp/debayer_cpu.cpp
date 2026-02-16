@@ -12,12 +12,13 @@
 #include "debayer_cpu.h"
 
 #include <algorithm>
-#include <stdlib.h>
 #include <sys/ioctl.h>
 #include <time.h>
 #include <utility>
 
 #include <linux/dma-buf.h>
+
+#include <libcamera/base/shared_fd.h>
 
 #include <libcamera/formats.h>
 
@@ -38,10 +39,13 @@ namespace libcamera {
 /**
  * \brief Constructs a DebayerCpu object
  * \param[in] stats Pointer to the stats object to use
+ * \param[in] paramsBuffers SharedFDs of parameter buffers
  * \param[in] configuration The global configuration
  */
-DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const GlobalConfiguration &configuration)
-	: Debayer(configuration), stats_(std::move(stats))
+DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats,
+		       const std::vector<SharedFD> &paramsBuffers,
+		       const GlobalConfiguration &configuration)
+	: Debayer(paramsBuffers, configuration), stats_(std::move(stats))
 {
 	/*
 	 * Reading from uncached buffers may be very slow.
@@ -750,13 +754,13 @@ void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst)
 	}
 }
 
-void DebayerCpu::updateGammaTable(const DebayerParams &params)
+void DebayerCpu::updateGammaTable(const DebayerParams *params)
 {
-	const RGB<float> blackLevel = params.blackLevel;
+	const RGB<float> blackLevel = params->blackLevel;
 	/* Take let's say the green channel black level */
 	const unsigned int blackIndex = blackLevel[1] * gammaTable_.size();
-	const float gamma = params.gamma;
-	const float contrastExp = params.contrastExp;
+	const float gamma = params->gamma;
+	const float contrastExp = params->contrastExp;
 
 	const float divisor = gammaTable_.size() - blackIndex - 1.0;
 	for (unsigned int i = blackIndex; i < gammaTable_.size(); i++) {
@@ -780,12 +784,12 @@ void DebayerCpu::updateGammaTable(const DebayerParams &params)
 		  gammaTable_[blackIndex]);
 }
 
-void DebayerCpu::updateLookupTables(const DebayerParams &params)
+void DebayerCpu::updateLookupTables(const DebayerParams *params)
 {
 	const bool gammaUpdateNeeded =
-		params.gamma != params_.gamma ||
-		params.blackLevel != params_.blackLevel ||
-		params.contrastExp != params_.contrastExp;
+		params->gamma != params_.gamma ||
+		params->blackLevel != params_.blackLevel ||
+		params->contrastExp != params_.contrastExp;
 	if (gammaUpdateNeeded)
 		updateGammaTable(params);
 
@@ -796,7 +800,7 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 	const double div = static_cast<double>(kRGBLookupSize) / gammaTableSize;
 	if (ccmEnabled_) {
 		if (gammaUpdateNeeded ||
-		    matrixChanged(params.combinedMatrix, params_.combinedMatrix)) {
+		    matrixChanged(params->combinedMatrix, params_.combinedMatrix)) {
 			auto &red = swapRedBlueGains_ ? blueCcm_ : redCcm_;
 			auto &green = greenCcm_;
 			auto &blue = swapRedBlueGains_ ? redCcm_ : blueCcm_;
@@ -804,21 +808,21 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 			const unsigned int greenIndex = 1;
 			const unsigned int blueIndex = swapRedBlueGains_ ? 0 : 2;
 			for (unsigned int i = 0; i < kRGBLookupSize; i++) {
-				red[i].r = std::round(i * params.combinedMatrix[redIndex][0]);
-				red[i].g = std::round(i * params.combinedMatrix[greenIndex][0]);
-				red[i].b = std::round(i * params.combinedMatrix[blueIndex][0]);
-				green[i].r = std::round(i * params.combinedMatrix[redIndex][1]);
-				green[i].g = std::round(i * params.combinedMatrix[greenIndex][1]);
-				green[i].b = std::round(i * params.combinedMatrix[blueIndex][1]);
-				blue[i].r = std::round(i * params.combinedMatrix[redIndex][2]);
-				blue[i].g = std::round(i * params.combinedMatrix[greenIndex][2]);
-				blue[i].b = std::round(i * params.combinedMatrix[blueIndex][2]);
+				red[i].r = std::round(i * params->combinedMatrix[redIndex][0]);
+				red[i].g = std::round(i * params->combinedMatrix[greenIndex][0]);
+				red[i].b = std::round(i * params->combinedMatrix[blueIndex][0]);
+				green[i].r = std::round(i * params->combinedMatrix[redIndex][1]);
+				green[i].g = std::round(i * params->combinedMatrix[greenIndex][1]);
+				green[i].b = std::round(i * params->combinedMatrix[blueIndex][1]);
+				blue[i].r = std::round(i * params->combinedMatrix[redIndex][2]);
+				blue[i].g = std::round(i * params->combinedMatrix[greenIndex][2]);
+				blue[i].b = std::round(i * params->combinedMatrix[blueIndex][2]);
 				gammaLut_[i] = gammaTable_[i / div];
 			}
 		}
 	} else {
-		if (gammaUpdateNeeded || params.gains != params_.gains) {
-			auto &gains = params.gains;
+		if (gammaUpdateNeeded || params->gains != params_.gains) {
+			auto &gains = params->gains;
 			auto &red = swapRedBlueGains_ ? blue_ : red_;
 			auto &green = green_;
 			auto &blue = swapRedBlueGains_ ? red_ : blue_;
@@ -833,18 +837,17 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 	}
 
 	LOG(Debayer, Debug)
-		<< "Debayer parameters: blackLevel=" << params.blackLevel
-		<< "; gamma=" << params.gamma
-		<< "; contrastExp=" << params.contrastExp
-		<< "; gains=" << params.gains
-		<< "; matrix=" << params.combinedMatrix;
+		<< "Debayer parameters: blackLevel=" << params->blackLevel
+		<< "; gamma=" << params->gamma
+		<< "; contrastExp=" << params->contrastExp
+		<< "; gains=" << params->gains
+		<< "; matrix=" << params->combinedMatrix;
 
-	params_ = params;
+	params_ = *params;
 }
 
 void DebayerCpu::process(uint32_t frame, const uint32_t paramsBufferId,
-			 FrameBuffer *input, FrameBuffer *output,
-			 const DebayerParams &params)
+			 FrameBuffer *input, FrameBuffer *output)
 {
 	bench_.startFrame();
 
@@ -852,8 +855,8 @@ void DebayerCpu::process(uint32_t frame, const uint32_t paramsBufferId,
 
 	dmaSyncBegin(dmaSyncers, input, output);
 
+	DebayerParams *params = paramsBuffers_.at(paramsBufferId);
 	updateLookupTables(params);
-
 	releaseIspParams.emit(paramsBufferId);
 
 	/* Copy metadata from the input buffer */

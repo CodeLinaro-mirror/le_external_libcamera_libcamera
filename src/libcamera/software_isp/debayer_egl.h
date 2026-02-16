@@ -38,7 +38,9 @@ namespace libcamera {
 class DebayerEGL : public Debayer
 {
 public:
-	DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const GlobalConfiguration &configuration);
+	DebayerEGL(std::unique_ptr<SwStatsCpu> stats,
+		   const std::vector<SharedFD> &paramsBuffers,
+		   const GlobalConfiguration &configuration);
 	~DebayerEGL();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -51,8 +53,7 @@ public:
 	std::tuple<unsigned int, unsigned int> strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 
 	void process(uint32_t frame, const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output,
-		     const DebayerParams &params);
+		     FrameBuffer *input, FrameBuffer *output);
 	int start();
 	void stop();
 

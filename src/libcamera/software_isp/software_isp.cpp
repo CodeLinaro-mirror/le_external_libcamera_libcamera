@@ -102,6 +102,10 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
+	std::vector<SharedFD> fdParams;
+	for (auto &item : sharedParams_)
+		fdParams.emplace_back(item.second.fd());
+
 #if HAVE_DEBAYER_EGL
 	std::optional<std::string> softISPMode = configuration.envOption("LIBCAMERA_SOFTISP_MODE", { "software_isp", "mode" });
 	if (softISPMode) {
@@ -113,15 +117,14 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 
 	if (!softISPMode || softISPMode == "gpu")
-		debayer_ = std::make_unique<DebayerEGL>(std::move(stats), configuration);
+		debayer_ = std::make_unique<DebayerEGL>(std::move(stats), fdParams,
+							configuration);
 
 #endif
 	if (!debayer_)
-		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), configuration);
+		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), fdParams,
+							configuration);
 
-	std::vector<SharedFD> fdParams;
-	for (auto &item : sharedParams_)
-		fdParams.emplace_back(item.second.fd());
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 	debayer_->releaseIspParams.connect(this, &SoftwareIsp::releaseIspParams);
@@ -426,9 +429,8 @@ void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *outpu
 	const uint32_t paramsBufferId = availableParams_.front();
 	availableParams_.pop();
 	ipa_->computeParams(frame, paramsBufferId);
-	debayerParams_ = *sharedParams_.at(paramsBufferId);
 	debayer_->invokeMethod(&Debayer::process,
-			       ConnectionTypeQueued, frame, paramsBufferId, input, output, debayerParams_);
+			       ConnectionTypeQueued, frame, paramsBufferId, input, output);
 }
 
 void SoftwareIsp::saveIspParams(uint32_t paramsBufferId)

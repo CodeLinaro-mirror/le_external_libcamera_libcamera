@@ -35,7 +35,8 @@ LOG_DECLARE_CATEGORY(Debayer)
 class Debayer : public Object
 {
 public:
-	Debayer(const GlobalConfiguration &configuration);
+	Debayer(const std::vector<SharedFD> &paramsBuffers,
+		const GlobalConfiguration &configuration);
 	virtual ~Debayer() = 0;
 
 	virtual int configure(const StreamConfiguration &inputCfg,
@@ -49,8 +50,7 @@ public:
 
 	virtual void process(uint32_t frame,
 			     const uint32_t paramsBufferId,
-			     FrameBuffer *input, FrameBuffer *output,
-			     const DebayerParams &params) = 0;
+			     FrameBuffer *input, FrameBuffer *output) = 0;
 	virtual int start() { return 0; }
 	virtual void stop() {}
 
@@ -83,6 +83,7 @@ public:
 	PixelFormat inputPixelFormat_;
 	PixelFormat outputPixelFormat_;
 	bool swapRedBlueGains_;
+	std::map<unsigned int, DebayerParams *> paramsBuffers_;
 	Benchmark bench_;
 
 private:

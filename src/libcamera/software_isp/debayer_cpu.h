@@ -16,6 +16,7 @@
 #include <vector>
 
 #include <libcamera/base/object.h>
+#include <libcamera/base/shared_fd.h>
 
 #include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/global_configuration.h"
@@ -29,7 +30,9 @@ namespace libcamera {
 class DebayerCpu : public Debayer
 {
 public:
-	DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const GlobalConfiguration &configuration);
+	DebayerCpu(std::unique_ptr<SwStatsCpu> stats,
+		   const std::vector<SharedFD> &paramsBuffers,
+		   const GlobalConfiguration &configuration);
 	~DebayerCpu();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -41,7 +44,7 @@ public:
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 	void process(uint32_t frame,
 		     const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output, const DebayerParams &params);
+		     FrameBuffer *input, FrameBuffer *output);
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
 	const SharedFD &getStatsFD() { return stats_->getStatsFD(); }
 
@@ -112,8 +115,8 @@ private:
 	void memcpyNextLine(const uint8_t *linePointers[]);
 	void process2(uint32_t frame, const uint8_t *src, uint8_t *dst);
 	void process4(uint32_t frame, const uint8_t *src, uint8_t *dst);
-	void updateGammaTable(const DebayerParams &params);
-	void updateLookupTables(const DebayerParams &params);
+	void updateGammaTable(const DebayerParams *params);
+	void updateLookupTables(const DebayerParams *params);
 
 	/* Max. supported Bayer pattern height is 4, debayering this requires 5 lines */
 	static constexpr unsigned int kMaxLineBuffers = 5;

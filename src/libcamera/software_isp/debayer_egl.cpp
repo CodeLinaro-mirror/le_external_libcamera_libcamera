@@ -32,10 +32,13 @@ namespace libcamera {
  * \fn DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const GlobalConfiguration &configuration)
  * \brief Construct a DebayerEGL object
  * \param[in] stats Statistics processing object
+ * \param[in] paramsBuffers SharedFDs of parameter buffers
  * \param[in] configuration Global configuration reference
  */
-DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const GlobalConfiguration &configuration)
-	: Debayer(configuration), stats_(std::move(stats))
+DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats,
+		       const std::vector<SharedFD> &paramsBuffers,
+		       const GlobalConfiguration &configuration)
+	: Debayer(paramsBuffers, configuration), stats_(std::move(stats))
 {
 }
 
@@ -534,8 +537,7 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 }
 
 void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
-			 FrameBuffer *input, FrameBuffer *output,
-			 const DebayerParams &params)
+			 FrameBuffer *input, FrameBuffer *output)
 {
 	bench_.startFrame();
 
@@ -549,6 +551,9 @@ void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
 	metadata.sequence = input->metadata().sequence;
 	metadata.timestamp = input->metadata().timestamp;
 
+	DebayerParams params = *paramsBuffers_.at(paramsBufferId);
+	releaseIspParams.emit(paramsBufferId);
+
 	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
 	if (!in.isValid()) {
 		LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
@@ -559,7 +564,6 @@ void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
 		LOG(Debayer, Error) << "debayerGPU failed";
 		goto error;
 	}
-	releaseIspParams.emit(paramsBufferId);
 
 	bench_.finishFrame();
 

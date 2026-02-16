@@ -11,6 +11,8 @@
 
 #include "debayer.h"
 
+#include <sys/mman.h>
+
 namespace libcamera {
 
 /**
@@ -21,6 +23,7 @@ namespace libcamera {
 /**
  * \fn Debayer::Debayer(const GlobalConfiguration &configuration)
  * \brief Construct a Debayer object
+ * \param[in] paramsBuffers SharedFDs of parameter buffers
  * \param[in] configuration Global configuration reference
  */
 
@@ -58,8 +61,22 @@ namespace libcamera {
 
 LOG_DEFINE_CATEGORY(Debayer)
 
-Debayer::Debayer(const GlobalConfiguration &configuration) : bench_(configuration)
+Debayer::Debayer(const std::vector<SharedFD> &paramsBuffers,
+		 const GlobalConfiguration &configuration) : bench_(configuration)
 {
+	paramsBuffers_ = std::map<unsigned int, DebayerParams *>();
+
+	for (auto &sharedFd : paramsBuffers) {
+		void *mem = mmap(nullptr, sizeof(DebayerParams), PROT_WRITE,
+				 MAP_SHARED, sharedFd.get(), 0);
+		if (mem == MAP_FAILED) {
+			LOG(Debayer, Error) << "Unable to map Parameters";
+			return;
+		}
+
+		ASSERT(sharedFd.get() >= 0);
+		paramsBuffers_[sharedFd.get()] = static_cast<DebayerParams *>(mem);
+	}
 }
 
 Debayer::~Debayer()
@@ -105,13 +122,12 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn void Debayer::process(uint32_t frame, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+ * \fn void Debayer::process(uint32_t frame, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output)
  * \brief Process the bayer data into the requested format
  * \param[in] frame The frame number
  * \param[in] paramsBufferId The id of the params buffer in use
  * \param[in] input The input buffer
  * \param[in] output The output buffer
- * \param[in] params The parameters to be used in debayering
  *
  * \note DebayerParams is passed by value deliberately so that a copy is passed
  * when this is run in another thread by invokeMethod().
@@ -237,6 +253,11 @@ Debayer::~Debayer()
  *
  * Used when the Bayer pattern order indicates that red/blue color channels are
  * reversed.
+ */
+
+/**
+ * \var Debayer::paramsBuffers_
+ * \brief Ring of debayering parameters buffers
  */
 
 /**
