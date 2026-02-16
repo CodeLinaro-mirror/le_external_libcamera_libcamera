@@ -104,6 +104,7 @@ private:
 	DebayerParams debayerParams_;
 	std::queue<uint32_t> availableParams_;
 	bool allocateParamsBuffers(const unsigned int bufferCount);
+	std::queue<uint32_t> availableStats_;
 	std::unique_ptr<SwStatsCpu> allocateStatsBuffers(
 		const GlobalConfiguration &configuration,
 		std::vector<SharedFD> &fdStats,

@@ -222,6 +222,7 @@ std::unique_ptr<SwStatsCpu> SoftwareIsp::allocateStatsBuffers(
 		unsigned int bufferId = shared.fd().get();
 		fdStats.emplace_back(shared.fd());
 		sharedStats->emplace(bufferId, std::move(shared));
+		availableStats_.push(bufferId);
 	}
 
 	auto stats = std::make_unique<SwStatsCpu>(configuration, std::move(sharedStats));
@@ -457,11 +458,18 @@ void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *outpu
 		while (availableParams_.empty())
 			;
 	}
+	if (availableStats_.empty()) {
+		LOG(SoftwareIsp, Error) << "Statistics buffer underrun";
+		/* Well, busy loop, but this situation shouldn't normally happen. */
+		while (availableStats_.empty())
+			;
+	}
 
 	const uint32_t paramsBufferId = availableParams_.front();
 	availableParams_.pop();
+	const uint32_t statsBufferId = availableStats_.front();
+	availableStats_.pop();
 	ipa_->computeParams(frame, paramsBufferId);
-	const uint32_t statsBufferId = 0;
 	debayer_->invokeMethod(&Debayer::process,
 			       ConnectionTypeQueued, frame,
 			       statsBufferId, paramsBufferId, input, output);
@@ -487,8 +495,9 @@ void SoftwareIsp::statsReady(uint32_t frame, const uint32_t statsBufferId)
 	ispStatsReady.emit(frame, statsBufferId);
 }
 
-void SoftwareIsp::statsProcessed([[maybe_unused]] const uint32_t statsBufferId)
+void SoftwareIsp::statsProcessed(const uint32_t statsBufferId)
 {
+	availableStats_.push(statsBufferId);
 }
 
 void SoftwareIsp::inputReady(FrameBuffer *input)

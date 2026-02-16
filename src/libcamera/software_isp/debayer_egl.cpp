@@ -537,7 +537,7 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 }
 
 void DebayerEGL::process(uint32_t frame,
-			 [[maybe_unused]] const uint32_t statsBufferId,
+			 const uint32_t statsBufferId,
 			 const uint32_t paramsBufferId,
 			 FrameBuffer *input,
 			 FrameBuffer *output)
@@ -573,7 +573,7 @@ void DebayerEGL::process(uint32_t frame,
 	metadata.planes()[0].bytesused = output->planes()[0].length;
 
 	/* Calculate stats for the whole frame */
-	stats_->processFrame(frame, 0, input);
+	stats_->processFrame(frame, statsBufferId, input);
 	dmaSyncers.clear();
 
 	outputBufferReady.emit(output);
