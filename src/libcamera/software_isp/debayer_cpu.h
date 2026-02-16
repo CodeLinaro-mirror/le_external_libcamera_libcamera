@@ -135,6 +135,7 @@ private:
 	};
 	using LookupTable = std::array<uint8_t, kRGBLookupSize>;
 	using CcmLookupTable = std::array<CcmColumn, kRGBLookupSize>;
+	/* Variables used every pixel */
 	LookupTable red_;
 	LookupTable green_;
 	LookupTable blue_;
@@ -143,24 +144,26 @@ private:
 	CcmLookupTable blueCcm_;
 	std::array<double, kGammaLookupSize> gammaTable_;
 	LookupTable gammaLut_;
-	bool ccmEnabled_;
-	DebayerParams params_;
-	SwIspStats statsBuffer_;
+	Rectangle window_;
 
+	/* Variables used every line */
+	SwIspStats statsBuffer_;
 	debayerFn debayer0_;
 	debayerFn debayer1_;
 	debayerFn debayer2_;
 	debayerFn debayer3_;
-	Rectangle window_;
 	std::unique_ptr<SwStatsCpu> stats_;
 	unsigned int lineBufferLength_;
 	unsigned int lineBufferPadding_;
 	unsigned int xShift_; /* Offset of 0/1 applied to window_.x */
 	bool enableInputMemcpy_;
-
 	static constexpr unsigned int kMaxThreads = 4;
 	struct DebayerCpuThreadData threadData_[kMaxThreads];
+
+	/* variables used every frame */
 	unsigned int threadCount_;
+	bool ccmEnabled_;
+	DebayerParams params_;
 };
 
 } /* namespace libcamera */
