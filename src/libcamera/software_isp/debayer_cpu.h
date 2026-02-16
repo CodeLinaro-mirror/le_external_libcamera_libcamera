@@ -74,6 +74,19 @@ private:
 	 */
 	using debayerFn = void (DebayerCpu::*)(uint8_t *dst, const uint8_t *src[]);
 
+	/* Max. supported Bayer pattern height is 4, debayering this requires 5 lines */
+	static constexpr unsigned int kMaxLineBuffers = 5;
+
+	/* Per render thread data */
+	struct DebayerCpuThreadData {
+		unsigned int yStart;
+		unsigned int yEnd;
+		std::vector<uint8_t> lineBuffers[kMaxLineBuffers];
+		unsigned int lineBufferIndex;
+		/* Stored here to avoid causing register pressure in inner loop */
+		bool processLastLinesSeperately;
+	};
+
 	/* 8-bit raw bayer format */
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
@@ -105,16 +118,13 @@ private:
 	int setDebayerFunctions(PixelFormat inputFormat,
 				PixelFormat outputFormat,
 				bool ccmEnabled);
-	void setupInputMemcpy(const uint8_t *linePointers[]);
+	void setupInputMemcpy(const uint8_t *linePointers[], DebayerCpuThreadData *threadData);
 	void shiftLinePointers(const uint8_t *linePointers[], const uint8_t *src);
-	void memcpyNextLine(const uint8_t *linePointers[]);
-	void process2(uint32_t frame, const uint8_t *src, uint8_t *dst);
-	void process4(uint32_t frame, const uint8_t *src, uint8_t *dst);
+	void memcpyNextLine(const uint8_t *linePointers[], DebayerCpuThreadData *threadData);
+	void process2(uint32_t frame, const uint8_t *src, uint8_t *dst, DebayerCpuThreadData *threadData);
+	void process4(uint32_t frame, const uint8_t *src, uint8_t *dst, DebayerCpuThreadData *threadData);
 	void updateGammaTable(const DebayerParams &params);
 	void updateLookupTables(const DebayerParams &params);
-
-	/* Max. supported Bayer pattern height is 4, debayering this requires 5 lines */
-	static constexpr unsigned int kMaxLineBuffers = 5;
 
 	static constexpr unsigned int kRGBLookupSize = 256;
 	static constexpr unsigned int kGammaLookupSize = 1024;
@@ -143,12 +153,14 @@ private:
 	debayerFn debayer3_;
 	Rectangle window_;
 	std::unique_ptr<SwStatsCpu> stats_;
-	std::vector<uint8_t> lineBuffers_[kMaxLineBuffers];
 	unsigned int lineBufferLength_;
 	unsigned int lineBufferPadding_;
-	unsigned int lineBufferIndex_;
 	unsigned int xShift_; /* Offset of 0/1 applied to window_.x */
 	bool enableInputMemcpy_;
+
+	static constexpr unsigned int kMaxThreads = 4;
+	struct DebayerCpuThreadData threadData_[kMaxThreads];
+	unsigned int threadCount_;
 };
 
 } /* namespace libcamera */
