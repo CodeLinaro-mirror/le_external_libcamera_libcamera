@@ -11,6 +11,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <queue>
 #include <stdint.h>
 #include <string>
 #include <tuple>
@@ -98,6 +99,7 @@ private:
 	Thread ispWorkerThread_;
 	SharedMemObject<DebayerParams> sharedParams_;
 	DebayerParams debayerParams_;
+	std::queue<uint32_t> availableParams_;
 	bool allocateParamsBuffers();
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;

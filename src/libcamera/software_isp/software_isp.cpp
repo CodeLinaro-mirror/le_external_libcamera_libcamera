@@ -180,6 +180,10 @@ bool SoftwareIsp::allocateParamsBuffers()
 		return false;
 	}
 
+	ASSERT(sharedParams_.fd().get() >= 0);
+	const uint32_t bufferId = sharedParams_.fd().get();
+	availableParams_.push(bufferId);
+
 	return true;
 }
 
@@ -404,8 +408,15 @@ void SoftwareIsp::stop()
  */
 void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
-	/* \todo Provide a real value */
-	constexpr uint32_t paramsBufferId = 0;
+	if (availableParams_.empty()) {
+		LOG(SoftwareIsp, Error) << "Parameters buffer underrun";
+		/* Well, busy loop, but this situation shouldn't normally happen. */
+		while (availableParams_.empty())
+			;
+	}
+
+	const uint32_t paramsBufferId = availableParams_.front();
+	availableParams_.pop();
 	ipa_->computeParams(frame, paramsBufferId);
 	debayer_->invokeMethod(&Debayer::process,
 			       ConnectionTypeQueued, frame, paramsBufferId, input, output, debayerParams_);
@@ -416,8 +427,9 @@ void SoftwareIsp::saveIspParams([[maybe_unused]] uint32_t paramsBufferId)
 	debayerParams_ = *sharedParams_;
 }
 
-void SoftwareIsp::releaseIspParams([[maybe_unused]] uint32_t paramsBufferId)
+void SoftwareIsp::releaseIspParams(uint32_t paramsBufferId)
 {
+	availableParams_.push(paramsBufferId);
 }
 
 void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls)
