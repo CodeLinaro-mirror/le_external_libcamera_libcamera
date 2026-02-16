@@ -49,7 +49,8 @@ class SoftwareIsp : public Object
 {
 public:
 	SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-		    ControlInfoMap *ipaControls);
+		    ControlInfoMap *ipaControls,
+		    const unsigned int bufferCount);
 	~SoftwareIsp();
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }
@@ -97,11 +98,10 @@ private:
 	void outputReady(FrameBuffer *output);
 	std::unique_ptr<Debayer> debayer_;
 	Thread ispWorkerThread_;
-	static constexpr unsigned int kParamStatBufferCount = 1;
 	std::map<uint32_t, SharedMemObject<DebayerParams>> sharedParams_;
 	DebayerParams debayerParams_;
 	std::queue<uint32_t> availableParams_;
-	bool allocateParamsBuffers();
+	bool allocateParamsBuffers(const unsigned int bufferCount);
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;
 
