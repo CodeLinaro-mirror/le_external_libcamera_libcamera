@@ -673,7 +673,7 @@ void DebayerCpu::process2(uint32_t frame, const uint8_t *src, uint8_t *dst)
 	for (unsigned int y = 0; y < yEnd; y += 2) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine0(frame, y, linePointers);
+		stats_->processLine0(frame, y, linePointers, &statsBuffer_);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -688,7 +688,7 @@ void DebayerCpu::process2(uint32_t frame, const uint8_t *src, uint8_t *dst)
 	if (window_.y == 0) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine0(frame, yEnd, linePointers);
+		stats_->processLine0(frame, yEnd, linePointers, &statsBuffer_);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -724,7 +724,7 @@ void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst)
 	for (unsigned int y = 0; y < window_.height; y += 4) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine0(frame, y, linePointers);
+		stats_->processLine0(frame, y, linePointers, &statsBuffer_);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -737,7 +737,7 @@ void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst)
 
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers);
-		stats_->processLine2(frame, y, linePointers);
+		stats_->processLine2(frame, y, linePointers, &statsBuffer_);
 		(this->*debayer2_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -866,7 +866,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 		return;
 	}
 
-	stats_->startFrame(frame);
+	stats_->startFrame(frame, &statsBuffer_, 1);
 
 	if (inputConfig_.patternSize.height == 2)
 		process2(frame, in.planes()[0].data(), out.planes()[0].data());
@@ -885,7 +885,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	 *
 	 * \todo Pass real bufferId once stats buffer passing is changed.
 	 */
-	stats_->finishFrame(frame, 0);
+	stats_->finishFrame(frame, 0, &statsBuffer_, 1);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

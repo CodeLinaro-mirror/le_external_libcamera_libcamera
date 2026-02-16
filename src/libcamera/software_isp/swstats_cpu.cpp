@@ -182,14 +182,14 @@ static constexpr unsigned int kBlueYMul = 29; /* 0.114 * 256 */
 	yVal = r * kRedYMul;               \
 	yVal += g * kGreenYMul;            \
 	yVal += b * kBlueYMul;             \
-	stats_.yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++;
+	stats->yHistogram[yVal * SwIspStats::kYHistogramSize / (256 * 256 * (div))]++;
 
 #define SWSTATS_FINISH_LINE_STATS() \
-	stats_.sum_.r() += sumR;    \
-	stats_.sum_.g() += sumG;    \
-	stats_.sum_.b() += sumB;
+	stats->sum_.r() += sumR;    \
+	stats->sum_.g() += sumG;    \
+	stats->sum_.b() += sumB;
 
-void SwStatsCpu::statsBGGR8Line0(const uint8_t *src[])
+void SwStatsCpu::statsBGGR8Line0(const uint8_t *src[], SwIspStats *stats)
 {
 	const uint8_t *src0 = src[1] + window_.x;
 	const uint8_t *src1 = src[2] + window_.x;
@@ -214,7 +214,7 @@ void SwStatsCpu::statsBGGR8Line0(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsBGGR10Line0(const uint8_t *src[])
+void SwStatsCpu::statsBGGR10Line0(const uint8_t *src[], SwIspStats *stats)
 {
 	const uint16_t *src0 = (const uint16_t *)src[1] + window_.x;
 	const uint16_t *src1 = (const uint16_t *)src[2] + window_.x;
@@ -240,7 +240,7 @@ void SwStatsCpu::statsBGGR10Line0(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsBGGR12Line0(const uint8_t *src[])
+void SwStatsCpu::statsBGGR12Line0(const uint8_t *src[], SwIspStats *stats)
 {
 	const uint16_t *src0 = (const uint16_t *)src[1] + window_.x;
 	const uint16_t *src1 = (const uint16_t *)src[2] + window_.x;
@@ -266,7 +266,7 @@ void SwStatsCpu::statsBGGR12Line0(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src[])
+void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src[], SwIspStats *stats)
 {
 	const uint8_t *src0 = src[1] + window_.x * 5 / 4;
 	const uint8_t *src1 = src[2] + window_.x * 5 / 4;
@@ -292,7 +292,7 @@ void SwStatsCpu::statsBGGR10PLine0(const uint8_t *src[])
 	SWSTATS_FINISH_LINE_STATS()
 }
 
-void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
+void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[], SwIspStats *stats)
 {
 	const uint8_t *src0 = src[1] + window_.x * 5 / 4;
 	const uint8_t *src1 = src[2] + window_.x * 5 / 4;
@@ -321,10 +321,13 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
 /**
  * \brief Reset state to start statistics gathering for a new frame
  * \param[in] frame The frame number
+ * \param[in] statsBuffer Array of buffers storing stats
+ * \param[in] statsBufferCount number of buffers in the statsBuffer array
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::startFrame(uint32_t frame)
+void SwStatsCpu::startFrame(uint32_t frame,
+			    struct SwIspStats statsBuffer[], unsigned int statsBufferCount)
 {
 	if (frame % kStatPerNumFrames)
 		return;
@@ -332,21 +335,39 @@ void SwStatsCpu::startFrame(uint32_t frame)
 	if (window_.width == 0)
 		LOG(SwStatsCpu, Error) << "Calling startFrame() without setWindow()";
 
-	stats_.sum_ = RGB<uint64_t>({ 0, 0, 0 });
-	stats_.yHistogram.fill(0);
+	for (unsigned int i = 0; i < statsBufferCount; i++) {
+		statsBuffer[i].sum_ = RGB<uint64_t>({ 0, 0, 0 });
+		statsBuffer[i].yHistogram.fill(0);
+	}
 }
 
 /**
  * \brief Finish statistics calculation for the current frame
  * \param[in] frame The frame number
  * \param[in] bufferId ID of the statistics buffer
+ * \param[in] statsBuffer Array of buffers storing stats
+ * \param[in] statsBufferCount number of buffers in the statsBuffer array
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId,
+			     struct SwIspStats statsBuffer[], unsigned int statsBufferCount)
 {
-	stats_.valid = frame % kStatPerNumFrames == 0;
-	*sharedStats_ = stats_;
+	if (frame % kStatPerNumFrames) {
+		sharedStats_->valid = false;
+		statsReady.emit(frame, bufferId);
+		return;
+	}
+
+	sharedStats_->sum_ = RGB<uint64_t>({ 0, 0, 0 });
+	sharedStats_->yHistogram.fill(0);
+	for (unsigned int i = 0; i < statsBufferCount; i++) {
+		sharedStats_->sum_ += statsBuffer[i].sum_;
+		for (unsigned int j = 0; j < SwIspStats::kYHistogramSize; j++)
+			sharedStats_->yHistogram[j] += statsBuffer[i].yHistogram[j];
+	}
+
+	sharedStats_->valid = true;
 	statsReady.emit(frame, bufferId);
 }
 
@@ -487,7 +508,7 @@ void SwStatsCpu::setWindow(const Rectangle &window)
 	window_.height &= ~(patternSize_.height - 1);
 }
 
-void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
+void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in, SwIspStats *stats)
 {
 	const uint8_t *src = in.planes()[0].data();
 	const uint8_t *linePointers[3];
@@ -504,7 +525,7 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 		/* linePointers[0] is not used by any stats0_ functions */
 		linePointers[1] = src;
 		linePointers[2] = src + stride_;
-		(this->*stats0_)(linePointers);
+		(this->*stats0_)(linePointers, stats);
 		src += stride_ * 2;
 	}
 }
@@ -520,12 +541,14 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input)
 {
 	if (frame % kStatPerNumFrames) {
-		finishFrame(frame, bufferId);
+		finishFrame(frame, bufferId, NULL, 0);
 		return;
 	}
 
+	SwIspStats stats;
+
 	bench_.startFrame();
-	startFrame(frame);
+	startFrame(frame, &stats, 1);
 
 	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
 	if (!in.isValid()) {
@@ -533,8 +556,8 @@ void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *in
 		return;
 	}
 
-	(this->*processFrame_)(in);
-	finishFrame(frame, bufferId);
+	(this->*processFrame_)(in, &stats);
+	finishFrame(frame, bufferId, &stats, 1);
 	bench_.finishFrame();
 }
 

@@ -135,6 +135,7 @@ private:
 	LookupTable gammaLut_;
 	bool ccmEnabled_;
 	DebayerParams params_;
+	SwIspStats statsBuffer_;
 
 	debayerFn debayer0_;
 	debayerFn debayer1_;
