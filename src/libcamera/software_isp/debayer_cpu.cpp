@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <stdlib.h>
 #include <sys/ioctl.h>
+#include <thread>
 #include <time.h>
 #include <utility>
 
@@ -41,7 +42,7 @@ namespace libcamera {
  * \param[in] configuration The global configuration
  */
 DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const GlobalConfiguration &configuration)
-	: Debayer(configuration), stats_(std::move(stats)), threadCount_(1)
+	: Debayer(configuration), stats_(std::move(stats))
 {
 	/*
 	 * Reading from uncached buffers may be very slow.
@@ -56,6 +57,9 @@ DebayerCpu::DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const GlobalConfigurat
 	 */
 	enableInputMemcpy_ =
 		configuration.option<bool>({ "software_isp", "copy_input_buffer" }).value_or(true);
+	threadCount_ =
+		configuration.option<unsigned int>({ "software_isp", "threads" }).value_or(3);
+	threadCount_ = std::clamp(threadCount_, 1u, kMaxThreads);
 }
 
 DebayerCpu::~DebayerCpu() = default;
@@ -692,7 +696,7 @@ void DebayerCpu::process2(uint32_t frame, const uint8_t *src, uint8_t *dst,
 	for (unsigned int y = threadData->yStart; y < threadData->yEnd; y += 2) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers, threadData);
-		stats_->processLine0(frame, y, linePointers, &statsBuffer_);
+		stats_->processLine0(frame, y, linePointers, threadData->statsBuffer);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -707,7 +711,8 @@ void DebayerCpu::process2(uint32_t frame, const uint8_t *src, uint8_t *dst,
 	if (threadData->processLastLinesSeperately) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers, threadData);
-		stats_->processLine0(frame, threadData->yEnd, linePointers, &statsBuffer_);
+		stats_->processLine0(frame, threadData->yEnd, linePointers,
+				     threadData->statsBuffer);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -749,7 +754,7 @@ void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst,
 	for (unsigned int y = threadData->yStart; y < threadData->yEnd; y += 4) {
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers, threadData);
-		stats_->processLine0(frame, y, linePointers, &statsBuffer_);
+		stats_->processLine0(frame, y, linePointers, threadData->statsBuffer);
 		(this->*debayer0_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -762,7 +767,7 @@ void DebayerCpu::process4(uint32_t frame, const uint8_t *src, uint8_t *dst,
 
 		shiftLinePointers(linePointers, src);
 		memcpyNextLine(linePointers, threadData);
-		stats_->processLine2(frame, y, linePointers, &statsBuffer_);
+		stats_->processLine2(frame, y, linePointers, threadData->statsBuffer);
 		(this->*debayer2_)(dst, linePointers);
 		src += inputConfig_.stride;
 		dst += outputConfig_.stride;
@@ -869,6 +874,10 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 
 void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
 {
+	std::unique_ptr<std::thread> threads[threadCount_ - 1];
+	SwIspStats statsBuffer[threadCount_];
+	unsigned int i;
+
 	bench_.startFrame();
 
 	std::vector<DmaSyncer> dmaSyncers;
@@ -891,11 +900,31 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 		return;
 	}
 
-	stats_->startFrame(frame, &statsBuffer_, 1);
+	stats_->startFrame(frame, statsBuffer, threadCount_);
 
-	threadData_[0].yStart = 0;
-	threadData_[0].yEnd = window_.height;
-	(this->*processInner_)(frame, in.planes()[0].data(), out.planes()[0].data(), &threadData_[0]);
+	unsigned int yStart = 0;
+	unsigned int linesPerThread = (window_.height / threadCount_) &
+				      ~(inputConfig_.patternSize.width - 1);
+	for (i = 0; i < (threadCount_ - 1); i++) {
+		threadData_[i].yStart = yStart;
+		threadData_[i].yEnd = yStart + linesPerThread;
+		threadData_[i].statsBuffer = &statsBuffer[i];
+		threads[i] = std::make_unique<std::thread>(
+				processInner_, this, frame,
+				in.planes()[0].data(),
+				out.planes()[0].data() + yStart * outputConfig_.stride,
+				&threadData_[i]);
+		yStart += linesPerThread;
+	}
+	threadData_[i].yStart = yStart;
+	threadData_[i].yEnd = window_.height;
+	threadData_[i].statsBuffer = &statsBuffer[i];
+	(this->*processInner_)(frame, in.planes()[0].data(),
+			       out.planes()[0].data() + yStart * outputConfig_.stride,
+			       &threadData_[i]);
+
+	for (i = 0; i < (threadCount_ - 1); i++)
+		threads[i]->join();
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
@@ -909,7 +938,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	 *
 	 * \todo Pass real bufferId once stats buffer passing is changed.
 	 */
-	stats_->finishFrame(frame, 0, &statsBuffer_, 1);
+	stats_->finishFrame(frame, 0, statsBuffer, threadCount_);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

@@ -85,6 +85,7 @@ private:
 		unsigned int lineBufferIndex;
 		/* Stored here to avoid causing register pressure in inner loop */
 		bool processLastLinesSeperately;
+		SwIspStats *statsBuffer;
 	};
 
 	using processFn = void (DebayerCpu::*)(uint32_t frame, const uint8_t *src, uint8_t *dst,
@@ -150,7 +151,6 @@ private:
 	Rectangle window_;
 
 	/* Variables used every line */
-	SwIspStats statsBuffer_;
 	debayerFn debayer0_;
 	debayerFn debayer1_;
 	debayerFn debayer2_;
