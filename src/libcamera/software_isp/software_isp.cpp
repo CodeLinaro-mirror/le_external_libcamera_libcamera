@@ -88,12 +88,8 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 		LOG(SoftwareIsp, Error) << "Failed to create DmaBufAllocator object";
 		return;
 	}
-
-	sharedParams_ = SharedMemObject<DebayerParams>("softIsp_params");
-	if (!sharedParams_) {
-		LOG(SoftwareIsp, Error) << "Failed to create shared memory for parameters";
+	if (!allocateParamsBuffers())
 		return;
-	}
 
 	const GlobalConfiguration &configuration = pipe->cameraManager()->_d()->configuration();
 
@@ -174,6 +170,17 @@ SoftwareIsp::~SoftwareIsp()
 {
 	/* make sure to destroy the DebayerCpu before the ispWorkerThread_ is gone */
 	debayer_.reset();
+}
+
+bool SoftwareIsp::allocateParamsBuffers()
+{
+	sharedParams_ = SharedMemObject<DebayerParams>("softIsp_params");
+	if (!sharedParams_) {
+		LOG(SoftwareIsp, Error) << "Failed to create shared memory for parameters";
+		return false;
+	}
+
+	return true;
 }
 
 /**

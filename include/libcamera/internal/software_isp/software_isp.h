@@ -98,6 +98,7 @@ private:
 	Thread ispWorkerThread_;
 	SharedMemObject<DebayerParams> sharedParams_;
 	DebayerParams debayerParams_;
+	bool allocateParamsBuffers();
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;
 
