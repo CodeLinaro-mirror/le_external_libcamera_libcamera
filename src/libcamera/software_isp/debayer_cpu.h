@@ -87,6 +87,9 @@ private:
 		bool processLastLinesSeperately;
 	};
 
+	using processFn = void (DebayerCpu::*)(uint32_t frame, const uint8_t *src, uint8_t *dst,
+					       DebayerCpuThreadData *threadData);
+
 	/* 8-bit raw bayer format */
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer8_BGBG_BGR888(uint8_t *dst, const uint8_t *src[]);
@@ -164,6 +167,7 @@ private:
 	unsigned int threadCount_;
 	bool ccmEnabled_;
 	DebayerParams params_;
+	processFn processInner_;
 };
 
 } /* namespace libcamera */

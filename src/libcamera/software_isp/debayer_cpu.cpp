@@ -437,6 +437,11 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat,
 		return invalidFmt();
 	}
 
+	if (inputConfig_.patternSize.height == 2)
+		processInner_ = &DebayerCpu::process2;
+	else
+		processInner_ = &DebayerCpu::process4;
+
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10 || bayerFormat.bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
 	    isStandardBayerOrder(bayerFormat.order)) {
@@ -890,10 +895,7 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 
 	threadData_[0].yStart = 0;
 	threadData_[0].yEnd = window_.height;
-	if (inputConfig_.patternSize.height == 2)
-		process2(frame, in.planes()[0].data(), out.planes()[0].data(), &threadData_[0]);
-	else
-		process4(frame, in.planes()[0].data(), out.planes()[0].data(), &threadData_[0]);
+	(this->*processInner_)(frame, in.planes()[0].data(), out.planes()[0].data(), &threadData_[0]);
 
 	metadata.planes()[0].bytesused = out.planes()[0].size();
 
