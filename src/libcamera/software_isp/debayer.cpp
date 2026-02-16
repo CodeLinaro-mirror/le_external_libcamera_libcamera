@@ -122,9 +122,10 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn void Debayer::process(uint32_t frame, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output)
+ * \fn void Debayer::process(uint32_t frame, const uint32_t statsBufferId, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output)
  * \brief Process the bayer data into the requested format
  * \param[in] frame The frame number
+ * \param[in] statsBufferId The id of the stats buffer to use
  * \param[in] paramsBufferId The id of the params buffer in use
  * \param[in] input The input buffer
  * \param[in] output The output buffer

@@ -52,8 +52,11 @@ public:
 	std::vector<PixelFormat> formats(PixelFormat input);
 	std::tuple<unsigned int, unsigned int> strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 
-	void process(uint32_t frame, const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output);
+	void process(uint32_t frame,
+		     const uint32_t statsBufferId,
+		     const uint32_t paramsBufferId,
+		     FrameBuffer *input,
+		     FrameBuffer *output);
 	int start();
 	void stop();
 

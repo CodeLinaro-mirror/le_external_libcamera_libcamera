@@ -369,7 +369,7 @@ private:
 	void conversionInputDone(FrameBuffer *buffer);
 	void conversionOutputDone(FrameBuffer *buffer);
 
-	void ispStatsReady(uint32_t frame, uint32_t bufferId);
+	void ispStatsReady(uint32_t frame, const uint32_t statsBufferId);
 	void metadataReady(uint32_t frame, const ControlList &metadata);
 	void setSensorControls(const ControlList &sensorControls);
 };
@@ -1025,9 +1025,10 @@ void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
 		tryCompleteRequest(request);
 }
 
-void SimpleCameraData::ispStatsReady(uint32_t frame, uint32_t bufferId)
+void SimpleCameraData::ispStatsReady(uint32_t frame,
+				     const uint32_t statsBufferId)
 {
-	swIsp_->processStats(frame, bufferId,
+	swIsp_->processStats(frame, statsBufferId,
 			     delayedCtrls_->get(frame));
 }
 

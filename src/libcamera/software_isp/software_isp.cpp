@@ -164,6 +164,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 		return;
 	}
 
+	ipa_->statsProcessed.connect(this, &SoftwareIsp::statsProcessed);
 	ipa_->setIspParams.connect(this, &SoftwareIsp::saveIspParams);
 	ipa_->metadataReady.connect(this,
 				    [this](uint32_t frame, const ControlList &metadata) {
@@ -429,8 +430,10 @@ void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *outpu
 	const uint32_t paramsBufferId = availableParams_.front();
 	availableParams_.pop();
 	ipa_->computeParams(frame, paramsBufferId);
+	const uint32_t statsBufferId = 0;
 	debayer_->invokeMethod(&Debayer::process,
-			       ConnectionTypeQueued, frame, paramsBufferId, input, output);
+			       ConnectionTypeQueued, frame,
+			       statsBufferId, paramsBufferId, input, output);
 }
 
 void SoftwareIsp::saveIspParams(uint32_t paramsBufferId)
@@ -448,9 +451,13 @@ void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls)
 	setSensorControls.emit(sensorControls);
 }
 
-void SoftwareIsp::statsReady(uint32_t frame, uint32_t bufferId)
+void SoftwareIsp::statsReady(uint32_t frame, const uint32_t statsBufferId)
 {
-	ispStatsReady.emit(frame, bufferId);
+	ispStatsReady.emit(frame, statsBufferId);
+}
+
+void SoftwareIsp::statsProcessed([[maybe_unused]] const uint32_t statsBufferId)
+{
 }
 
 void SoftwareIsp::inputReady(FrameBuffer *input)

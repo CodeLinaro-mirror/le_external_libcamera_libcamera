@@ -321,10 +321,11 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[])
 /**
  * \brief Reset state to start statistics gathering for a new frame
  * \param[in] frame The frame number
+ * \param[in] statsBufferId ID of the statistics buffer
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::startFrame(uint32_t frame)
+void SwStatsCpu::startFrame(uint32_t frame, [[maybe_unused]] const uint32_t statsBufferId)
 {
 	if (frame % kStatPerNumFrames)
 		return;
@@ -339,15 +340,16 @@ void SwStatsCpu::startFrame(uint32_t frame)
 /**
  * \brief Finish statistics calculation for the current frame
  * \param[in] frame The frame number
- * \param[in] bufferId ID of the statistics buffer
+ * \param[in] statsBufferId ID of the statistics buffer
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+void SwStatsCpu::finishFrame(uint32_t frame,
+			     const uint32_t statsBufferId)
 {
 	stats_.valid = frame % kStatPerNumFrames == 0;
 	*sharedStats_ = stats_;
-	statsReady.emit(frame, bufferId);
+	statsReady.emit(frame, statsBufferId);
 }
 
 /**
@@ -512,20 +514,20 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 /**
  * \brief Calculate statistics for a frame in one go
  * \param[in] frame The frame number
- * \param[in] bufferId ID of the statistics buffer
+ * \param[in] statsBufferId ID of the statistics buffer
  * \param[in] input The frame to process
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *input)
+void SwStatsCpu::processFrame(uint32_t frame, uint32_t statsBufferId, FrameBuffer *input)
 {
 	if (frame % kStatPerNumFrames) {
-		finishFrame(frame, bufferId);
+		finishFrame(frame, statsBufferId);
 		return;
 	}
 
 	bench_.startFrame();
-	startFrame(frame);
+	startFrame(frame, statsBufferId);
 
 	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
 	if (!in.isValid()) {
@@ -534,7 +536,7 @@ void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, FrameBuffer *in
 	}
 
 	(this->*processFrame_)(in);
-	finishFrame(frame, bufferId);
+	finishFrame(frame, statsBufferId);
 	bench_.finishFrame();
 }
 

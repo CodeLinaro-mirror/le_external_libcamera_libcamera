@@ -93,7 +93,8 @@ private:
 	void saveIspParams(uint32_t paramsBufferId);
 	void releaseIspParams(uint32_t paramsBufferId);
 	void setSensorCtrls(const ControlList &sensorControls);
-	void statsReady(uint32_t frame, uint32_t bufferId);
+	void statsReady(uint32_t frame, const uint32_t statsBufferId);
+	void statsProcessed(const uint32_t statsBufferId);
 	void inputReady(FrameBuffer *input);
 	void outputReady(FrameBuffer *output);
 	std::unique_ptr<Debayer> debayer_;

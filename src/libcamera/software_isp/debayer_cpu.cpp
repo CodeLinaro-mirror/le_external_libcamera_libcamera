@@ -846,8 +846,11 @@ void DebayerCpu::updateLookupTables(const DebayerParams *params)
 	params_ = *params;
 }
 
-void DebayerCpu::process(uint32_t frame, const uint32_t paramsBufferId,
-			 FrameBuffer *input, FrameBuffer *output)
+void DebayerCpu::process(uint32_t frame,
+			 const uint32_t statsBufferId,
+			 const uint32_t paramsBufferId,
+			 FrameBuffer *input,
+			 FrameBuffer *output)
 {
 	bench_.startFrame();
 
@@ -873,7 +876,7 @@ void DebayerCpu::process(uint32_t frame, const uint32_t paramsBufferId,
 		return;
 	}
 
-	stats_->startFrame(frame);
+	stats_->startFrame(frame, statsBufferId);
 
 	if (inputConfig_.patternSize.height == 2)
 		process2(frame, in.planes()[0].data(), out.planes()[0].data());
@@ -887,12 +890,7 @@ void DebayerCpu::process(uint32_t frame, const uint32_t paramsBufferId,
 	/* Measure before emitting signals */
 	bench_.finishFrame();
 
-	/*
-	 * Buffer ids are currently not used, so pass zeros as its parameter.
-	 *
-	 * \todo Pass real bufferId once stats buffer passing is changed.
-	 */
-	stats_->finishFrame(frame, 0);
+	stats_->finishFrame(frame, statsBufferId);
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
 }

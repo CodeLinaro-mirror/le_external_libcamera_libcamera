@@ -536,8 +536,11 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 	return 0;
 }
 
-void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
-			 FrameBuffer *input, FrameBuffer *output)
+void DebayerEGL::process(uint32_t frame,
+			 [[maybe_unused]] const uint32_t statsBufferId,
+			 const uint32_t paramsBufferId,
+			 FrameBuffer *input,
+			 FrameBuffer *output)
 {
 	bench_.startFrame();
 

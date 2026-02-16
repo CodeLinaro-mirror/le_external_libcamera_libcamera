@@ -43,8 +43,10 @@ public:
 	std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size);
 	void process(uint32_t frame,
+		     const uint32_t statsBufferId,
 		     const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output);
+		     FrameBuffer *input,
+		     FrameBuffer *output);
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize);
 	const SharedFD &getStatsFD() { return stats_->getStatsFD(); }
 
