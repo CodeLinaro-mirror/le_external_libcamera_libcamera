@@ -25,7 +25,7 @@ interface IPASoftInterface {
 		=> (int32 ret);
 
 	[async] queueRequest(uint32 frame, libcamera.ControlList sensorControls);
-	[async] computeParams(uint32 frame);
+	[async] computeParams(uint32 frame, uint32 paramsBufferId);
 	[async] processStats(uint32 frame,
 			     uint32 bufferId,
 			     libcamera.ControlList sensorControls);
@@ -33,6 +33,6 @@ interface IPASoftInterface {
 
 interface IPASoftEventInterface {
 	setSensorControls(libcamera.ControlList sensorControls);
-	setIspParams();
+	setIspParams(uint32 paramsBufferId);
 	metadataReady(uint32 frame, libcamera.ControlList metadata);
 };

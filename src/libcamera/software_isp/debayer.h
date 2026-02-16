@@ -47,7 +47,10 @@ public:
 	virtual std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) = 0;
 
-	virtual void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params) = 0;
+	virtual void process(uint32_t frame,
+			     const uint32_t paramsBufferId,
+			     FrameBuffer *input, FrameBuffer *output,
+			     const DebayerParams &params) = 0;
 	virtual int start() { return 0; }
 	virtual void stop() {}
 
@@ -59,6 +62,7 @@ public:
 
 	Signal<FrameBuffer *> inputBufferReady;
 	Signal<FrameBuffer *> outputBufferReady;
+	Signal<uint32_t> releaseIspParams;
 
 	struct DebayerInputConfig {
 		Size patternSize;

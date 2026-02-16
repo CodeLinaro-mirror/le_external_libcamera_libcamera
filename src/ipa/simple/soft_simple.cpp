@@ -64,7 +64,9 @@ public:
 	void stop() override;
 
 	void queueRequest(const uint32_t frame, const ControlList &controls) override;
-	void computeParams(const uint32_t frame) override;
+	void computeParams(const uint32_t frame,
+			   const uint32_t
+				   paramsBufferId) override;
 	void processStats(const uint32_t frame, const uint32_t bufferId,
 			  const ControlList &sensorControls) override;
 
@@ -283,7 +285,8 @@ void IPASoftSimple::queueRequest(const uint32_t frame, const ControlList &contro
 		algo->queueRequest(context_, frame, frameContext, controls);
 }
 
-void IPASoftSimple::computeParams(const uint32_t frame)
+void IPASoftSimple::computeParams(const uint32_t frame,
+				  const uint32_t paramsBufferId)
 {
 	context_.activeState.combinedMatrix = Matrix<float, 3, 3>::identity();
 
@@ -292,7 +295,7 @@ void IPASoftSimple::computeParams(const uint32_t frame)
 		algo->prepare(context_, frame, frameContext, params_);
 	params_->combinedMatrix = context_.activeState.combinedMatrix;
 
-	setIspParams.emit();
+	setIspParams.emit(paramsBufferId);
 }
 
 void IPASoftSimple::processStats(const uint32_t frame,
