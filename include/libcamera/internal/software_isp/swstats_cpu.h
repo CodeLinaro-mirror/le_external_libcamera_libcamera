@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <map>
 #include <stdint.h>
 
 #include <libcamera/base/signal.h>
@@ -34,7 +35,7 @@ struct StreamConfiguration;
 class SwStatsCpu
 {
 public:
-	SwStatsCpu(const GlobalConfiguration &configuration);
+	SwStatsCpu(const GlobalConfiguration &configuration, std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats);
 	~SwStatsCpu() = default;
 
 	/*
@@ -45,9 +46,9 @@ public:
 	 */
 	static constexpr uint32_t kStatPerNumFrames = 4;
 
-	bool isValid() const { return sharedStats_.fd().isValid(); }
+	bool isValid() const { return sharedStats_->begin()->second.fd().isValid(); }
 
-	const SharedFD &getStatsFD() { return sharedStats_.fd(); }
+	const SharedFD &getStatsFD() { return sharedStats_->begin()->second.fd(); }
 
 	const Size &patternSize() { return patternSize_; }
 
@@ -116,7 +117,7 @@ private:
 	unsigned int xShift_;
 	unsigned int stride_;
 
-	SharedMemObject<SwIspStats> sharedStats_;
+	std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats_;
 	SwIspStats stats_;
 	Benchmark bench_;
 };

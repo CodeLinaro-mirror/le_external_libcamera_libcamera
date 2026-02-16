@@ -12,6 +12,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <utility>
+#include <vector>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/shared_fd.h>
@@ -24,7 +26,9 @@
 
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/ipa_manager.h"
+#include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swisp_stats.h"
 
 #include "debayer_cpu.h"
 #if HAVE_DEBAYER_EGL
@@ -95,16 +99,14 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 
 	const GlobalConfiguration &configuration = pipe->cameraManager()->_d()->configuration();
 
-	auto stats = std::make_unique<SwStatsCpu>(configuration);
-	if (!stats->isValid()) {
-		LOG(SoftwareIsp, Error) << "Failed to create SwStatsCpu object";
-		return;
-	}
-	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
-
 	std::vector<SharedFD> fdParams;
 	for (auto &item : sharedParams_)
 		fdParams.emplace_back(item.second.fd());
+
+	std::vector<SharedFD> fdStats;
+	auto stats = allocateStatsBuffers(configuration, fdStats, bufferCount);
+	if (!stats)
+		return;
 
 #if HAVE_DEBAYER_EGL
 	std::optional<std::string> softISPMode = configuration.envOption("LIBCAMERA_SOFTISP_MODE", { "software_isp", "mode" });
@@ -197,6 +199,35 @@ bool SoftwareIsp::allocateParamsBuffers(const unsigned int bufferCount)
 	}
 
 	return true;
+}
+
+std::unique_ptr<SwStatsCpu> SoftwareIsp::allocateStatsBuffers(
+	const GlobalConfiguration &configuration,
+	std::vector<SharedFD> &fdStats,
+	const unsigned int bufferCount)
+{
+	auto sharedStats = std::make_unique<std::map<uint32_t, SharedMemObject<SwIspStats>>>();
+	for (unsigned int i = 0; i < bufferCount; i++) {
+		auto shared = SharedMemObject<SwIspStats>("softIsp_stats");
+		if (!shared) {
+			LOG(SoftwareIsp, Error) << "Failed to create shared memory for statistics";
+			return std::unique_ptr<SwStatsCpu>();
+		}
+		if (!shared.fd().isValid()) {
+			LOG(SoftwareIsp, Error) << "Invalid fd of shared statistics";
+			return std::unique_ptr<SwStatsCpu>();
+		}
+
+		ASSERT(shared.fd().get() >= 0);
+		unsigned int bufferId = shared.fd().get();
+		fdStats.emplace_back(shared.fd());
+		sharedStats->emplace(bufferId, std::move(shared));
+	}
+
+	auto stats = std::make_unique<SwStatsCpu>(configuration, std::move(sharedStats));
+	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
+
+	return stats;
 }
 
 /**

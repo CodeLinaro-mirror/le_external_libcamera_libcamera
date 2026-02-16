@@ -11,6 +11,8 @@
 
 #include "libcamera/internal/software_isp/swstats_cpu.h"
 
+#include <memory>
+
 #include <libcamera/base/log.h>
 
 #include <libcamera/stream.h>
@@ -36,9 +38,11 @@ namespace libcamera {
  */
 
 /**
- * \fn SwStatsCpu::SwStatsCpu(const GlobalConfiguration &configuration)
+ * \fn SwStatsCpu::SwStatsCpu(const GlobalConfiguration &configuration, std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats)
  * \brief Construct a SwStatsCpu object
  * \param[in] configuration Global configuration reference
+ * \param [in] sharedStats Mapping of statistics buffer ids to statistics
+ *   instances that are shared with the IPA
  *
  * Creates a SwStatsCpu object and initialises shared memory for statistics
  * exchange.
@@ -154,12 +158,9 @@ namespace libcamera {
 
 LOG_DEFINE_CATEGORY(SwStatsCpu)
 
-SwStatsCpu::SwStatsCpu(const GlobalConfiguration &configuration)
-	: sharedStats_("softIsp_stats"), bench_(configuration)
+SwStatsCpu::SwStatsCpu(const GlobalConfiguration &configuration, std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats)
+	: sharedStats_(std::move(sharedStats)), bench_(configuration)
 {
-	if (!sharedStats_)
-		LOG(SwStatsCpu, Error)
-			<< "Failed to create shared memory for statistics";
 }
 
 static constexpr unsigned int kRedYMul = 77; /* 0.299 * 256 */
@@ -348,7 +349,7 @@ void SwStatsCpu::finishFrame(uint32_t frame,
 			     const uint32_t statsBufferId)
 {
 	stats_.valid = frame % kStatPerNumFrames == 0;
-	*sharedStats_ = stats_;
+	*(sharedStats_->at(statsBufferId)) = stats_;
 	statsReady.emit(frame, statsBufferId);
 }
 
