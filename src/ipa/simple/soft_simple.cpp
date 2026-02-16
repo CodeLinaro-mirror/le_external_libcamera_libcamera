@@ -53,7 +53,7 @@ public:
 
 	int init(const IPASettings &settings,
 		 const SharedFD &fdStats,
-		 const SharedFD &fdParams,
+		 const std::vector<SharedFD> &fdParams,
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls,
@@ -76,7 +76,7 @@ protected:
 private:
 	void updateExposure(double exposureMSV);
 
-	DebayerParams *params_;
+	std::map<unsigned int, DebayerParams *> paramsBuffers_;
 	SwIspStats *stats_;
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 	ControlInfoMap sensorInfoMap_;
@@ -89,13 +89,13 @@ IPASoftSimple::~IPASoftSimple()
 {
 	if (stats_)
 		munmap(stats_, sizeof(SwIspStats));
-	if (params_)
-		munmap(params_, sizeof(DebayerParams));
+	for (auto &item : paramsBuffers_)
+		munmap(item.second, sizeof(DebayerParams));
 }
 
 int IPASoftSimple::init(const IPASettings &settings,
 			const SharedFD &fdStats,
-			const SharedFD &fdParams,
+			const std::vector<SharedFD> &fdParams,
 			const IPACameraSensorInfo &sensorInfo,
 			const ControlInfoMap &sensorControls,
 			ControlInfoMap *ipaControls,
@@ -138,8 +138,6 @@ int IPASoftSimple::init(const IPASettings &settings,
 		return ret;
 
 	*ccmEnabled = context_.ccmEnabled;
-
-	params_ = nullptr;
 	stats_ = nullptr;
 
 	if (!fdStats.isValid()) {
@@ -147,25 +145,27 @@ int IPASoftSimple::init(const IPASettings &settings,
 		return -ENODEV;
 	}
 
-	if (!fdParams.isValid()) {
-		LOG(IPASoft, Error) << "Invalid Parameters handle";
-		return -ENODEV;
-	}
+	for (auto &sharedFd : fdParams) {
+		if (!sharedFd.isValid()) {
+			LOG(IPASoft, Error) << "Invalid Parameters handle";
+			return -ENODEV;
+		}
 
-	{
 		void *mem = mmap(nullptr, sizeof(DebayerParams), PROT_WRITE,
-				 MAP_SHARED, fdParams.get(), 0);
+				 MAP_SHARED, sharedFd.get(), 0);
 		if (mem == MAP_FAILED) {
 			LOG(IPASoft, Error) << "Unable to map Parameters";
 			return -errno;
 		}
 
-		params_ = static_cast<DebayerParams *>(mem);
-		params_->blackLevel = { { 0.0, 0.0, 0.0 } };
-		params_->gamma = 1.0 / algorithms::kDefaultGamma;
-		params_->contrastExp = 1.0;
-		params_->gains = { { 1.0, 1.0, 1.0 } };
+		ASSERT(sharedFd.get() >= 0);
+		DebayerParams *params = static_cast<DebayerParams *>(mem);
+		params->blackLevel = { { 0.0, 0.0, 0.0 } };
+		params->gamma = 1.0 / algorithms::kDefaultGamma;
+		params->contrastExp = 1.0;
+		params->gains = { { 1.0, 1.0, 1.0 } };
 		/* combinedMatrix is reset for each frame. */
+		paramsBuffers_[sharedFd.get()] = params;
 	}
 
 	{
@@ -291,9 +291,10 @@ void IPASoftSimple::computeParams(const uint32_t frame,
 	context_.activeState.combinedMatrix = Matrix<float, 3, 3>::identity();
 
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	DebayerParams *params = paramsBuffers_.at(paramsBufferId);
 	for (auto const &algo : algorithms())
-		algo->prepare(context_, frame, frameContext, params_);
-	params_->combinedMatrix = context_.activeState.combinedMatrix;
+		algo->prepare(context_, frame, frameContext, params);
+	params->combinedMatrix = context_.activeState.combinedMatrix;
 
 	setIspParams.emit(paramsBufferId);
 }
