@@ -22,7 +22,7 @@ static const struct {
 	/* Compressed */
 	{ GST_VIDEO_FORMAT_ENCODED, formats::MJPEG },
 
-	/* Bayer formats */
+	/* Bayer formats - unpacked */
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SBGGR8 },
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SGBRG8 },
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SGRBG8 },
@@ -43,6 +43,20 @@ static const struct {
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SGBRG16 },
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SGRBG16 },
 	{ GST_VIDEO_FORMAT_ENCODED, formats::SRGGB16 },
+
+	/* Bayer formats - CSI-2 packed */
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SBGGR10_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SGBRG10_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SGRBG10_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SRGGB10_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SBGGR12_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SGBRG12_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SGRBG12_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SRGGB12_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SBGGR14_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SGBRG14_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SGRBG14_CSI2P },
+	{ GST_VIDEO_FORMAT_ENCODED, formats::SRGGB14_CSI2P },
 
 	/* Monochrome */
 	{ GST_VIDEO_FORMAT_GRAY8, formats::R8 },
@@ -265,6 +279,7 @@ static const struct {
 	PixelFormat format;
 	const gchar *name;
 } bayer_map[]{
+	/* Unpacked */
 	{ formats::SBGGR8, "bggr" },
 	{ formats::SGBRG8, "gbrg" },
 	{ formats::SGRBG8, "grbg" },
@@ -285,6 +300,20 @@ static const struct {
 	{ formats::SGBRG16, "gbrg16le" },
 	{ formats::SGRBG16, "grbg16le" },
 	{ formats::SRGGB16, "rggb16le" },
+
+	/* CSI-2 packed */
+	{ formats::SBGGR10_CSI2P, "bggr10le" },
+	{ formats::SGBRG10_CSI2P, "gbrg10le" },
+	{ formats::SGRBG10_CSI2P, "grbg10le" },
+	{ formats::SRGGB10_CSI2P, "rggb10le" },
+	{ formats::SBGGR12_CSI2P, "bggr12le" },
+	{ formats::SGBRG12_CSI2P, "gbrg12le" },
+	{ formats::SGRBG12_CSI2P, "grbg12le" },
+	{ formats::SRGGB12_CSI2P, "rggb12le" },
+	{ formats::SBGGR14_CSI2P, "bggr14le" },
+	{ formats::SGBRG14_CSI2P, "gbrg14le" },
+	{ formats::SGRBG14_CSI2P, "grbg14le" },
+	{ formats::SRGGB14_CSI2P, "rggb14le" },
 };
 
 static const gchar *
