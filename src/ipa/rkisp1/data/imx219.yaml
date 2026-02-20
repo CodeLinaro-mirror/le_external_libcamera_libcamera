@@ -111,4 +111,29 @@ algorithms:
                1438, 1226, 1059, 1024, 1024, 1024, 1024, 1024, 1024, 1024, 1025, 1054, 1185,
                1326, 1334, 1334,
              ]
+  
+  - Filter:
+      NoiseReductionModes:
+        NoiseReductionModeFast: 
+          [mode: 1, lum_weight: 2, thresh_sh0: 36, thresh_sh1: 51, thresh_bl0: 23, thresh_bl1: 10, grn_stage1: 4, chr_v_mode: 3, chr_h_mode: 3, fac_sh0: 4, fac_sh1: 4, fac_mid: 4, fac_bl0: 2, fac_bl1: 0]
+        NoiseReductionModeHighQuality: 
+          [mode: 1, lum_weight: 2, thresh_sh0: 36, thresh_sh1: 51, thresh_bl0: 23, thresh_bl1: 10, grn_stage1: 4, chr_v_mode: 3, chr_h_mode: 3, fac_sh0: 4, fac_sh1: 4, fac_mid: 4, fac_bl0: 2, fac_bl1: 0]
+        NoiseReductionModeMinimal: 
+          [mode: 1, lum_weight: 2, thresh_sh0: 18, thresh_sh1: 33, thresh_bl0: 8, thresh_bl1: 2, grn_stage1: 6, chr_v_mode: 3, chr_h_mode: 3, fac_sh0: 4, fac_sh1: 4, fac_mid: 4, fac_bl0: 2, fac_bl1: 0]
+        NoiseReductionModeManual: 
+          [mode: 1, lum_weight: 2, thresh_sh0: 36, thresh_sh1: 51, thresh_bl0: 23, thresh_bl1: 10, grn_stage1: 4, chr_v_mode: 3, chr_h_mode: 3, fac_sh0: 4, fac_sh1: 4, fac_mid: 4, fac_bl0: 2, fac_bl1: 0]
+        NoiseReductionModeZSL: 
+          [mode: 1, lum_weight: 2, thresh_sh0: 36, thresh_sh1: 51, thresh_bl0: 23, thresh_bl1: 10, grn_stage1: 4, chr_v_mode: 3, chr_h_mode: 3, fac_sh0: 4, fac_sh1: 4, fac_mid: 4, fac_bl0: 2, fac_bl1: 0]
+      Sharpness:
+        - [fac_sh0:  4, fac_sh1:  4, fac_mid:  4, fac_bl0:  2, fac_bl1:  0]  # level 0
+        - [fac_sh0:  7, fac_sh1:  8, fac_mid:  6, fac_bl0:  2, fac_bl1:  0]  # level 1
+        - [fac_sh0: 10, fac_sh1: 12, fac_mid:  8, fac_bl0:  4, fac_bl1:  0]  # level 2
+        - [fac_sh0: 12, fac_sh1: 16, fac_mid: 10, fac_bl0:  6, fac_bl1:  2]  # level 3
+        - [fac_sh0: 16, fac_sh1: 22, fac_mid: 12, fac_bl0:  8, fac_bl1:  4]  # level 4
+        - [fac_sh0: 20, fac_sh1: 27, fac_mid: 16, fac_bl0: 10, fac_bl1:  4]  # level 5
+        - [fac_sh0: 26, fac_sh1: 32, fac_mid: 19, fac_bl0: 12, fac_bl1:  6]  # level 6
+        - [fac_sh0: 30, fac_sh1: 38, fac_mid: 23, fac_bl0: 16, fac_bl1:  8]  # level 7
+        - [fac_sh0: 36, fac_sh1: 44, fac_mid: 29, fac_bl0: 21, fac_bl1: 13]  # level 8
+        - [fac_sh0: 42, fac_sh1: 48, fac_mid: 34, fac_bl0: 26, fac_bl1: 20]  # level 9
+        - [fac_sh0: 48, fac_sh1: 63, fac_mid: 40, fac_bl0: 36, fac_bl1: 32]  # level 10
 ...
