@@ -58,6 +58,10 @@ controls:
           value: 4
           description: |
             Noise reduction is applied at different levels to different streams.
+        - name: NoiseReductionModeManual
+          value: 5
+          description: |
+            Manual control all noise reduction parameters.
 
   - ColorCorrectionAberrationMode:
       type: int32_t

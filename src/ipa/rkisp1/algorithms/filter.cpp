@@ -178,6 +178,140 @@ int Filter::parseSharpnessConfig(const YamlObject &data,
 	return 0;
 }
 
+void Filter::registerControls([[maybe_unused]] IPAContext &context)
+{
+	auto &cmap = context.ctrlMap;
+
+	if (modes_.empty() or sharpness_.empty()) {
+		LOG(RkISP1Filter, Warning)
+			<< "No NoiseReductionModes or Sharpness levels parsed, filter controls not registered";
+		return;
+	}
+
+	/* Register sharpness control value from tuning data size*/
+	const size_t sharpnessLevels = sharpness_.size();
+	cmap[&controls::Sharpness] = ControlInfo(0.0f, static_cast<float>(sharpnessLevels - 1), 1.0f);
+
+	const auto manualMode = static_cast<int32_t>(controls::draft::NoiseReductionModeManual);
+	auto selectedMode = modes_.find(manualMode);
+	if (selectedMode == modes_.end())
+		selectedMode = modes_.begin();
+
+	const auto &modeParams = selectedMode->second;
+
+	LOG(RkISP1Filter, Debug)
+		<< "Initial NoiseReductionMode set to " << selectedMode->first;
+
+	/* Register rkisp1-specific filter control values. */
+	cmap[&controls::rkisp1::FilterDenoiseMode] =
+		ControlInfo(0, 255, static_cast<int32_t>(modeParams.at("mode")));
+	cmap[&controls::rkisp1::FilterDenoiseLumWeight] =
+		ControlInfo(0, 255, static_cast<int32_t>(modeParams.at("lum_weight")));
+	cmap[&controls::rkisp1::FilterDenoiseGreenStage1] =
+		ControlInfo(0, 7, static_cast<int32_t>(modeParams.at("grn_stage1")));
+	cmap[&controls::rkisp1::FilterDenoiseChrVMode] =
+		ControlInfo(0, 3, static_cast<int32_t>(modeParams.at("chr_v_mode")));
+	cmap[&controls::rkisp1::FilterDenoiseChrHMode] =
+		ControlInfo(0, 3, static_cast<int32_t>(modeParams.at("chr_h_mode")));
+	cmap[&controls::rkisp1::FilterFacSh0] =
+		ControlInfo(0, 63, static_cast<int32_t>(modeParams.at("fac_sh0")));
+	cmap[&controls::rkisp1::FilterFacSh1] =
+		ControlInfo(0, 63, static_cast<int32_t>(modeParams.at("fac_sh1")));
+	cmap[&controls::rkisp1::FilterFacMid] =
+		ControlInfo(0, 63, static_cast<int32_t>(modeParams.at("fac_mid")));
+	cmap[&controls::rkisp1::FilterFacBl0] =
+		ControlInfo(0, 63, static_cast<int32_t>(modeParams.at("fac_bl0")));
+	cmap[&controls::rkisp1::FilterFacBl1] =
+		ControlInfo(0, 63, static_cast<int32_t>(modeParams.at("fac_bl1")));
+	cmap[&controls::rkisp1::FilterThreshSh0] =
+		ControlInfo(0, 255, static_cast<int32_t>(modeParams.at("thresh_sh0")));
+	cmap[&controls::rkisp1::FilterThreshSh1] =
+		ControlInfo(0, 255, static_cast<int32_t>(modeParams.at("thresh_sh1")));
+	cmap[&controls::rkisp1::FilterThreshBl0] =
+		ControlInfo(0, 255, static_cast<int32_t>(modeParams.at("thresh_bl0")));
+	cmap[&controls::rkisp1::FilterThreshBl1] =
+		ControlInfo(0, 255, static_cast<int32_t>(modeParams.at("thresh_bl1")));
+}
+
+bool Filter::parseControls(const ControlList &controls)
+{
+	bool updated = false;
+	constexpr auto manual = controls::draft::NoiseReductionModeManual;
+	auto &params = modes_[manual];
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterFacSh0); c) {
+		params["fac_sh0"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterFacSh1); c) {
+		params["fac_sh1"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterFacMid); c) {
+		params["fac_mid"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterFacBl0); c) {
+		params["fac_bl0"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterFacBl1); c) {
+		params["fac_bl1"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterThreshSh0); c) {
+		params["thresh_sh0"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterThreshSh1); c) {
+		params["thresh_sh1"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterThreshBl0); c) {
+		params["thresh_bl0"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterThreshBl1); c) {
+		params["thresh_bl1"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterDenoiseMode); c) {
+		params["mode"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterDenoiseLumWeight); c) {
+		params["lum_weight"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterDenoiseGreenStage1); c) {
+		params["grn_stage1"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterDenoiseChrVMode); c) {
+		params["chr_v_mode"] = *c;
+		updated = true;
+	}
+
+	if (const auto &c = controls.get(controls::rkisp1::FilterDenoiseChrHMode); c) {
+		params["chr_h_mode"] = *c;
+		updated = true;
+	}
+
+	return updated;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */

@@ -35,6 +35,8 @@ private:
 			    std::unordered_map<std::string, uint32_t> &modeParams);
 	int parseSharpnessConfig(const YamlObject &data,
 				 std::unordered_map<std::string, uint32_t> &sharpParams);
+	void registerControls(IPAContext &context);
+	bool parseControls(const ControlList &controls);
 
 	std::unordered_map<int32_t, std::unordered_map<std::string, uint32_t>> modes_;
 	std::vector<std::unordered_map<std::string, uint32_t>> sharpness_;
