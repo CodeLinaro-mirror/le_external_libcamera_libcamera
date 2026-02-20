@@ -400,6 +400,9 @@ void Filter::prepare([[maybe_unused]] IPAContext &context,
 	config->fac_bl0 = modeParams["fac_bl0"];
 	config->fac_bl1 = modeParams["fac_bl1"];
 
+	if (frameContext.filter.update)
+		logConfig(frameContext);
+
 	if (sharpness == 0 or sharpness >= sharpness_.size()) {
 		LOG(RkISP1Filter, Debug)
 			<< "Sharpness value out of range: " << static_cast<int>(sharpness);
@@ -416,6 +419,121 @@ void Filter::prepare([[maybe_unused]] IPAContext &context,
 	config->fac_mid = sharp.at("fac_mid");
 	config->fac_bl0 = sharp.at("fac_bl0");
 	config->fac_bl1 = sharp.at("fac_bl1");
+}
+
+void Filter::logConfig(const IPAFrameContext &frameContext) const
+{
+	uint8_t denoise = frameContext.filter.denoise;
+	uint8_t sharpness = frameContext.filter.sharpness;
+
+	std::ostringstream ss;
+	ss << "Filter config: mode=" << static_cast<int>(denoise)
+	   << ", sharpness=" << static_cast<int>(sharpness);
+
+	/* Log denoise values from mode config. */
+	auto it = modes_.find(denoise);
+	if (it != modes_.end()) {
+		const auto &modeParams = it->second;
+		for (const auto &key : kFilterKeyNames) {
+			auto keyIt = modeParams.find(key);
+			if (keyIt != modeParams.end())
+				ss << ", " << key << "=" << keyIt->second;
+			else
+				ss << ", " << key << "=<missing>";
+		}
+	}
+
+	/* No sharpness factors need to be logged. */
+	if (sharpness == 0 or sharpness >= sharpness_.size()) {
+		LOG(RkISP1Filter, Debug) << ss.str();
+		return;
+	}
+
+	/* Log sharpness factors. */
+	if (sharpness < sharpness_.size()) {
+		const auto &sharp = sharpness_[sharpness];
+		for (const auto &key : kSharpnessKeyNames) {
+			auto keyIt = sharp.find(key);
+			if (keyIt != sharp.end())
+				ss << ", " << key << "=" << keyIt->second;
+			else
+				ss << ", " << key << "=<missing>";
+		}
+	}
+
+	LOG(RkISP1Filter, Debug) << ss.str();
+}
+
+void Filter::fillMetadata(IPAFrameContext &frameContext,
+			  ControlList &metadata)
+{
+	uint8_t denoise = frameContext.filter.denoise;
+	uint8_t sharpness = frameContext.filter.sharpness;
+
+	if (denoise == controls::draft::NoiseReductionModeOff)
+		return;
+
+	/* Report denoise values from mode config. */
+	auto it = modes_.find(denoise);
+	if (it == modes_.end())
+		return;
+
+	const auto &modeParams = it->second;
+	metadata.set(controls::rkisp1::FilterThreshSh0,
+		     static_cast<int32_t>(modeParams.at("thresh_sh0")));
+	metadata.set(controls::rkisp1::FilterThreshSh1,
+		     static_cast<int32_t>(modeParams.at("thresh_sh1")));
+	metadata.set(controls::rkisp1::FilterThreshBl0,
+		     static_cast<int32_t>(modeParams.at("thresh_bl0")));
+	metadata.set(controls::rkisp1::FilterThreshBl1,
+		     static_cast<int32_t>(modeParams.at("thresh_bl1")));
+	metadata.set(controls::rkisp1::FilterDenoiseMode,
+		     static_cast<int32_t>(modeParams.at("mode")));
+	metadata.set(controls::rkisp1::FilterDenoiseLumWeight,
+		     static_cast<int32_t>(modeParams.at("lum_weight")));
+	metadata.set(controls::rkisp1::FilterDenoiseGreenStage1,
+		     static_cast<int32_t>(modeParams.at("grn_stage1")));
+	metadata.set(controls::rkisp1::FilterDenoiseChrVMode,
+		     static_cast<int32_t>(modeParams.at("chr_v_mode")));
+	metadata.set(controls::rkisp1::FilterDenoiseChrHMode,
+		     static_cast<int32_t>(modeParams.at("chr_h_mode")));
+	metadata.set(controls::rkisp1::FilterFacSh0,
+		     static_cast<int32_t>(modeParams.at("fac_sh0")));
+	metadata.set(controls::rkisp1::FilterFacSh1,
+		     static_cast<int32_t>(modeParams.at("fac_sh1")));
+	metadata.set(controls::rkisp1::FilterFacMid,
+		     static_cast<int32_t>(modeParams.at("fac_mid")));
+	metadata.set(controls::rkisp1::FilterFacBl0,
+		     static_cast<int32_t>(modeParams.at("fac_bl0")));
+	metadata.set(controls::rkisp1::FilterFacBl1,
+		     static_cast<int32_t>(modeParams.at("fac_bl1")));
+
+	if (sharpness == 0 or sharpness >= sharpness_.size())
+		return;
+
+	const auto &sharp = sharpness_[sharpness];
+
+	metadata.set(controls::rkisp1::FilterFacSh0,
+		     static_cast<int32_t>(sharp.at("fac_sh0")));
+	metadata.set(controls::rkisp1::FilterFacSh1,
+		     static_cast<int32_t>(sharp.at("fac_sh1")));
+	metadata.set(controls::rkisp1::FilterFacMid,
+		     static_cast<int32_t>(sharp.at("fac_mid")));
+	metadata.set(controls::rkisp1::FilterFacBl0,
+		     static_cast<int32_t>(sharp.at("fac_bl0")));
+	metadata.set(controls::rkisp1::FilterFacBl1,
+		     static_cast<int32_t>(sharp.at("fac_bl1")));
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void Filter::process([[maybe_unused]] IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		     IPAFrameContext &frameContext,
+		     [[maybe_unused]] const rkisp1_stat_buffer *stats,
+		     ControlList &metadata)
+{
+	fillMetadata(frameContext, metadata);
 }
 
 REGISTER_IPA_ALGORITHM(Filter, "Filter")

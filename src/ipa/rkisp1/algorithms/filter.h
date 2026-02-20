@@ -28,6 +28,10 @@ public:
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     RkISP1Params *params) override;
+	void process(IPAContext &context, const uint32_t frame,
+		     IPAFrameContext &frameContext,
+		     const rkisp1_stat_buffer *stats,
+		     ControlList &metadata) override;
 
 private:
 	int parseConfig(const YamlObject &tuningData);
@@ -37,6 +41,9 @@ private:
 				 std::unordered_map<std::string, uint32_t> &sharpParams);
 	void registerControls(IPAContext &context);
 	bool parseControls(const ControlList &controls);
+	void fillMetadata(IPAFrameContext &frameContext,
+			  ControlList &metadata);
+	void logConfig(const IPAFrameContext &frameContext) const;
 
 	std::unordered_map<int32_t, std::unordered_map<std::string, uint32_t>> modes_;
 	std::vector<std::unordered_map<std::string, uint32_t>> sharpness_;
