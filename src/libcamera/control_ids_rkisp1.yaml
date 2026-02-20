@@ -1,0 +1,151 @@
+# SPDX-License-Identifier: LGPL-2.1-or-later
+#
+# Copyright (C) 2026, Ideas On Board
+#
+# RkISP1 specific control definitions
+---
+vendor: rkisp1
+controls:
+  # --- RkISP1 Filter controls ---
+  - FilterEnable:
+      type: int32_t
+      direction: inout
+      description: |
+        Enable or disable the Filter processing.
+        When disabled (false) the hardware filter is forced off regardless of
+        filter mode selection. When enabled (true) the algorithm may
+        program parameters and adapt them from manual mode overrides.
+        Reported in metadata as an int32_t.
+      enum:
+        - name: FilterEnableOff
+          value: 0
+          description: The filter is disabled.
+        - name: FilterEnableOn
+          value: 1
+          description: The filter is enabled.
+
+  - FilterFacSh0:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the fac_sh0 sharpness factor.
+        Value maps to hardware filter register (typically 0..63).
+      minimum: 0
+      maximum: 63
+
+  - FilterFacSh1:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the fac_sh1 sharpness factor.
+        Value maps to hardware filter register (typically 0..63).
+      minimum: 0
+      maximum: 63
+
+  - FilterFacMid:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the fac_mid sharpness factor.
+        Value maps to hardware filter register (typically 0..63).
+      minimum: 0
+      maximum: 63
+
+  - FilterFacBl0:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the fac_bl0 sharpness factor.
+        Value maps to hardware filter register (typically 0..63).
+      minimum: 0
+      maximum: 63
+
+  - FilterFacBl1:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the fac_bl1 sharpness factor.
+        Value maps to hardware filter register (typically 0..63).
+      minimum: 0
+      maximum: 63
+
+  - FilterThreshSh0:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the thresh_sh0 denoise threshold.
+        Value maps to hardware threshold register (typically 0..255).
+      minimum: 0
+      maximum: 255
+
+  - FilterThreshSh1:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the thresh_sh1 denoise threshold.
+        Value maps to hardware threshold register (typically 0..255).
+      minimum: 0
+      maximum: 255
+
+  - FilterThreshBl0:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the thresh_bl0 denoise threshold.
+        Value maps to hardware threshold register (typically 0..255).
+      minimum: 0
+      maximum: 255
+
+  - FilterThreshBl1:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the thresh_bl1 denoise threshold.
+        Value maps to hardware threshold register (typically 0..255).
+      minimum: 0
+      maximum: 255
+
+  - FilterDenoiseMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the denoise mode for the filter.
+        Value maps to hardware mode register (typically 0..255).
+      minimum: 0
+      maximum: 255
+
+  - FilterDenoiseLumWeight:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the luminance weight for denoise.
+        Value maps to hardware lum_weight register (typically 0..255).
+      minimum: 0
+      maximum: 255
+
+  - FilterDenoiseGreenStage1:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the green stage 1 filter for denoise.
+        Value maps to hardware grn_stage1 register (typically 0..7).
+      minimum: 0
+      maximum: 7
+
+  - FilterDenoiseChrVMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the chroma vertical mode for denoise.
+        Value maps to hardware chr_v_mode register (typically 0..3).
+      minimum: 0
+      maximum: 3
+
+  - FilterDenoiseChrHMode:
+      type: int32_t
+      direction: inout
+      description: |
+        Sets the chroma horizontal mode for denoise.
+        Value maps to hardware chr_h_mode register (typically 0..3).
+      minimum: 0
+      maximum: 3
