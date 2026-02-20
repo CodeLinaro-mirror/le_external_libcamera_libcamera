@@ -28,6 +28,16 @@ public:
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     RkISP1Params *params) override;
+
+private:
+	int parseConfig(const YamlObject &tuningData);
+	int parseModeConfig(const YamlObject &modeData,
+			    std::unordered_map<std::string, uint32_t> &modeParams);
+	int parseSharpnessConfig(const YamlObject &data,
+				 std::unordered_map<std::string, uint32_t> &sharpParams);
+
+	std::unordered_map<int32_t, std::unordered_map<std::string, uint32_t>> modes_;
+	std::vector<std::unordered_map<std::string, uint32_t>> sharpness_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */

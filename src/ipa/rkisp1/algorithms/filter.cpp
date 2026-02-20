@@ -8,6 +8,7 @@
 #include "filter.h"
 
 #include <cmath>
+#include <unordered_set>
 
 #include <libcamera/base/log.h>
 
@@ -39,6 +40,18 @@ LOG_DEFINE_CATEGORY(RkISP1Filter)
 static constexpr uint32_t kFiltLumWeightDefault = 0x00022040;
 static constexpr uint32_t kFiltModeDefault = 0x000004f2;
 
+namespace {
+const std::unordered_set<std::string> kSharpnessKeyNames = {
+	"fac_sh0", "fac_sh1", "fac_mid", "fac_bl0", "fac_bl1"
+};
+
+const std::unordered_set<std::string> kFilterKeyNames = {
+	"thresh_sh0", "thresh_sh1", "thresh_bl0", "thresh_bl1",
+	"mode", "lum_weight", "grn_stage1", "chr_v_mode", "chr_h_mode",
+	"fac_sh0", "fac_sh1", "fac_mid", "fac_bl0", "fac_bl1"
+};
+} /* namespace */
+
 /**
  * \copydoc libcamera::ipa::Algorithm::init
  */
@@ -50,6 +63,121 @@ int Filter::init(IPAContext &context,
 
 	return 0;
 }
+
+int Filter::parseConfig(const YamlObject &tuningData)
+{
+	if (!tuningData.contains("NoiseReductionModes")) {
+		LOG(RkISP1Filter, Error) << "Missing NoiseReductionModes in Filter tuning data";
+		return -EINVAL;
+	}
+
+	const YamlObject &modesObject = tuningData["NoiseReductionModes"];
+	if (!modesObject.isDictionary()) {
+		LOG(RkISP1Filter, Error) << "NoiseReductionModes must be a dictionary";
+		return -EINVAL;
+	}
+
+	for (const auto &[modeName, modeData] : modesObject.asDict()) {
+		auto it = controls::draft::NoiseReductionModeNameValueMap.find(modeName);
+		if (it == controls::draft::NoiseReductionModeNameValueMap.end()) {
+			LOG(RkISP1Filter, Error) << "Unknown mode: " << modeName;
+			return -EINVAL;
+		}
+
+		int ret = parseModeConfig(modeData, modes_[it->second]);
+		if (ret)
+			return ret;
+	}
+
+	if (!tuningData.contains("Sharpness")) {
+		LOG(RkISP1Filter, Error) << "Missing Sharpness in Filter tuning data";
+		return -EINVAL;
+	}
+
+	const YamlObject &sharpnessObject = tuningData["Sharpness"];
+	if (!sharpnessObject.isList()) {
+		LOG(RkISP1Filter, Error) << "Sharpness must be a list";
+		return -EINVAL;
+	}
+
+	const size_t sharpnessLevels = sharpnessObject.size();
+	if (!sharpnessLevels) {
+		LOG(RkISP1Filter, Error) << "Sharpness must not be empty";
+		return -EINVAL;
+	}
+
+	sharpness_.assign(sharpnessLevels, {});
+
+	for (size_t i = 0; i < sharpnessLevels; i++) {
+		int ret = parseSharpnessConfig(sharpnessObject[i], sharpness_[i]);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int Filter::parseModeConfig(const YamlObject &modeData,
+			    std::unordered_map<std::string, uint32_t> &modeParams)
+{
+	if (!modeData.isList()) {
+		LOG(RkISP1Filter, Error) << "Mode config must be a list";
+		return -EINVAL;
+	}
+
+	for (const auto &entry : modeData.asList()) {
+		for (const auto &[key, val] : entry.asDict()) {
+			if (kFilterKeyNames.find(key) == kFilterKeyNames.end()) {
+				LOG(RkISP1Filter, Error)
+					<< "Unknown mode key '" << key << "'";
+				return -EINVAL;
+			}
+
+			auto v = val.get<uint32_t>();
+			if (!v) {
+				LOG(RkISP1Filter, Error)
+					<< "Invalid value for key '" << key << "'";
+				return -EINVAL;
+			}
+			modeParams[key] = *v;
+		}
+	}
+
+	return 0;
+}
+
+int Filter::parseSharpnessConfig(const YamlObject &data,
+				 std::unordered_map<std::string, uint32_t> &sharpParams)
+{
+	if (!data.isList()) {
+		LOG(RkISP1Filter, Error) << "Sharpness entry must be a list";
+		return -EINVAL;
+	}
+
+	sharpParams.clear();
+
+	for (const auto &entry : data.asList()) {
+		for (const auto &[key, val] : entry.asDict()) {
+			if (kSharpnessKeyNames.find(key) == kSharpnessKeyNames.end()) {
+				LOG(RkISP1Filter, Error)
+					<< "Unknown sharpness key '" << key << "'";
+				return -EINVAL;
+			}
+
+			auto v = val.get<uint32_t>();
+			if (!v) {
+				LOG(RkISP1Filter, Error)
+					<< "Invalid value for key '" << key << "'";
+				return -EINVAL;
+			}
+
+			sharpParams[key] = *v;
+		}
+	}
+
+	return 0;
+}
+
 /**
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
