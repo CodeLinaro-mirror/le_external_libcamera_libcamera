@@ -56,10 +56,13 @@ const std::unordered_set<std::string> kFilterKeyNames = {
  * \copydoc libcamera::ipa::Algorithm::init
  */
 int Filter::init(IPAContext &context,
-		 [[maybe_unused]] const YamlObject &tuningData)
+		 const YamlObject &tuningData)
 {
-	auto &cmap = context.ctrlMap;
-	cmap[&controls::Sharpness] = ControlInfo(0.0f, 10.0f, 1.0f);
+	int ret = parseConfig(tuningData);
+	if (ret)
+		return ret;
+
+	registerControls(context);
 
 	return 0;
 }
@@ -323,18 +326,6 @@ void Filter::queueRequest(IPAContext &context,
 	auto &filter = context.activeState.filter;
 	bool update = false;
 
-	const auto &sharpness = controls.get(controls::Sharpness);
-	if (sharpness) {
-		unsigned int value = std::round(std::clamp(*sharpness, 0.0f, 10.0f));
-
-		if (filter.sharpness != value) {
-			filter.sharpness = value;
-			update = true;
-		}
-
-		LOG(RkISP1Filter, Debug) << "Set sharpness to " << *sharpness;
-	}
-
 	const auto &denoise = controls.get(controls::draft::NoiseReductionMode);
 	if (denoise) {
 		LOG(RkISP1Filter, Debug) << "Set denoise to " << *denoise;
@@ -343,6 +334,22 @@ void Filter::queueRequest(IPAContext &context,
 		if (filter.denoise != value) {
 			filter.denoise = value;
 			update = true;
+		}
+	}
+
+	if (filter.denoise == controls::draft::NoiseReductionModeManual) {
+		update |= parseControls(controls);
+	} else {
+		const auto &sharpness = controls.get(controls::Sharpness);
+		if (sharpness) {
+			unsigned int value = std::round(std::clamp(*sharpness, 0.0f, static_cast<float>(sharpness_.size() - 1)));
+
+			if (filter.sharpness != value) {
+				filter.sharpness = value;
+				update = true;
+			}
+
+			LOG(RkISP1Filter, Debug) << "Set sharpness to " << *sharpness;
 		}
 	}
 
@@ -398,6 +405,9 @@ void Filter::prepare([[maybe_unused]] IPAContext &context,
 			<< "Sharpness value out of range: " << static_cast<int>(sharpness);
 		return;
 	}
+
+	if (denoise == controls::draft::NoiseReductionModeManual)
+		return;
 
 	/* sharpness override filter register .*/
 	const auto &sharp = sharpness_[sharpness];
