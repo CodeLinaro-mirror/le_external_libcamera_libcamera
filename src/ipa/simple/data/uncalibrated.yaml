@@ -16,4 +16,5 @@ algorithms:
   #                0, 0, 1]
   - Adjust:
   - Agc:
+  - Af:
 ...

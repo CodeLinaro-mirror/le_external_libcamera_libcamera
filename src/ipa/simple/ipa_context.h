@@ -33,6 +33,9 @@ struct IPASessionConfiguration {
 	struct {
 		std::optional<uint8_t> level;
 	} black;
+	struct {
+		int32_t focus_min, focus_max;
+	} focus;
 };
 
 struct IPAActiveState {
@@ -60,6 +63,8 @@ struct IPAActiveState {
 		/* 0..2 range, 1.0 = normal */
 		std::optional<float> contrast;
 		std::optional<float> saturation;
+		/* 0..100 range, 50.0 = normal */
+		std::optional<double> focus_pos;
 	} knobs;
 };
 
@@ -70,6 +75,10 @@ struct IPAFrameContext : public FrameContext {
 		int32_t exposure;
 		double gain;
 	} sensor;
+
+	struct {
+		int32_t focus_pos;
+	} lens;
 
 	struct {
 		double red;

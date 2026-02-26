@@ -33,6 +33,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/camera.h"
+#include "libcamera/internal/camera_lens.h"
 #include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/camera_sensor_properties.h"
@@ -47,6 +48,8 @@
 #include "libcamera/internal/software_isp/software_isp.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
+
+#include "libcamera/controls.h"
 
 namespace libcamera {
 
@@ -371,7 +374,7 @@ private:
 
 	void ispStatsReady(uint32_t frame, uint32_t bufferId);
 	void metadataReady(uint32_t frame, const ControlList &metadata);
-	void setSensorControls(const ControlList &sensorControls);
+	void setSensorControls(const ControlList &sensorControls, const ControlList &lensControls);
 };
 
 class SimpleCameraConfiguration : public CameraConfiguration
@@ -1041,7 +1044,7 @@ void SimpleCameraData::metadataReady(uint32_t frame, const ControlList &metadata
 	tryCompleteRequest(info->request);
 }
 
-void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
+void SimpleCameraData::setSensorControls(const ControlList &sensorControls, const ControlList &lensControls)
 {
 	delayedCtrls_->push(sensorControls);
 	/*
@@ -1052,10 +1055,21 @@ void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
 	 * but it also bypasses delayedCtrls_, creating AGC regulation issues.
 	 * Both problems should be fixed.
 	 */
-	if (!frameStartEmitter_) {
-		ControlList ctrls(sensorControls);
-		sensor_->setControls(&ctrls);
-	}
+	if (frameStartEmitter_)
+		return;
+
+	ControlList ctrls(sensorControls);
+	sensor_->setControls(&ctrls);
+
+	CameraLens *focusLens = sensor_->focusLens();
+	if (!focusLens)
+		return;
+
+	if (!lensControls.contains(V4L2_CID_FOCUS_ABSOLUTE))
+		return;
+
+	const ControlValue &focusValue = lensControls.get(V4L2_CID_FOCUS_ABSOLUTE);
+	focusLens->setFocusPosition(focusValue.get<int32_t>());
 }
 
 /* Retrieve all source pads connected to a sink pad through active routes. */
@@ -1593,6 +1607,10 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	} else {
 		ipa::soft::IPAConfigInfo configInfo;
 		configInfo.sensorControls = data->sensor_->controls();
+		if (data->sensor_->focusLens() != nullptr)
+			configInfo.lensControls = data->sensor_->focusLens()->controls();
+		else
+			configInfo.lensControls = ControlInfoMap();
 		return data->swIsp_->configure(inputCfg, outputCfgs, configInfo);
 	}
 }

@@ -78,6 +78,7 @@ private:
 	SwIspStats *stats_;
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 	ControlInfoMap sensorInfoMap_;
+	ControlInfoMap lensInfoMap_;
 
 	/* Local parameter storage */
 	struct IPAContext context_;
@@ -202,6 +203,7 @@ int IPASoftSimple::init(const IPASettings &settings,
 int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 {
 	sensorInfoMap_ = configInfo.sensorControls;
+	lensInfoMap_ = configInfo.lensControls;
 
 	const ControlInfo &exposureInfo = sensorInfoMap_.find(V4L2_CID_EXPOSURE)->second;
 	const ControlInfo &gainInfo = sensorInfoMap_.find(V4L2_CID_ANALOGUE_GAIN)->second;
@@ -210,6 +212,17 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 	context_.configuration = {};
 	context_.activeState = {};
 	context_.frameContexts.clear();
+
+	if (lensInfoMap_.empty()) {
+		LOG(IPASoft, Warning) << "No camera leans found! Focus control disabled.";
+		context_.configuration.focus.focus_min = 0;
+		context_.configuration.focus.focus_max = 0;
+	} else {
+		const ControlInfo &lensInfo = lensInfoMap_.find(V4L2_CID_FOCUS_ABSOLUTE)->second;
+		context_.configuration.focus.focus_min = lensInfo.min().get<int32_t>();
+		context_.configuration.focus.focus_max = lensInfo.max().get<int32_t>();
+		LOG(IPASoft, Warning) << "Camera leans found! Focus: " << context_.configuration.focus.focus_min << "-" << context_.configuration.focus.focus_max;
+	}
 
 	context_.configuration.agc.lineDuration =
 		context_.sensorInfo.minLineLength * 1.0s / context_.sensorInfo.pixelRate;
@@ -325,7 +338,10 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	ctrls.set(V4L2_CID_ANALOGUE_GAIN,
 		  static_cast<int32_t>(camHelper_ ? camHelper_->gainCode(againNew) : againNew));
 
-	setSensorControls.emit(ctrls);
+	ControlList lens_ctrls(lensInfoMap_);
+	lens_ctrls.set(V4L2_CID_FOCUS_ABSOLUTE, frameContext.lens.focus_pos);
+
+	setSensorControls.emit(ctrls, lens_ctrls);
 }
 
 std::string IPASoftSimple::logPrefix() const
