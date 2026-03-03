@@ -51,6 +51,7 @@ file structure:
       measure:
         skip: # non-negative integer, frames to skip initially
         number: # non-negative integer, frames to measure
+      threads: # integer >= 1, number of render threads to use, default 2
 
 Configuration file example
 --------------------------
