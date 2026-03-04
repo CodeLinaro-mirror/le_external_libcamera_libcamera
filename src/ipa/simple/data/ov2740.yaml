@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: CC0-1.0
+#
+# OmniVision OV2740 tuning for libcamera Simple/SoftISP pipeline.
+#
+# Tested on ThinkPad X1 Carbon Gen 10 (Alder Lake) with Intel IPU6 ISYS.
+%YAML 1.1
+---
+version: 1
+algorithms:
+  - BlackLevel:
+  - Awb:
+  - Adjust:
+  - Agc:
