@@ -51,6 +51,7 @@ file structure:
       measure:
         skip: # non-negative integer, frames to skip initially
         number: # non-negative integer, frames to measure
+      mode: # cpu/gpu
       threads: # integer >= 1, number of render threads to use, default 2
 
 Configuration file example
@@ -85,6 +86,7 @@ Configuration file example
        measure:
          skip: 50
          number: 30
+       mode: gpu
        threads: 2
 
 List of variables and configuration options
@@ -168,6 +170,16 @@ software_isp.measure.skip, software_isp.measure.number
    Example `skip` value: ``50``
 
    Example `number` value: ``30``
+
+software_isp.mode
+   Select if the software ISP should use GPU or CPU image processsing,
+   one of ``cpu`` or ``gpu``. When set to ``gpu`` and EGL is not available
+   the software ISP will automatically fall back to the CPU.
+
+   This can be overridden through the ``LIBCAMERA_SOFTISP_MODE`` environment
+   variable.
+
+   Example value: ``gpu``
 
 software_isp.threads
    Number of render threads the software ISP uses when using the CPU.
