@@ -115,6 +115,7 @@ private:
 
 	unsigned int xShift_;
 	unsigned int stride_;
+	unsigned int sumShift_;
 
 	SharedMemObject<SwIspStats> sharedStats_;
 	SwIspStats stats_;
