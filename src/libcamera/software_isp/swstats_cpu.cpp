@@ -346,6 +346,11 @@ void SwStatsCpu::startFrame(uint32_t frame)
 void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
 {
 	stats_.valid = frame % kStatPerNumFrames == 0;
+	if (stats_.valid && sumShift_) {
+		stats_.sum_.r() >>= sumShift_;
+		stats_.sum_.g() >>= sumShift_;
+		stats_.sum_.b() >>= sumShift_;
+	}
 	*sharedStats_ = stats_;
 	statsReady.emit(frame, bufferId);
 }
@@ -402,6 +407,7 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 	if (bayerFormat.packing == BayerFormat::Packing::None &&
 	    setupStandardBayerOrder(bayerFormat.order) == 0) {
 		processFrame_ = &SwStatsCpu::processBayerFrame2;
+		sumShift_ = bayerFormat.bitDepth - 8;
 		switch (bayerFormat.bitDepth) {
 		case 8:
 			stats0_ = &SwStatsCpu::statsBGGR8Line0;
@@ -422,6 +428,7 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg)
 		/* Skip every 3th and 4th line, sample every other 2x2 block */
 		ySkipMask_ = 0x02;
 		xShift_ = 0;
+		sumShift_ = 0;
 		processFrame_ = &SwStatsCpu::processBayerFrame2;
 
 		switch (bayerFormat.order) {
