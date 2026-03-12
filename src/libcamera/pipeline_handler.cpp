@@ -398,6 +398,12 @@ void PipelineHandler::stop(Camera *camera)
 	ASSERT(data->queuedRequests_.empty());
 	ASSERT(data->waitingRequests_.empty());
 
+	/*
+	 * Clear out any unapplied controls. If an application wants to be
+	 * sure controls have been applied, it should wait before stopping.
+	 */
+	data->queuedControls_ = {};
+
 	data->requestSequence_ = 0;
 }
 
@@ -478,6 +484,49 @@ void PipelineHandler::queueRequest(Request *request)
 }
 
 /**
+ * \brief Queue controls to apply as soon as possible
+ * \param[in] camera The camera
+ * \param[in] controls The controls to apply
+ *
+ * This function tries to queue \a controls immediately to the device by
+ * calling queueControlsDevice(). If that fails, then a fallback mechanism
+ * is used to ensure that \a controls will be merged into the control list
+ * of the next available request submitted to the pipeline handler.
+ *
+ * \context This function is called from the CameraManager thread.
+ */
+int PipelineHandler::queueControls(Camera *camera, ControlList controls)
+{
+	Camera::Private *data = camera->_d();
+	int ret = queueControlsDevice(camera, controls);
+
+	/*
+	 * Don't worry about later request's controls overriding the ones
+	 * sent here - the application needs to deal with that.
+	 */
+
+	if (ret == -EOPNOTSUPP) {
+		/*
+		 * Fall back to adding the controls to the next request that enters the
+		 * pipeline handler. See PipelineHandler::doQueueRequest().
+		 */
+		data->queuedControls_.push(std::move(controls));
+
+		/* Counts as "success". */
+		ret = 0;
+
+	} else if (ret < 0) {
+		/*
+		 * The pipeline handler is claiming to support queueControlsDevice,
+		 * but it has failed. This is an error.
+		 */
+		LOG(Pipeline, Debug) << "Fast tracking controls failed: " << res;
+	}
+
+	return ret;
+}
+
+/**
  * \brief Queue one requests to the device
  */
 void PipelineHandler::doQueueRequest(Request *request)
@@ -495,9 +544,21 @@ void PipelineHandler::doQueueRequest(Request *request)
 		return;
 	}
 
+	if (!data->queuedControls_.empty()) {
+		/*
+		 * Note that `ControlList::MergePolicy::KeepExisting` is used. This is
+		 * needed to ensure that if `request` is newer than pendingControls_,
+		 * then its controls take precedence.
+		 */
+		request->controls().merge(data->queuedControls_.front(),
+					  ControlList::MergePolicy::KeepExisting);
+	}
+
 	int ret = queueRequestDevice(camera, request);
 	if (ret)
 		cancelRequest(request);
+	else if (!data->queuedControls_.empty())
+		data->queuedControls_.pop();
 }
 
 /**
@@ -541,6 +602,21 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  * \context This function is called from the CameraManager thread.
  *
  * \return 0 on success or a negative error code otherwise
+ */
+
+/**
+ * \fn PipelineHandler::queueControlsDevice()
+ * \brief Queue controls to be applied as soon as possible
+ * \param[in] camera The camera
+ * \param[in] controls The controls to apply
+ *
+ * This function queues \a controls to \a camera so that they can be
+ * applied as soon as possible
+ *
+ * \context This function is called from the CameraManager thread.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \return -EOPNOTSUPP if fast-tracking controls is not supported
  */
 
 /**

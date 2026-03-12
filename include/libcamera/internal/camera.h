@@ -38,6 +38,7 @@ public:
 
 	std::list<Request *> queuedRequests_;
 	std::queue<Request *> waitingRequests_;
+	std::queue<ControlList> queuedControls_;
 	ControlInfoMap controlInfo_;
 	ControlList properties_;
 
