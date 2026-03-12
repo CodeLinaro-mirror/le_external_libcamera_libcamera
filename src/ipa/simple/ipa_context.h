@@ -63,7 +63,7 @@ struct IPAActiveState {
 	} knobs;
 };
 
-struct IPAFrameContext : public FrameContext {
+struct IPAFrameContext {
 	Matrix<float, 3, 3> ccm;
 
 	struct {

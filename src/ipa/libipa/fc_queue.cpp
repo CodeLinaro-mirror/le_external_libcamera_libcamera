@@ -21,27 +21,9 @@ namespace ipa {
  */
 
 /**
- * \struct FrameContext
- * \brief Context for a frame
- *
- * The frame context stores data specific to a single frame processed by the
- * IPA module. Each frame processed by the IPA module has a context associated
- * with it, accessible through the Frame Context Queue.
- *
- * Fields in the frame context should reflect values and controls associated
- * with the specific frame as requested by the application, and as configured by
- * the hardware. Fields can be read by algorithms to determine if they should
- * update any specific action for this frame, and finally to update the metadata
- * control lists when the frame is fully completed.
- *
- * \var FrameContext::frame
- * \brief The frame number
- */
-
-/**
  * \class FCQueue
  * \brief A support class for managing FrameContext instances in IPA modules
- * \tparam FrameContext The IPA module-specific FrameContext derived class type
+ * \tparam FrameContext The IPA module-specific frame context type
  *
  * Along with the Module and Algorithm classes, the frame context queue is a
  * core component of the libipa infrastructure. It stores per-frame contexts
@@ -83,16 +65,12 @@ namespace ipa {
  * allowed to overflow, which must be ensured by pipeline handlers never
  * queuing more in-flight requests to the IPA module than the queue size. If an
  * overflow condition is detected, the queue will log a fatal error.
- *
- * IPA module-specific frame context implementations shall inherit from the
- * FrameContext base class to support the minimum required features for a
- * FrameContext.
  */
 
 /**
- * \fn FCQueue::FCQueue(unsigned int size)
+ * \fn FCQueue::FCQueue(std::size_t capacity)
  * \brief Construct a frame contexts queue of a specified size
- * \param[in] size The number of contexts in the queue
+ * \param[in] capacity The number of contexts in the queue
  */
 
 /**
@@ -116,7 +94,8 @@ namespace ipa {
  * initialised already, and returned to the caller.
  *
  * If the FrameContext was already initialized for this \a frame, a warning will
- * be reported and the previously initialized FrameContext is returned.
+ * be reported and the previously initialized FrameContext is returned. Otherwise,
+ * \a frame must be greater than the last allocated frame number.
  *
  * Frame contexts are expected to be initialised when a Request is first passed
  * to the IPA module in IPAModule::queueRequest().
@@ -129,8 +108,8 @@ namespace ipa {
  * \brief Obtain the FrameContext for the \a frame
  * \param[in] frame The frame context sequence number
  *
- * If the FrameContext is not correctly initialised for the \a frame, it will be
- * initialised.
+ * If the FrameContext is not correctly initialised for the \a frame, initialisation
+ * will be tried as if by calling \a alloc(frame). Note, that this may fail, and abort.
  *
  * \return A reference to the FrameContext for sequence \a frame
  */
