@@ -24,6 +24,41 @@ namespace libcamera {
 namespace utils {
 
 /**
+ * \struct overloaded
+ * \brief Helper type for type-matching std::visit implementations
+ * \tparam Ts... Template arguments pack of visitors
+ *
+ * Expand the template argument pack \a Ts... to provide overloaded
+ * implementations of \a operator().
+ */
+
+/**
+ * \var <class... Ts> overloaded(Ts...) -> overloaded<Ts...>
+ * \brief Overloaded visitor class for type-matching std::visit implementations
+ * \tparam Ts... Template arguments pack of visitor functions
+ *
+ * std::visit allows quite elegant type-matching implementation of the visitor
+ * pattern. An example is provided by the STL documentation in the form of:
+ *
+ * \code{.cpp}
+ * template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+ * template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
+ *
+ * using var_t = std::variant<int, long, double, std::string>;
+ * std::vector<var_t> vec = {10, 15l, 1.5, "hello"};
+ *
+ * for (auto& v: vec) {
+ * 	std::visit(overloaded {
+ * 		[](auto arg) { std::cout << arg << ' '; },
+ * 		[](double arg) { std::cout << std::fixed << arg << ' '; },
+ * 		[](const std::string& arg) { std::cout << std::quoted(arg) << ' '; },
+ * 	}, v);
+ * \endcode
+ *
+ * Use this helper to implement type-matching visitors using std::visit().
+ */
+
+/**
  * \brief Strip the directory prefix from the path
  * \param[in] path The path to process
  *
