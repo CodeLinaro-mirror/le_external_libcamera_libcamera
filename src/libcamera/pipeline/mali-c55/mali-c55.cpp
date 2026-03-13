@@ -1042,9 +1042,12 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 	if (std::holds_alternative<MaliC55CameraData::Tpg>(data->input_)) {
 		const MediaEntity *tpgEntity = data->subdev()->entity();
 		ret = tpgEntity->getPadByIndex(0)->links()[0]->setEnabled(true);
-	} else {
+	} else if (std::holds_alternative<MaliC55CameraData::Inline>(data->input_)) {
 		const MediaEntity *csi2Entity = data->csi2()->entity();
 		ret = csi2Entity->getPadByIndex(1)->links()[0]->setEnabled(true);
+	} else {
+		const MediaEntity *ivcEntity = ivcSd_->entity();
+		ret = ivcEntity->getPadByIndex(1)->links()[0]->setEnabled(true);
 	}
 	if (ret)
 		return ret;
@@ -1056,7 +1059,7 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 	/* Apply format to the origin of the pipeline and propagate it. */
 	if (std::holds_alternative<MaliC55CameraData::Tpg>(data->input_)) {
 		ret = data->subdev()->setFormat(0, &subdevFormat);
-	} else {
+	} else if (std::holds_alternative<MaliC55CameraData::Inline>(data->input_)) {
 		ret = data->sensor()->setFormat(&subdevFormat,
 						maliConfig->combinedTransform());
 		if (ret)
@@ -1067,6 +1070,25 @@ int PipelineHandlerMaliC55::configure(Camera *camera,
 			return ret;
 
 		ret = data->csi2()->getFormat(1, &subdevFormat);
+	} else {
+		V4L2DeviceFormat inputFormat;
+
+		ret = data->cru()->configure(&subdevFormat, &inputFormat);
+		if (ret)
+			return ret;
+
+		/* Propagate the CRU format to the IVC input. */
+		ret = ivcSd_->setFormat(0, &subdevFormat);
+		if (ret)
+			return ret;
+
+		ret = ivcSd_->getFormat(1, &subdevFormat);
+		if (ret)
+			return ret;
+
+		ret = ivc_->setFormat(&inputFormat);
+		if (ret)
+			return ret;
 	}
 	if (ret)
 		return ret;
