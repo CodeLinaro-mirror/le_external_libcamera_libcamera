@@ -498,6 +498,8 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 
 int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParams &params)
 {
+	int ret = 0;
+
 	/* eGL context switch */
 	egl_.makeCurrent();
 
@@ -515,12 +517,14 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 	GLenum err = glGetError();
 	if (err != GL_NO_ERROR) {
 		LOG(eGL, Error) << "Drawing scene fail " << err;
-		return -ENODEV;
+		ret = -ENODEV;
 	} else {
 		egl_.syncOutput();
 	}
 
-	return 0;
+	/* Teardown the output texture */
+	egl_.destroyDMABufTexture(*eglImageBayerOut_);
+	return ret;
 }
 
 void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
