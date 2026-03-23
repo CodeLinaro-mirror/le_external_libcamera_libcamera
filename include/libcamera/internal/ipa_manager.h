@@ -48,8 +48,33 @@ public:
 		auto proxy = [&]() -> std::unique_ptr<T> {
 			if (self->isSignatureValid(m))
 				return std::make_unique<typename T::Threaded>(m, configuration);
-			else
-				return std::make_unique<typename T::Isolated>(m, configuration);
+
+			auto isolated = std::make_unique<typename T::Isolated>(m, configuration);
+			if (isolated->isValid())
+				return isolated;
+
+#if HAVE_IPA_PUBKEY
+			if (self->forceIsolation_) {
+				LOG(IPAManager, Error)
+					<< "IPA process isolation failed for "
+					<< m->path()
+					<< " and isolation is forced";
+				return isolated;
+			}
+#endif
+
+			/*
+			 * Fall back to in-process loading when process
+			 * isolation fails. This typically happens inside
+			 * sandboxed environments (e.g. Flatpak) where
+			 * fork() is blocked by the seccomp filter.
+			 */
+			LOG(IPAManager, Warning)
+				<< "IPA process isolation failed for "
+				<< m->path()
+				<< ", falling back to in-process mode";
+
+			return std::make_unique<typename T::Threaded>(m, configuration);
 		}();
 
 		if (!proxy->isValid()) {
