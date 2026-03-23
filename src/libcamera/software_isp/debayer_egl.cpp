@@ -506,6 +506,7 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 
 	/* Generate the output render framebuffer as render to texture */
 	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, out_fd);
+	utils::scope_exit outImageGuard([&] { egl_.destroyDMABufTexture(*eglImageBayerOut_); });
 
 	setShaderVariableValues(params);
 	glViewport(0, 0, width_, height_);
