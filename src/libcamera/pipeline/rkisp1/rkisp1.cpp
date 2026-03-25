@@ -163,6 +163,10 @@ struct ParamBufferInfo {
 
 struct DewarpBufferInfo {
 	FrameBuffer *inputBuffer;
+	struct {
+		FrameMetadata::Status status;
+		unsigned int sequence;
+	} inputMeta;
 	FrameBuffer *outputBuffer;
 };
 
@@ -1868,7 +1872,11 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 	 * for the dewarper are the buffers of the request, supplied by the
 	 * application.
 	 */
-	DewarpBufferInfo dewarpInfo{ buffer, reqInfo->request->findBuffer(&data->mainPathStream_) };
+	DewarpBufferInfo dewarpInfo{
+		buffer,
+		{ metadata.status, metadata.sequence },
+		reqInfo->request->findBuffer(&data->mainPathStream_)
+	};
 	queuedDewarpBuffers_.push_back(dewarpInfo);
 	LOG(RkISP1Schedule, Debug) << "Queue dewarper " << dewarpInfo.inputBuffer
 				   << " " << dewarpInfo.outputBuffer;
@@ -1888,7 +1896,6 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
 {
 	Request *request = buffer->request();
-	const FrameMetadata &metadata = buffer->metadata();
 
 	/*
 	 * After stopping the dewarper, the buffers are returned out of order.
@@ -1899,12 +1906,17 @@ void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
 		if (dwInfo.outputBuffer != buffer)
 			continue;
 
+		FrameMetadata &outputMeta = buffer->_d()->metadata();
+
+		if (outputMeta.status != FrameMetadata::FrameCancelled &&
+		    dwInfo.inputMeta.status == FrameMetadata::FrameError)
+			outputMeta.status = FrameMetadata::FrameError;
+
+		outputMeta.sequence = dwInfo.inputMeta.sequence;
+
 		availableMainPathBuffers_.push(dwInfo.inputBuffer);
 		dwInfo.inputBuffer = nullptr;
 		dwInfo.outputBuffer = nullptr;
-
-		if (metadata.status == FrameMetadata::FrameCancelled)
-			buffer->_d()->cancel();
 
 		completeBuffer(request, buffer);
 	}
