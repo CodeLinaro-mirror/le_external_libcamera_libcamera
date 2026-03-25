@@ -1615,8 +1615,10 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 		data->delayedCtrls_ =
 			std::make_unique<DelayedControls>(data->sensor_->device(),
 							  params);
-		isp_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
+		isp_->frameStart.connect(data->delayedCtrls_.get(), [&](uint32_t seq) {
+			uint32_t lookahead = data->delayedCtrls_->maxDelay();
+			data->delayedCtrls_->applyControls(seq + lookahead);
+		});
 
 		/* \todo Init properties. */
 
