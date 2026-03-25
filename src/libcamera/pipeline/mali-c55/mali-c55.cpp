@@ -21,6 +21,7 @@
 #include <libcamera/base/utils.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/controls.h>
 #include <libcamera/formats.h>
 #include <libcamera/geometry.h>
 #include <libcamera/property_ids.h>
@@ -88,6 +89,7 @@ struct MaliC55FrameInfo {
 
 	FrameBuffer *paramBuffer;
 	FrameBuffer *statBuffer;
+	FrameBuffer *rawBuffer;
 
 	bool paramsDone;
 	bool statsDone;
@@ -691,6 +693,7 @@ public:
 	void imageBufferReady(FrameBuffer *buffer);
 	void paramsBufferReady(FrameBuffer *buffer);
 	void statsBufferReady(FrameBuffer *buffer);
+	void cruBufferReady(FrameBuffer *buffer);
 	void paramsComputed(unsigned int requestId, uint32_t bytesused);
 	void statsProcessed(unsigned int requestId, const ControlList &metadata);
 
@@ -739,7 +742,7 @@ private:
 
 	MaliC55FrameInfo *findFrameInfo(FrameBuffer *buffer);
 	MaliC55FrameInfo *findFrameInfo(Request *request);
-	void tryComplete(MaliC55FrameInfo *info);
+	void tryComplete(MaliC55FrameInfo *info, bool cancelled = false);
 
 	int configureRawStream(MaliC55CameraData *data,
 			       const StreamConfiguration &config,
@@ -747,6 +750,11 @@ private:
 	int configureProcessedStream(MaliC55CameraData *data,
 				     const StreamConfiguration &config,
 				     V4L2SubdeviceFormat &subdevFormat);
+	void cancelPendingRequests();
+
+	MaliC55FrameInfo *
+	prepareFrameInfo(Request *request, RZG2LCRU *cru = nullptr);
+	int queuePendingRequests(MaliC55CameraData *data);
 
 	void applyScalerCrop(Camera *camera, const ControlList &controls);
 
@@ -771,6 +779,9 @@ private:
 	std::queue<FrameBuffer *> availableParamsBuffers_;
 
 	std::map<unsigned int, MaliC55FrameInfo> frameInfoMap_;
+
+	/* Requests for which no buffer has been queued to the CRU device yet. */
+	std::queue<Request *> pendingRequests_;
 
 	std::array<MaliC55Pipe, MaliC55NumPipes> pipes_;
 
@@ -1220,6 +1231,13 @@ void PipelineHandlerMaliC55::freeBuffers(Camera *camera)
 	if (params_->releaseBuffers())
 		LOG(MaliC55, Error) << "Failed to release params buffers";
 
+	if (auto *mem = std::get_if<MaliC55CameraData::Memory>(&data->input_)) {
+		if (ivc_->releaseBuffers())
+			LOG(MaliC55, Error) << "Failed to release input buffers";
+		if (mem->cru_->freeBuffers())
+			LOG(MaliC55, Error) << "Failed to release CRU buffers";
+	}
+
 	return;
 }
 
@@ -1248,6 +1266,12 @@ int PipelineHandlerMaliC55::allocateBuffers(Camera *camera)
 			queue.push(buffer.get());
 		}
 	};
+
+	if (std::holds_alternative<MaliC55CameraData::Memory>(data->input_)) {
+		ret = ivc_->importBuffers(RZG2LCRU::kBufferCount);
+		if (ret < 0)
+			return ret;
+	}
 
 	ret = stats_->allocateBuffers(bufferCount, &statsBuffers_);
 	if (ret < 0)
@@ -1279,6 +1303,24 @@ int PipelineHandlerMaliC55::start(Camera *camera, [[maybe_unused]] const Control
 	ret = allocateBuffers(camera);
 	if (ret)
 		return ret;
+
+	if (auto *mem = std::get_if<MaliC55CameraData::Memory>(&data->input_)) {
+		ret = mem->cru_->start();
+		if (ret) {
+			LOG(MaliC55, Error)
+				<< "Failed to start CRU " << camera->id();
+			freeBuffers(camera);
+			return ret;
+		}
+
+		ret = ivc_->streamOn();
+		if (ret) {
+			LOG(MaliC55, Error)
+				<< "Failed to start IVC" << camera->id();
+			freeBuffers(camera);
+			return ret;
+		}
+	}
 
 	if (data->ipa_) {
 		ret = data->ipa_->start();
@@ -1355,11 +1397,24 @@ int PipelineHandlerMaliC55::start(Camera *camera, [[maybe_unused]] const Control
 	return 0;
 }
 
+void PipelineHandlerMaliC55::cancelPendingRequests()
+{
+	while (!pendingRequests_.empty()) {
+		cancelRequest(pendingRequests_.front());
+		pendingRequests_.pop();
+	}
+}
+
 void PipelineHandlerMaliC55::stopDevice(Camera *camera)
 {
 	MaliC55CameraData *data = cameraData(camera);
 
 	isp_->setFrameStartEnabled(false);
+
+	if (auto *mem = std::get_if<MaliC55CameraData::Memory>(&data->input_)) {
+		ivc_->streamOff();
+		mem->cru_->stop();
+	}
 
 	for (MaliC55Pipe &pipe : pipes_) {
 		if (!pipe.stream)
@@ -1374,6 +1429,8 @@ void PipelineHandlerMaliC55::stopDevice(Camera *camera)
 	if (data->ipa_)
 		data->ipa_->stop();
 	freeBuffers(camera);
+
+	cancelPendingRequests();
 }
 
 void PipelineHandlerMaliC55::applyScalerCrop(Camera *camera,
@@ -1472,9 +1529,84 @@ void PipelineHandlerMaliC55::applyScalerCrop(Camera *camera,
 	}
 }
 
+MaliC55FrameInfo *
+PipelineHandlerMaliC55::prepareFrameInfo(Request *request, RZG2LCRU *cru)
+{
+	if (availableStatsBuffers_.empty()) {
+		LOG(MaliC55, Error) << "Stats buffer underrun";
+		return nullptr;
+	}
+
+	if (availableParamsBuffers_.empty()) {
+		LOG(MaliC55, Error) << "Params buffer underrun";
+		return nullptr;
+	}
+
+	MaliC55FrameInfo &frameInfo = frameInfoMap_[request->sequence()];
+	frameInfo.request = request;
+
+	if (cru) {
+		frameInfo.rawBuffer = cru->queueBuffer(request);
+		if (!frameInfo.rawBuffer)
+			return nullptr;
+	}
+
+	frameInfo.statBuffer = availableStatsBuffers_.front();
+	availableStatsBuffers_.pop();
+	frameInfo.paramBuffer = availableParamsBuffers_.front();
+	availableParamsBuffers_.pop();
+
+	frameInfo.paramsDone = false;
+	frameInfo.statsDone = false;
+
+	return &frameInfo;
+}
+
+int PipelineHandlerMaliC55::queuePendingRequests(MaliC55CameraData *data)
+{
+	auto *mem = std::get_if<MaliC55CameraData::Memory>(&data->input_);
+	ASSERT(mem);
+
+	while (!pendingRequests_.empty()) {
+		Request *request = pendingRequests_.front();
+
+		if (!prepareFrameInfo(request, mem->cru_.get()))
+			return -ENOENT;
+
+		for (auto &[stream, buffer] : request->buffers()) {
+			MaliC55Pipe *pipe = pipeFromStream(data, stream);
+
+			pipe->cap->queueBuffer(buffer);
+		}
+
+		data->ipa_->queueRequest(request->sequence(), request->controls());
+
+		pendingRequests_.pop();
+	}
+
+	return 0;
+}
+
 int PipelineHandlerMaliC55::queueRequestDevice(Camera *camera, Request *request)
 {
 	MaliC55CameraData *data = cameraData(camera);
+
+	/*
+	 * If we're in memory input mode, we need to pop the requests onto the
+	 * pending list until a CRU buffer is ready...otherwise we can just do
+	 * everything immediately.
+	 */
+	if (std::holds_alternative<MaliC55CameraData::Memory>(data->input_)) {
+		pendingRequests_.push(request);
+
+		int ret = queuePendingRequests(data);
+		if (ret) {
+			pendingRequests_.pop();
+			return ret;
+		}
+
+		return 0;
+	}
 
 	/* Do not run the IPA if the TPG is in use. */
 	if (!data->ipa_) {
@@ -1496,32 +1628,13 @@ int PipelineHandlerMaliC55::queueRequestDevice(Camera *camera, Request *request)
 		return 0;
 	}
 
-	if (availableStatsBuffers_.empty()) {
-		LOG(MaliC55, Error) << "Stats buffer underrun";
+	auto frameInfo = prepareFrameInfo(request);
+	if (!frameInfo)
 		return -ENOENT;
-	}
-
-	if (availableParamsBuffers_.empty()) {
-		LOG(MaliC55, Error) << "Params buffer underrun";
-		return -ENOENT;
-	}
-
-	MaliC55FrameInfo frameInfo;
-	frameInfo.request = request;
-
-	frameInfo.statBuffer = availableStatsBuffers_.front();
-	availableStatsBuffers_.pop();
-	frameInfo.paramBuffer = availableParamsBuffers_.front();
-	availableParamsBuffers_.pop();
-
-	frameInfo.paramsDone = false;
-	frameInfo.statsDone = false;
-
-	frameInfoMap_[request->sequence()] = frameInfo;
 
 	data->ipa_->queueRequest(request->sequence(), request->controls());
 	data->ipa_->fillParams(request->sequence(),
-			       frameInfo.paramBuffer->cookie());
+			       frameInfo->paramBuffer->cookie());
 
 	return 0;
 }
@@ -1540,18 +1653,21 @@ MaliC55FrameInfo *PipelineHandlerMaliC55::findFrameInfo(FrameBuffer *buffer)
 {
 	for (auto &[sequence, info] : frameInfoMap_) {
 		if (info.paramBuffer == buffer ||
-		    info.statBuffer == buffer)
+		    info.statBuffer == buffer ||
+		    info.rawBuffer == buffer)
 			return &info;
 	}
 
 	return nullptr;
 }
 
-void PipelineHandlerMaliC55::tryComplete(MaliC55FrameInfo *info)
+void PipelineHandlerMaliC55::tryComplete(MaliC55FrameInfo *info, bool cancelled)
 {
-	if (!info->paramsDone)
-		return;
-	if (!info->statsDone)
+	/*
+	 * If the buffer has been cancelled, we complete the request without
+	 * waiting for the IPA.
+	 */
+	if (!cancelled && (!info->paramsDone || !info->statsDone))
 		return;
 
 	Request *request = info->request;
@@ -1575,13 +1691,15 @@ void PipelineHandlerMaliC55::imageBufferReady(FrameBuffer *buffer)
 	ASSERT(info);
 
 	if (completeBuffer(request, buffer))
-		tryComplete(info);
+		tryComplete(info,
+			    buffer->metadata().status == FrameMetadata::FrameCancelled);
 }
 
 void PipelineHandlerMaliC55::paramsBufferReady(FrameBuffer *buffer)
 {
 	MaliC55FrameInfo *info = findFrameInfo(buffer);
-	ASSERT(info);
+	if (!info)
+		return;
 
 	info->paramsDone = true;
 
@@ -1591,7 +1709,8 @@ void PipelineHandlerMaliC55::paramsBufferReady(FrameBuffer *buffer)
 void PipelineHandlerMaliC55::statsBufferReady(FrameBuffer *buffer)
 {
 	MaliC55FrameInfo *info = findFrameInfo(buffer);
-	ASSERT(info);
+	if (!info)
+		return;
 
 	Request *request = info->request;
 	MaliC55CameraData *data = cameraData(request->_d()->camera());
@@ -1602,32 +1721,80 @@ void PipelineHandlerMaliC55::statsBufferReady(FrameBuffer *buffer)
 				 sensorControls);
 }
 
+void PipelineHandlerMaliC55::cruBufferReady(FrameBuffer *buffer)
+{
+	/*
+	 * If the buffer has been cancelled, do not ask the IPA to prepare
+	 * parameters.
+	 *
+	 * The Request this cancelled buffer belongs to will be handled by
+	 * imageBufferReady() as we have queued buffers to the ISP capture
+	 * devices at the same time we have queued this buffer to the CRU
+	 * when running in m2m mode.
+	 */
+	if (buffer->metadata().status == FrameMetadata::FrameCancelled)
+		return;
+
+	MaliC55FrameInfo *info = findFrameInfo(buffer);
+	ASSERT(info);
+
+	Request *request = info->request;
+	request->_d()->metadata().set(controls::SensorTimestamp,
+				      buffer->metadata().timestamp);
+
+	/* Ought we do something with the sensor's controls here...? */
+	MaliC55CameraData *data = cameraData(request->_d()->camera());
+	data->ipa_->fillParams(request->sequence(), info->paramBuffer->cookie());
+}
+
 void PipelineHandlerMaliC55::paramsComputed(unsigned int requestId, uint32_t bytesused)
 {
-	MaliC55FrameInfo &frameInfo = frameInfoMap_[requestId];
+	auto it = frameInfoMap_.find(requestId);
+	if (it == frameInfoMap_.end())
+		return;
+
+	MaliC55FrameInfo &frameInfo = it->second;
 	Request *request = frameInfo.request;
+	if (!request)
+		return;
+
 	MaliC55CameraData *data = cameraData(request->_d()->camera());
 
 	/*
 	 * Queue buffers for stats and params, then queue buffers to the capture
-	 * video devices.
+	 * video devices if we're running in Inline mode or with the TPG.
+	 *
+	 * If we're running in M2M buffers have been queued to the capture
+	 * devices at queuePendingRequests() time and here we only have to queue
+	 * buffers to the IVC input to start a transfer.
 	 */
 
 	frameInfo.paramBuffer->_d()->metadata().planes()[0].bytesused = bytesused;
 	params_->queueBuffer(frameInfo.paramBuffer);
 	stats_->queueBuffer(frameInfo.statBuffer);
 
-	for (auto &[stream, buffer] : request->buffers()) {
-		MaliC55Pipe *pipe = pipeFromStream(data, stream);
+	if (!std::holds_alternative<MaliC55CameraData::Memory>(data->input_)) {
+		for (auto &[stream, buffer] : request->buffers()) {
+			MaliC55Pipe *pipe = pipeFromStream(data, stream);
 
-		pipe->cap->queueBuffer(buffer);
+			pipe->cap->queueBuffer(buffer);
+		}
+	} else {
+		ivc_->queueBuffer(frameInfo.rawBuffer);
+		frameInfo.rawBuffer = nullptr;
 	}
 }
 
 void PipelineHandlerMaliC55::statsProcessed(unsigned int requestId,
 					    const ControlList &metadata)
 {
-	MaliC55FrameInfo &frameInfo = frameInfoMap_[requestId];
+	auto it = frameInfoMap_.find(requestId);
+	if (it == frameInfoMap_.end())
+		return;
+
+	MaliC55FrameInfo &frameInfo = it->second;
+	if (!frameInfo.request)
+		return;
 
 	frameInfo.statsDone = true;
 	frameInfo.request->_d()->metadata().merge(metadata);
@@ -1756,6 +1923,9 @@ bool PipelineHandlerMaliC55::registerMemoryInputCamera()
 				 &DelayedControls::applyControls);
 
 	ivc_->bufferReady.connect(mem->cru_.get(), &RZG2LCRU::returnBuffer);
+
+	V4L2VideoDevice *cruOutput = mem->cru_->output();
+	cruOutput->bufferReady.connect(this, &PipelineHandlerMaliC55::cruBufferReady);
 
 	return registerMaliCamera(std::move(data), sensor->device()->entity()->name());
 }
