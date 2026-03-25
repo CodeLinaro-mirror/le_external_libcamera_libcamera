@@ -381,7 +381,7 @@ void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 	setSensorControls.emit(frame, ctrls);
 
 	if (bufferId != 0)
-		paramsComputed.emit(frame, size);
+		paramsComputed.emit(frame, bufferId, size);
 }
 
 void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,

@@ -105,7 +105,7 @@ public:
 	bool canUseDewarper_;
 	bool usesDewarper_;
 
-	void paramsComputed(unsigned int frame, unsigned int bytesused);
+	void paramsComputed(unsigned int frame, unsigned int bufferId, unsigned int bytesused);
 private:
 	void setSensorControls(unsigned int frame,
 			       const ControlList &sensorControls);
@@ -376,14 +376,14 @@ int RkISP1CameraData::loadTuningFile(const std::string &path)
 	return 0;
 }
 
-void RkISP1CameraData::paramsComputed(unsigned int frame, unsigned int bytesused)
+void RkISP1CameraData::paramsComputed(unsigned int frame, unsigned int bufferId, unsigned int bytesused)
 {
 	PipelineHandlerRkISP1 *pipe = RkISP1CameraData::pipe();
 	ParamBufferInfo &pInfo = pipe->computingParamBuffers_.front();
 	pipe->computingParamBuffers_.pop();
 
-	ASSERT(pInfo.expectedSequence == frame);
 	FrameBuffer *buffer = pInfo.buffer;
+	ASSERT(buffer->cookie() == bufferId);
 
 	LOG(RkISP1Schedule, Debug) << "Queue params for " << frame << " " << buffer;
 
@@ -1225,7 +1225,7 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 		availableParamBuffers_.pop();
 		computingParamBuffers_.push({ paramBuffer, nextParamsSequence_++ });
 		paramsSyncHelper_.pushCorrection(0);
-		data->paramsComputed(0, res.paramBufferBytesUsed);
+		data->paramsComputed(0, paramBufferId, res.paramBufferBytesUsed);
 	}
 
 	actions += [&]() { data->ipa_->stop(); };

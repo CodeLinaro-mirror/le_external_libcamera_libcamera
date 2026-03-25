@@ -45,7 +45,7 @@ interface IPARkISP1Interface {
 };
 
 interface IPARkISP1EventInterface {
-	paramsComputed(uint32 frame, uint32 bytesused);
+	paramsComputed(uint32 frame, uint32 bufferId, uint32 bytesused);
 	setSensorControls(uint32 frame, libcamera.ControlList sensorControls);
 	metadataReady(uint32 frame, libcamera.ControlList metadata);
 };
