@@ -1099,14 +1099,15 @@ int PipelineHandlerRkISP1::exportFrameBuffers([[maybe_unused]] Camera *camera, S
 int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 {
 	RkISP1CameraData *data = cameraData(camera);
+	utils::ScopeExitActions actions;
 	unsigned int ipaBufferId = 1;
 	int ret;
 
-	auto errorCleanup = utils::scope_exit{ [&]() {
+	actions += [&]() {
 		paramBuffers_.clear();
 		statBuffers_.clear();
 		mainPathBuffers_.clear();
-	} };
+	};
 
 	if (!isRaw_) {
 		ret = param_->allocateBuffers(kRkISP1InternalBufferCount, &paramBuffers_);
@@ -1127,6 +1128,22 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 
 		for (std::unique_ptr<FrameBuffer> &buffer : mainPathBuffers_)
 			availableMainPathBuffers_.push(buffer.get());
+	} else if (data->mainPath_->isEnabled()) {
+		ret = mainPath_.importBuffers(data->mainPathStream_.configuration().bufferCount);
+
+		if (ret < 0)
+			return ret;
+
+		actions += [&]() { mainPath_.releaseBuffers(); };
+	}
+
+	if (hasSelfPath_ && data->selfPath_->isEnabled()) {
+		ret = selfPath_.importBuffers(data->selfPathStream_.configuration().bufferCount);
+
+		if (ret < 0)
+			return ret;
+
+		actions += [&]() { selfPath_.releaseBuffers(); };
 	}
 
 	auto pushBuffers = [&](const std::vector<std::unique_ptr<FrameBuffer>> &buffers,
@@ -1147,7 +1164,7 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 
 	data->ipa_->mapBuffers(data->ipaBuffers_);
 
-	errorCleanup.release();
+	actions.release();
 	return 0;
 }
 
@@ -1180,6 +1197,12 @@ int PipelineHandlerRkISP1::freeBuffers(Camera *camera)
 
 	if (stat_->releaseBuffers())
 		LOG(RkISP1, Error) << "Failed to release stat buffers";
+
+	if (mainPath_.releaseBuffers())
+		LOG(RkISP1, Error) << "Failed to release main path buffers";
+
+	if (hasSelfPath_ && selfPath_.releaseBuffers())
+		LOG(RkISP1, Error) << "Failed to release self path buffers";
 
 	return 0;
 }
@@ -1263,16 +1286,17 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	}
 
 	if (data->mainPath_->isEnabled()) {
-		ret = mainPath_.start(data->mainPathStream_.configuration().bufferCount);
+		ret = mainPath_.streamOn();
 		if (ret)
 			return ret;
-		actions += [&]() { mainPath_.stop(); };
+		actions += [&]() { mainPath_.streamOff(); };
 	}
 
 	if (hasSelfPath_ && data->selfPath_->isEnabled()) {
-		ret = selfPath_.start(data->selfPathStream_.configuration().bufferCount);
+		ret = selfPath_.streamOn();
 		if (ret)
 			return ret;
+		actions += [&]() { selfPath_.streamOff(); };
 	}
 
 	isp_->setFrameStartEnabled(true);
@@ -1299,8 +1323,8 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 	data->ipa_->stop();
 
 	if (hasSelfPath_)
-		selfPath_.stop();
-	mainPath_.stop();
+		selfPath_.streamOff();
+	mainPath_.streamOff();
 
 	if (!isRaw_) {
 		ret = stat_->streamOff();
@@ -1664,9 +1688,9 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 		return false;
 
 	isp_->frameStart.connect(this, &PipelineHandlerRkISP1::frameStart);
-	mainPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::imageBufferReady);
+	mainPath_.bufferReady.connect(this, &PipelineHandlerRkISP1::imageBufferReady);
 	if (hasSelfPath_)
-		selfPath_.bufferReady().connect(this, &PipelineHandlerRkISP1::imageBufferReady);
+		selfPath_.bufferReady.connect(this, &PipelineHandlerRkISP1::imageBufferReady);
 	stat_->bufferReady.connect(this, &PipelineHandlerRkISP1::statBufferReady);
 	param_->bufferReady.connect(this, &PipelineHandlerRkISP1::paramBufferReady);
 

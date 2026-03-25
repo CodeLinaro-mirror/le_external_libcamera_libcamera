@@ -58,19 +58,34 @@ public:
 		return video_->exportBuffers(bufferCount, buffers);
 	}
 
-	int start(unsigned int bufferCount);
-	void stop();
+	int allocateBuffers(unsigned int bufferCount,
+			    std::vector<std::unique_ptr<FrameBuffer>> *buffers)
+	{
+		return video_->allocateBuffers(bufferCount, buffers);
+	}
+
+	int importBuffers(unsigned int count)
+	{
+		return video_->importBuffers(count);
+	}
+
+	int releaseBuffers()
+	{
+		return video_->releaseBuffers();
+	}
+
+	int streamOn() { return video_->streamOn(); };
+	int streamOff() { return video_->streamOff(); };
 
 	int queueBuffer(FrameBuffer *buffer) { return video_->queueBuffer(buffer); }
-	Signal<FrameBuffer *> &bufferReady() { return video_->bufferReady; }
 	const Size &maxResolution() const { return maxResolution_; }
 
+	Signal<FrameBuffer *> bufferReady;
 private:
 	void populateFormats();
 	Size filterSensorResolution(const CameraSensor *sensor);
 
 	const char *name_;
-	bool running_;
 
 	const Span<const PixelFormat> formats_;
 	std::set<PixelFormat> streamFormats_;

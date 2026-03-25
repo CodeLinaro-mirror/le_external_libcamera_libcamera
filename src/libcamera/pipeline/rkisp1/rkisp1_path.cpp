@@ -8,6 +8,7 @@
 #include "rkisp1_path.h"
 
 #include <array>
+#include <memory>
 
 #include <linux/media-bus-format.h>
 
@@ -58,7 +59,7 @@ const std::map<PixelFormat, uint32_t> formatToMediaBus = {
 
 RkISP1Path::RkISP1Path(const char *name, const Span<const PixelFormat> &formats,
 		       const Size &minResolution, const Size &maxResolution)
-	: name_(name), running_(false), formats_(formats),
+	: name_(name), formats_(formats),
 	  minResolution_(minResolution), maxResolution_(maxResolution),
 	  link_(nullptr)
 {
@@ -77,6 +78,7 @@ bool RkISP1Path::init(std::shared_ptr<MediaDevice> media)
 	if (video_->open() < 0)
 		return false;
 
+	video_->bufferReady.connect(this, [this](FrameBuffer *buffer) { this->bufferReady.emit(buffer); });
 	populateFormats();
 
 	link_ = media->link("rkisp1_isp", 2, resizer, 0);
@@ -478,44 +480,6 @@ int RkISP1Path::configure(const StreamConfiguration &config,
 	}
 
 	return 0;
-}
-
-int RkISP1Path::start(unsigned int bufferCount)
-{
-	int ret;
-
-	if (running_)
-		return -EBUSY;
-
-	ret = video_->importBuffers(bufferCount);
-	if (ret)
-		return ret;
-
-	ret = video_->streamOn();
-	if (ret) {
-		LOG(RkISP1, Error)
-			<< "Failed to start " << name_ << " path";
-
-		video_->releaseBuffers();
-		return ret;
-	}
-
-	running_ = true;
-
-	return 0;
-}
-
-void RkISP1Path::stop()
-{
-	if (!running_)
-		return;
-
-	if (video_->streamOff())
-		LOG(RkISP1, Warning) << "Failed to stop " << name_ << " path";
-
-	video_->releaseBuffers();
-
-	running_ = false;
 }
 
 /*
