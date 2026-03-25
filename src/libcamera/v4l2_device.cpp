@@ -825,19 +825,26 @@ void V4L2Device::updateControls(ControlList *ctrls,
 		ASSERT(iter != controls_.end());
 
 		switch (iter->first->type()) {
+		case ControlTypeByte:
+			value.set<uint8_t>(v4l2Ctrl.value);
+			break;
+		case ControlTypeUnsigned16:
+			value.set<uint16_t>(v4l2Ctrl.value);
+			break;
+		case ControlTypeInteger32:
+			value.set<int32_t>(v4l2Ctrl.value);
+			break;
+		case ControlTypeUnsigned32:
+			value.set<uint32_t>(v4l2Ctrl.value);
+			break;
 		case ControlTypeInteger64:
 			value.set<int64_t>(v4l2Ctrl.value64);
 			break;
-
 		default:
-			/*
-			 * Note: this catches the ControlTypeInteger32 case.
-			 *
-			 * \todo To be changed when support for string controls
-			 * will be added.
-			 */
-			value.set<int32_t>(v4l2Ctrl.value);
-			break;
+			LOG(V4L2, Error)
+				<< "Control " << utils::hex(id)
+				<< " has unsupported type";
+			continue;
 		}
 
 		ctrls->set(id, value);
