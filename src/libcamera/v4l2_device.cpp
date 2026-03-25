@@ -574,6 +574,7 @@ ControlType V4L2Device::v4l2CtrlType(uint32_t ctrlType)
 		return ControlTypeUnsigned16;
 
 	case V4L2_CTRL_TYPE_U32:
+	case V4L2_CTRL_TYPE_BITMASK:
 		return ControlTypeUnsigned32;
 
 	case V4L2_CTRL_TYPE_INTEGER:
@@ -584,7 +585,6 @@ ControlType V4L2Device::v4l2CtrlType(uint32_t ctrlType)
 
 	case V4L2_CTRL_TYPE_MENU:
 	case V4L2_CTRL_TYPE_BUTTON:
-	case V4L2_CTRL_TYPE_BITMASK:
 	case V4L2_CTRL_TYPE_INTEGER_MENU:
 		/*
 		 * More precise types may be needed, for now use a 32-bit
@@ -638,6 +638,7 @@ std::optional<ControlInfo> V4L2Device::v4l2ControlInfo(const v4l2_query_ext_ctrl
 				   static_cast<uint16_t>(ctrl.default_value));
 
 	case V4L2_CTRL_TYPE_U32:
+	case V4L2_CTRL_TYPE_BITMASK:
 		return ControlInfo(static_cast<uint32_t>(ctrl.minimum),
 				   static_cast<uint32_t>(ctrl.maximum),
 				   static_cast<uint32_t>(ctrl.default_value));

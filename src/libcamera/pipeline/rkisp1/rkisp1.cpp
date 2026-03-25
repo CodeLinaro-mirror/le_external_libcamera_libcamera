@@ -1479,9 +1479,7 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	if (controls.find(RKISP1_CID_SUPPORTED_PARAMS_BLOCKS) != controls.end()) {
 		auto list = param_->getControls({ { RKISP1_CID_SUPPORTED_PARAMS_BLOCKS } });
 		if (!list.empty())
-			supportedBlocks = static_cast<uint32_t>(
-				list.get(RKISP1_CID_SUPPORTED_PARAMS_BLOCKS)
-					.get<int32_t>());
+			supportedBlocks = list.get(RKISP1_CID_SUPPORTED_PARAMS_BLOCKS).get<uint32_t>();
 	} else {
 		LOG(RkISP1, Error)
 			<< "Failed to query supported params blocks. Falling back to defaults.";
