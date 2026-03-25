@@ -212,9 +212,9 @@ int CameraSensorLegacy::init()
 	 */
 	ControlList ctrls(subdev_->controls());
 	if (subdev_->controls().find(V4L2_CID_HFLIP) != subdev_->controls().end())
-		ctrls.set(V4L2_CID_HFLIP, 0);
+		ctrls.set(V4L2_CID_HFLIP, false);
 	if (subdev_->controls().find(V4L2_CID_VFLIP) != subdev_->controls().end())
-		ctrls.set(V4L2_CID_VFLIP, 0);
+		ctrls.set(V4L2_CID_VFLIP, false);
 	subdev_->setControls(&ctrls);
 
 	/* Enumerate, sort and cache media bus codes and sizes. */
@@ -762,10 +762,8 @@ int CameraSensorLegacy::setFormat(V4L2SubdeviceFormat *format, Transform transfo
 	if (supportFlips_) {
 		ControlList flipCtrls(subdev_->controls());
 
-		flipCtrls.set(V4L2_CID_HFLIP,
-			      static_cast<int32_t>(!!(transform & Transform::HFlip)));
-		flipCtrls.set(V4L2_CID_VFLIP,
-			      static_cast<int32_t>(!!(transform & Transform::VFlip)));
+		flipCtrls.set(V4L2_CID_HFLIP, !!(transform & Transform::HFlip));
+		flipCtrls.set(V4L2_CID_VFLIP, !!(transform & Transform::VFlip));
 
 		int ret = subdev_->setControls(&flipCtrls);
 		if (ret)

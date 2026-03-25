@@ -822,10 +822,8 @@ int CameraSensorRaw::setFormat(V4L2SubdeviceFormat *format, Transform transform)
 	if (supportFlips_) {
 		ControlList flipCtrls(subdev_->controls());
 
-		flipCtrls.set(V4L2_CID_HFLIP,
-			      static_cast<int32_t>(!!(transform & Transform::HFlip)));
-		flipCtrls.set(V4L2_CID_VFLIP,
-			      static_cast<int32_t>(!!(transform & Transform::VFlip)));
+		flipCtrls.set(V4L2_CID_HFLIP, !!(transform & Transform::HFlip));
+		flipCtrls.set(V4L2_CID_VFLIP, !!(transform & Transform::VFlip));
 
 		int ret = subdev_->setControls(&flipCtrls);
 		if (ret)

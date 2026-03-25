@@ -329,6 +329,17 @@ int V4L2Device::setControls(ControlList *ctrls, const V4L2Request *request)
 		/* Set the v4l2_ext_control value for the write operation. */
 		ControlValue &value = ctrl->second;
 		switch (iter->first->type()) {
+		case ControlTypeBool: {
+			if (value.isArray()) {
+				LOG(V4L2, Error)
+					<< "Array of bool not supported for control " << utils::hex(id);
+				return -ENOTSUP;
+			}
+
+			v4l2Ctrl.value = value.get<bool>();
+			break;
+		}
+
 		case ControlTypeUnsigned16: {
 			if (value.isArray()) {
 				Span<uint8_t> data = value.data();
@@ -826,6 +837,9 @@ void V4L2Device::updateControls(ControlList *ctrls,
 		ASSERT(iter != controls_.end());
 
 		switch (iter->first->type()) {
+		case ControlTypeBool:
+			value.set<bool>(v4l2Ctrl.value);
+			break;
 		case ControlTypeByte:
 			value.set<uint8_t>(v4l2Ctrl.value);
 			break;
