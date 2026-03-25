@@ -105,8 +105,8 @@ public:
 	bool canUseDewarper_;
 	bool usesDewarper_;
 
-private:
 	void paramsComputed(unsigned int frame, unsigned int bytesused);
+private:
 	void setSensorControls(unsigned int frame,
 			       const ControlList &sensorControls);
 
@@ -1202,13 +1202,28 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	nextStatsToProcess_ = 0;
 	data->frame_ = 0;
 
+	uint32_t paramBufferId = 0;
+	FrameBuffer *paramBuffer = nullptr;
+	if (!isRaw_) {
+		paramBuffer = availableParamBuffers_.front();
+		paramBufferId = paramBuffer->cookie();
+	}
+
 	ipa::rkisp1::StartResult res;
-	data->ipa_->start(ctrls, &res);
+	data->ipa_->start(ctrls, paramBufferId, &res);
 	if (res.code) {
 		LOG(RkISP1, Error)
 			<< "Failed to start IPA " << camera->id();
 		return ret;
 	}
+
+	if (paramBuffer) {
+		availableParamBuffers_.pop();
+		computingParamBuffers_.push({ paramBuffer, nextParamsSequence_++ });
+		paramsSyncHelper_.pushCorrection(0);
+		data->paramsComputed(0, res.paramBufferBytesUsed);
+	}
+
 	actions += [&]() { data->ipa_->stop(); };
 	data->sensor_->setControls(&res.controls);
 	data->delayedCtrls_->reset();
