@@ -236,8 +236,7 @@ struct IPAFrameContext : public FrameContext {
 };
 
 struct IPAContext {
-	IPAContext(unsigned int frameContextSize)
-		: frameContexts(frameContextSize)
+	IPAContext()
 	{
 	}
 
@@ -245,8 +244,6 @@ struct IPAContext {
 	IPACameraSensorInfo sensorInfo;
 	IPASessionConfiguration configuration;
 	IPAActiveState activeState;
-
-	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
 

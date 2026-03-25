@@ -32,6 +32,7 @@
 #include "libcamera/internal/yaml_parser.h"
 
 #include "algorithms/algorithm.h"
+#include "libipa/fc_logic.h"
 
 #include "ipa_context.h"
 #include "params.h"
@@ -78,7 +79,7 @@ protected:
 	std::string logPrefix() const override;
 
 private:
-	uint32_t computeParamsInternal(IPAFrameContext &frameContext, const uint32_t bufferId);
+	uint32_t computeParamsInternal(const uint32_t frame, const uint32_t bufferId);
 
 	void updateControls(const IPACameraSensorInfo &sensorInfo,
 			    const ControlInfoMap &sensorControls,
@@ -92,6 +93,7 @@ private:
 
 	/* Local parameter storage */
 	struct IPAContext context_;
+	FCLogic<Module> fcLogic_;
 };
 
 namespace {
@@ -132,12 +134,8 @@ const ControlInfoMap::Map rkisp1Controls{
 } /* namespace */
 
 IPARkISP1::IPARkISP1()
-	: context_(kMaxFrameContexts)
+	: Module(), context_(), fcLogic_(kMaxFrameContexts, this, context_)
 {
-	context_.frameContexts.setInitCallback(
-		[this](IPAFrameContext &fc, const ControlList &c) {
-			this->initializeFrameContext(fc, c);
-		});
 }
 
 std::string IPARkISP1::logPrefix() const
@@ -225,15 +223,15 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 void IPARkISP1::start(const ControlList &controls, const uint32_t paramBufferId,
 		      StartResult *result)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(0, controls);
-	result->paramBufferBytesUsed = computeParamsInternal(frameContext, paramBufferId);
+	IPAFrameContext &frameContext = fcLogic_.initFrameContext(0, controls);
+	result->paramBufferBytesUsed = computeParamsInternal(0, paramBufferId);
 	result->controls = getSensorControls(frameContext);
 	result->code = 0;
 }
 
 void IPARkISP1::stop()
 {
-	context_.frameContexts.clear();
+	fcLogic_.clear();
 }
 
 int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
@@ -257,7 +255,7 @@ int IPARkISP1::configure(const IPAConfigInfo &ipaConfig,
 	/* Clear the IPA context before the streaming session. */
 	context_.configuration = {};
 	context_.activeState = {};
-	context_.frameContexts.clear();
+	fcLogic_.clear();
 
 	context_.configuration.paramFormat = ipaConfig.paramFormat;
 
@@ -345,20 +343,10 @@ void IPARkISP1::unmapBuffers(const std::vector<unsigned int> &ids)
 void IPARkISP1::queueRequest(const uint32_t frame, const ControlList &controls)
 {
 	context_.debugMetadata.enableByControl(controls);
-	context_.frameContexts.getOrInitContext(frame, controls);
+	fcLogic_.initFrameContext(frame, controls);
 }
 
-void IPARkISP1::initializeFrameContext(IPAFrameContext &fc, const ControlList &controls)
-{
-	for (const auto &a : algorithms()) {
-		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (algo->disabled_)
-			continue;
-		algo->queueRequest(context_, fc.frame(), fc, controls);
-	}
-}
-
-uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const uint32_t bufferId)
+uint32_t IPARkISP1::computeParamsInternal(const uint32_t frame, const uint32_t bufferId)
 {
 	if (bufferId == 0)
 		return 0;
@@ -366,17 +354,16 @@ uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const u
 	RkISP1Params params(context_.configuration.paramFormat,
 			    mappedBuffers_.at(bufferId).planes()[0]);
 
-	for (const auto &algo : algorithms())
-		algo->prepare(context_, frameContext.frame(), frameContext, &params);
+	fcLogic_.prepareFrame(frame, &params);
 
 	return params.bytesused();
 }
 
 void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	uint32_t size = computeParamsInternal(frame, bufferId);
 
-	uint32_t size = computeParamsInternal(frameContext, bufferId);
+	IPAFrameContext &frameContext = fcLogic_.initFrameContext(frame);
 	ControlList ctrls = getSensorControls(frameContext);
 	setSensorControls.emit(frame, ctrls);
 
@@ -387,7 +374,13 @@ void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 			     const ControlList &sensorControls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext &frameContext = fcLogic_.initFrameContext(frame);
+	frameContext.sensor.exposure =
+		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
+	frameContext.sensor.gain =
+		context_.camHelper->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
+
+	ControlList metadata(controls::controls);
 
 	/*
 	 * In raw capture mode, the ISP is bypassed and no statistics buffer is
@@ -398,19 +391,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 		stats = reinterpret_cast<rkisp1_stat_buffer *>(
 			mappedBuffers_.at(bufferId).planes()[0].data());
 
-	frameContext.sensor.exposure =
-		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
-	frameContext.sensor.gain =
-		context_.camHelper->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
-
-	ControlList metadata(controls::controls);
-
-	for (const auto &a : algorithms()) {
-		Algorithm *algo = static_cast<Algorithm *>(a.get());
-		if (algo->disabled_)
-			continue;
-		algo->process(context_, frame, frameContext, stats, metadata);
-	}
+	fcLogic_.processStats(frame, stats, metadata);
 
 	context_.debugMetadata.moveEntries(metadata);
 	metadataReady.emit(frame, metadata);

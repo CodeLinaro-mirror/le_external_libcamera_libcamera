@@ -22,11 +22,17 @@ namespace ipa {
 template<typename FrameContext>
 class FCQueue;
 
+template<typename FrameContext>
+class FCLogic;
+
 struct FrameContext {
 	uint32_t frame() const { return frame_; }
 
 private:
-	template<typename T> friend class FCQueue;
+	template<typename T>
+	friend class FCQueue;
+	template<typename T>
+	friend class FCLogic;
 	uint32_t frame_;
 };
 

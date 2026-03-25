@@ -23,6 +23,11 @@ public:
 	{
 	}
 
+	virtual bool enabled() override
+	{
+		return !disabled_;
+	}
+
 	bool disabled_;
 	bool supportsRaw_;
 };

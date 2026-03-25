@@ -38,6 +38,11 @@ public:
 		return 0;
 	}
 
+	virtual bool enabled()
+	{
+		return true;
+	}
+
 	virtual void queueRequest([[maybe_unused]] typename Module::Context &context,
 				  [[maybe_unused]] const uint32_t frame,
 				  [[maybe_unused]] typename Module::FrameContext &frameContext,
