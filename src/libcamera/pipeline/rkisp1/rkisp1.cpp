@@ -12,7 +12,6 @@
 #include <memory>
 #include <numeric>
 #include <optional>
-#include <queue>
 #include <vector>
 
 #include <linux/media-bus-format.h>
@@ -35,6 +34,7 @@
 #include <libcamera/ipa/rkisp1_ipa_interface.h>
 #include <libcamera/ipa/rkisp1_ipa_proxy.h>
 
+#include "libcamera/internal/buffer_queue.h"
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/camera_sensor_properties.h"
@@ -89,6 +89,7 @@ public:
 	 */
 	unsigned int frame_;
 	std::vector<IPABuffer> ipaBuffers_;
+	std::vector<const FrameBuffer *> ipaFrameBuffers_;
 
 	RkISP1MainPath *mainPath_;
 	RkISP1SelfPath *selfPath_;
@@ -154,11 +155,6 @@ struct RequestInfo {
 	 */
 	size_t sequence = 0;
 	bool sequenceValid = false;
-};
-
-struct ParamBufferInfo {
-	FrameBuffer *buffer = nullptr;
-	size_t expectedSequence = 0;
 };
 
 struct DewarpBufferInfo {
@@ -247,6 +243,9 @@ private:
 	std::unique_ptr<V4L2VideoDevice> param_;
 	std::unique_ptr<V4L2VideoDevice> stat_;
 
+	std::unique_ptr<BufferQueue> paramQueue_;
+	std::unique_ptr<BufferQueue> statQueue_;
+
 	bool hasSelfPath_;
 	bool isRaw_;
 
@@ -256,28 +255,18 @@ private:
 	std::unique_ptr<ConverterDW100Module> dewarper_;
 
 	/* Internal buffers used when dewarper is being used */
-	std::vector<std::unique_ptr<FrameBuffer>> mainPathBuffers_;
-	std::queue<FrameBuffer *> availableMainPathBuffers_;
+	std::unique_ptr<BufferQueue> mainPathQueue_;
 
 	bool running_ = false;
-
-	std::vector<std::unique_ptr<FrameBuffer>> paramBuffers_;
-	std::vector<std::unique_ptr<FrameBuffer>> statBuffers_;
-	std::queue<FrameBuffer *> availableParamBuffers_;
-	std::queue<FrameBuffer *> availableStatBuffers_;
 
 	std::deque<RequestInfo> queuedRequests_;
 
 	std::map<unsigned int, SensorFrameInfo> sensorFrameInfos_;
 
 	std::deque<DewarpBufferInfo> queuedDewarpBuffers_;
-	SequenceSyncHelper paramsSyncHelper_;
+
 	SequenceSyncHelper imageSyncHelper_;
 
-	std::queue<ParamBufferInfo> computingParamBuffers_;
-	std::queue<ParamBufferInfo> queuedParamBuffers_;
-
-	uint32_t nextParamsSequence_;
 	uint32_t nextStatsToProcess_;
 
 	Camera *activeCamera_;
@@ -379,24 +368,19 @@ int RkISP1CameraData::loadTuningFile(const std::string &path)
 void RkISP1CameraData::paramsComputed(unsigned int frame, unsigned int bufferId, unsigned int bytesused)
 {
 	PipelineHandlerRkISP1 *pipe = RkISP1CameraData::pipe();
-	ParamBufferInfo &pInfo = pipe->computingParamBuffers_.front();
-	pipe->computingParamBuffers_.pop();
 
-	FrameBuffer *buffer = pInfo.buffer;
+	FrameBuffer *buffer = pipe->paramQueue_->front(BufferQueue::Preparing);
+
 	ASSERT(buffer->cookie() == bufferId);
 
 	LOG(RkISP1Schedule, Debug) << "Queue params for " << frame << " " << buffer;
 
 	buffer->_d()->metadata().planes()[0].bytesused = bytesused;
-	int ret = pipe->param_->queueBuffer(buffer);
-	if (ret < 0) {
+
+	int ret = pipe->paramQueue_->preparedBuffer();
+	if (ret < 0)
 		LOG(RkISP1, Error) << "Failed to queue parameter buffer: "
 				   << strerror(-ret);
-		pipe->availableParamBuffers_.push(buffer);
-		return;
-	}
-
-	pipe->queuedParamBuffers_.push({ buffer, frame });
 }
 
 void RkISP1CameraData::setSensorControls(unsigned int frame,
@@ -462,8 +446,11 @@ void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &meta
 	 * info.statsBuffer can be null, if ipa->processStats() was called
 	 * without a buffer to just fill the metadata.
 	 */
-	if (info.statsBuffer)
-		pipe->availableStatBuffers_.push(info.statsBuffer);
+	if (info.statsBuffer) {
+		ASSERT(pipe->statQueue_->front(BufferQueue::Postprocessing) == info.statsBuffer);
+		pipe->statQueue_->postprocessedBuffer();
+	}
+
 	info.statsBuffer = nullptr;
 
 	pipe->tryCompleteRequests();
@@ -879,6 +866,15 @@ int PipelineHandlerRkISP1::configure(Camera *camera, CameraConfiguration *c)
 	isRaw_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
 	data->usesDewarper_ = data->canUseDewarper_ && !isRaw_;
 
+	auto delegate = std::make_unique<BufferQueueDelegate<RkISP1Path>>(&mainPath_);
+	if (data->usesDewarper_) {
+		mainPathQueue_ = std::make_unique<BufferQueue>(std::move(delegate), BufferQueue::PostprocessStage, "MainPath");
+	} else {
+		mainPathQueue_ = std::make_unique<BufferQueue>(std::move(delegate), 0, "MainPath");
+	}
+
+	mainPathQueue_->bufferReady.connect(this, &PipelineHandlerRkISP1::imageBufferReady);
+
 	Transform transform = config->combinedTransform();
 	bool transposeAfterIsp = false;
 	if (data->usesDewarper_) {
@@ -1088,9 +1084,9 @@ int PipelineHandlerRkISP1::exportFrameBuffers([[maybe_unused]] Camera *camera, S
 		if (data->usesDewarper_)
 			return dewarper_->exportBuffers(&data->mainPathStream_, count, buffers);
 		else
-			return mainPath_.exportBuffers(count, buffers);
+			return data->mainPath_->exportBuffers(count, buffers);
 	} else if (hasSelfPath_ && stream == &data->selfPathStream_) {
-		return selfPath_.exportBuffers(count, buffers);
+		return data->selfPath_->exportBuffers(count, buffers);
 	}
 
 	return -EINVAL;
@@ -1102,39 +1098,35 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 	utils::ScopeExitActions actions;
 	unsigned int ipaBufferId = 1;
 	int ret;
+	/* Start at index 1 */
+	data->ipaFrameBuffers_.resize(1);
 
 	actions += [&]() {
-		paramBuffers_.clear();
-		statBuffers_.clear();
-		mainPathBuffers_.clear();
+		paramQueue_->releaseBuffers();
+		statQueue_->releaseBuffers();
+		mainPathQueue_->releaseBuffers();
 	};
 
 	if (!isRaw_) {
-		ret = param_->allocateBuffers(kRkISP1InternalBufferCount, &paramBuffers_);
+		ret = paramQueue_->allocateBuffers(kRkISP1InternalBufferCount);
 		if (ret < 0)
 			return ret;
 
-		ret = stat_->allocateBuffers(kRkISP1InternalBufferCount, &statBuffers_);
+		ret = statQueue_->allocateBuffers(kRkISP1InternalBufferCount);
 		if (ret < 0)
 			return ret;
 	}
 
 	/* If the dewarper is being used, allocate internal buffers for ISP. */
 	if (data->usesDewarper_) {
-		ret = mainPath_.exportBuffers(kRkISP1DewarpImageBufferCount,
-					      &mainPathBuffers_);
+		ret = mainPathQueue_->allocateBuffers(kRkISP1DewarpImageBufferCount);
 		if (ret < 0)
 			return ret;
-
-		for (std::unique_ptr<FrameBuffer> &buffer : mainPathBuffers_)
-			availableMainPathBuffers_.push(buffer.get());
 	} else if (data->mainPath_->isEnabled()) {
-		ret = mainPath_.importBuffers(data->mainPathStream_.configuration().bufferCount);
+		ret = mainPathQueue_->importBuffers(data->mainPathStream_.configuration().bufferCount);
 
 		if (ret < 0)
 			return ret;
-
-		actions += [&]() { mainPath_.releaseBuffers(); };
 	}
 
 	if (hasSelfPath_ && data->selfPath_->isEnabled()) {
@@ -1146,8 +1138,7 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 		actions += [&]() { selfPath_.releaseBuffers(); };
 	}
 
-	auto pushBuffers = [&](const std::vector<std::unique_ptr<FrameBuffer>> &buffers,
-			       std::queue<FrameBuffer *> &queue) {
+	auto pushBuffers = [&](const std::vector<std::unique_ptr<FrameBuffer>> &buffers) {
 		for (const std::unique_ptr<FrameBuffer> &buffer : buffers) {
 			Span<const FrameBuffer::Plane> planes = buffer->planes();
 
@@ -1155,12 +1146,12 @@ int PipelineHandlerRkISP1::allocateBuffers(Camera *camera)
 			data->ipaBuffers_.emplace_back(buffer->cookie(),
 						       std::vector<FrameBuffer::Plane>{ planes.begin(),
 											planes.end() });
-			queue.push(buffer.get());
+			data->ipaFrameBuffers_.push_back(buffer.get());
 		}
 	};
 
-	pushBuffers(paramBuffers_, availableParamBuffers_);
-	pushBuffers(statBuffers_, availableStatBuffers_);
+	pushBuffers(paramQueue_->buffers());
+	pushBuffers(statQueue_->buffers());
 
 	data->ipa_->mapBuffers(data->ipaBuffers_);
 
@@ -1172,19 +1163,6 @@ int PipelineHandlerRkISP1::freeBuffers(Camera *camera)
 {
 	RkISP1CameraData *data = cameraData(camera);
 
-	while (!availableStatBuffers_.empty())
-		availableStatBuffers_.pop();
-
-	while (!availableParamBuffers_.empty())
-		availableParamBuffers_.pop();
-
-	while (!availableMainPathBuffers_.empty())
-		availableMainPathBuffers_.pop();
-
-	paramBuffers_.clear();
-	statBuffers_.clear();
-	mainPathBuffers_.clear();
-
 	std::vector<unsigned int> ids;
 	for (IPABuffer &ipabuf : data->ipaBuffers_)
 		ids.push_back(ipabuf.id);
@@ -1192,14 +1170,9 @@ int PipelineHandlerRkISP1::freeBuffers(Camera *camera)
 	data->ipa_->unmapBuffers(ids);
 	data->ipaBuffers_.clear();
 
-	if (param_->releaseBuffers())
-		LOG(RkISP1, Error) << "Failed to release parameters buffers";
-
-	if (stat_->releaseBuffers())
-		LOG(RkISP1, Error) << "Failed to release stat buffers";
-
-	if (mainPath_.releaseBuffers())
-		LOG(RkISP1, Error) << "Failed to release main path buffers";
+	paramQueue_->releaseBuffers();
+	statQueue_->releaseBuffers();
+	mainPathQueue_->releaseBuffers();
 
 	if (hasSelfPath_ && selfPath_.releaseBuffers())
 		LOG(RkISP1, Error) << "Failed to release self path buffers";
@@ -1223,16 +1196,14 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	if (!!controls)
 		ctrls = *controls;
 
-	paramsSyncHelper_.reset();
 	imageSyncHelper_.reset();
-	nextParamsSequence_ = 0;
 	nextStatsToProcess_ = 0;
 	data->frame_ = 0;
 
 	uint32_t paramBufferId = 0;
 	FrameBuffer *paramBuffer = nullptr;
 	if (!isRaw_) {
-		paramBuffer = availableParamBuffers_.front();
+		paramBuffer = paramQueue_->front(BufferQueue::Idle);
 		paramBufferId = paramBuffer->cookie();
 	}
 
@@ -1245,10 +1216,9 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 	}
 
 	if (paramBuffer) {
-		availableParamBuffers_.pop();
-		computingParamBuffers_.push({ paramBuffer, nextParamsSequence_++ });
-		paramsSyncHelper_.pushCorrection(0);
-		data->paramsComputed(0, paramBufferId, res.paramBufferBytesUsed);
+		uint32_t seq;
+		paramQueue_->prepareBuffer(&seq);
+		data->paramsComputed(seq, paramBufferId, res.paramBufferBytesUsed);
 	}
 
 	actions += [&]() { data->ipa_->stop(); };
@@ -1337,12 +1307,6 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 			LOG(RkISP1, Warning)
 				<< "Failed to stop parameters for " << camera->id();
 
-		/*
-		 * The param buffers are not returned in order, so the queue
-		 * becomes useless.
-		 */
-		queuedParamBuffers_ = {};
-
 		if (data->usesDewarper_)
 			dewarper_->stop();
 	}
@@ -1359,8 +1323,6 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 	sensorFrameInfos_.clear();
 
 	ASSERT(queuedDewarpBuffers_.empty());
-	ASSERT(queuedParamBuffers_.empty());
-	ASSERT(computingParamBuffers_.empty());
 
 	freeBuffers(camera);
 
@@ -1374,29 +1336,30 @@ void PipelineHandlerRkISP1::queueInternalBuffers()
 
 	RkISP1CameraData *data = cameraData(activeCamera_);
 
-	while (!availableStatBuffers_.empty()) {
-		FrameBuffer *buf = availableStatBuffers_.front();
-		availableStatBuffers_.pop();
-		data->pipe()->stat_->queueBuffer(buf);
+	while (!statQueue_->empty(BufferQueue::Idle)) {
+		int ret = statQueue_->queueBuffer();
+		if (ret)
+			break;
 	}
 
 	/*
 	 * In case of the dewarper, there is a seperate buffer loop for the main
 	 * path
 	 */
-	while (!availableMainPathBuffers_.empty()) {
-		FrameBuffer *buf = availableMainPathBuffers_.front();
-		availableMainPathBuffers_.pop();
+	if (!data->usesDewarper_)
+		return;
 
-		LOG(RkISP1Schedule, Debug) << "Queue mainPath " << buf;
-		data->mainPath_->queueBuffer(buf);
+	while (!mainPathQueue_->empty(BufferQueue::Idle)) {
+		LOG(RkISP1Schedule, Debug) << "Queue mainPath " << mainPathQueue_->front(BufferQueue::Idle);
+		int ret = mainPathQueue_->queueBuffer();
+		if (ret)
+			break;
 	}
 }
 
 void PipelineHandlerRkISP1::computeParamBuffers(uint32_t maxSequence)
 {
 	RkISP1CameraData *data = cameraData(activeCamera_);
-
 	if (isRaw_) {
 		/*
 		 * Call computeParams with an empty param buffer to trigger the
@@ -1406,38 +1369,24 @@ void PipelineHandlerRkISP1::computeParamBuffers(uint32_t maxSequence)
 		return;
 	}
 
-	while (nextParamsSequence_ <= maxSequence) {
-		if (availableParamBuffers_.empty()) {
+	while (paramQueue_->nextSequence() <= maxSequence) {
+		if (paramQueue_->empty(BufferQueue::Idle)) {
 			LOG(RkISP1Schedule, Warning)
 				<< "Ran out of parameter buffers";
 			return;
 		}
 
-		int correction = paramsSyncHelper_.correction();
+		int correction = paramQueue_->sequenceCorrection();
 		if (correction != 0)
 			LOG(RkISP1Schedule, Warning)
 				<< "Correcting params sequence "
 				<< correction;
 
 		uint32_t paramsSequence;
-		if (correction >= 0) {
-			nextParamsSequence_ += correction;
-			paramsSyncHelper_.pushCorrection(correction);
-			paramsSequence = nextParamsSequence_++;
-		} else {
-			/*
-			 * Inject the same sequence multiple times, to correct
-			 * for the offset.
-			 */
-			paramsSyncHelper_.pushCorrection(-1);
-			paramsSequence = nextParamsSequence_;
-		}
-
-		FrameBuffer *buf = availableParamBuffers_.front();
-		availableParamBuffers_.pop();
-		computingParamBuffers_.push({ buf, paramsSequence });
+		FrameBuffer *buffer = paramQueue_->front(BufferQueue::Idle);
+		paramQueue_->prepareBuffer(&paramsSequence);
 		LOG(RkISP1Schedule, Debug) << "Request params for " << paramsSequence;
-		data->ipa_->computeParams(paramsSequence, buf->cookie());
+		data->ipa_->computeParams(paramsSequence, buffer->cookie());
 	}
 }
 
@@ -1473,7 +1422,7 @@ int PipelineHandlerRkISP1::queueRequestDevice(Camera *camera, Request *request)
 		FrameBuffer *mainPathBuffer = request->findBuffer(&data->mainPathStream_);
 		FrameBuffer *selfPathBuffer = request->findBuffer(&data->selfPathStream_);
 		if (mainPathBuffer)
-			data->mainPath_->queueBuffer(mainPathBuffer);
+			mainPathQueue_->queueBuffer(mainPathBuffer);
 
 		if (data->selfPath_ && selfPathBuffer)
 			data->selfPath_->queueBuffer(selfPathBuffer);
@@ -1676,9 +1625,17 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 	if (stat_->open() < 0)
 		return false;
 
+	statQueue_ = std::make_unique<BufferQueue>(std::make_unique<BufferQueueDelegate<V4L2VideoDevice>>(stat_.get()),
+						   BufferQueue::PostprocessStage,
+						   "Stat");
+
 	param_ = V4L2VideoDevice::fromEntityName(media_.get(), "rkisp1_params");
 	if (param_->open() < 0)
 		return false;
+
+	paramQueue_ = std::make_unique<BufferQueue>(std::make_unique<BufferQueueDelegate<V4L2VideoDevice>>(param_.get()),
+						    BufferQueue::PrepareStage,
+						    "Params");
 
 	/* Locate and open the ISP main and self paths. */
 	if (!mainPath_.init(media_))
@@ -1688,7 +1645,6 @@ bool PipelineHandlerRkISP1::match(DeviceEnumerator *enumerator)
 		return false;
 
 	isp_->frameStart.connect(this, &PipelineHandlerRkISP1::frameStart);
-	mainPath_.bufferReady.connect(this, &PipelineHandlerRkISP1::imageBufferReady);
 	if (hasSelfPath_)
 		selfPath_.bufferReady.connect(this, &PipelineHandlerRkISP1::imageBufferReady);
 	stat_->bufferReady.connect(this, &PipelineHandlerRkISP1::statBufferReady);
@@ -1816,7 +1772,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		if (data->usesDewarper_) {
 			LOG(RkISP1Schedule, Info)
 				<< "Image buffer ready, but no corresponding request";
-			availableMainPathBuffers_.push(buffer);
+			mainPathQueue_->postprocessedBuffer();
 			return;
 		}
 
@@ -1938,7 +1894,7 @@ void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
 
 		outputMeta.sequence = dwInfo.inputMeta.sequence;
 
-		availableMainPathBuffers_.push(dwInfo.inputBuffer);
+		mainPathQueue_->postprocessedBuffer();
 		dwInfo.inputBuffer = nullptr;
 		dwInfo.outputBuffer = nullptr;
 
@@ -1957,25 +1913,10 @@ void PipelineHandlerRkISP1::paramBufferReady(FrameBuffer *buffer)
 {
 	LOG(RkISP1Schedule, Debug) << "Param buffer ready " << buffer;
 
-	/* After stream off, the buffers are returned out of order, so
-	 * we don't care about the rest.
-	 */
-	if (!running_) {
-		availableParamBuffers_.push(buffer);
-		return;
-	}
-
-	ParamBufferInfo pInfo = queuedParamBuffers_.front();
-	queuedParamBuffers_.pop();
-
-	ASSERT(pInfo.buffer == buffer);
-
 	size_t metaSequence = buffer->metadata().sequence;
 	LOG(RkISP1Schedule, Debug) << "Params buffer ready "
-				   << " Expected: " << pInfo.expectedSequence
+				   << " Expected: " << paramQueue_->expectedSequence(buffer)
 				   << " got: " << metaSequence;
-	paramsSyncHelper_.gotFrame(pInfo.expectedSequence, metaSequence);
-	availableParamBuffers_.push(buffer);
 }
 
 void PipelineHandlerRkISP1::statBufferReady(FrameBuffer *buffer)
@@ -1985,15 +1926,8 @@ void PipelineHandlerRkISP1::statBufferReady(FrameBuffer *buffer)
 
 	size_t sequence = buffer->metadata().sequence;
 
-	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
-		LOG(RkISP1Schedule, Warning) << "Stats cancelled " << sequence;
-		/*
-		 * We can't assume that the sequence of the stat buffer is valid,
-		 * so there is nothing left to do.
-		 */
-		availableStatBuffers_.push(buffer);
+	if (buffer->metadata().status == FrameMetadata::FrameCancelled)
 		return;
-	}
 
 	LOG(RkISP1Schedule, Debug) << "Stats ready " << sequence;
 
@@ -2004,7 +1938,7 @@ void PipelineHandlerRkISP1::statBufferReady(FrameBuffer *buffer)
 
 	if (nextStatsToProcess_ > sequence) {
 		LOG(RkISP1Schedule, Warning) << "Stats were too late. Ignored";
-		availableStatBuffers_.push(buffer);
+		statQueue_->postprocessedBuffer();
 		return;
 	}
 
