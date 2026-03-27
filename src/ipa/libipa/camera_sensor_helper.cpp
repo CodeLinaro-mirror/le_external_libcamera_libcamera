@@ -653,6 +653,16 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx708", CameraSensorHelperImx708)
 
+class CameraSensorHelperOv08d10 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperOv08d10()
+	{
+		gain_ = AnalogueGainLinear{ 1, 0, 0, 128 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("ov08d10", CameraSensorHelperOv08d10)
+
 class CameraSensorHelperOv2685 : public CameraSensorHelper
 {
 public:
