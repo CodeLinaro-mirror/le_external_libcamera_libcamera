@@ -119,7 +119,6 @@ DelayedControls::DelayedControls(V4L2Device *device,
  */
 void DelayedControls::reset(unsigned int cookie)
 {
-	queueCount_ = 1;
 	writeCount_ = 0;
 	cookies_[0] = cookie;
 
@@ -154,10 +153,16 @@ void DelayedControls::reset(unsigned int cookie)
 bool DelayedControls::push(const ControlList &controls, const unsigned int cookie)
 {
 	/* Copy state from previous frame. */
-	for (auto &ctrl : values_) {
-		Info &info = ctrl.second[queueCount_];
-		info = values_[ctrl.first][queueCount_ - 1];
-		info.updated = false;
+	if (writeCount_ > 0) {
+		for (auto &ctrl : values_) {
+			Info &info = ctrl.second[writeCount_];
+			info = values_[ctrl.first][writeCount_ - 1];
+			info.updated = false;
+		}
+	} else {
+		/* Although it works, we don't expect this. */
+		LOG(RPiDelayedControls, Warning)
+			<< "push called before applyControls";
 	}
 
 	/* Update with new controls. */
@@ -175,18 +180,17 @@ bool DelayedControls::push(const ControlList &controls, const unsigned int cooki
 		if (controlParams_.find(id) == controlParams_.end())
 			return false;
 
-		Info &info = values_[id][queueCount_];
+		Info &info = values_[id][writeCount_];
 
 		info = Info(control.second);
 
 		LOG(RPiDelayedControls, Debug)
 			<< "Queuing " << id->name()
 			<< " to " << info.toString()
-			<< " at index " << queueCount_;
+			<< " at index " << writeCount_;
 	}
 
-	cookies_[queueCount_] = cookie;
-	queueCount_++;
+	cookies_[writeCount_] = cookie;
 
 	return true;
 }
@@ -277,12 +281,12 @@ void DelayedControls::applyControls(uint32_t sequence)
 		}
 	}
 
-	writeCount_ = sequence + 1;
-
-	while (writeCount_ > queueCount_) {
+	while (writeCount_ < sequence + 1) {
+		writeCount_++;
 		LOG(RPiDelayedControls, Debug)
-			<< "Queue is empty, auto queue no-op.";
-		push({}, cookies_[queueCount_ - 1]);
+			<< "Pushing noop with for index " << writeCount_
+			<< " with cookie " << cookies_[writeCount_ - 1];
+		push({}, cookies_[writeCount_ - 1]);
 	}
 
 	device_->setControls(&out);
