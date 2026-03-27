@@ -2322,6 +2322,9 @@ void PiSPCameraData::tryRunPipeline()
 
 	fillRequestMetadata(job.sensorControls, request);
 
+	/* This sorts out synchronisation with ControlLists in earlier requests. */
+	handleControlLists(job.delayContext);
+
 	/* Set our state to say the pipeline is active. */
 	state_ = State::Busy;
 

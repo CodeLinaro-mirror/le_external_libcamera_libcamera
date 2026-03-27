@@ -939,6 +939,9 @@ void Vc4CameraData::tryRunPipeline()
 
 	fillRequestMetadata(bayerFrame.controls, request);
 
+	/* This sorts out synchronisation with ControlLists in earlier requests. */
+	handleControlLists(bayerFrame.delayContext);
+
 	/* Set our state to say the pipeline is active. */
 	state_ = State::Busy;
 

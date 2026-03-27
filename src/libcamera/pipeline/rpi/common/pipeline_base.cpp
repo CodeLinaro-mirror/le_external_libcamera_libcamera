@@ -1528,4 +1528,50 @@ void CameraData::fillRequestMetadata(const ControlList &bufferControls, Request 
 	}
 }
 
+static bool isControlDelayed(unsigned int id)
+{
+	return id == controls::ExposureTime ||
+	       id == controls::AnalogueGain ||
+	       id == controls::FrameDurationLimits ||
+	       id == controls::AeEnable ||
+	       id == controls::ExposureTimeMode ||
+	       id == controls::AnalogueGainMode;
+}
+
+void CameraData::handleControlLists(uint32_t delayContext)
+{
+	/*
+	 * THe delayContext is the sequence number after it's gone through the various
+	 * pipeline delays, so that's what gets reported as the "ControlListSequence"
+	 * in the metadata, being the sequence number of the request whose ControlList
+	 * has just been applied.
+	 */
+	Request *request = requestQueue_.front();
+	request->_d()->metadata().set(controls::rpi::ControlListSequence, delayContext);
+
+	/*
+	 * Controls that take effect immediately (typically ISP controls) have to be
+	 * delayed so as to synchronise with those controls that do get delayed. So we
+	 * must remove them from the current request, and push them onto a queue so
+	 * that they can be used later.
+	 */
+	ControlList controls = std::move(request->controls());
+	request->controls().clear();
+	immediateControls_.push({ request->sequence(), {} });
+	for (const auto &ctrl : controls) {
+		if (isControlDelayed(ctrl.first))
+			request->controls().set(ctrl.first, ctrl.second);
+		else
+			immediateControls_.back().controls.set(ctrl.first, ctrl.second);
+	}
+
+	/* "Immediate" controls that have become due are now merged back into this request. */
+	while (!immediateControls_.empty() &&
+	       immediateControls_.front().controlListId <= delayContext) {
+		request->controls().merge(immediateControls_.front().controls,
+					  ControlList::MergePolicy::OverwriteExisting);
+		immediateControls_.pop();
+	}
+}
+
 } /* namespace libcamera */
