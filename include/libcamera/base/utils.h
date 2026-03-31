@@ -37,6 +37,13 @@ namespace libcamera {
 
 namespace utils {
 
+template<class... Ts>
+struct overloaded : Ts... {
+	using Ts::operator()...;
+};
+template<class... Ts>
+overloaded(Ts...) -> overloaded<Ts...>;
+
 const char *basename(const char *path);
 
 char *secure_getenv(const char *name);
