@@ -96,7 +96,7 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 	cmap[&controls::ColourGains] = ControlInfo(0.0f, 3.996f,
 						   Span<const float, 2>{ { 1.0f, 1.0f } });
 	cmap[&controls::DiscoMode] = ControlInfo(false, true, false);
-	cmap[&controls::Funk] = ControlInfo(0, 10, 0);
+	cmap[&controls::Funk] = ControlInfo(0, 11, 0);
 
 	if (!tuningData.contains("algorithm"))
 		LOG(RkISP1Awb, Info) << "No AWB algorithm specified."
