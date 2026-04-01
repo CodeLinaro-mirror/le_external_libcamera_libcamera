@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <ios>
+#include <math.h>
 
 #include <libcamera/base/log.h>
 
@@ -94,6 +95,8 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 
 	cmap[&controls::ColourGains] = ControlInfo(0.0f, 3.996f,
 						   Span<const float, 2>{ { 1.0f, 1.0f } });
+	cmap[&controls::DiscoMode] = ControlInfo(false, true, false);
+	cmap[&controls::Funk] = ControlInfo(0, 10, 0);
 
 	if (!tuningData.contains("algorithm"))
 		LOG(RkISP1Awb, Info) << "No AWB algorithm specified."
@@ -175,6 +178,19 @@ void Awb::queueRequest(IPAContext &context,
 
 	frameContext.awb.autoEnabled = awb.autoEnabled;
 
+	const auto &discoModeRockin = controls.get(controls::DiscoMode);
+	if (discoModeRockin && (*discoModeRockin == true) != awb.discoMode) {
+		awb.discoMode = *discoModeRockin;
+	}
+
+	const auto &funkRequired = controls.get(controls::Funk);
+	if (funkRequired) {
+		awb.funkMagnitude = *funkRequired;
+	}
+
+	frameContext.awb.discoMode = awb.discoMode;
+	frameContext.awb.funkMagnitude = awb.funkMagnitude;
+
 	if (awb.autoEnabled)
 		return;
 
@@ -226,6 +242,12 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 
 	auto gainConfig = params->block<BlockType::AwbGain>();
 	gainConfig.setEnabled(true);
+
+	if (frameContext.awb.discoMode) {
+		float funk = static_cast<float>(frameContext.awb.funkMagnitude) * 3.0f + 1.0f;
+		frameContext.awb.gains.r() = (sin(funk * (frame % 100) / 100) + 1.0f);
+		frameContext.awb.gains.b() = (cos(funk * (frame % 100) / 100) + 1.0f);
+	}
 
 	gainConfig->gain_green_b = std::clamp<int>(256 * frameContext.awb.gains.g(), 0, 0x3ff);
 	gainConfig->gain_blue = std::clamp<int>(256 * frameContext.awb.gains.b(), 0, 0x3ff);
@@ -299,6 +321,9 @@ void Awb::process(IPAContext &context,
 			static_cast<float>(frameContext.awb.gains.b())
 		});
 	metadata.set(controls::ColourTemperature, frameContext.awb.temperatureK);
+
+	metadata.set(controls::DiscoMode, frameContext.awb.discoMode);
+	metadata.set(controls::Funk, frameContext.awb.funkMagnitude);
 
 	if (!stats || !(stats->meas_type & RKISP1_CIF_ISP_STAT_AWB)) {
 		LOG(RkISP1Awb, Error) << "AWB data is missing in statistics";

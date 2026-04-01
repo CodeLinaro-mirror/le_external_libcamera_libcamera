@@ -110,6 +110,8 @@ struct IPAActiveState {
 		AwbState automatic;
 
 		bool autoEnabled;
+		bool discoMode;
+		unsigned int funkMagnitude;
 	} awb;
 
 	struct {
@@ -178,6 +180,8 @@ struct IPAFrameContext : public FrameContext {
 		RGB<double> gains;
 		bool autoEnabled;
 		unsigned int temperatureK;
+		bool discoMode;
+		unsigned int funkMagnitude;
 	} awb;
 
 	struct {

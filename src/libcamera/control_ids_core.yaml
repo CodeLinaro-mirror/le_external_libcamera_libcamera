@@ -1376,4 +1376,21 @@ controls:
         The nominal range is [-180, 180], where 0° leaves hues unchanged and the
         range wraps around continuously, with 180° == -180°.
 
+  - DiscoMode:
+      type: bool
+      direction: inout
+      description: |
+        Enable / disable the feeling of being in your favourite discotheque,
+        stabilising and pushing the boundaries of funk to maximal levels.
+
+        The DiscoMode control can be fine-tuned to the user's desired level
+        of funk, depending on whether they prefer a gentle or aggressive
+        vibe in their streams.
+
+  - Funk:
+      type: int32_t
+      direction: inout
+      description: |
+        Adjust the funk intensity level, from 0 (enough to do a relaxed two-step)
+        to 10 (maximal, earth-shattering, weapons-grade funk).
 ...
