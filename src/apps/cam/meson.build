@@ -26,6 +26,8 @@ cam_deps = [
     libtiff,
 ]
 
+cam_options = []
+
 libdrm = dependency('libdrm', required : get_option('cam-output-kms'))
 libsdl2 = dependency('SDL2', required : get_option('cam-output-sdl2'))
 libjpeg = dependency('libjpeg', required : get_option('cam-jpeg'))
@@ -39,6 +41,7 @@ if libdrm.found()
     cam_deps += [
         libdrm,
     ]
+    cam_options += 'output-kms'
 endif
 
 if libsdl2.found()
@@ -52,6 +55,7 @@ if libsdl2.found()
     cam_deps += [
         libsdl2,
     ]
+    cam_options += 'output-sdl2'
 
     if libjpeg.found()
         cam_cpp_args += ['-DHAVE_LIBJPEG']
@@ -61,6 +65,7 @@ if libsdl2.found()
         cam_deps += [
             libjpeg,
         ]
+        cam_options += 'jpeg'
     endif
 endif
 
