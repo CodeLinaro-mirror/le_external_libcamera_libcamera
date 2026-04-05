@@ -117,9 +117,11 @@ public:
 
 private:
 	/*
-	 * \todo The initializer is only necessary for the constructor to be
-	 * constexpr in C++17. Remove the initializer as soon as we are on
-	 * C++20.
+	 * \todo The initializer should be only necessary for the constructor to
+	 * be constexpr in C++17. However, older gcc versions (at least 9 and
+	 * 12, but apparently not 10), as well as clang versions (at least 14
+	 * and 19), throw compilation errors, even with C++20. Remove the
+	 * initializer once we can drop support of those old compiler versions.
 	 */
 	std::array<T, Rows * Cols> data_ = {};
 };
