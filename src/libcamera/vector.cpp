@@ -53,6 +53,13 @@ LOG_DEFINE_CATEGORY(Vector)
  */
 
 /**
+ * \fn Vector::Vector(const Vector<U, Rows> &other)
+ * \brief Construct a vector by converting another vector's element type
+ * \tparam U The source vector element type
+ * \param[in] other The vector to convert from
+ */
+
+/**
  * \fn T Vector::operator[](size_t i) const
  * \brief Index to an element in the vector
  * \param i Index of element to retrieve

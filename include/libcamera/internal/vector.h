@@ -51,6 +51,14 @@ public:
 		std::copy(data.begin(), data.end(), data_.begin());
 	}
 
+	template<typename U, std::enable_if_t<std::is_arithmetic_v<U> &&
+					      !std::is_same_v<T, U>> * = nullptr>
+	constexpr Vector(const Vector<U, Rows> &other)
+	{
+		for (unsigned int i = 0; i < Rows; i++)
+			data_[i] = static_cast<T>(other[i]);
+	}
+
 	const T &operator[](size_t i) const
 	{
 		ASSERT(i < data_.size());
