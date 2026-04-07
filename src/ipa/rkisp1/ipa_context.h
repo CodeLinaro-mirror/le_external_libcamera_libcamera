@@ -28,6 +28,7 @@
 #include "libipa/camera_sensor_helper.h"
 #include "libipa/fc_queue.h"
 #include "libipa/fixedpoint.h"
+#include "libipa/lux.h"
 
 namespace libcamera {
 
@@ -78,6 +79,8 @@ struct IPASessionConfiguration {
 };
 
 struct IPAActiveState {
+	ipa::lux::ActiveState lux;
+
 	struct {
 		struct {
 			uint32_t exposure;
@@ -138,10 +141,6 @@ struct IPAActiveState {
 	} goc;
 
 	struct {
-		double lux;
-	} lux;
-
-	struct {
 		controls::WdrModeEnum mode;
 		AgcMeanLuminance::AgcConstraint constraint;
 		double gain;
@@ -154,6 +153,8 @@ struct IPAActiveState {
 };
 
 struct IPAFrameContext : public FrameContext {
+	ipa::lux::FrameContext lux;
+
 	struct {
 		uint32_t exposure;
 		double gain;
@@ -218,10 +219,6 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		Matrix<float, 3, 3> ccm;
 	} ccm;
-
-	struct {
-		double lux;
-	} lux;
 
 	struct {
 		controls::WdrModeEnum mode;

@@ -34,6 +34,22 @@ LOG_DEFINE_CATEGORY(Lux)
 namespace ipa {
 
 /**
+ * \struct lux::ActiveState
+ * \brief Active lux estimation state shared across frames
+ *
+ * \var lux::ActiveState::lux
+ * \brief The most recently estimated lux value
+ */
+
+/**
+ * \struct lux::FrameContext
+ * \brief Per-frame lux estimation context
+ *
+ * \var lux::FrameContext::lux
+ * \brief The lux value estimation used for processing the frame
+ */
+
+/**
  * \class Lux
  * \brief Class that implements lux estimation
  *

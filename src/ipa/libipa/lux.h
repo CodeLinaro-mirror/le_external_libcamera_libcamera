@@ -16,6 +16,18 @@ class YamlObject;
 
 namespace ipa {
 
+namespace lux {
+
+struct ActiveState {
+	double lux;
+};
+
+struct FrameContext {
+	double lux;
+};
+
+} /* namespace lux */
+
 class Histogram;
 
 class Lux
