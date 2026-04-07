@@ -22,7 +22,6 @@
 namespace libcamera {
 
 class Camera;
-class CameraControlValidator;
 class FrameBuffer;
 class Stream;
 
@@ -49,16 +48,16 @@ public:
 
 	void reuse(ReuseFlag flags = Default);
 
-	ControlList &controls() { return controls_; }
+	ControlList &controls();
 	const ControlList &metadata() const;
-	const BufferMap &buffers() const { return bufferMap_; }
+	const BufferMap &buffers() const;
 	int addBuffer(const Stream *stream, FrameBuffer *buffer,
 		      std::unique_ptr<Fence> &&fence = {});
 	FrameBuffer *findBuffer(const Stream *stream) const;
 
 	uint32_t sequence() const;
-	uint64_t cookie() const { return cookie_; }
-	Status status() const { return status_; }
+	uint64_t cookie() const;
+	Status status() const;
 
 	bool hasPendingBuffers() const;
 
@@ -66,12 +65,6 @@ public:
 
 private:
 	LIBCAMERA_DISABLE_COPY(Request)
-
-	ControlList controls_;
-	BufferMap bufferMap_;
-
-	const uint64_t cookie_;
-	Status status_;
 };
 
 std::ostream &operator<<(std::ostream &out, const Request &r);
