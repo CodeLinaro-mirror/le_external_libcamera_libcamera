@@ -124,18 +124,12 @@ void Awb::queueRequest(IPAContext &context,
 }
 
 void Awb::prepare(IPAContext &context,
-		  [[maybe_unused]] const uint32_t frame,
+		  const uint32_t frame,
 		  IPAFrameContext &frameContext,
 		  DebayerParams *params)
 {
-	/*
-	 * When AutoAWB is enabled, this is the latest opportunity to take
-	 * the most recent and up to date desired AWB gains.
-	 */
-	if (frameContext.awb.autoEnabled) {
-		frameContext.awb.gains = context.activeState.awb.automatic.gains;
-		frameContext.awb.temperatureK = context.activeState.awb.automatic.temperatureK;
-	}
+	awbAlgo_->prepare(context.activeState.awb,
+			  frame, frameContext.awb);
 
 	params->gains = frameContext.awb.gains;
 }

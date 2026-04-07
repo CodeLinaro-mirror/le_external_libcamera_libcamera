@@ -73,6 +73,10 @@ public:
 			  awb::FrameContext &frameContext,
 			  const ControlList &controls);
 
+	void prepare(awb::ActiveState &state,
+		     [[maybe_unused]] const uint32_t frame,
+		     awb::FrameContext &frameContext);
+
 	virtual AwbResult calculateAwb(const AwbStats &stats, unsigned int lux) = 0;
 	virtual std::optional<RGB<double>> gainsFromColourTemperature(double colourTemperature) = 0;
 

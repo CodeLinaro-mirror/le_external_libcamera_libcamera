@@ -160,15 +160,8 @@ void Awb::queueRequest(IPAContext &context,
 void Awb::prepare(IPAContext &context, const uint32_t frame,
 		  IPAFrameContext &frameContext, RkISP1Params *params)
 {
-	/*
-	 * This is the latest time we can read the active state. This is the
-	 * most up-to-date automatic values we can read.
-	 */
-	if (frameContext.awb.autoEnabled) {
-		const auto &awb = context.activeState.awb;
-		frameContext.awb.gains = awb.automatic.gains;
-		frameContext.awb.temperatureK = awb.automatic.temperatureK;
-	}
+	awbAlgo_->prepare(context.activeState.awb,
+			  frame, frameContext.awb);
 
 	auto gainConfig = params->block<BlockType::AwbGain>();
 	gainConfig.setEnabled(true);

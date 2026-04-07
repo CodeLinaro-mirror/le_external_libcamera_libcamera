@@ -228,6 +228,26 @@ void AwbAlgorithm::queueRequest(awb::ActiveState &state,
 }
 
 /**
+ * \brief Prepare the AWB frame context ready for usage
+ * \param[in] state The AWB specific active state shared across frames
+ * \param[in] frame The frame number to apply the control values
+ * \param[in] frameContext The current frame's AWB specific context
+ */
+void AwbAlgorithm::prepare(awb::ActiveState &state,
+			   [[maybe_unused]] const uint32_t frame,
+			   awb::FrameContext &frameContext)
+{
+	/*
+	 * When AutoAWB is enabled, this is the latest opportunity to take
+	 * the most recent and up to date desired AWB gains.
+	 */
+	if (frameContext.autoEnabled) {
+		frameContext.gains = state.automatic.gains;
+		frameContext.temperatureK = state.automatic.temperatureK;
+	}
+}
+
+/**
  * \fn AwbAlgorithm::calculateAwb()
  * \brief Calculate AWB data from the given statistics
  * \param[in] stats The statistics to use for the calculation
