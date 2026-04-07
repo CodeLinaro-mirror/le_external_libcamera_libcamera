@@ -911,45 +911,46 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 	};
 	const unsigned int gammaTableSize = gammaTable_.size();
 	RGB<float> blackIndex = params.blackLevel * kRGBLookupSize;
+	RGB<float> gains = params.gains;
+	const RGB<float> div = (RGB<float>(kRGBLookupSize) - blackIndex).max(1.0);
 
 	if (ccmEnabled_) {
 		if (gammaUpdateNeeded ||
-		    matrixChanged(params.combinedMatrix, params_.combinedMatrix)) {
+		    matrixChanged(params.combinedMatrix, params_.combinedMatrix) ||
+		    params.gains != params_.gains) {
 			auto &red = swapRedBlueGains_ ? blueCcm_ : redCcm_;
 			auto &green = greenCcm_;
 			auto &blue = swapRedBlueGains_ ? redCcm_ : blueCcm_;
-			const unsigned int redIndex = swapRedBlueGains_ ? 2 : 0;
-			const unsigned int greenIndex = 1;
-			const unsigned int blueIndex = swapRedBlueGains_ ? 0 : 2;
-			const RGB<float> div =
-				(RGB<float>(kRGBLookupSize) - blackIndex).max(1.0) /
-				kRGBLookupSize;
 			for (unsigned int i = 0; i < kRGBLookupSize; i++) {
-				const RGB<float> rgb = ((RGB<float>(i) - blackIndex) / div).max(0.0);
-				red[i].r = std::round(rgb.r() * params.combinedMatrix[redIndex][0]);
-				red[i].g = std::round(rgb.g() * params.combinedMatrix[greenIndex][0]);
-				red[i].b = std::round(rgb.b() * params.combinedMatrix[blueIndex][0]);
-				green[i].r = std::round(rgb.r() * params.combinedMatrix[redIndex][1]);
-				green[i].g = std::round(rgb.g() * params.combinedMatrix[greenIndex][1]);
-				green[i].b = std::round(rgb.b() * params.combinedMatrix[blueIndex][1]);
-				blue[i].r = std::round(rgb.r() * params.combinedMatrix[redIndex][2]);
-				blue[i].g = std::round(rgb.g() * params.combinedMatrix[greenIndex][2]);
-				blue[i].b = std::round(rgb.b() * params.combinedMatrix[blueIndex][2]);
+				const RGB<float> rgb =
+					(gains * (RGB<float>(i) - blackIndex) * kRGBLookupSize / div)
+						.min(kRGBLookupSize - 1)
+						.max(0.0);
+				red[i].r = std::round(rgb.r() * params.combinedMatrix[0][0]);
+				red[i].g = std::round(rgb.g() * params.combinedMatrix[1][0]);
+				red[i].b = std::round(rgb.b() * params.combinedMatrix[2][0]);
+				green[i].r = std::round(rgb.r() * params.combinedMatrix[0][1]);
+				green[i].g = std::round(rgb.g() * params.combinedMatrix[1][1]);
+				green[i].b = std::round(rgb.b() * params.combinedMatrix[2][1]);
+				blue[i].r = std::round(rgb.r() * params.combinedMatrix[0][2]);
+				blue[i].g = std::round(rgb.g() * params.combinedMatrix[1][2]);
+				blue[i].b = std::round(rgb.b() * params.combinedMatrix[2][2]);
+				if (swapRedBlueGains_) {
+					std::swap(red[i].r, red[i].b);
+					std::swap(green[i].r, green[i].b);
+					std::swap(blue[i].r, blue[i].b);
+				}
 				gammaLut_[i] = gammaTable_[i * gammaTableSize / kRGBLookupSize];
 			}
 		}
 	} else {
 		if (gammaUpdateNeeded || params.gains != params_.gains) {
-			auto &gains = params.gains;
 			auto &red = swapRedBlueGains_ ? blue_ : red_;
 			auto &green = green_;
 			auto &blue = swapRedBlueGains_ ? red_ : blue_;
-			const RGB<float> div =
-				(RGB<float>(kRGBLookupSize) - blackIndex).max(1.0) /
-				gammaTableSize;
 			for (unsigned int i = 0; i < kRGBLookupSize; i++) {
 				const RGB<float> lutGains =
-					(gains * (RGB<float>(i) - blackIndex) / div)
+					(gains * (RGB<float>(i) - blackIndex) * gammaTableSize / div)
 						.min(gammaTableSize - 1)
 						.max(0.0);
 				red[i] = gammaTable_[lutGains.r()];
