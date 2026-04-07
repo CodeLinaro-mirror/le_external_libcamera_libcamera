@@ -20,6 +20,32 @@ namespace libcamera {
 
 namespace ipa {
 
+namespace awb {
+
+struct Session {
+	bool enabled;
+};
+
+struct ActiveState {
+	struct AwbState {
+		RGB<double> gains;
+		unsigned int temperatureK;
+	};
+
+	AwbState manual;
+	AwbState automatic;
+
+	bool autoEnabled;
+};
+
+struct FrameContext {
+	RGB<double> gains;
+	bool autoEnabled;
+	unsigned int temperatureK;
+};
+
+} /* namespace awb */
+
 struct AwbResult {
 	RGB<double> gains;
 	double colourTemperature;

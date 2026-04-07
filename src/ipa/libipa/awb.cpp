@@ -23,6 +23,53 @@ LOG_DEFINE_CATEGORY(Awb)
 namespace ipa {
 
 /**
+ * \struct awb::Session
+ * \brief Session-wide AWB configuration
+ *
+ * \var awb::Session::enabled
+ * \brief True when AWB processing is enabled for the session
+ */
+
+/**
+ * \struct awb::ActiveState
+ * \brief Active AWB state shared across frames
+ *
+ * \var awb::ActiveState::manual
+ * \brief The most recent manually requested AWB state
+ *
+ * \var awb::ActiveState::automatic
+ * \brief The most recent automatically calculated AWB state
+ *
+ * \var awb::ActiveState::autoEnabled
+ * \brief True when automatic AWB is currently selected
+ */
+
+/**
+ * \struct awb::ActiveState::AwbState
+ * \brief AWB gains and colour temperature for one operating mode
+ *
+ * \var awb::ActiveState::AwbState::gains
+ * \brief The white balance gains for this AWB state
+ *
+ * \var awb::ActiveState::AwbState::temperatureK
+ * \brief The colour temperature for this AWB state, in Kelvin
+ */
+
+/**
+ * \struct awb::FrameContext
+ * \brief Per-frame AWB state applied to a captured frame
+ *
+ * \var awb::FrameContext::gains
+ * \brief The white balance gains applied to the frame
+ *
+ * \var awb::FrameContext::autoEnabled
+ * \brief True when the frame uses automatic AWB
+ *
+ * \var awb::FrameContext::temperatureK
+ * \brief The colour temperature used for the frame, in Kelvin
+ */
+
+/**
  * \class AwbResult
  * \brief The result of an AWB calculation
  *
