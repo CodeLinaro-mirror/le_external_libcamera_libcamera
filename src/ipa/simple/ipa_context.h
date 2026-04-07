@@ -17,6 +17,7 @@
 #include "libcamera/internal/vector.h"
 
 #include <libipa/fc_queue.h>
+#include <libipa/lux.h>
 
 #include "core_ipa_interface.h"
 
@@ -36,6 +37,8 @@ struct IPASessionConfiguration {
 };
 
 struct IPAActiveState {
+	ipa::lux::ActiveState lux;
+
 	struct {
 		int32_t exposure;
 		double again;
@@ -64,6 +67,8 @@ struct IPAActiveState {
 };
 
 struct IPAFrameContext : public FrameContext {
+	ipa::lux::FrameContext lux;
+
 	Matrix<float, 3, 3> ccm;
 
 	struct {
