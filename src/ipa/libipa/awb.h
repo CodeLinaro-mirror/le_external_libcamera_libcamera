@@ -65,6 +65,9 @@ public:
 	virtual ~AwbAlgorithm() = default;
 
 	virtual int init(const YamlObject &tuningData) = 0;
+
+	int configure(awb::ActiveState &state, awb::Session &session);
+
 	virtual AwbResult calculateAwb(const AwbStats &stats, unsigned int lux) = 0;
 	virtual std::optional<RGB<double>> gainsFromColourTemperature(double colourTemperature) = 0;
 

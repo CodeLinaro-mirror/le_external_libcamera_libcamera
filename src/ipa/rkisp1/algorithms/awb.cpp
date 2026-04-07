@@ -128,16 +128,7 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 int Awb::configure(IPAContext &context,
 		   const IPACameraSensorInfo &configInfo)
 {
-	context.activeState.awb.manual.gains = RGB<double>{ 1.0 };
-	auto gains = awbAlgo_->gainsFromColourTemperature(kDefaultColourTemperature);
-	if (gains)
-		context.activeState.awb.automatic.gains = *gains;
-	else
-		context.activeState.awb.automatic.gains = RGB<double>{ 1.0 };
-
-	context.activeState.awb.autoEnabled = true;
-	context.activeState.awb.manual.temperatureK = kDefaultColourTemperature;
-	context.activeState.awb.automatic.temperatureK = kDefaultColourTemperature;
+	awbAlgo_->configure(context.activeState.awb, context.configuration.awb);
 
 	/*
 	 * Define the measurement window for AWB as a centered rectangle
@@ -147,8 +138,6 @@ int Awb::configure(IPAContext &context,
 	context.configuration.awb.measureWindow.v_offs = configInfo.outputSize.height / 8;
 	context.configuration.awb.measureWindow.h_size = 3 * configInfo.outputSize.width / 4;
 	context.configuration.awb.measureWindow.v_size = 3 * configInfo.outputSize.height / 4;
-
-	context.configuration.awb.enabled = true;
 
 	return 0;
 }

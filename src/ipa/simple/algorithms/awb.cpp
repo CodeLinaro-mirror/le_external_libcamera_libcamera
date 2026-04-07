@@ -106,20 +106,8 @@ int Awb::init(IPAContext &context, const YamlObject &tuningData)
 int Awb::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	context.activeState.awb.manual.gains = RGB<double>{ 1.0 };
-	auto gains = awbAlgo_->gainsFromColourTemperature(kDefaultColourTemperature);
-	if (gains)
-		context.activeState.awb.automatic.gains = *gains;
-	else
-		context.activeState.awb.automatic.gains = RGB<double>{ 1.0 };
-
-	context.activeState.awb.autoEnabled = true;
-	context.activeState.awb.manual.temperatureK = kDefaultColourTemperature;
-	context.activeState.awb.automatic.temperatureK = kDefaultColourTemperature;
-
-	context.configuration.awb.enabled = true;
-
-	return 0;
+	return awbAlgo_->configure(context.activeState.awb,
+				   context.configuration.awb);
 }
 
 /**

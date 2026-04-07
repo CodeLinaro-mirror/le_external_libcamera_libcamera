@@ -11,6 +11,8 @@
 
 #include <libcamera/control_ids.h>
 
+constexpr int32_t kDefaultColourTemperature = 5000;
+
 /**
  * \file awb.h
  * \brief Base classes for AWB algorithms
@@ -138,6 +140,33 @@ namespace ipa {
  *
  * \return 0 on success, a negative error code otherwise
  */
+
+/**
+ * \brief Configure the Awb algorithm given an IPAConfigInfo
+ * \param[in] state The AWB specific active state shared across frames
+ * \param[in] session The AWB specific session configuration
+ *
+ * Configure and initialise the AWB algorithm module.
+ *
+ * \return 0 if successful, an error code otherwise
+ */
+int AwbAlgorithm::configure(awb::ActiveState &state, awb::Session &session)
+{
+	state.manual.gains = RGB<double>{ 1.0 };
+	auto gains = gainsFromColourTemperature(kDefaultColourTemperature);
+	if (gains)
+		state.automatic.gains = *gains;
+	else
+		state.automatic.gains = RGB<double>{ 1.0 };
+
+	state.autoEnabled = true;
+	state.manual.temperatureK = kDefaultColourTemperature;
+	state.automatic.temperatureK = kDefaultColourTemperature;
+
+	session.enabled = true;
+
+	return 0;
+}
 
 /**
  * \fn AwbAlgorithm::calculateAwb()
