@@ -43,7 +43,7 @@ file structure:
       - ... # pipeline name
     pipelines:
       simple:
-        supported_devices:
+        devices:
           - driver: # driver name, e.g. `mxc-isi`
             software_isp: # true/false
     software_isp:
@@ -78,7 +78,7 @@ Configuration file example
        - simple
      pipelines:
        simple:
-         supported_devices:
+         devices:
            - driver: mxc-isi
              software_isp: true
      software_isp:
@@ -150,7 +150,7 @@ LIBCAMERA_SOFTISP_MODE, software_isp.mode
 
    Example value: ``gpu``
 
-pipelines.simple.supported_devices.driver, pipelines.simple.supported_devices.software_isp
+pipelines.simple.devices.driver, pipelines.simple.devices.software_isp
    Override whether software ISP is enabled for the given driver.
 
    Example `driver` value: ``mxc-isi``
