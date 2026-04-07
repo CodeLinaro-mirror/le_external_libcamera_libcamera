@@ -86,7 +86,6 @@ YamlObject::~YamlObject() = default;
  */
 
 /**
- * \fn YamlObject::size()
  * \brief Retrieve the number of elements in a dictionary or list YamlObject
  *
  * This function retrieves the size of the YamlObject, defined as the number of
@@ -529,7 +528,6 @@ YamlParserContext::~YamlParserContext()
 }
 
 /**
- * \fn YamlParserContext::init()
  * \brief Initialize a parser with an opened file for parsing
  * \param[in] fh The YAML file to parse
  *
@@ -568,7 +566,6 @@ int YamlParserContext::yamlRead(void *data, unsigned char *buffer, size_t size,
 }
 
 /**
- * \fn YamlParserContext::nextEvent()
  * \brief Get the next event
  *
  * Get the next event in the current YAML event stream, and return nullptr when
@@ -597,7 +594,6 @@ YamlParserContext::EventPtr YamlParserContext::nextEvent()
 }
 
 /**
- * \fn YamlParserContext::parseContent()
  * \brief Parse the content of a YAML document
  * \param[in] yamlObject The result of YamlObject
  *
@@ -636,7 +632,6 @@ int YamlParserContext::parseContent(YamlObject &yamlObject)
 }
 
 /**
- * \fn YamlParserContext::readValue()
  * \brief Parse event scalar and fill its content into a string
  *
  * A helper function to parse a scalar event as string. The caller needs to
@@ -651,7 +646,6 @@ std::string YamlParserContext::readValue(const EventPtr &event)
 }
 
 /**
- * \fn YamlParserContext::parseDictionaryOrList()
  * \brief A helper function to abstract the common part of parsing dictionary or list
  * \param[in] endEventType The YAML end event type (sequence or mapping)
  * \param[in] parseItem The callback to handle an item
@@ -695,7 +689,6 @@ int YamlParserContext::parseDictionaryOrList(yaml_event_type_t endEventType,
 }
 
 /**
- * \fn YamlParserContext::parseNextYamlObject()
  * \brief Parse next YAML event and read it as a YamlObject
  * \param[in] yamlObject The result of YamlObject
  * \param[in] event The leading event of the object
