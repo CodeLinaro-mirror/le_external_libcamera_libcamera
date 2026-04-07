@@ -169,6 +169,65 @@ int AwbAlgorithm::configure(awb::ActiveState &state, awb::Session &session)
 }
 
 /**
+ * \brief Provide control values to the algorithm
+ * \param[in] state The AWB specific active state shared across frames
+ * \param[in] frame The frame number to apply the control values
+ * \param[in] frameContext The current frame's AWB specific context
+ * \param[in] controls The list of user controls
+ */
+void AwbAlgorithm::queueRequest(awb::ActiveState &state,
+				[[maybe_unused]] const uint32_t frame,
+				awb::FrameContext &frameContext,
+				const ControlList &controls)
+{
+	const auto &awbEnable = controls.get(controls::AwbEnable);
+	if (awbEnable && *awbEnable != state.autoEnabled) {
+		state.autoEnabled = *awbEnable;
+
+		LOG(Awb, Debug)
+			<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
+	}
+
+	/* Handle controls from subclass algo (Grey or Bayes) */
+	handleControls(controls);
+
+	frameContext.autoEnabled = state.autoEnabled;
+
+	/* Todo: Check to see if we should always parse the following controls */
+	if (frameContext.autoEnabled)
+		return;
+
+	const auto &colourGains = controls.get(controls::ColourGains);
+	const auto &colourTemperature = controls.get(controls::ColourTemperature);
+	bool update = false;
+	if (colourGains) {
+		state.manual.gains.r() = (*colourGains)[0];
+		state.manual.gains.b() = (*colourGains)[1];
+		/*
+		 * \todo Colour temperature reported in metadata is now
+		 * incorrect, as we can't deduce the temperature from the gains.
+		 * This will be fixed with the bayes AWB algorithm.
+		 */
+		update = true;
+	} else if (colourTemperature) {
+		state.manual.temperatureK = *colourTemperature;
+		const auto &gains = gainsFromColourTemperature(*colourTemperature);
+		if (gains) {
+			state.manual.gains.r() = gains->r();
+			state.manual.gains.b() = gains->b();
+			update = true;
+		}
+	}
+
+	if (update)
+		LOG(Awb, Debug)
+			<< "Set colour gains to " << state.manual.gains;
+
+	frameContext.gains = state.manual.gains;
+	frameContext.temperatureK = state.manual.temperatureK;
+}
+
+/**
  * \fn AwbAlgorithm::calculateAwb()
  * \brief Calculate AWB data from the given statistics
  * \param[in] stats The statistics to use for the calculation

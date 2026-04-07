@@ -146,55 +146,12 @@ int Awb::configure(IPAContext &context,
  * \copydoc libcamera::ipa::Algorithm::queueRequest
  */
 void Awb::queueRequest(IPAContext &context,
-		       [[maybe_unused]] const uint32_t frame,
+		       const uint32_t frame,
 		       IPAFrameContext &frameContext,
 		       const ControlList &controls)
 {
-	auto &awb = context.activeState.awb;
-
-	const auto &awbEnable = controls.get(controls::AwbEnable);
-	if (awbEnable && *awbEnable != awb.autoEnabled) {
-		awb.autoEnabled = *awbEnable;
-
-		LOG(RkISP1Awb, Debug)
-			<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
-	}
-
-	awbAlgo_->handleControls(controls);
-
-	frameContext.awb.autoEnabled = awb.autoEnabled;
-
-	if (awb.autoEnabled)
-		return;
-
-	const auto &colourGains = controls.get(controls::ColourGains);
-	const auto &colourTemperature = controls.get(controls::ColourTemperature);
-	bool update = false;
-	if (colourGains) {
-		awb.manual.gains.r() = (*colourGains)[0];
-		awb.manual.gains.b() = (*colourGains)[1];
-		/*
-		 * \todo Colour temperature reported in metadata is now
-		 * incorrect, as we can't deduce the temperature from the gains.
-		 * This will be fixed with the bayes AWB algorithm.
-		 */
-		update = true;
-	} else if (colourTemperature) {
-		awb.manual.temperatureK = *colourTemperature;
-		const auto &gains = awbAlgo_->gainsFromColourTemperature(*colourTemperature);
-		if (gains) {
-			awb.manual.gains.r() = gains->r();
-			awb.manual.gains.b() = gains->b();
-			update = true;
-		}
-	}
-
-	if (update)
-		LOG(RkISP1Awb, Debug)
-			<< "Set colour gains to " << awb.manual.gains;
-
-	frameContext.awb.gains = awb.manual.gains;
-	frameContext.awb.temperatureK = awb.manual.temperatureK;
+	awbAlgo_->queueRequest(context.activeState.awb, frame, frameContext.awb,
+			       controls);
 }
 
 /**

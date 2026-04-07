@@ -68,6 +68,11 @@ public:
 
 	int configure(awb::ActiveState &state, awb::Session &session);
 
+	void queueRequest(awb::ActiveState &state,
+			  [[maybe_unused]] const uint32_t frame,
+			  awb::FrameContext &frameContext,
+			  const ControlList &controls);
+
 	virtual AwbResult calculateAwb(const AwbStats &stats, unsigned int lux) = 0;
 	virtual std::optional<RGB<double>> gainsFromColourTemperature(double colourTemperature) = 0;
 
