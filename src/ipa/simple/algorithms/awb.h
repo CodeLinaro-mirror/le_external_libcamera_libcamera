@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include "libipa/awb.h"
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -19,7 +21,14 @@ public:
 	Awb() = default;
 	~Awb() = default;
 
+	int init(IPAContext &context,
+		 const YamlObject &tuningData) override;
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
+
+	void queueRequest(IPAContext &context,
+			  [[maybe_unused]] const uint32_t frame,
+			  IPAFrameContext &frameContext,
+			  const ControlList &controls) override;
 	void prepare(IPAContext &context,
 		     const uint32_t frame,
 		     IPAFrameContext &frameContext,
@@ -29,6 +38,9 @@ public:
 		     IPAFrameContext &frameContext,
 		     const SwIspStats *stats,
 		     ControlList &metadata) override;
+
+private:
+	std::unique_ptr<AwbAlgorithm> awbAlgo_;
 };
 
 } /* namespace ipa::soft::algorithms */

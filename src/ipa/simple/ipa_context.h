@@ -16,6 +16,7 @@
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
 
+#include <libipa/awb.h>
 #include <libipa/fc_queue.h>
 #include <libipa/lux.h>
 
@@ -26,6 +27,8 @@ namespace libcamera {
 namespace ipa::soft {
 
 struct IPASessionConfiguration {
+	ipa::awb::Session awb;
+
 	struct {
 		int32_t exposureMin, exposureMax;
 		double againMin, againMax, again10, againMinStep;
@@ -38,6 +41,7 @@ struct IPASessionConfiguration {
 
 struct IPAActiveState {
 	ipa::lux::ActiveState lux;
+	ipa::awb::ActiveState awb;
 
 	struct {
 		int32_t exposure;
@@ -51,11 +55,6 @@ struct IPAActiveState {
 		double lastGain;
 	} blc;
 
-	struct {
-		RGB<float> gains;
-		unsigned int temperatureK;
-	} awb;
-
 	Matrix<float, 3, 3> combinedMatrix;
 
 	struct {
@@ -68,6 +67,7 @@ struct IPAActiveState {
 
 struct IPAFrameContext : public FrameContext {
 	ipa::lux::FrameContext lux;
+	ipa::awb::FrameContext awb;
 
 	Matrix<float, 3, 3> ccm;
 
@@ -75,8 +75,6 @@ struct IPAFrameContext : public FrameContext {
 		int32_t exposure;
 		double gain;
 	} sensor;
-
-	RGB<float> gains;
 
 	float gamma;
 	std::optional<float> contrast;

@@ -14,6 +14,8 @@
 
 #include <libcamera/control_ids.h>
 
+#include "libipa/awb_bayes.h"
+#include "libipa/awb_grey.h"
 #include "libipa/colours.h"
 #include "simple/ipa_context.h"
 
@@ -23,13 +25,156 @@ LOG_DEFINE_CATEGORY(IPASoftAwb)
 
 namespace ipa::soft::algorithms {
 
+constexpr int32_t kMinColourTemperature = 2500;
+constexpr int32_t kMaxColourTemperature = 10000;
+constexpr int32_t kDefaultColourTemperature = 5000;
+
+/* Identical to RKISP1AwbStats ... why ? */
+class SimpleAwbStats final : public AwbStats
+{
+public:
+	SimpleAwbStats(const RGB<double> &rgbMeans)
+		: rgbMeans_(rgbMeans)
+	{
+		rg_ = rgbMeans_.r() / rgbMeans_.g();
+		bg_ = rgbMeans_.b() / rgbMeans_.g();
+	}
+
+	double computeColourError(const RGB<double> &gains) const override
+	{
+		/*
+		 * Compute the sum of the squared colour error (non-greyness) as
+		 * it appears in the log likelihood equation.
+		 */
+		double deltaR = gains.r() * rg_ - 1.0;
+		double deltaB = gains.b() * bg_ - 1.0;
+		double delta2 = deltaR * deltaR + deltaB * deltaB;
+
+		return delta2;
+	}
+
+	RGB<double> rgbMeans() const override
+	{
+		return rgbMeans_;
+	}
+
+private:
+	RGB<double> rgbMeans_;
+	double rg_;
+	double bg_;
+};
+
+int Awb::init(IPAContext &context, const YamlObject &tuningData)
+{
+	auto &cmap = context.ctrlMap;
+
+	cmap[&controls::ColourTemperature] = ControlInfo(kMinColourTemperature,
+							 kMaxColourTemperature,
+							 kDefaultColourTemperature);
+
+	cmap[&controls::AwbEnable] = ControlInfo(false, true);
+	cmap[&controls::ColourGains] = ControlInfo(0.0f, 3.996f,
+						   Span<const float, 2>{ { 1.0f, 1.0f } });
+
+	if (!tuningData.contains("algorithm"))
+		LOG(IPASoftAwb, Info) << "No AWB algorithm specified."
+				      << " Default to grey world";
+
+	auto mode = tuningData["algorithm"].get<std::string>("grey");
+	if (mode == "grey") {
+		awbAlgo_ = std::make_unique<AwbGrey>();
+	} else if (mode == "bayes") {
+		awbAlgo_ = std::make_unique<AwbBayes>();
+	} else {
+		LOG(IPASoftAwb, Error) << "Unknown AWB algorithm: " << mode;
+		return -EINVAL;
+	}
+	LOG(IPASoftAwb, Debug) << "Using AWB algorithm: " << mode;
+
+	int ret = awbAlgo_->init(tuningData);
+	if (ret) {
+		LOG(IPASoftAwb, Error) << "Failed to init AWB algorithm";
+		return ret;
+	}
+
+	const auto &src = awbAlgo_->controls();
+	cmap.insert(src.begin(), src.end());
+
+	return 0;
+}
+
 int Awb::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	auto &gains = context.activeState.awb.gains;
-	gains = { { 1.0, 1.0, 1.0 } };
+	context.activeState.awb.manual.gains = RGB<double>{ 1.0 };
+	auto gains = awbAlgo_->gainsFromColourTemperature(kDefaultColourTemperature);
+	if (gains)
+		context.activeState.awb.automatic.gains = *gains;
+	else
+		context.activeState.awb.automatic.gains = RGB<double>{ 1.0 };
+
+	context.activeState.awb.autoEnabled = true;
+	context.activeState.awb.manual.temperatureK = kDefaultColourTemperature;
+	context.activeState.awb.automatic.temperatureK = kDefaultColourTemperature;
+
+	context.configuration.awb.enabled = true;
 
 	return 0;
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void Awb::queueRequest(IPAContext &context,
+		       [[maybe_unused]] const uint32_t frame,
+		       [[maybe_unused]] IPAFrameContext &frameContext,
+		       const ControlList &controls)
+{
+	auto &awb = context.activeState.awb;
+
+	const auto &awbEnable = controls.get(controls::AwbEnable);
+	if (awbEnable && *awbEnable != awb.autoEnabled) {
+		awb.autoEnabled = *awbEnable;
+
+		LOG(IPASoftAwb, Debug)
+			<< (*awbEnable ? "Enabling" : "Disabling") << " AWB";
+	}
+
+	awbAlgo_->handleControls(controls);
+
+	frameContext.awb.autoEnabled = awb.autoEnabled;
+
+	if (awb.autoEnabled)
+		return;
+
+	const auto &colourGains = controls.get(controls::ColourGains);
+	const auto &colourTemperature = controls.get(controls::ColourTemperature);
+	bool update = false;
+	if (colourGains) {
+		awb.manual.gains.r() = (*colourGains)[0];
+		awb.manual.gains.b() = (*colourGains)[1];
+		/*
+		 * \todo Colour temperature reported in metadata is now
+		 * incorrect, as we can't deduce the temperature from the gains.
+		 * This will be fixed with the bayes AWB algorithm.
+		 */
+		update = true;
+	} else if (colourTemperature) {
+		awb.manual.temperatureK = *colourTemperature;
+		const auto &gains = awbAlgo_->gainsFromColourTemperature(*colourTemperature);
+		if (gains) {
+			awb.manual.gains.r() = gains->r();
+			awb.manual.gains.b() = gains->b();
+			update = true;
+		}
+	}
+
+	if (update)
+		LOG(IPASoftAwb, Debug)
+			<< "Set colour gains to " << awb.manual.gains;
+
+	frameContext.awb.gains = awb.manual.gains;
+	frameContext.awb.temperatureK = awb.manual.temperatureK;
 }
 
 void Awb::prepare(IPAContext &context,
@@ -37,10 +182,16 @@ void Awb::prepare(IPAContext &context,
 		  IPAFrameContext &frameContext,
 		  DebayerParams *params)
 {
-	auto &gains = context.activeState.awb.gains;
+	/*
+	 * When AutoAWB is enabled, this is the latest opportunity to take
+	 * the most recent and up to date desired AWB gains.
+	 */
+	if (frameContext.awb.autoEnabled) {
+		frameContext.awb.gains = context.activeState.awb.automatic.gains;
+		frameContext.awb.temperatureK = context.activeState.awb.automatic.temperatureK;
+	}
 
-	frameContext.gains = gains;
-	params->gains = gains;
+	params->gains = frameContext.awb.gains;
 }
 
 void Awb::process(IPAContext &context,
@@ -49,14 +200,18 @@ void Awb::process(IPAContext &context,
 		  const SwIspStats *stats,
 		  ControlList &metadata)
 {
-	const SwIspStats::Histogram &histogram = stats->yHistogram;
-	const uint8_t blackLevel = context.activeState.blc.level;
+	IPAActiveState &activeState = context.activeState;
+	RGB<float> gains = frameContext.awb.gains;
 
-	metadata.set(controls::ColourGains, { frameContext.gains.r(),
-					      frameContext.gains.b() });
+	metadata.set(controls::AwbEnable, frameContext.awb.autoEnabled);
+	metadata.set(controls::ColourGains, { gains.r(), gains.b() });
+	metadata.set(controls::ColourTemperature, frameContext.awb.temperatureK);
 
 	if (!stats->valid)
 		return;
+
+	const SwIspStats::Histogram &histogram = stats->yHistogram;
+	const uint8_t blackLevel = context.activeState.blc.level;
 
 	/*
 	 * Black level must be subtracted to get the correct AWB ratios, they
@@ -67,30 +222,42 @@ void Awb::process(IPAContext &context,
 		histogram.begin(), histogram.end(), uint64_t(0));
 	const uint64_t offset = blackLevel * nPixels;
 	const uint64_t minValid = 1;
+
 	/*
 	 * Make sure the sums are at least minValid, while preventing unsigned
 	 * integer underflow.
 	 */
 	const RGB<uint64_t> sum = stats->sum_.max(offset + minValid) - offset;
 
-	/*
-	 * Calculate red and blue gains for AWB.
-	 * Clamp max gain at 4.0, this also avoids 0 division.
-	 */
-	auto &gains = context.activeState.awb.gains;
-	gains = { {
-		sum.r() <= sum.g() / 4 ? 4.0f : static_cast<float>(sum.g()) / sum.r(),
-		1.0,
-		sum.b() <= sum.g() / 4 ? 4.0f : static_cast<float>(sum.g()) / sum.b(),
-	} };
+	RGB<double> rgbMeans = { { static_cast<double>(sum.r() / nPixels),
+				   static_cast<double>(sum.g() / nPixels),
+				   static_cast<double>(sum.b() / nPixels) } };
 
-	RGB<double> rgbGains{ { 1 / gains.r(), 1 / gains.g(), 1 / gains.b() } };
-	context.activeState.awb.temperatureK = estimateCCT(rgbGains);
-	metadata.set(controls::ColourTemperature, context.activeState.awb.temperatureK);
+	/*
+	 * Todo: Determine the minimum allowed thresholds from the mean
+	 * but we currently have the sum - not the mean value!
+	 */
+	SimpleAwbStats awbStats{ rgbMeans };
+
+	AwbResult awbResult = awbAlgo_->calculateAwb(awbStats, frameContext.lux.lux);
+
+	/* Todo: Check if clamping required */
+
+	/* Filter the values to avoid oscillations. */
+	double speed = 0.2;
+	double ct = awbResult.colourTemperature;
+	ct = ct * speed + activeState.awb.automatic.temperatureK * (1 - speed);
+	awbResult.gains = awbResult.gains * speed +
+			  activeState.awb.automatic.gains * (1 - speed);
+
+	activeState.awb.automatic.temperatureK = static_cast<unsigned int>(ct);
+	activeState.awb.automatic.gains = awbResult.gains;
 
 	LOG(IPASoftAwb, Debug)
-		<< "gain R/B: " << gains << "; temperature: "
-		<< context.activeState.awb.temperatureK;
+		<< std::showpoint
+		<< "Means " << rgbMeans << ", gains "
+		<< activeState.awb.automatic.gains << ", temp "
+		<< activeState.awb.automatic.temperatureK << "K";
 }
 
 REGISTER_IPA_ALGORITHM(Awb, "Awb")
