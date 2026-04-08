@@ -41,6 +41,11 @@ option('doc_werror',
         value : false,
         description : 'Treat documentation warnings as errors')
 
+option('fips',
+        type : 'boolean',
+        value : false,
+        description : 'Sign IPA library using ML-DSA (FIPS 204)')
+
 option('gstreamer',
         type : 'feature',
         value : 'auto',

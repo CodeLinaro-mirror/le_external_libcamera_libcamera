@@ -97,6 +97,12 @@ else
     endif
 endif
 
+# comply with FIPS 204
+with_fips = get_option('fips')
+if with_fips
+    config_h.set('WITH_FIPS', 1)
+endif
+
 if not libcrypto.found()
     warning('Neither gnutls nor libcrypto found, all IPA modules will be isolated')
     summary({'IPA modules signed with': 'None (modules will run isolated)'},

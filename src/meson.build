@@ -15,11 +15,18 @@ summary({
          }, section : 'Paths')
 
 # Module Signing
+with_fips = get_option('fips')
 openssl = find_program('openssl', required : false)
 if openssl.found()
-    ipa_priv_key = custom_target('ipa-priv-key',
-                                 output : ['ipa-priv-key.pem'],
-                                 command : [gen_ipa_priv_key, '@OUTPUT@'])
+    if with_fips
+        ipa_priv_key = custom_target('ipa-priv-key',
+                                     output : ['ipa-priv-key.pem'],
+                                     command : [gen_ipa_priv_key, 'ML-DSA-65', '@OUTPUT@'])
+    else
+        ipa_priv_key = custom_target('ipa-priv-key',
+                                     output : ['ipa-priv-key.pem'],
+                                     command : [gen_ipa_priv_key, 'RSA', '@OUTPUT@'])
+    endif
     config_h.set('HAVE_IPA_PUBKEY', 1)
     ipa_sign_module = true
 else
