@@ -10,4 +10,9 @@ key="$1"
 input="$2"
 output="$3"
 
-openssl dgst -sha256 -sign "${key}" -out "${output}" "${input}"
+if openssl pkey -text -noout -in "${key}" 2>/dev/null | grep -q "ML-DSA"; then
+	openssl pkeyutl -sign -inkey "${key}" -rawin \
+		-in "${input}" -out "${output}"
+else
+	openssl dgst -sha256 -sign "${key}" -out "${output}" "${input}"
+fi
