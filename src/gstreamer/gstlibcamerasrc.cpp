@@ -23,6 +23,7 @@
 
 #include <atomic>
 #include <queue>
+#include <stdio.h>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -141,6 +142,7 @@ struct _GstLibcameraSrc {
 	GstTask *task;
 
 	gchar *camera_name;
+	gchar *sensor_mode;
 
 	std::atomic<GstEvent *> pending_eos;
 
@@ -152,6 +154,7 @@ struct _GstLibcameraSrc {
 enum {
 	PROP_0,
 	PROP_CAMERA_NAME,
+	PROP_SENSOR_MODE,
 	PROP_LAST
 };
 
@@ -810,6 +813,22 @@ gst_libcamera_src_task_run(gpointer user_data)
 		gst_task_resume(self->task);
 }
 
+static bool
+gst_libcamera_src_parse_sensor_mode(const gchar *mode_str,
+				    SensorConfiguration &sensorConfig)
+{
+	unsigned int width, height, bitDepth;
+
+	if (sscanf(mode_str, "%u:%u:%u", &width, &height, &bitDepth) != 3) {
+		return false;
+	}
+
+	sensorConfig.outputSize = Size(width, height);
+	sensorConfig.bitDepth = bitDepth;
+
+	return sensorConfig.isValid();
+}
+
 static void
 gst_libcamera_src_task_enter(GstTask *task, [[maybe_unused]] GThread *thread,
 			     gpointer user_data)
@@ -845,6 +864,24 @@ gst_libcamera_src_task_enter(GstTask *task, [[maybe_unused]] GThread *thread,
 		return;
 	}
 	g_assert(state->config_->size() == state->srcpads_.size());
+
+	/* Apply the sensor mode if specified. */
+	{
+		GLibLocker objLock(GST_OBJECT(self));
+		if (self->sensor_mode) {
+			SensorConfiguration sensorConfig;
+			if (gst_libcamera_src_parse_sensor_mode(self->sensor_mode,
+								sensorConfig)) {
+				state->config_->sensorConfig = sensorConfig;
+			} else {
+				GST_ELEMENT_ERROR(self, RESOURCE, SETTINGS,
+						  ("Invalid sensor mode '%s'", self->sensor_mode),
+						  ("Expected format: 'width:height:bit-depth'"));
+				gst_task_stop(task);
+				return;
+			}
+		}
+	}
 
 	if (!gst_libcamera_src_negotiate(self)) {
 		state->initControls_.clear();
@@ -934,6 +971,10 @@ gst_libcamera_src_set_property(GObject *object, guint prop_id,
 		g_free(self->camera_name);
 		self->camera_name = g_value_dup_string(value);
 		break;
+	case PROP_SENSOR_MODE:
+		g_free(self->sensor_mode);
+		self->sensor_mode = g_value_dup_string(value);
+		break;
 	default:
 		if (!state->controls_.setProperty(prop_id - PROP_LAST, value, pspec))
 			G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -952,6 +993,9 @@ gst_libcamera_src_get_property(GObject *object, guint prop_id, GValue *value,
 	switch (prop_id) {
 	case PROP_CAMERA_NAME:
 		g_value_set_string(value, self->camera_name);
+		break;
+	case PROP_SENSOR_MODE:
+		g_value_set_string(value, self->sensor_mode);
 		break;
 	default:
 		if (!state->controls_.getProperty(prop_id - PROP_LAST, value, pspec))
@@ -1040,6 +1084,7 @@ gst_libcamera_src_finalize(GObject *object)
 	g_clear_object(&self->task);
 	g_mutex_clear(&self->state->lock_);
 	g_free(self->camera_name);
+	g_free(self->sensor_mode);
 	delete self->state;
 
 	return klass->finalize(object);
@@ -1161,6 +1206,14 @@ gst_libcamera_src_class_init(GstLibcameraSrcClass *klass)
 							     | G_PARAM_READWRITE
 							     | G_PARAM_STATIC_STRINGS));
 	g_object_class_install_property(object_class, PROP_CAMERA_NAME, spec);
+
+	spec = g_param_spec_string("sensor-mode", "Sensor Mode",
+				   "Sensor mode as 'width:height:bit-depth'. "
+				   "This selects a specific sensor mode "
+				   "regardless of the stream output resolution.",
+				   nullptr,
+				   (GParamFlags)(GST_PARAM_MUTABLE_READY | G_PARAM_CONSTRUCT | G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+	g_object_class_install_property(object_class, PROP_SENSOR_MODE, spec);
 
 	GstCameraControls::installProperties(object_class, PROP_LAST);
 }
