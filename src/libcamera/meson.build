@@ -97,6 +97,12 @@ else
     endif
 endif
 
+# comply with FIPS 204
+signature_algo = get_option('ipa-signature-algo')
+if signature_algo == 'ml-dsa-65'
+    config_h.set('WITH_PQC', 1)
+endif
+
 if not libcrypto.found()
     warning('Neither gnutls nor libcrypto found, all IPA modules will be isolated')
     summary({'IPA modules signed with': 'None (modules will run isolated)'},
