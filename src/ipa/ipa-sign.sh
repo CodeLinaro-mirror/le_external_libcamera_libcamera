@@ -10,4 +10,4 @@ key="$1"
 input="$2"
 output="$3"
 
-openssl dgst -sha256 -sign "${key}" -out "${output}" "${input}"
+openssl pkeyutl -sign -inkey "${key}" -rawin -in "${input}" -out "${output}"
