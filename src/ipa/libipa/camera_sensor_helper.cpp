@@ -653,6 +653,24 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx708", CameraSensorHelperImx708)
 
+class CameraSensorHelperOv02e10 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperOv02e10()
+	{
+		/*
+		 * OV02E10 reports RAW10. The Intel IPU6 HAL configuration uses
+		 * SGRBG10 at 1928x1088 and exposure/gain lag of 2 frames.
+		 *
+		 * The analogue gain model is not yet datasheet-validated.
+		 * Use the common OmniVision 1/128 linear gain model as a
+		 * conservative first approximation.
+		 */
+		gain_ = AnalogueGainLinear{ 1, 0, 0, 16 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("ov02e10", CameraSensorHelperOv02e10)
+
 class CameraSensorHelperOv2685 : public CameraSensorHelper
 {
 public:

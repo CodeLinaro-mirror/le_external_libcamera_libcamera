@@ -325,6 +325,18 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				.hblankDelay = 3
 			},
 		} },
+		{ "ov02e10", {
+			.unitCellSize = { 1120, 1120 },
+			.testPatternModes = {
+				{ controls::draft::TestPatternModeOff, 0 },
+			},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
+		} },
 		{ "ov2685", {
 			.unitCellSize = { 1750, 1750 },
 			.testPatternModes = {
