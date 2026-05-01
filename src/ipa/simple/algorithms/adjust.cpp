@@ -14,6 +14,7 @@
 #include <libcamera/control_ids.h>
 
 #include "libcamera/internal/matrix.h"
+#include "libcamera/internal/yaml_parser.h"
 
 namespace libcamera {
 
@@ -24,24 +25,29 @@ constexpr float kDefaultSaturation = 1.0f;
 
 LOG_DEFINE_CATEGORY(IPASoftAdjust)
 
-int Adjust::init(IPAContext &context, [[maybe_unused]] const ValueNode &tuningData)
+int Adjust::init(IPAContext &context, const ValueNode &tuningData)
 {
+	defaultGamma_ = tuningData["gamma"].get<float>().value_or(kDefaultGamma);
+	defaultContrast_ = tuningData["contrast"].get<float>().value_or(kDefaultContrast);
+	defaultSaturation_ = tuningData["saturation"].get<float>().value_or(kDefaultSaturation);
+
 	context.ctrlMap[&controls::Gamma] =
-		ControlInfo(0.1f, 10.0f, kDefaultGamma);
+		ControlInfo(0.1f, 10.0f, defaultGamma_);
 	context.ctrlMap[&controls::Contrast] =
-		ControlInfo(0.0f, 2.0f, kDefaultContrast);
+		ControlInfo(0.0f, 2.0f, defaultContrast_);
 	if (context.ccmEnabled)
 		context.ctrlMap[&controls::Saturation] =
-			ControlInfo(0.0f, 2.0f, kDefaultSaturation);
+			ControlInfo(0.0f, 2.0f, defaultSaturation_);
+
 	return 0;
 }
 
 int Adjust::configure(IPAContext &context,
 		      [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	context.activeState.knobs.gamma = kDefaultGamma;
-	context.activeState.knobs.contrast = std::optional<float>();
-	context.activeState.knobs.saturation = std::optional<float>();
+	context.activeState.knobs.gamma = defaultGamma_;
+	context.activeState.knobs.contrast = defaultContrast_;
+	context.activeState.knobs.saturation = defaultSaturation_;
 
 	return 0;
 }
@@ -107,7 +113,7 @@ void Adjust::prepare(IPAContext &context,
 	}
 
 	params->gamma = 1.0 / context.activeState.knobs.gamma;
-	const float contrast = context.activeState.knobs.contrast.value_or(kDefaultContrast);
+	const float contrast = context.activeState.knobs.contrast.value_or(defaultContrast_);
 	params->contrastExp = tan(std::clamp(contrast * M_PI_4, 0.0, M_PI_2 - 0.00001));
 }
 
@@ -121,10 +127,10 @@ void Adjust::process([[maybe_unused]] IPAContext &context,
 	metadata.set(controls::Gamma, gamma);
 
 	const auto &contrast = frameContext.contrast;
-	metadata.set(controls::Contrast, contrast.value_or(kDefaultContrast));
+	metadata.set(controls::Contrast, contrast.value_or(defaultContrast_));
 
 	const auto &saturation = frameContext.saturation;
-	metadata.set(controls::Saturation, saturation.value_or(kDefaultSaturation));
+	metadata.set(controls::Saturation, saturation.value_or(defaultSaturation_));
 }
 
 REGISTER_IPA_ALGORITHM(Adjust, "Adjust")
