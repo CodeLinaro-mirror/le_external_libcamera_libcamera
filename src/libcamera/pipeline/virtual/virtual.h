@@ -23,11 +23,12 @@
 
 #include "frame_generator.h"
 #include "image_frame_generator.h"
+#include "raw_frame_generator.h"
 #include "test_pattern_generator.h"
 
 namespace libcamera {
 
-using VirtualFrame = std::variant<TestPattern, ImageFrames>;
+using VirtualFrame = std::variant<TestPattern, ImageFrames, RawFrames>;
 
 class VirtualCameraData : public Camera::Private,
 			  public Thread,
