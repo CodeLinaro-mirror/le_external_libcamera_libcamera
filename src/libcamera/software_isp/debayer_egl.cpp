@@ -525,8 +525,6 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, std::vector<
 	if (err != GL_NO_ERROR) {
 		LOG(eGL, Error) << "Drawing scene fail " << err;
 		return -ENODEV;
-	} else {
-		egl_.syncOutput();
 	}
 
 	return 0;
@@ -549,8 +547,6 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 		goto error;
 	}
 
-	bench_.finishFrame();
-
 	metadata.planes()[0].bytesused = output->planes()[0].length;
 
 	/* Calculate stats for the whole frame */
@@ -558,6 +554,9 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	    dmaSyncBegin(dmaSyncers, input, nullptr);
 	stats_->processFrame(frame, 0, input);
 	dmaSyncers.clear();
+
+	egl_.syncOutput();
+	bench_.finishFrame();
 
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);
