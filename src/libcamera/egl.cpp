@@ -19,6 +19,7 @@
 
 #include <libcamera/base/thread.h>
 
+#include <GLES3/gl32.h>
 #include <libdrm/drm_fourcc.h>
 
 namespace libcamera {
@@ -102,6 +103,9 @@ void eGL::syncOutput()
  * \brief Create a DMA-BUF backed 2D texture
  * \param[in,out] eglImage EGL image to associate with the DMA-BUF
  * \param[in] fd DMA-BUF file descriptor
+ * \param[in] drm_format the DRM fourcc
+ * \param[in] width the buffer width
+ * \param[in] height the buffer height
  * \param[in] output If true, create framebuffer for render target
  *
  * Internal implementation for creating DMA-BUF textures. Creates an EGL
@@ -110,15 +114,15 @@ void eGL::syncOutput()
  *
  * \return 0 on success, or -ENODEV on failure
  */
-int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
+int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, uint32_t drm_format, uint32_t width, uint32_t height, bool output)
 {
 	ASSERT(tid_ == Thread::currentId());
 
 	// clang-format off
 	EGLint image_attrs[] = {
-		EGL_WIDTH, (EGLint)eglImage.width_,
-		EGL_HEIGHT, (EGLint)eglImage.height_,
-		EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_ARGB8888,
+		EGL_WIDTH, (EGLint)width,
+		EGL_HEIGHT, (EGLint)height,
+		EGL_LINUX_DRM_FOURCC_EXT, (EGLint)drm_format,
 		EGL_DMA_BUF_PLANE0_FD_EXT, fd,
 		EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
 		EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)eglImage.stride_,
@@ -133,7 +137,7 @@ int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
 					      NULL, image_attrs);
 
 	if (image == EGL_NO_IMAGE_KHR) {
-		LOG(eGL, Error) << "eglCreateImageKHR fail";
+		LOG(eGL, Debug) << "eglCreateImageKHR fail";
 		return -ENODEV;
 	}
 
@@ -171,6 +175,9 @@ int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
 /**
  * \brief Create an input DMA-BUF backed texture
  * \param[in,out] eglImage EGL image to associate with the DMA-BUF
+ * \param[in] format the GL format
+ * \param[in] width the buffer width
+ * \param[in] height the buffer height
  * \param[in] fd DMA-BUF file descriptor
  *
  * Creates an EGL image from a DMA-BUF file descriptor and binds it to
@@ -179,11 +186,25 @@ int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
  *
  * \return 0 on success, or -ENODEV on failure
  */
-int eGL::createInputDMABufTexture2D(eGLImage &eglImage, int fd)
+int eGL::createInputDMABufTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint32_t height, int fd)
 {
+	EGLint drm_format;
+
 	ASSERT(tid_ == Thread::currentId());
 
-	return createDMABufTexture2D(eglImage, fd, false);
+	switch (format) {
+	case GL_LUMINANCE:
+		drm_format = DRM_FORMAT_R8;
+		break;
+	case GL_RG:
+		drm_format = DRM_FORMAT_RG88;
+		break;
+	default:
+		LOG(eGL, Error) << "unhandled GL format";
+		return -ENODEV;
+	}
+
+	return createDMABufTexture2D(eglImage, fd, drm_format, width, height, false);
 }
 
 /**
@@ -202,7 +223,7 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
 {
 	ASSERT(tid_ == Thread::currentId());
 
-	return createDMABufTexture2D(eglImage, fd, true);
+	return createDMABufTexture2D(eglImage, fd, DRM_FORMAT_ARGB8888, eglImage.width_, eglImage.height_, true);
 }
 
 /**
