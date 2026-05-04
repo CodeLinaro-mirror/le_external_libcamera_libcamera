@@ -96,11 +96,11 @@ void Awb::process(IPAContext &context,
 
 	RGB<double> rgbGains{ { 1 / gains.r(), 1 / gains.g(), 1 / gains.b() } };
 	context.activeState.awb.temperatureK = estimateCCT(rgbGains);
-	metadata.set(controls::ColourTemperature, context.activeState.awb.temperatureK);
+	metadata.set(controls::ColourTemperature, context.activeState.awb.temperatureK.value_or(0));
 
 	LOG(IPASoftAwb, Debug)
 		<< "gain R/B: " << gains << "; temperature: "
-		<< context.activeState.awb.temperatureK;
+		<< context.activeState.awb.temperatureK.value_or(0);
 }
 
 REGISTER_IPA_ALGORITHM(Awb, "Awb")

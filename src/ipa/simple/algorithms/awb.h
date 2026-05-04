@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * Copyright (C) 2024-2025 Red Hat Inc.
+ * Copyright (C) 2024-2026 Red Hat Inc.
  *
  * Auto white balance
  */
@@ -12,6 +12,8 @@
 namespace libcamera {
 
 namespace ipa::soft::algorithms {
+
+constexpr unsigned int kDefaultTemperature = 6500;
 
 class Awb : public Algorithm
 {
