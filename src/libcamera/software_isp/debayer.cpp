@@ -59,6 +59,11 @@ namespace libcamera {
  */
 
 /**
+ * \var DebayerParams::kLscBytesPerCell
+ * \brief Number of bytes per each of the lens shading grid areas
+ */
+
+/**
  * \typedef DebayerParams::LscLookupTable
  * \brief Lookup table for lens shading correction
  *
