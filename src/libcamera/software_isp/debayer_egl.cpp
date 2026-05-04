@@ -501,7 +501,9 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 	egl_.makeCurrent();
 
 	/* Create a standard texture input */
-	egl_.createTexture2D(*eglImageBayerIn_, glFormat_, inputConfig_.stride / bytesPerPixel_, height_, in.planes()[0].data());
+	egl_.createTexture2D(*eglImageBayerIn_, glFormat_,
+			     inputConfig_.stride / bytesPerPixel_, height_,
+			     in.planes()[0].data(), GL_NEAREST);
 
 	/* Generate the output render framebuffer as render to texture */
 	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, out_fd);
