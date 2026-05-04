@@ -52,3 +52,4 @@ static CamHelper *create()
 }
 
 static RegisterCamHelper reg("ov9281", &create);
+static RegisterCamHelper reg9782("ov9782", &create);
