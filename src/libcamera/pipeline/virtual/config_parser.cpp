@@ -156,13 +156,20 @@ int ConfigParser::parseFrameGenerator(const ValueNode &cameraConfigData, Virtual
 {
 	const std::string testPatternKey = "test_pattern";
 	const std::string framesKey = "frames";
-	if (cameraConfigData.contains(testPatternKey)) {
-		if (cameraConfigData.contains(framesKey)) {
-			LOG(Virtual, Error) << "A camera should use either "
-					    << testPatternKey << " or " << framesKey;
-			return -EINVAL;
-		}
+	const std::string rawFramesKey = "raw_frames";
 
+	/* Ensure only one frame source is specified */
+	int sourcesSpecified = cameraConfigData.contains(testPatternKey) +
+			       cameraConfigData.contains(framesKey) +
+			       cameraConfigData.contains(rawFramesKey);
+	if (sourcesSpecified > 1) {
+		LOG(Virtual, Error) << "A camera should use only one of "
+				    << testPatternKey << ", " << framesKey
+				    << ", or " << rawFramesKey;
+		return -EINVAL;
+	}
+
+	if (cameraConfigData.contains(testPatternKey)) {
 		auto testPattern = cameraConfigData[testPatternKey].get<std::string>("");
 
 		if (testPattern == "bars") {
@@ -174,6 +181,87 @@ int ConfigParser::parseFrameGenerator(const ValueNode &cameraConfigData, Virtual
 					    << " is not supported";
 			return -EINVAL;
 		}
+
+		return 0;
+	}
+
+	if (cameraConfigData.contains(rawFramesKey)) {
+		const ValueNode &rawFrames = cameraConfigData[rawFramesKey];
+
+		if (!rawFrames.isDictionary()) {
+			LOG(Virtual, Error) << "'raw_frames' is not a dictionary.";
+			return -EINVAL;
+		}
+
+		auto path = rawFrames["path"].get<std::string>();
+		if (!path) {
+			LOG(Virtual, Error) << "raw_frames: path must be specified.";
+			return -EINVAL;
+		}
+
+		std::vector<std::filesystem::path> files;
+
+		switch (std::filesystem::symlink_status(*path).type()) {
+		case std::filesystem::file_type::regular:
+			files.push_back(*path);
+			break;
+
+		case std::filesystem::file_type::directory:
+			for (const auto &dentry : std::filesystem::directory_iterator{ *path })
+				if (dentry.is_regular_file())
+					files.push_back(dentry.path());
+
+			std::sort(files.begin(), files.end(), [](const auto &a, const auto &b) {
+				return ::strverscmp(a.c_str(), b.c_str()) < 0;
+			});
+
+			if (files.empty()) {
+				LOG(Virtual, Error) << "raw_frames directory has no files: " << *path;
+				return -EINVAL;
+			}
+			break;
+		default:
+			LOG(Virtual, Error) << "raw_frames path: " << *path << " is not supported";
+			return -EINVAL;
+		}
+
+		/* Parse bayer_order */
+		auto bayerOrder = rawFrames["bayer_order"].get<std::string>();
+		if (!bayerOrder) {
+			LOG(Virtual, Error) << "raw_frames: bayer_order must be specified.";
+			return -EINVAL;
+		}
+
+		static const std::map<std::string, uint32_t> bayerOrderMap = {
+			{ "RGGB", properties::draft::ColorFilterArrangementEnum::RGGB },
+			{ "BGGR", properties::draft::ColorFilterArrangementEnum::BGGR },
+			{ "GRBG", properties::draft::ColorFilterArrangementEnum::GRBG },
+			{ "GBRG", properties::draft::ColorFilterArrangementEnum::GBRG },
+		};
+
+		auto it = bayerOrderMap.find(*bayerOrder);
+		if (it == bayerOrderMap.end()) {
+			LOG(Virtual, Error) << "raw_frames: unsupported bayer_order: "
+					    << *bayerOrder
+					    << ", must be one of RGGB, BGGR, GRBG, GBRG";
+			return -EINVAL;
+		}
+
+		/* Parse bit_depth */
+		auto bitDepth = rawFrames["bit_depth"].get<unsigned int>();
+		if (!bitDepth) {
+			LOG(Virtual, Error) << "raw_frames: bit_depth must be specified.";
+			return -EINVAL;
+		}
+
+		static const std::set<unsigned int> supportedBitDepths = { 8, 10, 12, 14, 16 };
+		if (supportedBitDepths.find(*bitDepth) == supportedBitDepths.end()) {
+			LOG(Virtual, Error) << "raw_frames: bit_depth unsupported: " << *bitDepth
+					    << ", must be one of 8, 10, 12, 14, 16";
+			return -EINVAL;
+		}
+
+		data->config_.frame = RawFrames{ std::move(files), it->second, *bitDepth };
 
 		return 0;
 	}

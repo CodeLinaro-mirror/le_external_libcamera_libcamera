@@ -19,6 +19,7 @@
 #include <string>
 #include <time.h>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <libcamera/base/flags.h>
@@ -37,7 +38,6 @@
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
-#include "libcamera/internal/value_node.h"
 
 #include "pipeline/virtual/config_parser.h"
 
@@ -202,21 +202,28 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 			adjusted = true;
 		}
 
-		if (cfg.pixelFormat != formats::NV12) {
-			cfg.pixelFormat = formats::NV12;
-			status = Adjusted;
-			adjusted = true;
-		}
+		const PixelFormatInfo &fmtInfo = PixelFormatInfo::info(cfg.pixelFormat);
+		const bool rawStream = fmtInfo.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
 
-		if (cfg.colorSpace != ColorSpace::Rec709) {
-			cfg.colorSpace = ColorSpace::Rec709;
-			status = Adjusted;
-			adjusted = true;
-		}
+		if (!rawStream) {
+			if (cfg.pixelFormat != formats::NV12) {
+				cfg.pixelFormat = formats::NV12;
+				status = Adjusted;
+				adjusted = true;
+			}
 
-		if (validateColorSpaces() == Adjusted) {
-			status = Adjusted;
-			adjusted = true;
+			if (cfg.colorSpace != ColorSpace::Rec709) {
+				cfg.colorSpace = ColorSpace::Rec709;
+				status = Adjusted;
+				adjusted = true;
+			}
+
+			if (validateColorSpaces() == Adjusted) {
+				status = Adjusted;
+				adjusted = true;
+			}
+		} else {
+			cfg.colorSpace = ColorSpace::Raw;
 		}
 
 		if (adjusted)
@@ -267,7 +274,64 @@ PipelineHandlerVirtual::generateConfiguration(Camera *camera,
 		case StreamRole::Viewfinder:
 			break;
 
-		case StreamRole::Raw:
+		case StreamRole::Raw: {
+			if (!std::holds_alternative<RawFrames>(data->config_.frame)) {
+				LOG(Virtual, Error)
+					<< "StreamRole::Raw requested but camera is not configured with raw_frames";
+				return {};
+			}
+
+			const auto &rawFrames = std::get<RawFrames>(data->config_.frame);
+			PixelFormat rawFormat;
+
+			/*
+			 * \todo Possibly replace with a 2D lookup table to
+			 * be able to just index by (cfaPatter, bitDepth),
+			 * might be cleaner.
+			 */
+			auto bayerFormat = [&](PixelFormat f8, PixelFormat f10,
+					       PixelFormat f12, PixelFormat f14,
+					       PixelFormat f16) {
+				switch (rawFrames.bitDepth) {
+				case 8:
+					return f8;
+				case 10:
+					return f10;
+				case 12:
+					return f12;
+				case 14:
+					return f14;
+				default:
+					return f16;
+				}
+			};
+
+			/* Map bayer order and bit depth to pixel format */
+			if (rawFrames.cfaPattern == properties::draft::ColorFilterArrangementEnum::RGGB)
+				rawFormat = bayerFormat(formats::SRGGB8, formats::SRGGB10, formats::SRGGB12, formats::SRGGB14, formats::SRGGB16);
+			else if (rawFrames.cfaPattern == properties::draft::ColorFilterArrangementEnum::BGGR)
+				rawFormat = bayerFormat(formats::SBGGR8, formats::SBGGR10, formats::SBGGR12, formats::SBGGR14, formats::SBGGR16);
+			else if (rawFrames.cfaPattern == properties::draft::ColorFilterArrangementEnum::GRBG)
+				rawFormat = bayerFormat(formats::SGRBG8, formats::SGRBG10, formats::SGRBG12, formats::SGRBG14, formats::SGRBG16);
+			else
+				rawFormat = bayerFormat(formats::SGBRG8, formats::SGBRG10, formats::SGBRG12, formats::SGBRG14, formats::SGBRG16);
+
+			/*
+			 * Use the Bayer format matching the raw frame
+			 * configuration.
+			 */
+			std::map<PixelFormat, std::vector<SizeRange>> rawStreamFormats;
+			rawStreamFormats[rawFormat] = { { data->config_.minResolutionSize, data->config_.maxResolutionSize } };
+			StreamFormats rawFormats(rawStreamFormats);
+			StreamConfiguration rawCfg(rawFormats);
+			rawCfg.pixelFormat = rawFormat;
+			rawCfg.size = data->config_.maxResolutionSize;
+			rawCfg.bufferCount = VirtualCameraConfiguration::kBufferCount;
+			rawCfg.colorSpace = ColorSpace::Raw;
+			config->addConfiguration(rawCfg);
+			continue;
+		}
+
 		default:
 			LOG(Virtual, Error)
 				<< "Requested stream role not supported: " << role;
@@ -401,6 +465,28 @@ bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator
 		std::set<Stream *> streams;
 		for (auto &streamConfig : data->streamConfigs_)
 			streams.insert(&streamConfig.stream);
+
+		/* Add sensor properties and controls required by SoftISP for raw streams */
+		if (std::holds_alternative<RawFrames>(data->config_.frame)) {
+			const auto &rawFrames = std::get<RawFrames>(data->config_.frame);
+			data->properties_.set(properties::draft::ColorFilterArrangement, static_cast<int32_t>(rawFrames.cfaPattern));
+			data->properties_.set(properties::PixelArraySize, data->config_.maxResolutionSize);
+			data->properties_.set(properties::UnitCellSize, Size(1000, 1000));
+
+			/* Extends existing controlInfo_ with SoftISP required controls */
+			ControlInfoMap::Map controls;
+			for (const auto &[id, info] : data->controlInfo_)
+				controls[id] = info;
+
+			/* \todo Allow configuration via YAML */
+			controls[&controls::AnalogueGain] = ControlInfo(1.0f, 16.0f, 1.0f);
+			controls[&controls::ExposureTime] = ControlInfo(100, 33333, 10000);
+			controls[&controls::AeEnable] = ControlInfo(false, true, true);
+			controls[&controls::AwbEnable] = ControlInfo(false, true, true);
+
+			data->controlInfo_ = ControlInfoMap(std::move(controls), controls::controls);
+		}
+
 		std::string id = data->config_.id;
 		std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
 
@@ -434,7 +520,12 @@ bool PipelineHandlerVirtual::initFrameGenerator(Camera *camera)
 			   [&](ImageFrames &imageFrames) {
 				   for (auto &streamConfig : data->streamConfigs_)
 					   streamConfig.frameGenerator = ImageFrameGenerator::create(imageFrames);
-			   } },
+			   },
+			   [&](RawFrames &rawFrames) {
+				   for (auto &streamConfig : data->streamConfigs_)
+					   streamConfig.frameGenerator = RawFrameGenerator::create(rawFrames);
+			   },
+		   },
 		   frame);
 
 	for (auto &streamConfig : data->streamConfigs_)
