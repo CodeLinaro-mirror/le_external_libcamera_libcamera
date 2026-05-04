@@ -15,7 +15,7 @@ namespace ipa::soft::algorithms {
 
 LOG_DEFINE_CATEGORY(IPASoftLsc)
 
-int Lsc::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
+int Lsc::init(IPAContext &context, const ValueNode &tuningData)
 {
 	int ret_r = lscR.readYaml(tuningData["grids"], "ct", "r");
 	int ret_g = lscG.readYaml(tuningData["grids"], "ct", "g");
@@ -26,6 +26,8 @@ int Lsc::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
 			<< "Failed to parse 'lsc' parameter from tuning file.";
 		return -EINVAL;
 	}
+
+	context.lscEnabled = true;
 
 	return 0;
 }
