@@ -4,7 +4,7 @@
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  *
  * Process object
- * /
+ */
 
 #ifndef __ARCH_WANT_SYS_CLONE3
 #define __ARCH_WANT_SYS_CLONE3
