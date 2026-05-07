@@ -939,9 +939,6 @@ void Vc4CameraData::tryRunPipeline()
 
 	fillRequestMetadata(bayerFrame.controls, request);
 
-	/* Set our state to say the pipeline is active. */
-	state_ = State::Busy;
-
 	unsigned int bayer = unicam_[Unicam::Image].getBufferId(bayerFrame.buffer);
 
 	LOG(RPI, Debug) << "Signalling prepareIsp:"
@@ -954,6 +951,12 @@ void Vc4CameraData::tryRunPipeline()
 	params.ipaContext = request->sequence();
 	params.delayContext = bayerFrame.delayContext;
 	params.buffers.embedded = 0;
+
+	/* This sorts out synchronisation with ControlLists in earlier requests. */
+	handleControlLists(bayerFrame.delayContext, params.requestControls);
+
+	/* Set our state to say the pipeline is active. */
+	state_ = State::Busy;
 
 	if (embeddedBuffer) {
 		unsigned int embeddedId = unicam_[Unicam::Embedded].getBufferId(embeddedBuffer);
