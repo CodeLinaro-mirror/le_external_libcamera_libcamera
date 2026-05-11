@@ -19,6 +19,7 @@
 #include <string>
 #include <time.h>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include <libcamera/base/flags.h>
@@ -31,13 +32,13 @@
 #include <libcamera/pixel_format.h>
 #include <libcamera/property_ids.h>
 
+#include "libcamera/internal/bayer_format.h"
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
-#include "libcamera/internal/value_node.h"
 
 #include "pipeline/virtual/config_parser.h"
 
@@ -202,21 +203,28 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 			adjusted = true;
 		}
 
-		if (cfg.pixelFormat != formats::NV12) {
-			cfg.pixelFormat = formats::NV12;
-			status = Adjusted;
-			adjusted = true;
-		}
+		const PixelFormatInfo &fmtInfo = PixelFormatInfo::info(cfg.pixelFormat);
+		const bool rawStream = fmtInfo.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
 
-		if (cfg.colorSpace != ColorSpace::Rec709) {
-			cfg.colorSpace = ColorSpace::Rec709;
-			status = Adjusted;
-			adjusted = true;
-		}
+		if (!rawStream) {
+			if (cfg.pixelFormat != formats::NV12) {
+				cfg.pixelFormat = formats::NV12;
+				status = Adjusted;
+				adjusted = true;
+			}
 
-		if (validateColorSpaces() == Adjusted) {
-			status = Adjusted;
-			adjusted = true;
+			if (cfg.colorSpace != ColorSpace::Rec709) {
+				cfg.colorSpace = ColorSpace::Rec709;
+				status = Adjusted;
+				adjusted = true;
+			}
+
+			if (validateColorSpaces() == Adjusted) {
+				status = Adjusted;
+				adjusted = true;
+			}
+		} else {
+			cfg.colorSpace = ColorSpace::Raw;
 		}
 
 		if (adjusted)
@@ -267,7 +275,54 @@ PipelineHandlerVirtual::generateConfiguration(Camera *camera,
 		case StreamRole::Viewfinder:
 			break;
 
-		case StreamRole::Raw:
+		case StreamRole::Raw: {
+			const auto *rawFrames = std::get_if<RawFrames>(&data->config_.frame);
+			if (!rawFrames) {
+				LOG(Virtual, Error)
+					<< "StreamRole::Raw requested but camera is not configured with raw_frames";
+				return {};
+			}
+
+			static const std::map<uint32_t, BayerFormat::Order> cfaToOrder = {
+				{ properties::draft::ColorFilterArrangementEnum::RGGB, BayerFormat::RGGB },
+				{ properties::draft::ColorFilterArrangementEnum::BGGR, BayerFormat::BGGR },
+				{ properties::draft::ColorFilterArrangementEnum::GRBG, BayerFormat::GRBG },
+				{ properties::draft::ColorFilterArrangementEnum::GBRG, BayerFormat::GBRG },
+			};
+
+			auto it = cfaToOrder.find(rawFrames->cfaPattern);
+			if (it == cfaToOrder.end()) {
+				LOG(Virtual, Error) << "Unsupported CFA pattern";
+				return {};
+			}
+
+			PixelFormat rawFormat =
+				BayerFormat(it->second, rawFrames->bitDepth,
+					    BayerFormat::Packing::None)
+					.toPixelFormat();
+
+			if (!rawFormat.isValid()) {
+				LOG(Virtual, Error) << "Could not find PixelFormat for Bayer format";
+				return {};
+			}
+
+			/*
+			 * Use the Bayer format matching the raw frame
+			 * configuration.
+			 */
+			std::map<PixelFormat, std::vector<SizeRange>> rawStreamFormats;
+			rawStreamFormats[rawFormat] = { { data->config_.minResolutionSize,
+							  data->config_.maxResolutionSize } };
+			StreamFormats rawFormats(rawStreamFormats);
+			StreamConfiguration rawCfg(rawFormats);
+			rawCfg.pixelFormat = rawFormat;
+			rawCfg.size = data->config_.maxResolutionSize;
+			rawCfg.bufferCount = VirtualCameraConfiguration::kBufferCount;
+			rawCfg.colorSpace = ColorSpace::Raw;
+			config->addConfiguration(rawCfg);
+			continue;
+		}
+
 		default:
 			LOG(Virtual, Error)
 				<< "Requested stream role not supported: " << role;
@@ -401,6 +456,13 @@ bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator
 		std::set<Stream *> streams;
 		for (auto &streamConfig : data->streamConfigs_)
 			streams.insert(&streamConfig.stream);
+
+		if (const auto *rawFrames = std::get_if<RawFrames>(&data->config_.frame)) {
+			data->properties_.set(properties::draft::ColorFilterArrangement, static_cast<int32_t>(rawFrames->cfaPattern));
+			data->properties_.set(properties::PixelArraySize, data->config_.maxResolutionSize);
+			data->properties_.set(properties::UnitCellSize, Size(1000, 1000));
+		}
+
 		std::string id = data->config_.id;
 		std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
 
@@ -434,7 +496,12 @@ bool PipelineHandlerVirtual::initFrameGenerator(Camera *camera)
 			   [&](ImageFrames &imageFrames) {
 				   for (auto &streamConfig : data->streamConfigs_)
 					   streamConfig.frameGenerator = ImageFrameGenerator::create(imageFrames);
-			   } },
+			   },
+			   [&](RawFrames &rawFrames) {
+				   for (auto &streamConfig : data->streamConfigs_)
+					   streamConfig.frameGenerator = RawFrameGenerator::create(rawFrames);
+			   },
+		   },
 		   frame);
 
 	for (auto &streamConfig : data->streamConfigs_)
