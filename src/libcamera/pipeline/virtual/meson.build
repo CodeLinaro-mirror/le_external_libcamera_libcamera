@@ -3,6 +3,7 @@
 libcamera_internal_sources += files([
     'config_parser.cpp',
     'image_frame_generator.cpp',
+    'raw_frame_generator.cpp',
     'test_pattern_generator.cpp',
     'virtual.cpp',
 ])
