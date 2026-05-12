@@ -15,6 +15,8 @@
 
 #include "libcamera/internal/matrix.h"
 
+#include "awb.h"
+
 namespace {
 
 constexpr unsigned int kTemperatureThreshold = 100;
@@ -44,7 +46,8 @@ int Ccm::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
 void Ccm::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext, [[maybe_unused]] DebayerParams *params)
 {
-	const unsigned int ct = context.activeState.awb.temperatureK;
+	const unsigned int ct =
+		context.activeState.awb.temperatureK.value_or(kDefaultTemperature);
 
 	/* Change CCM only on bigger temperature changes. */
 	if (!currentCcm_ ||
