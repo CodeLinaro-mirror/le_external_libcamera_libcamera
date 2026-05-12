@@ -54,6 +54,16 @@ namespace libcamera {
  */
 
 /**
+ * \enum DebayerParams::LscType
+ * \brief Type of lens shading correction to apply
+ */
+
+/**
+ * \var DebayerParams::LscTable
+ * \brief Lens shading correction using a lookup table
+ */
+
+/**
  * \typedef DebayerParams::LscValueType
  * \brief Type of LSC grid values
  */

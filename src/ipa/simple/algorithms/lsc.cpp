@@ -17,13 +17,22 @@ LOG_DEFINE_CATEGORY(IPASoftLsc)
 
 int Lsc::init(IPAContext &context, const ValueNode &tuningData)
 {
-	int retR = lscR_.readYaml(tuningData["sets"], "ct", "r");
-	int retG = lscG_.readYaml(tuningData["sets"], "ct", "g");
-	int retB = lscB_.readYaml(tuningData["sets"], "ct", "b");
+	std::string type = tuningData["type"].get<std::string>("table");
 
-	if (retR < 0 || retG < 0 || retB < 0) {
-		LOG(IPASoftLsc, Error)
-			<< "Failed to parse 'lsc' parameter from tuning file.";
+	if (type == "table") {
+		int retR = lscR_.readYaml(tuningData["sets"], "ct", "r");
+		int retG = lscG_.readYaml(tuningData["sets"], "ct", "g");
+		int retB = lscB_.readYaml(tuningData["sets"], "ct", "b");
+
+		if (retR < 0 || retG < 0 || retB < 0) {
+			LOG(IPASoftLsc, Error)
+				<< "Failed to parse 'lsc' parameter from tuning file.";
+			return -EINVAL;
+		}
+
+		type_ = DebayerParams::LscTable;
+	} else {
+		LOG(IPASoftLsc, Error) << "LSC: type " << type << " not supported";
 		return -EINVAL;
 	}
 

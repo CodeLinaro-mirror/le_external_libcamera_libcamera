@@ -34,6 +34,9 @@ struct DebayerParams {
 		kLscValuesPerCell * sizeof(LscValueType);
 	using LscLookupTable =
 		std::array<LscValueType, kLscGridSize * kLscGridSize * kLscValuesPerCell>;
+	enum LscType : uint32_t {
+		LscTable,
+	};
 	LscLookupTable lscLut{};
 };
 

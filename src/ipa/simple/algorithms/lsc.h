@@ -31,6 +31,7 @@ public:
 
 private:
 	using LscMatrix = Matrix<float, DebayerParams::kLscGridSize, DebayerParams::kLscGridSize>;
+	DebayerParams::LscType type_;
 	Interpolator<LscMatrix> lscR_;
 	Interpolator<LscMatrix> lscG_;
 	Interpolator<LscMatrix> lscB_;
