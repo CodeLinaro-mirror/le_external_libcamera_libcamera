@@ -103,7 +103,8 @@ public:
 
 	int createInputDMABufTexture2D(eGLImage &eglImage, int fd);
 	int createOutputDMABufTexture2D(eGLImage &eglImage, int fd);
-	void createTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint32_t height, void *data);
+	void createTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint32_t height,
+			     const void *data, GLint filter);
 
 	void pushEnv(std::vector<std::string> &shaderEnv, const char *str);
 	void makeCurrent();
