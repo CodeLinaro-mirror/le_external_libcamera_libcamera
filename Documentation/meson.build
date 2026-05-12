@@ -194,8 +194,10 @@ if sphinx.found()
                   install_dir : doc_install_dir,
                   install_tag : 'doc')
 
-    meson.add_install_script('install-doxygen.sh', doc_install_dir,
-                             'public-api', 'internal-api')
+    meson.add_install_script('install-doxygen.sh', doc_install_dir, 'public-api',
+                             install_tag : 'doc')
+    meson.add_install_script('install-doxygen.sh', doc_install_dir, 'internal-api',
+                             install_tag : 'doc-internal')
 
     custom_target('documentation-linkcheck',
                   command : [sphinx, '-W', '-b', 'linkcheck',

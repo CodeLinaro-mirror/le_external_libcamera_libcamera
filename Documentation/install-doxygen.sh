@@ -7,12 +7,9 @@
 # Move Doxygen-generated API documentation to correct location
 
 doc_dir="${MESON_INSTALL_DESTDIR_PREFIX}/$1"
-shift
-dirs="$*"
+api_dir="$2"
 
-echo "Moving API documentation"
+echo "Moving Doxygen ${api_dir} API documentation"
 
-for dir in $dirs ; do
-	rm -r "${doc_dir}/html/${dir}"
-	mv "${doc_dir}/${dir}" "${doc_dir}/html/"
-done
+rm -r "${doc_dir}/html/${api_dir}"
+mv "${doc_dir}/${api_dir}" "${doc_dir}/html/"
