@@ -58,7 +58,7 @@ public:
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls,
 		 bool *ccmEnabled,
-		 bool *lscEnabled) override;
+		 uint32_t *lscType) override;
 	int configure(const IPAConfigInfo &configInfo) override;
 
 	int start() override;
@@ -99,7 +99,7 @@ int IPASoftSimple::init(const IPASettings &settings,
 			const ControlInfoMap &sensorControls,
 			ControlInfoMap *ipaControls,
 			bool *ccmEnabled,
-			bool *lscEnabled)
+			uint32_t *lscType)
 {
 	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
 	if (!camHelper_) {
@@ -138,7 +138,7 @@ int IPASoftSimple::init(const IPASettings &settings,
 		return ret;
 
 	*ccmEnabled = context_.ccmEnabled;
-	*lscEnabled = context_.lscEnabled;
+	*lscType = context_.lscType;
 
 	params_ = nullptr;
 	stats_ = nullptr;

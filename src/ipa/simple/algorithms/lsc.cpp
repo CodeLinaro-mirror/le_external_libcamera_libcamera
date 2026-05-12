@@ -36,7 +36,7 @@ int Lsc::init(IPAContext &context, const ValueNode &tuningData)
 		return -EINVAL;
 	}
 
-	context.lscEnabled = true;
+	context.lscType = type_;
 
 	return 0;
 }

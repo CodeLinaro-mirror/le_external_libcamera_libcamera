@@ -147,8 +147,13 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	/* Specify GL_OES_EGL_image_external */
 	egl_.pushEnv(shaderEnv, "#extension GL_OES_EGL_image_external: enable");
 
-	if (lscEnabled_)
-		egl_.pushEnv(shaderEnv, "#define APPLY_LSC");
+	switch (lscType_) {
+	case DebayerParams::LscNone:
+		break;
+	case DebayerParams::LscTable:
+		egl_.pushEnv(shaderEnv, "#define APPLY_LSC_TABLE");
+		break;
+	}
 
 	/*
 	 * Tell shaders how to re-order output taking account of how the pixels
@@ -289,7 +294,7 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 			  const std::vector<std::reference_wrapper<const StreamConfiguration>> &outputCfgs,
 			  [[maybe_unused]] bool ccmEnabled,
-			  bool lscEnabled)
+			  uint32_t lscType)
 {
 	if (getInputConfig(inputCfg.pixelFormat, inputConfig_) != 0)
 		return -EINVAL;
@@ -306,7 +311,7 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 		return -EINVAL;
 	}
 
-	lscEnabled_ = lscEnabled;
+	lscType_ = lscType;
 
 	inputConfig_.stride = inputCfg.stride;
 	inputPixelFormat_ = inputCfg.pixelFormat;
@@ -349,7 +354,7 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	 */
 	stats_->setWindow(Rectangle(window_.size()));
 
-	if (lscEnabled_) {
+	if (lscType_ == DebayerParams::LscTable) {
 		constexpr unsigned int gridSize = DebayerParams::kLscGridSize;
 		const unsigned int stride = gridSize * DebayerParams::kLscBytesPerCell;
 		eglImageLscLookup_ =
@@ -499,11 +504,15 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 	glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
 	LOG(Debayer, Debug) << " ccmUniformDataIn_ " << ccmUniformDataIn_ << " data " << params.combinedMatrix;
 
-	if (lscEnabled_) {
+	switch (lscType_) {
+	case DebayerParams::LscNone:
+		break;
+	case DebayerParams::LscTable:
 		egl_.createTexture2D(*eglImageLscLookup_, GL_RGB16F, GL_RGB, GL_FLOAT,
 				     DebayerParams::kLscGridSize, DebayerParams::kLscGridSize,
 				     params.lscLut.data(), GL_LINEAR);
 		glUniform1i(textureUniformLsc_, eglImageLscLookup_->texture_unit_uniform_id_);
+		break;
 	}
 
 	/*

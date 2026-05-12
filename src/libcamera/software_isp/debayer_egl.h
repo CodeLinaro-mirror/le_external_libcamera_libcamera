@@ -45,7 +45,7 @@ public:
 	int configure(const StreamConfiguration &inputCfg,
 		      const std::vector<std::reference_wrapper<const StreamConfiguration>> &outputCfgs,
 		      bool ccmEnabled,
-		      bool lscEnabled) override;
+		      uint32_t lscType) override;
 
 	Size patternSize(PixelFormat inputFormat) override;
 
@@ -77,9 +77,9 @@ private:
 	std::unique_ptr<eGLImage> eglImageBayerIn_;
 	std::unique_ptr<eGLImage> eglImageBayerOut_;
 
-	/* LSC lookup table */
+	/* Lens shading correction */
+	uint32_t lscType_;
 	std::unique_ptr<eGLImage> eglImageLscLookup_;
-	bool lscEnabled_;
 
 	/* Shader parameters */
 	float firstRed_x_;

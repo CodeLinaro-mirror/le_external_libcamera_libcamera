@@ -14,6 +14,7 @@
 #include <libcamera/controls.h>
 
 #include "libcamera/internal/matrix.h"
+#include "libcamera/internal/software_isp/debayer_params.h"
 #include "libcamera/internal/vector.h"
 
 #include <libipa/fc_queue.h>
@@ -93,7 +94,7 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 	ControlInfoMap::Map ctrlMap;
 	bool ccmEnabled = false;
-	bool lscEnabled = false;
+	DebayerParams::LscType lscType = DebayerParams::LscNone;
 };
 
 } /* namespace ipa::soft */

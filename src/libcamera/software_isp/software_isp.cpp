@@ -158,7 +158,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 sensor->controls(),
 			 ipaControls,
 			 &ccmEnabled_,
-			 &lscEnabled_);
+			 &lscType_);
 	if (ret) {
 		LOG(SoftwareIsp, Error) << "IPA init failed";
 		debayer_.reset();
@@ -274,7 +274,7 @@ int SoftwareIsp::configure(const StreamConfiguration &inputCfg,
 	if (ret < 0)
 		return ret;
 
-	ret = debayer_->configure(inputCfg, outputCfgs, ccmEnabled_, lscEnabled_);
+	ret = debayer_->configure(inputCfg, outputCfgs, ccmEnabled_, lscType_);
 	if (ret < 0)
 		return ret;
 

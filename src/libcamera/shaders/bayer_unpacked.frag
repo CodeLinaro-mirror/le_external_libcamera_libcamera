@@ -29,7 +29,7 @@ uniform vec3            blacklevel;
 uniform float           gamma;
 uniform float           contrastExp;
 
-#if defined(APPLY_LSC)
+#if defined(APPLY_LSC_TABLE)
 uniform sampler2D lsc_tex;
 #endif
 
@@ -134,7 +134,7 @@ void main(void) {
 
     rgb = rgb - blacklevel;
 
-#if defined(APPLY_LSC)
+#if defined(APPLY_LSC_TABLE)
     rgb = rgb * texture2D(lsc_tex, center.xy).rgb;
 #endif
 
