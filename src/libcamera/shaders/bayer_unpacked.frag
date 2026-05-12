@@ -31,6 +31,11 @@ uniform float           contrastExp;
 
 #if defined(APPLY_LSC_TABLE)
 uniform sampler2D lsc_tex;
+#elif defined(APPLY_LSC_POLYNOMIAL)
+uniform vec2            lscScale;
+uniform vec3            lsc0;
+uniform vec3            lsc1;
+uniform vec3            lsc2;
 #endif
 
 float apply_contrast(float value)
@@ -136,6 +141,10 @@ void main(void) {
 
 #if defined(APPLY_LSC_TABLE)
     rgb = rgb * texture2D(lsc_tex, center.xy).rgb;
+#elif defined(APPLY_LSC_POLYNOMIAL)
+    vec2 offCenter = (center.xy - vec2(0.5, 0.5)) * lscScale;
+    float dist2 = dot(offCenter, offCenter);
+    rgb = rgb * (lsc0 + lsc1 * dist2 + lsc2 * dist2 * dist2);
 #endif
 
     /*

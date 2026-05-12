@@ -64,6 +64,11 @@ namespace libcamera {
  */
 
 /**
+ * \var DebayerParams::LscPolynomial
+ * \brief Lens shading correction using polynomial coefficients
+ */
+
+/**
  * \typedef DebayerParams::LscValueType
  * \brief Type of LSC grid values
  */
@@ -84,6 +89,16 @@ namespace libcamera {
 /**
  * \var DebayerParams::lscLut
  * \brief Lens shading lookup table
+ */
+
+/**
+ * \var DebayerParams::kNLscCoefficients
+ * \brief Number of the lens shading correction polynomial coefficients
+ */
+
+/**
+ * \var DebayerParams::lscCoefficients
+ * \brief Polynomial coefficients for lens shading correction, one per colour channel
  */
 
 /**

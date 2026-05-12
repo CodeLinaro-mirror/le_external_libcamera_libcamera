@@ -116,6 +116,10 @@ int DebayerEGL::getShaderVariableLocations(void)
 	textureUniformProjMatrix_ = glGetUniformLocation(programId_, "proj_matrix");
 
 	textureUniformLsc_ = glGetUniformLocation(programId_, "lsc_tex");
+	lscScale_ = glGetUniformLocation(programId_, "lscScale");
+	lsc0_ = glGetUniformLocation(programId_, "lsc0");
+	lsc1_ = glGetUniformLocation(programId_, "lsc1");
+	lsc2_ = glGetUniformLocation(programId_, "lsc2");
 
 	LOG(Debayer, Debug) << "vertexIn " << attributeVertex_ << " textureIn " << attributeTexture_
 			    << " tex_y " << textureUniformBayerDataIn_
@@ -128,7 +132,11 @@ int DebayerEGL::getShaderVariableLocations(void)
 			    << " stride_factor " << textureUniformStrideFactor_
 			    << " tex_bayer_first_red " << textureUniformBayerFirstRed_
 			    << " proj_matrix " << textureUniformProjMatrix_
-			    << " lsc " << textureUniformLsc_;
+			    << " lscTexture " << textureUniformLsc_
+			    << " lscScale " << lscScale_
+			    << " lsc0 " << lsc0_
+			    << " lsc1 " << lsc1_
+			    << " lsc2 " << lsc2_;
 	return 0;
 }
 
@@ -152,6 +160,9 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 		break;
 	case DebayerParams::LscTable:
 		egl_.pushEnv(shaderEnv, "#define APPLY_LSC_TABLE");
+		break;
+	case DebayerParams::LscPolynomial:
+		egl_.pushEnv(shaderEnv, "#define APPLY_LSC_POLYNOMIAL");
 		break;
 	}
 
@@ -512,6 +523,21 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 				     DebayerParams::kLscGridSize, DebayerParams::kLscGridSize,
 				     params.lscLut.data(), GL_LINEAR);
 		glUniform1i(textureUniformLsc_, eglImageLscLookup_->texture_unit_uniform_id_);
+		break;
+	case DebayerParams::LscPolynomial:
+		glUniform2f(lscScale_, imgSize[0] / 1000.0, imgSize[1] / 1000.0);
+		glUniform3f(lsc0_,
+			    params.lscCoefficients[0].r(),
+			    params.lscCoefficients[0].g(),
+			    params.lscCoefficients[0].b());
+		glUniform3f(lsc1_,
+			    params.lscCoefficients[1].r(),
+			    params.lscCoefficients[1].g(),
+			    params.lscCoefficients[1].b());
+		glUniform3f(lsc2_,
+			    params.lscCoefficients[2].r(),
+			    params.lscCoefficients[2].g(),
+			    params.lscCoefficients[2].b());
 		break;
 	}
 

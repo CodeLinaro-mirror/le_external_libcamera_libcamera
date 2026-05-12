@@ -6,6 +6,7 @@
 #pragma once
 
 #include "libcamera/internal/matrix.h"
+#include "libcamera/internal/vector.h"
 
 #include <libipa/interpolator.h>
 
@@ -35,6 +36,9 @@ private:
 	Interpolator<LscMatrix> lscR_;
 	Interpolator<LscMatrix> lscG_;
 	Interpolator<LscMatrix> lscB_;
+	Interpolator<Vector<float, DebayerParams::kNLscCoefficients>> lscCoefR_;
+	Interpolator<Vector<float, DebayerParams::kNLscCoefficients>> lscCoefG_;
+	Interpolator<Vector<float, DebayerParams::kNLscCoefficients>> lscCoefB_;
 };
 
 } /* namespace ipa::soft::algorithms */

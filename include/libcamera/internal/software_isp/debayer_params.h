@@ -37,8 +37,12 @@ struct DebayerParams {
 	enum LscType : uint32_t {
 		LscNone,
 		LscTable,
+		LscPolynomial,
 	};
 	LscLookupTable lscLut{};
+
+	static constexpr unsigned int kNLscCoefficients = 3;
+	std::array<RGB<float>, kNLscCoefficients> lscCoefficients;
 };
 
 } /* namespace libcamera */

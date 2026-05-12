@@ -95,6 +95,10 @@ private:
 	GLint textureUniformBayerDataIn_;
 
 	GLint textureUniformLsc_;
+	GLint lscScale_;
+	GLint lsc0_;
+	GLint lsc1_;
+	GLint lsc2_;
 
 	/* Represent per-frame CCM as a uniform vector of floats 3 x 3 */
 	GLint ccmUniformDataIn_;
