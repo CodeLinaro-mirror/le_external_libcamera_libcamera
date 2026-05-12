@@ -30,6 +30,8 @@ struct DebayerParams {
 	static constexpr unsigned int kLscGridSize = 16;
 	static constexpr unsigned int kLscValuesPerCell = 3;
 	using LscValueType = float;
+	static constexpr unsigned int kLscBytesPerCell =
+		kLscValuesPerCell * sizeof(LscValueType);
 	using LscLookupTable =
 		std::array<LscValueType, kLscGridSize * kLscGridSize * kLscValuesPerCell>;
 	LscLookupTable lscLut{};

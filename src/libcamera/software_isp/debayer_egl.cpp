@@ -115,6 +115,8 @@ int DebayerEGL::getShaderVariableLocations(void)
 	textureUniformBayerFirstRed_ = glGetUniformLocation(programId_, "tex_bayer_first_red");
 	textureUniformProjMatrix_ = glGetUniformLocation(programId_, "proj_matrix");
 
+	textureUniformLsc_ = glGetUniformLocation(programId_, "lsc_tex");
+
 	LOG(Debayer, Debug) << "vertexIn " << attributeVertex_ << " textureIn " << attributeTexture_
 			    << " tex_y " << textureUniformBayerDataIn_
 			    << " ccm " << ccmUniformDataIn_
@@ -125,7 +127,8 @@ int DebayerEGL::getShaderVariableLocations(void)
 			    << " tex_size " << textureUniformSize_
 			    << " stride_factor " << textureUniformStrideFactor_
 			    << " tex_bayer_first_red " << textureUniformBayerFirstRed_
-			    << " proj_matrix " << textureUniformProjMatrix_;
+			    << " proj_matrix " << textureUniformProjMatrix_
+			    << " lsc " << textureUniformLsc_;
 	return 0;
 }
 
@@ -143,6 +146,9 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 
 	/* Specify GL_OES_EGL_image_external */
 	egl_.pushEnv(shaderEnv, "#extension GL_OES_EGL_image_external: enable");
+
+	if (lscEnabled_)
+		egl_.pushEnv(shaderEnv, "#define APPLY_LSC");
 
 	/*
 	 * Tell shaders how to re-order output taking account of how the pixels
@@ -343,6 +349,17 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	 */
 	stats_->setWindow(Rectangle(window_.size()));
 
+	if (lscEnabled_) {
+		constexpr unsigned int gridSize = DebayerParams::kLscGridSize;
+		const unsigned int stride = gridSize * DebayerParams::kLscBytesPerCell;
+		eglImageLscLookup_ =
+			std::make_unique<eGLImage>(gridSize,
+						   gridSize,
+						   stride,
+						   GL_TEXTURE2,
+						   2);
+	}
+
 	return 0;
 }
 
@@ -482,6 +499,13 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 	glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
 	LOG(Debayer, Debug) << " ccmUniformDataIn_ " << ccmUniformDataIn_ << " data " << params.combinedMatrix;
 
+	if (lscEnabled_) {
+		egl_.createTexture2D(*eglImageLscLookup_, GL_RGB16F, GL_RGB, GL_FLOAT,
+				     DebayerParams::kLscGridSize, DebayerParams::kLscGridSize,
+				     params.lscLut.data(), GL_LINEAR);
+		glUniform1i(textureUniformLsc_, eglImageLscLookup_->texture_unit_uniform_id_);
+	}
+
 	/*
 	 * 0 = Red, 1 = Green, 2 = Blue
 	 */
@@ -509,7 +533,7 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 	egl_.makeCurrent();
 
 	/* Create a standard texture input */
-	egl_.createTexture2D(*eglImageBayerIn_, glFormat_,
+	egl_.createTexture2D(*eglImageBayerIn_, glFormat_, glFormat_, GL_UNSIGNED_BYTE,
 			     inputConfig_.stride / bytesPerPixel_, height_,
 			     in.planes()[0].data(), GL_NEAREST);
 
