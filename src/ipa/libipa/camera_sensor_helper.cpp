@@ -755,6 +755,23 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("ov64a40", CameraSensorHelperOv64a40)
 
+class CameraSensorHelperOv08x40 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperOv08x40()
+	{
+		/*
+		 * The Linux kernel ov08x40 driver advertises analogue-gain
+		 * register values in the range 0x80..0x07c0 with a default
+		 * of 0x80; matching the convention used by OmniVision's other
+		 * 8/13MP class sensors (ov8858, ov8865, ov13858), the gain
+		 * multiplier is encoded as register_value / 128.
+		 */
+		gain_ = AnalogueGainLinear{ 1, 0, 0, 128 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("ov08x40", CameraSensorHelperOv08x40)
+
 class CameraSensorHelperOv8858 : public CameraSensorHelper
 {
 public:
