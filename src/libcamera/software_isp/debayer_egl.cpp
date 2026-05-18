@@ -500,16 +500,26 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 	return;
 }
 
-int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParams &params)
+int DebayerEGL::debayerGPU(FrameBuffer *input, std::optional<DmaSyncer> *inputBufferDmaSyncer, FrameBuffer *output, const DebayerParams &params)
 {
 	/* eGL context switch */
 	egl_.makeCurrent();
 
 	/* Create a standard texture input */
-	egl_.createTexture2D(*eglImageBayerIn_, in.planes()[0].data());
+	if (egl_.createInputDMABufTexture2D(*eglImageBayerIn_, input->planes()[0].fd.get()) != 0) {
+		LOG(Debayer, Debug) << "Importing input buffer with DMABuf import failed, falling back to upload";
+
+		inputBufferDmaSyncer->emplace(input->planes()[0].fd, DmaSyncer::SyncType::Read);
+		MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
+		if (!in.isValid()) {
+			LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
+			return -ENODEV;
+		}
+		egl_.createTexture2D(*eglImageBayerIn_, in.planes()[0].data());
+	}
 
 	/* Generate the output render framebuffer as render to texture */
-	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, out_fd);
+	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, output->planes()[0].fd.get());
 
 	setShaderVariableValues(params);
 	glViewport(0, 0, width_, height_);
@@ -531,23 +541,15 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 {
 	bench_.startFrame();
 
-	std::vector<DmaSyncer> dmaSyncers;
-
-	dmaSyncBegin(dmaSyncers, input, nullptr);
-
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();
 	metadata.status = input->metadata().status;
 	metadata.sequence = input->metadata().sequence;
 	metadata.timestamp = input->metadata().timestamp;
 
-	MappedFrameBuffer in(input, MappedFrameBuffer::MapFlag::Read);
-	if (!in.isValid()) {
-		LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
-		goto error;
-	}
+	std::optional<DmaSyncer> inputBufferDmaSyncer;
 
-	if (debayerGPU(in, output->planes()[0].fd.get(), params)) {
+	if (debayerGPU(input, &inputBufferDmaSyncer, output, params)) {
 		LOG(Debayer, Error) << "debayerGPU failed";
 		goto error;
 	}
@@ -557,8 +559,10 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	metadata.planes()[0].bytesused = output->planes()[0].length;
 
 	/* Calculate stats for the whole frame */
+	if (!inputBufferDmaSyncer && (frame % SwStatsCpu::kStatPerNumFrames) == 0)
+		inputBufferDmaSyncer.emplace(input->planes()[0].fd, DmaSyncer::SyncType::Read);
 	stats_->processFrame(frame, 0, input);
-	dmaSyncers.clear();
+	inputBufferDmaSyncer.reset();
 
 	outputBufferReady.emit(output);
 	inputBufferReady.emit(input);

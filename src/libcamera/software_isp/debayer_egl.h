@@ -65,7 +65,7 @@ private:
 	int initBayerShaders(PixelFormat inputFormat, PixelFormat outputFormat);
 	int getShaderVariableLocations();
 	void setShaderVariableValues(const DebayerParams &params);
-	int debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParams &params);
+	int debayerGPU(FrameBuffer *input, std::optional<DmaSyncer> *inputBufferDmaSyncer, FrameBuffer *output, const DebayerParams &params);
 
 	/* Shader program identifiers */
 	GLuint vertexShaderId_ = 0;
