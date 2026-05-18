@@ -14,6 +14,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <GLES3/gl32.h>
+
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
 #include <linux/drm_fourcc.h>
@@ -111,13 +113,31 @@ void eGL::syncOutput()
  */
 int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
 {
+	EGLint drm_format;
+
 	ASSERT(tid_ == Thread::currentId());
+
+	switch (eglImage.format_) {
+	case GL_RED:
+	case GL_LUMINANCE:
+		drm_format = DRM_FORMAT_R8;
+		break;
+	case GL_RG:
+		drm_format = DRM_FORMAT_RG88;
+		break;
+	case GL_RGBA:
+		drm_format = DRM_FORMAT_ARGB8888;
+		break;
+	default:
+		LOG(eGL, Error) << "unhandled GL format";
+		return -ENODEV;
+	}
 
 	// clang-format off
 	EGLint image_attrs[] = {
 		EGL_WIDTH, (EGLint)eglImage.width_,
 		EGL_HEIGHT, (EGLint)eglImage.height_,
-		EGL_LINUX_DRM_FOURCC_EXT, DRM_FORMAT_ARGB8888,
+		EGL_LINUX_DRM_FOURCC_EXT, drm_format,
 		EGL_DMA_BUF_PLANE0_FD_EXT, fd,
 		EGL_DMA_BUF_PLANE0_OFFSET_EXT, 0,
 		EGL_DMA_BUF_PLANE0_PITCH_EXT, (EGLint)eglImage.stride_,
@@ -207,9 +227,6 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
 /**
  * \brief Create a 2D texture from a memory buffer
  * \param[in,out] eglImage EGL image to associate with the texture
- * \param[in] format OpenGL internal format (e.g., GL_RGB, GL_RGBA)
- * \param[in] width Texture width in pixels
- * \param[in] height Texture height in pixels
  * \param[in] data Pointer to pixel data, or nullptr for uninitialised texture
  *
  * Creates a 2D texture from a CPU-accessible memory buffer. The texture
@@ -217,7 +234,7 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
  * is useful for uploading static data like lookup tables or uniform color
  * matrices to the GPU.
  */
-void eGL::createTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint32_t height, void *data)
+void eGL::createTexture2D(eGLImage &eglImage, void *data)
 {
 	ASSERT(tid_ == Thread::currentId());
 
@@ -225,7 +242,7 @@ void eGL::createTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint
 	glBindTexture(GL_TEXTURE_2D, eglImage.texture_);
 
 	// Generate texture, bind, associate image to texture, configure, unbind
-	glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, eglImage.format_, eglImage.width_, eglImage.height_, 0, eglImage.format_, GL_UNSIGNED_BYTE, data);
 
 	// Nearest filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);

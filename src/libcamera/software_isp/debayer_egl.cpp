@@ -506,7 +506,7 @@ int DebayerEGL::debayerGPU(MappedFrameBuffer &in, int out_fd, const DebayerParam
 	egl_.makeCurrent();
 
 	/* Create a standard texture input */
-	egl_.createTexture2D(*eglImageBayerIn_, glFormat_, inputConfig_.stride / bytesPerPixel_, height_, in.planes()[0].data());
+	egl_.createTexture2D(*eglImageBayerIn_, in.planes()[0].data());
 
 	/* Generate the output render framebuffer as render to texture */
 	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, out_fd);
@@ -582,14 +582,14 @@ int DebayerEGL::start()
 
 	LOG(Debayer, Debug) << "Available fragment shader texture units " << maxTextureImageUnits;
 
-	/* Raw bayer input as texture */
-	eglImageBayerIn_ = std::make_unique<eGLImage>(width_, height_, inputConfig_.stride, GL_TEXTURE0, 0);
-
-	/* Texture we will render to */
-	eglImageBayerOut_ = std::make_unique<eGLImage>(outputSize_.width, outputSize_.height, outputConfig_.stride, GL_TEXTURE1, 1);
-
 	if (initBayerShaders(inputPixelFormat_, outputPixelFormat_))
 		return -EINVAL;
+
+	/* Raw bayer input as texture */
+	eglImageBayerIn_ = std::make_unique<eGLImage>(glFormat_, inputConfig_.stride / bytesPerPixel_, height_, inputConfig_.stride, GL_TEXTURE0, 0);
+
+	/* Texture we will render to */
+	eglImageBayerOut_ = std::make_unique<eGLImage>(GL_RGBA, outputSize_.width, outputSize_.height, outputConfig_.stride, GL_TEXTURE1, 1);
 
 	return 0;
 }

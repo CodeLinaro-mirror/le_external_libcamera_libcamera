@@ -57,8 +57,8 @@ public:
 	 * \param[in] texture_unit OpenGL texture unit
 	 * \param[in] texture_unit_uniform_id Shader uniform ID
 	 */
-	eGLImage(uint32_t width, uint32_t height, uint32_t stride, GLenum texture_unit, uint32_t texture_unit_uniform_id)
-		: width_(width), height_(height), stride_(stride),
+	eGLImage(GLint format, uint32_t width, uint32_t height, uint32_t stride, GLenum texture_unit, uint32_t texture_unit_uniform_id)
+		: format_(format), width_(width), height_(height), stride_(stride),
 		  framesize_(stride * height),
 		  texture_unit_uniform_id_(texture_unit_uniform_id),
 		  texture_unit_(texture_unit)
@@ -79,6 +79,7 @@ public:
 		glDeleteTextures(1, &texture_);
 	}
 
+	GLint format_;
 	uint32_t width_; /**< Image width in pixels */
 	uint32_t height_; /**< Image height in pixels */
 	uint32_t stride_; /**< Row stride in bytes */
@@ -103,7 +104,7 @@ public:
 
 	int createInputDMABufTexture2D(eGLImage &eglImage, int fd);
 	int createOutputDMABufTexture2D(eGLImage &eglImage, int fd);
-	void createTexture2D(eGLImage &eglImage, GLint format, uint32_t width, uint32_t height, void *data);
+	void createTexture2D(eGLImage &eglImage, void *data);
 
 	void pushEnv(std::vector<std::string> &shaderEnv, const char *str);
 	void makeCurrent();
