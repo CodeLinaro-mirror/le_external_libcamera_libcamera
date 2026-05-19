@@ -152,7 +152,7 @@ int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
 					      NULL, image_attrs);
 
 	if (image == EGL_NO_IMAGE_KHR) {
-		LOG(eGL, Error) << "eglCreateImageKHR fail";
+		LOG(eGL, Debug) << "eglCreateImageKHR fail";
 		return -ENODEV;
 	}
 
