@@ -94,8 +94,20 @@ void eGL::syncOutput()
 {
 	ASSERT(tid_ == Thread::currentId());
 
-	glFlush();
 	glFinish();
+}
+
+/**
+ * \brief Flush the rendering pipeline
+ *
+ * Calls glFlush().
+ *
+ */
+void eGL::flushOutput()
+{
+	ASSERT(tid_ == Thread::currentId());
+
+	glFlush();
 }
 
 /**
