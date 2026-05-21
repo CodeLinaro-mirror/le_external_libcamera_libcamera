@@ -94,6 +94,7 @@ void eGL::syncOutput()
 {
 	ASSERT(tid_ == Thread::currentId());
 
+	glFlush();
 	glFinish();
 }
 
