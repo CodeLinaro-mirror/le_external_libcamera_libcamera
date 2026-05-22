@@ -78,6 +78,19 @@ int DebayerEGL::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 		return 0;
 	}
 
+	if (bayerFormat.bitDepth == 12 &&
+	    bayerFormat.packing == BayerFormat::Packing::CSI2 &&
+	    isStandardBayerOrder(bayerFormat.order)) {
+		config.bpp = 12;
+		config.patternSize.width = 2; /* 3 bytes per *2* pixels */
+		config.patternSize.height = 2;
+		config.outputFormats = std::vector<PixelFormat>({ formats::XRGB8888,
+								  formats::ARGB8888,
+								  formats::XBGR8888,
+								  formats::ABGR8888 });
+		return 0;
+	}
+
 	LOG(Debayer, Error)
 		<< "Unsupported input format " << inputFormat;
 

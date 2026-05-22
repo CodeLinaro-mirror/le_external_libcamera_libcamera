@@ -323,6 +323,58 @@ void SwStatsCpu::statsGBRG10PLine0(const uint8_t *src[], SwIspStats &stats)
 	SWSTATS_FINISH_LINE_STATS()
 }
 
+void SwStatsCpu::statsBGGR12PLine0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *src0 = src[1] + window_.x * 3 / 2;
+	const uint8_t *src1 = src[2] + window_.x * 3 / 2;
+	const unsigned int widthInBytes = window_.width * 3 / 2;
+
+	SWSTATS_START_LINE_STATS(uint8_t)
+
+	if (swapLines_)
+		std::swap(src0, src1);
+
+	/* x += 6 sample every other 2x2 block */
+	for (unsigned int x = 0; x < widthInBytes; x += 6) {
+		b = src0[x];
+		g = src0[x + 1];
+		g2 = src1[x];
+		r = src1[x + 1];
+
+		g = (g + g2) / 2;
+
+		SWSTATS_ACCUMULATE_LINE_STATS(1)
+	}
+
+	SWSTATS_FINISH_LINE_STATS()
+}
+
+void SwStatsCpu::statsGBRG12PLine0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *src0 = src[1] + window_.x * 3 / 2;
+	const uint8_t *src1 = src[2] + window_.x * 3 / 2;
+	const unsigned int widthInBytes = window_.width * 3 / 2;
+
+	SWSTATS_START_LINE_STATS(uint8_t)
+
+	if (swapLines_)
+		std::swap(src0, src1);
+
+	/* x += 6 sample every other 2x2 block */
+	for (unsigned int x = 0; x < widthInBytes; x += 6) {
+		g = src0[x];
+		b = src0[x + 1];
+		r = src1[x];
+		g2 = src1[x + 1];
+
+		g = (g + g2) / 2;
+
+		SWSTATS_ACCUMULATE_LINE_STATS(1)
+	}
+
+	SWSTATS_FINISH_LINE_STATS()
+}
+
 /**
  * \brief Reset state to start statistics gathering for a new frame
  * \param[in] frame The frame number
@@ -459,6 +511,32 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg, unsigned int stat
 		case BayerFormat::GBRG:
 		case BayerFormat::RGGB:
 			stats0_ = &SwStatsCpu::statsGBRG10PLine0;
+			swapLines_ = bayerFormat.order == BayerFormat::RGGB;
+			return 0;
+		default:
+			break;
+		}
+	}
+
+	if (bayerFormat.bitDepth == 12 &&
+	    bayerFormat.packing == BayerFormat::Packing::CSI2) {
+		patternSize_.height = 2;
+		patternSize_.width = 2; /* 3 bytes for *2* pixels */
+		/* Skip every 3th and 4th line, sample every other 2x2 block */
+		ySkipMask_ = 0x02;
+		xShift_ = 0;
+		sumShift_ = 0;
+		processFrame_ = &SwStatsCpu::processBayerFrame2;
+
+		switch (bayerFormat.order) {
+		case BayerFormat::BGGR:
+		case BayerFormat::GRBG:
+			stats0_ = &SwStatsCpu::statsBGGR12PLine0;
+			swapLines_ = bayerFormat.order == BayerFormat::GRBG;
+			return 0;
+		case BayerFormat::GBRG:
+		case BayerFormat::RGGB:
+			stats0_ = &SwStatsCpu::statsGBRG12PLine0;
 			swapLines_ = bayerFormat.order == BayerFormat::RGGB;
 			return 0;
 		default:
