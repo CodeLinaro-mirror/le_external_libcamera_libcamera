@@ -20,6 +20,7 @@
 
 #include <libcamera/formats.h>
 
+#include "libcamera/internal/formats.h"
 #include "libcamera/internal/framebuffer.h"
 
 #include "../glsl_shaders.h"
@@ -375,6 +376,12 @@ DebayerEGL::strideAndFrameSize(const PixelFormat &outputFormat, const Size &size
 	unsigned int stride = libcamera::utils::alignUp(size.width * config.bpp / 8, 256);
 
 	return std::make_tuple(stride, stride * size.height);
+}
+
+uint32_t DebayerEGL::getPreferredInputStride(const PixelFormat &inputFormat, const Size &size)
+{
+	const PixelFormatInfo &info = PixelFormatInfo::info(inputFormat);
+	return info.stride(size.width, 0, 256);
 }
 
 void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
