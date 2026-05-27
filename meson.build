@@ -241,6 +241,10 @@ else
     pipelines = wanted_pipelines
 endif
 
+if cc.get_id() == 'gcc' and pipelines.contains('rpi/pisp')
+    add_project_arguments('-ftree-vrp', language : 'cpp')
+endif
+
 # Tests require the vimc pipeline handler, include it automatically when tests
 # are enabled.
 if get_option('test')
