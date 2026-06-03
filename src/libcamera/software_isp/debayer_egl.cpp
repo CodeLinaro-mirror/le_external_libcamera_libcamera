@@ -35,6 +35,34 @@ namespace libcamera {
  */
 
 /**
+ * \brief Probe whether EGL surfaceless rendering is available
+ *
+ * Performs a lightweight check by attempting to obtain an EGL display using
+ * EGL_PLATFORM_SURFACELESS_MESA and initialising it. The display is
+ * immediately released so that no resources are leaked. This allows the
+ * caller to decide at construction time whether to instantiate DebayerEGL
+ * or fall back to DebayerCpu.
+ *
+ * \return true if EGL surfaceless rendering is available, false otherwise
+ */
+bool DebayerEGL::isEGLAvailable()
+{
+	if (!eglBindAPI(EGL_OPENGL_ES_API))
+		return false;
+
+	EGLDisplay display = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
+						    EGL_DEFAULT_DISPLAY,
+						    nullptr);
+	if (display == EGL_NO_DISPLAY)
+		return false;
+
+	EGLBoolean ret = eglInitialize(display, nullptr, nullptr);
+	eglTerminate(display);
+
+	return ret == EGL_TRUE;
+}
+
+/**
  * \brief Construct a DebayerEGL object
  * \param[in] stats Statistics processing object
  * \param[in] cm The camera manager

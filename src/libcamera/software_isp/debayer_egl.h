@@ -39,6 +39,8 @@ class CameraManager;
 class DebayerEGL : public Debayer
 {
 public:
+	static bool isEGLAvailable();
+
 	DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm);
 	~DebayerEGL();
 
