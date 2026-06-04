@@ -342,9 +342,8 @@ int SoftwareIsp::queueBuffers(uint32_t frame, FrameBuffer *input,
 			return -EINVAL;
 	}
 
-	queuedInputBuffers_.push_back(input);
-
 	for (const auto &[stream, buffer] : outputs) {
+		queuedInputBuffers_.push_back(input);
 		queuedOutputBuffers_.push_back(buffer);
 		process(frame, input, buffer);
 	}
