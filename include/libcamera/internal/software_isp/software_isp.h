@@ -79,7 +79,7 @@ public:
 	int queueBuffers(uint32_t frame, FrameBuffer *input,
 			 const std::map<const Stream *, FrameBuffer *> &outputs);
 
-	void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output);
+	int process(uint32_t frame, FrameBuffer *input, FrameBuffer *output);
 
 	Signal<FrameBuffer *> inputBufferReady;
 	Signal<FrameBuffer *> outputBufferReady;
@@ -99,6 +99,7 @@ private:
 	Thread ispWorkerThread_;
 	SharedMemObject<DebayerParams> sharedParams_;
 	DebayerParams debayerParams_;
+	std::vector<uint32_t> availableParams_;
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;
 

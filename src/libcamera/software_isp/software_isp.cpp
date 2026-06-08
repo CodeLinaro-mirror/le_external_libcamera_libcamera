@@ -185,6 +185,9 @@ bool SoftwareIsp::allocateParamsBuffers()
 		return false;
 	}
 
+	/* Just a single buffer for now, let's use 0 as its id. */
+	availableParams_.push_back(0);
+
 	return true;
 }
 
@@ -353,7 +356,12 @@ int SoftwareIsp::queueBuffers(uint32_t frame, FrameBuffer *input,
 	for (const auto &[stream, buffer] : outputs) {
 		queuedInputBuffers_.push_back(input);
 		queuedOutputBuffers_.push_back(buffer);
-		process(frame, input, buffer);
+		int ret = process(frame, input, buffer);
+		if (ret) {
+			queuedInputBuffers_.pop_back();
+			queuedOutputBuffers_.pop_back();
+			return ret;
+		}
 	}
 
 	return 0;
@@ -413,15 +421,23 @@ void SoftwareIsp::stop()
  * \param[in] frame The frame number
  * \param[in] input The input framebuffer
  * \param[out] output The framebuffer to write the processed frame to
+ * \return 0 on success, -EAGAIN if a parameter buffer underrun occurs
  */
-void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
+int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
-	/* \todo Provide a real value */
-	constexpr uint32_t paramsBufferId = 0;
+	if (availableParams_.empty()) {
+		LOG(SoftwareIsp, Error) << "Parameters buffer underrun";
+		return -EAGAIN;
+	}
+
+	const uint32_t paramsBufferId = availableParams_.back();
+	availableParams_.pop_back();
 	ipa_->computeParams(frame, paramsBufferId);
 	debayer_->invokeMethod(&Debayer::process,
 			       ConnectionTypeQueued, frame, paramsBufferId,
 			       input, output, debayerParams_);
+
+	return 0;
 }
 
 void SoftwareIsp::saveIspParams([[maybe_unused]] const uint32_t paramsBufferId)
@@ -429,8 +445,9 @@ void SoftwareIsp::saveIspParams([[maybe_unused]] const uint32_t paramsBufferId)
 	debayerParams_ = *sharedParams_;
 }
 
-void SoftwareIsp::paramsBufferReady([[maybe_unused]] const uint32_t paramsBufferId)
+void SoftwareIsp::paramsBufferReady(const uint32_t paramsBufferId)
 {
+	availableParams_.push_back(paramsBufferId);
 }
 
 void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls)
