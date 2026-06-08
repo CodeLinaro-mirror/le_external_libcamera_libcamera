@@ -171,6 +171,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 		return;
 	}
 
+	ipa_->statsProcessed.connect(this, &SoftwareIsp::statsProcessed);
 	ipa_->metadataReady.connect(this,
 				    [this](uint32_t frame, const ControlList &metadata) {
 					    metadataReady.emit(frame, metadata);
@@ -444,9 +445,10 @@ int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	const uint32_t paramsBufferId = availableParams_.back();
 	availableParams_.pop_back();
 	ipa_->computeParams(frame, paramsBufferId);
+	const uint32_t statsBufferId = 0;
 	debayer_->invokeMethod(&Debayer::process,
-			       ConnectionTypeQueued, frame, paramsBufferId,
-			       input, output);
+			       ConnectionTypeQueued, frame,
+			       statsBufferId, paramsBufferId, input, output);
 
 	return 0;
 }
@@ -461,9 +463,13 @@ void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls)
 	setSensorControls.emit(sensorControls);
 }
 
-void SoftwareIsp::statsReady(uint32_t frame, uint32_t bufferId)
+void SoftwareIsp::statsReady(uint32_t frame, const uint32_t statsBufferId)
 {
-	ispStatsReady.emit(frame, bufferId);
+	ispStatsReady.emit(frame, statsBufferId);
+}
+
+void SoftwareIsp::statsProcessed([[maybe_unused]] const uint32_t statsBufferId)
+{
 }
 
 void SoftwareIsp::inputReady(FrameBuffer *input)

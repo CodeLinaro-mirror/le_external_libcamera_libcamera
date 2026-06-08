@@ -53,8 +53,11 @@ public:
 	std::vector<PixelFormat> formats(PixelFormat input) override;
 	std::tuple<unsigned int, unsigned int> strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) override;
 
-	void process(uint32_t frame, const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output) override;
+	void process(uint32_t frame,
+		     const uint32_t statsBufferId,
+		     const uint32_t paramsBufferId,
+		     FrameBuffer *input,
+		     FrameBuffer *output) override;
 	int start() override;
 	void stop() override;
 

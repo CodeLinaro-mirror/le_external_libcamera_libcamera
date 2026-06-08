@@ -49,6 +49,7 @@ public:
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) = 0;
 
 	virtual void process(uint32_t frame,
+			     const uint32_t statsBufferId,
 			     const uint32_t paramsBufferId,
 			     FrameBuffer *input, FrameBuffer *output) = 0;
 	virtual int start() { return 0; }

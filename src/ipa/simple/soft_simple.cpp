@@ -298,7 +298,7 @@ void IPASoftSimple::computeParams(const uint32_t frame,
 }
 
 void IPASoftSimple::processStats(const uint32_t frame,
-				 [[maybe_unused]] const uint32_t bufferId,
+				 const uint32_t statsBufferId,
 				 const ControlList &sensorControls)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
@@ -312,6 +312,7 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	for (const auto &algo : algorithms())
 		algo->process(context_, frame, frameContext, stats_, metadata);
 	metadataReady.emit(frame, metadata);
+	statsProcessed.emit(statsBufferId);
 
 	/* Sanity check */
 	if (!sensorControls.contains(V4L2_CID_EXPOSURE) ||

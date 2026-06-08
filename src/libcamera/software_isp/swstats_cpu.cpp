@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2023, Linaro Ltd
- * Copyright (C) 2023, Red Hat Inc.
+ * Copyright (C) 2023-2026 Red Hat Inc.
  *
  * Authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -398,11 +398,12 @@ void SwStatsCpu::startFrame(uint32_t frame)
 /**
  * \brief Finish statistics calculation for the current frame
  * \param[in] frame The frame number
- * \param[in] bufferId ID of the statistics buffer
+ * \param[in] statsBufferId ID of the statistics buffer
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
+void SwStatsCpu::finishFrame(uint32_t frame,
+			     const uint32_t statsBufferId)
 {
 	bool valid = frame % kStatPerNumFrames == 0;
 
@@ -419,7 +420,7 @@ void SwStatsCpu::finishFrame(uint32_t frame, uint32_t bufferId)
 	}
 
 	sharedStats_->valid = valid;
-	statsReady.emit(frame, bufferId);
+	statsReady.emit(frame, statsBufferId);
 }
 
 /**
@@ -597,22 +598,22 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 /**
  * \brief Calculate statistics for a frame in one go
  * \param[in] frame The frame number
- * \param[in] bufferId ID of the statistics buffer
+ * \param[in] statsBufferId ID of the statistics buffer
  * \param[in] input The frame to process
  *
  * This may only be called after a successful setWindow() call.
  */
-void SwStatsCpu::processFrame(uint32_t frame, uint32_t bufferId, MappedFrameBuffer &input)
+void SwStatsCpu::processFrame(uint32_t frame, uint32_t statsBufferId, MappedFrameBuffer &input)
 {
 	if (frame % kStatPerNumFrames) {
-		finishFrame(frame, bufferId);
+		finishFrame(frame, statsBufferId);
 		return;
 	}
 
 	bench_.startFrame();
 	startFrame(frame);
 	(this->*processFrame_)(input);
-	finishFrame(frame, bufferId);
+	finishFrame(frame, statsBufferId);
 	bench_.finishFrame();
 }
 
