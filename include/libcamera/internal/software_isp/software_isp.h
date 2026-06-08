@@ -90,6 +90,7 @@ public:
 private:
 	void saveIspParams(const uint32_t paramsBufferId);
 	void paramsBufferReady(const uint32_t paramsBufferId);
+	bool allocateParamsBuffers();
 	void setSensorCtrls(const ControlList &sensorControls);
 	void statsReady(uint32_t frame, uint32_t bufferId);
 	void inputReady(FrameBuffer *input);
