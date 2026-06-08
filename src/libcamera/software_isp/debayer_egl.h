@@ -39,7 +39,9 @@ class CameraManager;
 class DebayerEGL : public Debayer
 {
 public:
-	DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm);
+	DebayerEGL(std::unique_ptr<SwStatsCpu> stats,
+		   const std::map<uint32_t, SharedFD> &paramsBuffers,
+		   const CameraManager &cm);
 	~DebayerEGL();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -52,8 +54,7 @@ public:
 	std::tuple<unsigned int, unsigned int> strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) override;
 
 	void process(uint32_t frame, const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output,
-		     const DebayerParams &params) override;
+		     FrameBuffer *input, FrameBuffer *output) override;
 	int start() override;
 	void stop() override;
 

@@ -11,6 +11,8 @@
 
 #include "debayer.h"
 
+#include <sys/mman.h>
+
 namespace libcamera {
 
 /**
@@ -54,15 +56,29 @@ LOG_DEFINE_CATEGORY(Debayer)
 
 /**
  * \brief Construct a Debayer object
+ * \param[in] paramsBuffers ids and SharedFDs of parameter buffers
  * \param[in] cm The camera manager
  */
-Debayer::Debayer(const CameraManager &cm)
+Debayer::Debayer(const std::map<uint32_t, SharedFD> &paramsBuffers, const CameraManager &cm)
 	: bench_(cm, "Debayer")
 {
+	for (auto &[bufferId, sharedFd] : paramsBuffers) {
+		void *mem = mmap(nullptr, sizeof(DebayerParams),
+				 PROT_READ | PROT_WRITE, MAP_SHARED,
+				 sharedFd.get(), 0);
+		if (mem == MAP_FAILED) {
+			LOG(Debayer, Error) << "Unable to map Parameters";
+			return;
+		}
+
+		paramsBuffers_[bufferId] = static_cast<DebayerParams *>(mem);
+	}
 }
 
 Debayer::~Debayer()
 {
+	for (auto &item : paramsBuffers_)
+		munmap(item.second, sizeof(DebayerParams));
 }
 
 /**
@@ -104,16 +120,12 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn void Debayer::process(uint32_t frame, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+ * \fn void Debayer::process(uint32_t frame, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output)
  * \brief Process the bayer data into the requested format
  * \param[in] frame The frame number
  * \param[in] paramsBufferId The id of the params buffer in use
  * \param[in] input The input buffer
  * \param[in] output The output buffer
- * \param[in] params The parameters to be used in debayering
- *
- * \note DebayerParams is passed by value deliberately so that a copy is passed
- * when this is run in another thread by invokeMethod().
  */
 
 /**
@@ -238,6 +250,11 @@ Debayer::~Debayer()
  *
  * Used when the Bayer pattern order indicates that red/blue color channels are
  * reversed.
+ */
+
+/**
+ * \var Debayer::paramsBuffers_
+ * \brief Ring of debayering parameters buffers
  */
 
 /**

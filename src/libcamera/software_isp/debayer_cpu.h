@@ -17,6 +17,7 @@
 
 #include <libcamera/base/mutex.h>
 #include <libcamera/base/object.h>
+#include <libcamera/base/shared_fd.h>
 
 #include <libcamera/camera_manager.h>
 
@@ -32,7 +33,9 @@ class DebayerCpuThread;
 class DebayerCpu : public Debayer
 {
 public:
-	DebayerCpu(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm);
+	DebayerCpu(std::unique_ptr<SwStatsCpu> stats,
+		   const std::map<uint32_t, SharedFD> &paramsBuffers,
+		   const CameraManager &cm);
 	~DebayerCpu();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -43,8 +46,7 @@ public:
 	std::tuple<unsigned int, unsigned int>
 	strideAndFrameSize(const PixelFormat &outputFormat, const Size &size) override;
 	void process(uint32_t frame, const uint32_t paramsBufferId,
-		     FrameBuffer *input, FrameBuffer *output,
-		     const DebayerParams &params) override;
+		     FrameBuffer *input, FrameBuffer *output) override;
 	int start() override;
 	void stop() override;
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) override;
@@ -128,8 +130,8 @@ private:
 	int setDebayerFunctions(PixelFormat inputFormat,
 				PixelFormat outputFormat,
 				bool ccmEnabled);
-	void updateGammaTable(const DebayerParams &params);
-	void updateLookupTables(const DebayerParams &params);
+	void updateGammaTable(const DebayerParams *params);
+	void updateLookupTables(const DebayerParams *params);
 
 	static constexpr unsigned int kRGBLookupSize = 256;
 	static constexpr unsigned int kGammaLookupSize = 1024;

@@ -37,10 +37,13 @@ namespace libcamera {
 /**
  * \brief Construct a DebayerEGL object
  * \param[in] stats Statistics processing object
+ * \param[in] paramsBuffers SharedFDs of parameter buffers
  * \param[in] cm The camera manager
  */
-DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm)
-	: Debayer(cm), stats_(std::move(stats))
+DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats,
+		       const std::map<uint32_t, SharedFD> &paramsBuffers,
+		       const CameraManager &cm)
+	: Debayer(paramsBuffers, cm), stats_(std::move(stats))
 {
 }
 
@@ -556,8 +559,7 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 }
 
 void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
-			 FrameBuffer *input, FrameBuffer *output,
-			 const DebayerParams &params)
+			 FrameBuffer *input, FrameBuffer *output)
 {
 	bench_.startFrame();
 
@@ -570,11 +572,13 @@ void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
 	std::optional<MappedFrameBuffer> inMapped;
 	std::optional<DmaSyncer> inDmaSyncer;
 
+	DebayerParams params = *paramsBuffers_.at(paramsBufferId);
+	paramsBufferReady.emit(paramsBufferId);
+
 	if (debayerGPU(input, output, params, &inMapped, &inDmaSyncer)) {
 		LOG(Debayer, Error) << "debayerGPU failed";
 		goto error;
 	}
-	paramsBufferReady.emit(paramsBufferId);
 
 	metadata.planes()[0].bytesused = output->planes()[0].length;
 
@@ -605,7 +609,6 @@ void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
 	return;
 
 error:
-	paramsBufferReady.emit(paramsBufferId);
 	bench_.finishFrame();
 	metadata.status = FrameMetadata::FrameError;
 	return;

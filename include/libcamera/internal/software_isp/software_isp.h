@@ -89,7 +89,6 @@ public:
 	Signal<const ControlList &> setSensorControls;
 
 private:
-	void saveIspParams(const uint32_t paramsBufferId);
 	void paramsBufferReady(const uint32_t paramsBufferId);
 	bool allocateParamsBuffers(const unsigned int bufferCount);
 	void setSensorCtrls(const ControlList &sensorControls);
@@ -99,7 +98,6 @@ private:
 	std::unique_ptr<Debayer> debayer_;
 	Thread ispWorkerThread_;
 	std::map<uint32_t, SharedMemObject<DebayerParams>> sharedParams_;
-	DebayerParams debayerParams_;
 	std::vector<uint32_t> availableParams_;
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;

@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2023, Linaro Ltd
- * Copyright (C) 2023, Red Hat Inc.
+ * Copyright (C) 2023-2026 Red Hat Inc.
  *
  * Authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -35,7 +35,8 @@ LOG_DECLARE_CATEGORY(Debayer)
 class Debayer : public Object
 {
 public:
-	Debayer(const CameraManager &cm);
+	Debayer(const std::map<uint32_t, SharedFD> &paramsBuffers,
+		const CameraManager &cm);
 	virtual ~Debayer() = 0;
 
 	virtual int configure(const StreamConfiguration &inputCfg,
@@ -49,8 +50,7 @@ public:
 
 	virtual void process(uint32_t frame,
 			     const uint32_t paramsBufferId,
-			     FrameBuffer *input, FrameBuffer *output,
-			     const DebayerParams &params) = 0;
+			     FrameBuffer *input, FrameBuffer *output) = 0;
 	virtual int start() { return 0; }
 	virtual void stop() {}
 
@@ -83,6 +83,7 @@ public:
 	PixelFormat inputPixelFormat_;
 	PixelFormat outputPixelFormat_;
 	bool swapRedBlueGains_;
+	std::map<uint32_t, DebayerParams *> paramsBuffers_;
 	Benchmark bench_;
 
 private:

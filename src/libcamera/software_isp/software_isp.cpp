@@ -106,6 +106,10 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
+	std::map<uint32_t, SharedFD> fdParams;
+	for (auto &[bufferId, item] : sharedParams_)
+		fdParams[bufferId] = item.fd();
+
 #if HAVE_DEBAYER_EGL
 	const GlobalConfiguration &configuration = cm._d()->configuration();
 	std::optional<std::string> softISPMode = configuration.option<std::string>({ "software_isp", "mode" });
@@ -120,15 +124,14 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 	}
 
 	if (!softISPMode || softISPMode == "gpu")
-		debayer_ = std::make_unique<DebayerEGL>(std::move(stats), cm);
+		debayer_ = std::make_unique<DebayerEGL>(std::move(stats), fdParams,
+							cm);
 
 #endif
 	if (!debayer_)
-		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), cm);
+		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), fdParams,
+							cm);
 
-	std::map<uint32_t, SharedFD> fdParams;
-	for (auto &[bufferId, item] : sharedParams_)
-		fdParams[bufferId] = item.fd();
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 	debayer_->paramsBufferReady.connect(this, &SoftwareIsp::paramsBufferReady);
@@ -168,7 +171,6 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 		return;
 	}
 
-	ipa_->paramsComputed.connect(this, &SoftwareIsp::saveIspParams);
 	ipa_->metadataReady.connect(this,
 				    [this](uint32_t frame, const ControlList &metadata) {
 					    metadataReady.emit(frame, metadata);
@@ -444,14 +446,9 @@ int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	ipa_->computeParams(frame, paramsBufferId);
 	debayer_->invokeMethod(&Debayer::process,
 			       ConnectionTypeQueued, frame, paramsBufferId,
-			       input, output, debayerParams_);
+			       input, output);
 
 	return 0;
-}
-
-void SoftwareIsp::saveIspParams(const uint32_t paramsBufferId)
-{
-	debayerParams_ = *sharedParams_.at(paramsBufferId);
 }
 
 void SoftwareIsp::paramsBufferReady(const uint32_t paramsBufferId)
