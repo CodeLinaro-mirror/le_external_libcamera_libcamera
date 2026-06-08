@@ -10,33 +10,6 @@ The TODO items in this section gather comments from patch review that were not
 deemed to require being addressed right away. The text in block quotes is
 copied directly from e-mail review.
 
-### Reconsider stats sharing
-
-```
->>> +void SwStatsCpu::finishFrame(void)
->>> +{
->>> +	*sharedStats_ = stats_;
->> 
->> Is it more efficient to copy the stats instead of operating directly on
->> the shared memory ?
->
-> I inherited doing things this way from Andrey. I kept this because
-> we don't really have any synchronization with the IPA reading this.
->
-> So the idea is to only touch this when the next set of statistics
-> is ready since we don't know when the IPA is done with accessing
-> the previous set of statistics ...
->
-> This is both something which seems mostly a theoretic problem,
-> yet also definitely something which I think we need to fix.
->
-> Maybe use a ringbuffer of stats buffers and pass the index into
-> the ringbuffer to the emit signal ?
-
-That would match how we deal with hardware ISPs, and I think that's a
-good idea. It will help decoupling the processing side from the IPA.
-```
-
 ### Remove statsReady signal
 
 ```
