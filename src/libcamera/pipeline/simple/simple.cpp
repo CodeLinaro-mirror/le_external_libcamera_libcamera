@@ -955,16 +955,34 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 			return;
 		}
 
-		if (converter_)
-			converter_->queueBuffers(buffer, conversionQueue_.front().outputs);
-		else
+		int ret;
+		if (converter_) {
+			ret = converter_->queueBuffers(buffer, conversionQueue_.front().outputs);
+		} else {
 			/*
 			 * request->sequence() cannot be retrieved from `buffer' inside
 			 * queueBuffers because unique_ptr's make buffer->request() invalid
 			 * already here.
 			 */
-			swIsp_->queueBuffers(request->sequence(), buffer,
-					     conversionQueue_.front().outputs);
+			ret = swIsp_->queueBuffers(request->sequence(), buffer,
+						   conversionQueue_.front().outputs);
+		}
+
+		if (ret < 0) {
+			LOG(SimplePipeline, Error)
+				<< "Failed to queue buffers for conversion: "
+				<< strerror(-ret);
+			/*
+			 * The buffers were rejected before starting any processing, so the
+			 * output buffers will not be returned via the normal done
+			 * signals. Cancel the request; this handles the output buffers and
+			 * also the input buffer if it's a raw stream buffer. For non-raw
+			 * streams, return the input buffer to the video device manually.
+			 */
+			pipe->cancelRequest(request);
+			if (!rawStream_)
+				video_->queueBuffer(buffer);
+		}
 
 		conversionQueue_.pop();
 		return;
