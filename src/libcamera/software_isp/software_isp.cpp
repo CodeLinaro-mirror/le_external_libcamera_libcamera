@@ -73,19 +73,17 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  */
 
 /**
- * \var SoftwareIsp::kParamStatBufferCount
- * \brief The number of stats and params buffers (each of them)
- */
-
-/**
  * \brief Constructs SoftwareIsp object
  * \param[in] pipe The pipeline handler in use
  * \param[in] sensor Pointer to the CameraSensor instance owned by the pipeline
  * handler
  * \param[out] ipaControls The IPA controls to update
+ * \param[in] bufferCount Number of parameters buffers and stats buffers to allocate
  */
-SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-			 ControlInfoMap *ipaControls)
+SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
+			 const CameraSensor *sensor,
+			 ControlInfoMap *ipaControls,
+			 const unsigned int bufferCount)
 	: ispWorkerThread_("SWIspWorker"),
 	  dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
 		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
@@ -95,7 +93,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 		LOG(SoftwareIsp, Error) << "Failed to create DmaBufAllocator object";
 		return;
 	}
-	if (!allocateParamsBuffers())
+	if (!allocateParamsBuffers(bufferCount))
 		return;
 
 	const CameraManager &cm = *pipe->cameraManager();
@@ -182,9 +180,9 @@ SoftwareIsp::~SoftwareIsp()
 	debayer_.reset();
 }
 
-bool SoftwareIsp::allocateParamsBuffers()
+bool SoftwareIsp::allocateParamsBuffers(const unsigned int bufferCount)
 {
-	for (unsigned int bufferId = 0; bufferId < kParamStatBufferCount; bufferId++) {
+	for (unsigned int bufferId = 0; bufferId < bufferCount; bufferId++) {
 		auto params = SharedMemObject<DebayerParams>("softIsp_params");
 		if (!params) {
 			LOG(SoftwareIsp, Error) << "Failed to create shared memory for parameters";

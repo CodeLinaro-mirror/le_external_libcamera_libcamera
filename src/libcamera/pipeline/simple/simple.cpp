@@ -428,12 +428,13 @@ public:
 	std::shared_ptr<MediaDevice> converter() { return converter_; }
 	bool swIspEnabled() const { return swIspEnabled_; }
 
+	static constexpr unsigned int kNumInternalBuffers = 4;
+
 protected:
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
 private:
 	static constexpr unsigned int kMaxQueuedRequestsDevice = 4;
-	static constexpr unsigned int kNumInternalBuffers = 4;
 
 	struct EntityData {
 		std::unique_ptr<V4L2VideoDevice> video;
@@ -615,7 +616,8 @@ int SimpleCameraData::init()
 	 * Instantiate Soft ISP if this is enabled for the given driver and no converter is used.
 	 */
 	if (!converter_ && pipe->swIspEnabled()) {
-		swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor_.get(), &controlInfo_);
+		swIsp_ = std::make_unique<SoftwareIsp>(pipe, sensor_.get(), &controlInfo_,
+						       pipe->kNumInternalBuffers);
 		if (!swIsp_->isValid()) {
 			LOG(SimplePipeline, Warning)
 				<< "Failed to create software ISP, disabling software debayering";

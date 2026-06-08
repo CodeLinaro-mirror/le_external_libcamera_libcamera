@@ -48,7 +48,8 @@ class SoftwareIsp : public Object
 {
 public:
 	SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
-		    ControlInfoMap *ipaControls);
+		    ControlInfoMap *ipaControls,
+		    const unsigned int bufferCount);
 	~SoftwareIsp();
 
 	int loadConfiguration([[maybe_unused]] const std::string &filename) { return 0; }
@@ -90,14 +91,13 @@ public:
 private:
 	void saveIspParams(const uint32_t paramsBufferId);
 	void paramsBufferReady(const uint32_t paramsBufferId);
-	bool allocateParamsBuffers();
+	bool allocateParamsBuffers(const unsigned int bufferCount);
 	void setSensorCtrls(const ControlList &sensorControls);
 	void statsReady(uint32_t frame, uint32_t bufferId);
 	void inputReady(FrameBuffer *input);
 	void outputReady(FrameBuffer *output);
 	std::unique_ptr<Debayer> debayer_;
 	Thread ispWorkerThread_;
-	static constexpr unsigned int kParamStatBufferCount = 1;
 	std::map<uint32_t, SharedMemObject<DebayerParams>> sharedParams_;
 	DebayerParams debayerParams_;
 	std::vector<uint32_t> availableParams_;
