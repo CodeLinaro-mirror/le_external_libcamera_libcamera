@@ -14,7 +14,7 @@ struct IPAConfigInfo {
 
 interface IPASoftInterface {
 	init(libcamera.IPASettings settings,
-	     libcamera.SharedFD fdStats,
+	     map<uint32, libcamera.SharedFD> fdStats,
 	     map<uint32, libcamera.SharedFD> fdParams,
 	     libcamera.IPACameraSensorInfo sensorInfo,
 	     libcamera.ControlInfoMap sensorControls)

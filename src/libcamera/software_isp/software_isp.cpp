@@ -162,7 +162,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 	}
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
-			 debayer_->getStatsFD(),
+			 fdStats,
 			 fdParams,
 			 sensorInfo,
 			 sensor->controls(),

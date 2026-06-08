@@ -49,20 +49,6 @@ namespace libcamera {
  */
 
 /**
- * \fn bool SwStatsCpu::isValid() const
- * \brief Gets whether the statistics object is valid
- *
- * \return True if it's valid, false otherwise
- */
-
-/**
- * \fn const SharedFD &SwStatsCpu::getStatsFD()
- * \brief Get the file descriptor for the statistics
- *
- * \return The file descriptor
- */
-
-/**
  * \fn const Size &SwStatsCpu::patternSize()
  * \brief Get the pattern size
  *
@@ -407,21 +393,21 @@ void SwStatsCpu::finishFrame(uint32_t frame,
 			     const uint32_t statsBufferId)
 {
 	bool valid = frame % kStatPerNumFrames == 0;
-	SharedMemObject<SwIspStats> &stats = sharedStats_->at(statsBufferId);
+	SharedMemObject<SwIspStats> &shared = sharedStats_->at(statsBufferId);
 
 	if (valid) {
-		stats->sum_ = RGB<uint64_t>({ 0, 0, 0 });
-		stats->yHistogram.fill(0);
+		shared->sum_ = RGB<uint64_t>({ 0, 0, 0 });
+		shared->yHistogram.fill(0);
 		for (const auto &s : stats_) {
-			stats->sum_ += s.sum_;
+			shared->sum_ += s.sum_;
 			for (unsigned int j = 0; j < SwIspStats::kYHistogramSize; j++)
-				stats->yHistogram[j] += s.yHistogram[j];
+				shared->yHistogram[j] += s.yHistogram[j];
 		}
 
-		stats->sum_ >>= sumShift_;
+		shared->sum_ >>= sumShift_;
 	}
 
-	stats->valid = valid;
+	shared->valid = valid;
 	statsReady.emit(frame, statsBufferId);
 }
 

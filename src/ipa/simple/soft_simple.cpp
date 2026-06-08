@@ -52,7 +52,7 @@ public:
 	~IPASoftSimple();
 
 	int init(const IPASettings &settings,
-		 const SharedFD &fdStats,
+		 const std::map<uint32_t, SharedFD> &fdStats,
 		 const std::map<uint32_t, SharedFD> &fdParams,
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
@@ -76,7 +76,7 @@ private:
 	void updateExposure(double exposureMSV);
 
 	std::map<unsigned int, DebayerParams *> paramsBuffers_;
-	SwIspStats *stats_;
+	std::map<unsigned int, SwIspStats *> statsBuffers_;
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 	ControlInfoMap sensorInfoMap_;
 
@@ -86,14 +86,14 @@ private:
 
 IPASoftSimple::~IPASoftSimple()
 {
-	if (stats_)
-		munmap(stats_, sizeof(SwIspStats));
+	for (auto &item : statsBuffers_)
+		munmap(item.second, sizeof(SwIspStats));
 	for (auto &item : paramsBuffers_)
 		munmap(item.second, sizeof(DebayerParams));
 }
 
 int IPASoftSimple::init(const IPASettings &settings,
-			const SharedFD &fdStats,
+			const std::map<uint32_t, SharedFD> &fdStats,
 			const std::map<uint32_t, SharedFD> &fdParams,
 			const IPACameraSensorInfo &sensorInfo,
 			const ControlInfoMap &sensorControls,
@@ -137,11 +137,20 @@ int IPASoftSimple::init(const IPASettings &settings,
 		return ret;
 
 	*ccmEnabled = context_.ccmEnabled;
-	stats_ = nullptr;
+	for (auto &[bufferId, sharedFd] : fdStats) {
+		if (!sharedFd.isValid()) {
+			LOG(IPASoft, Error) << "Invalid Statistics handle";
+			return -ENODEV;
+		}
 
-	if (!fdStats.isValid()) {
-		LOG(IPASoft, Error) << "Invalid Statistics handle";
-		return -ENODEV;
+		void *mem = mmap(nullptr, sizeof(SwIspStats), PROT_READ,
+				 MAP_SHARED, sharedFd.get(), 0);
+		if (mem == MAP_FAILED) {
+			LOG(IPASoft, Error) << "Unable to map Statistics";
+			return -errno;
+		}
+
+		statsBuffers_[bufferId] = static_cast<SwIspStats *>(mem);
 	}
 
 	for (auto &[bufferId, sharedFd] : fdParams) {
@@ -164,17 +173,6 @@ int IPASoftSimple::init(const IPASettings &settings,
 		params->gains = { { 1.0, 1.0, 1.0 } };
 		/* combinedMatrix is reset for each frame. */
 		paramsBuffers_[bufferId] = params;
-	}
-
-	{
-		void *mem = mmap(nullptr, sizeof(SwIspStats), PROT_READ,
-				 MAP_SHARED, fdStats.get(), 0);
-		if (mem == MAP_FAILED) {
-			LOG(IPASoft, Error) << "Unable to map Statistics";
-			return -errno;
-		}
-
-		stats_ = static_cast<SwIspStats *>(mem);
 	}
 
 	ControlInfoMap::Map ctrlMap = context_.ctrlMap;
@@ -303,6 +301,8 @@ void IPASoftSimple::processStats(const uint32_t frame,
 {
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 
+	const SwIspStats *stats = statsBuffers_.at(statsBufferId);
+
 	frameContext.sensor.exposure =
 		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
 	int32_t again = sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
@@ -310,7 +310,7 @@ void IPASoftSimple::processStats(const uint32_t frame,
 
 	ControlList metadata(controls::controls);
 	for (const auto &algo : algorithms())
-		algo->process(context_, frame, frameContext, stats_, metadata);
+		algo->process(context_, frame, frameContext, stats, metadata);
 	metadataReady.emit(frame, metadata);
 	statsProcessed.emit(statsBufferId);
 

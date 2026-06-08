@@ -12,6 +12,7 @@
 #pragma once
 
 #include <map>
+#include <memory>
 #include <stdint.h>
 #include <vector>
 
@@ -46,10 +47,6 @@ public:
 	 * exposure changes have been applied.
 	 */
 	static constexpr uint32_t kStatPerNumFrames = 4;
-
-	bool isValid() const { return sharedStats_->begin()->second.fd().isValid(); }
-
-	const SharedFD &getStatsFD() { return sharedStats_->begin()->second.fd(); }
 
 	const Size &patternSize() { return patternSize_; }
 

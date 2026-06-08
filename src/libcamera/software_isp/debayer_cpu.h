@@ -53,7 +53,6 @@ public:
 	int start() override;
 	void stop() override;
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) override;
-	const SharedFD &getStatsFD() override { return stats_->getStatsFD(); }
 
 private:
 	friend class DebayerCpuThread;

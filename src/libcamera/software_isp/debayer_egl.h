@@ -61,8 +61,6 @@ public:
 	int start() override;
 	void stop() override;
 
-	const SharedFD &getStatsFD() override { return stats_->getStatsFD(); }
-
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) override;
 
 private:
