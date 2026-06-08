@@ -16,6 +16,7 @@
 #include <unistd.h>
 
 #include <libcamera/base/log.h>
+#include <libcamera/base/shared_fd.h>
 #include <libcamera/base/thread.h>
 #include <libcamera/base/utils.h>
 
@@ -125,6 +126,9 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 	if (!debayer_)
 		debayer_ = std::make_unique<DebayerCpu>(std::move(stats), cm);
 
+	std::map<uint32_t, SharedFD> fdParams;
+	for (auto &[bufferId, item] : sharedParams_)
+		fdParams[bufferId] = item.fd();
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
 	debayer_->paramsBufferReady.connect(this, &SoftwareIsp::paramsBufferReady);
@@ -153,7 +157,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe,
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
 			 debayer_->getStatsFD(),
-			 sharedParams_.begin()->second.fd(),
+			 fdParams,
 			 sensorInfo,
 			 sensor->controls(),
 			 ipaControls,
@@ -445,9 +449,9 @@ int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	return 0;
 }
 
-void SoftwareIsp::saveIspParams([[maybe_unused]] const uint32_t paramsBufferId)
+void SoftwareIsp::saveIspParams(const uint32_t paramsBufferId)
 {
-	debayerParams_ = *sharedParams_.begin()->second;
+	debayerParams_ = *sharedParams_.at(paramsBufferId);
 }
 
 void SoftwareIsp::paramsBufferReady(const uint32_t paramsBufferId)
