@@ -11,6 +11,8 @@
 
 #include "libcamera/internal/software_isp/swstats_cpu.h"
 
+#include <memory>
+
 #include <libcamera/base/log.h>
 
 #include <libcamera/stream.h>
@@ -36,9 +38,11 @@ namespace libcamera {
  */
 
 /**
- * \fn SwStatsCpu::SwStatsCpu(const CameraManager &cm)
+ * \fn SwStatsCpu::SwStatsCpu(const CameraManager &cm, std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats)
  * \brief Construct a SwStatsCpu object
  * \param[in] cm The camera manager
+ * \param[in] sharedStats Mapping of statistics buffer ids to statistics
+ *   instances that are shared with the IPA
  *
  * Creates a SwStatsCpu object and initialises shared memory for statistics
  * exchange.
@@ -159,12 +163,9 @@ namespace libcamera {
 
 LOG_DEFINE_CATEGORY(SwStatsCpu)
 
-SwStatsCpu::SwStatsCpu(const CameraManager &cm)
-	: sharedStats_("softIsp_stats"), bench_(cm, "CPU stats")
+SwStatsCpu::SwStatsCpu(const CameraManager &cm, std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats)
+	: sharedStats_(std::move(sharedStats)), bench_(cm, "CPU stats")
 {
-	if (!sharedStats_)
-		LOG(SwStatsCpu, Error)
-			<< "Failed to create shared memory for statistics";
 }
 
 static constexpr unsigned int kRedYMul = 77; /* 0.299 * 256 */
@@ -406,20 +407,21 @@ void SwStatsCpu::finishFrame(uint32_t frame,
 			     const uint32_t statsBufferId)
 {
 	bool valid = frame % kStatPerNumFrames == 0;
+	SharedMemObject<SwIspStats> &stats = sharedStats_->at(statsBufferId);
 
 	if (valid) {
-		sharedStats_->sum_ = RGB<uint64_t>({ 0, 0, 0 });
-		sharedStats_->yHistogram.fill(0);
+		stats->sum_ = RGB<uint64_t>({ 0, 0, 0 });
+		stats->yHistogram.fill(0);
 		for (const auto &s : stats_) {
-			sharedStats_->sum_ += s.sum_;
+			stats->sum_ += s.sum_;
 			for (unsigned int j = 0; j < SwIspStats::kYHistogramSize; j++)
-				sharedStats_->yHistogram[j] += s.yHistogram[j];
+				stats->yHistogram[j] += s.yHistogram[j];
 		}
 
-		sharedStats_->sum_ >>= sumShift_;
+		stats->sum_ >>= sumShift_;
 	}
 
-	sharedStats_->valid = valid;
+	stats->valid = valid;
 	statsReady.emit(frame, statsBufferId);
 }
 

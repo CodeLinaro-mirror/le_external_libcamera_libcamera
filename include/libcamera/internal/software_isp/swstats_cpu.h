@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
  * Copyright (C) 2023, Linaro Ltd
- * Copyright (C) 2023, Red Hat Inc.
+ * Copyright (C) 2023-2026 Red Hat Inc.
  *
  * Authors:
  * Hans de Goede <hdegoede@redhat.com>
@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <map>
 #include <stdint.h>
 #include <vector>
 
@@ -35,7 +36,7 @@ struct StreamConfiguration;
 class SwStatsCpu
 {
 public:
-	SwStatsCpu(const CameraManager &cm);
+	SwStatsCpu(const CameraManager &cm, std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats);
 	~SwStatsCpu() = default;
 
 	/*
@@ -46,9 +47,9 @@ public:
 	 */
 	static constexpr uint32_t kStatPerNumFrames = 4;
 
-	bool isValid() const { return sharedStats_.fd().isValid(); }
+	bool isValid() const { return sharedStats_->begin()->second.fd().isValid(); }
 
-	const SharedFD &getStatsFD() { return sharedStats_.fd(); }
+	const SharedFD &getStatsFD() { return sharedStats_->begin()->second.fd(); }
 
 	const Size &patternSize() { return patternSize_; }
 
@@ -122,7 +123,7 @@ private:
 	unsigned int sumShift_;
 
 	std::vector<SwIspStats> stats_;
-	SharedMemObject<SwIspStats> sharedStats_;
+	std::unique_ptr<std::map<uint32_t, SharedMemObject<SwIspStats>>> sharedStats_;
 	Benchmark bench_;
 };
 

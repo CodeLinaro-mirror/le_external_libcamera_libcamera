@@ -33,6 +33,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swstats_cpu.h"
 
 namespace libcamera {
 
@@ -91,6 +92,10 @@ public:
 private:
 	void paramsBufferReady(const uint32_t paramsBufferId);
 	bool allocateParamsBuffers(const unsigned int bufferCount);
+	std::unique_ptr<SwStatsCpu> allocateStatsBuffers(
+		const CameraManager &cm,
+		std::map<uint32_t, SharedFD> &fdStats,
+		const unsigned int bufferCount);
 	void setSensorCtrls(const ControlList &sensorControls);
 	void statsReady(uint32_t frame, const uint32_t statsBufferId);
 	void statsProcessed(const uint32_t statsBufferId);
