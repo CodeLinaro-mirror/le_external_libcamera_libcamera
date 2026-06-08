@@ -76,8 +76,8 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  * \brief Constructs SoftwareIsp object
  * \param[in] pipe The pipeline handler in use
  * \param[in] sensor Pointer to the CameraSensor instance owned by the pipeline
- * \param[out] ipaControls The IPA controls to update
  * handler
+ * \param[out] ipaControls The IPA controls to update
  */
 SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 ControlInfoMap *ipaControls)
