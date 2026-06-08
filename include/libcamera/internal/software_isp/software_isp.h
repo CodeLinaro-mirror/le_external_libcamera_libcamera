@@ -105,6 +105,7 @@ private:
 	Thread ispWorkerThread_;
 	std::map<uint32_t, SharedMemObject<DebayerParams>> sharedParams_;
 	std::vector<uint32_t> availableParams_;
+	std::vector<uint32_t> availableStats_;
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;
 

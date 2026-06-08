@@ -225,6 +225,7 @@ std::unique_ptr<SwStatsCpu> SoftwareIsp::allocateStatsBuffers(
 
 		fdStats[bufferId] = shared.fd();
 		sharedStats->emplace(bufferId, std::move(shared));
+		availableStats_.push_back(bufferId);
 	}
 
 	auto stats = std::make_unique<SwStatsCpu>(cm, std::move(sharedStats));
@@ -463,7 +464,8 @@ void SoftwareIsp::stop()
  * \param[in] frame The frame number
  * \param[in] input The input framebuffer
  * \param[out] output The framebuffer to write the processed frame to
- * \return 0 on success, -EAGAIN if a parameter buffer underrun occurs
+ * \return 0 on success, -EAGAIN if a parameter or statistics buffer underrun
+ *   occurs
  */
 int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
@@ -471,11 +473,16 @@ int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 		LOG(SoftwareIsp, Error) << "Parameters buffer underrun";
 		return -EAGAIN;
 	}
+	if (availableStats_.empty()) {
+		LOG(SoftwareIsp, Error) << "Statistics buffer underrun";
+		return -EAGAIN;
+	}
 
 	const uint32_t paramsBufferId = availableParams_.back();
 	availableParams_.pop_back();
+	const uint32_t statsBufferId = availableStats_.back();
+	availableStats_.pop_back();
 	ipa_->computeParams(frame, paramsBufferId);
-	const uint32_t statsBufferId = 0;
 	debayer_->invokeMethod(&Debayer::process,
 			       ConnectionTypeQueued, frame,
 			       statsBufferId, paramsBufferId, input, output);
@@ -498,8 +505,9 @@ void SoftwareIsp::statsReady(uint32_t frame, const uint32_t statsBufferId)
 	ispStatsReady.emit(frame, statsBufferId);
 }
 
-void SoftwareIsp::statsProcessed([[maybe_unused]] const uint32_t statsBufferId)
+void SoftwareIsp::statsProcessed(const uint32_t statsBufferId)
 {
+	availableStats_.push_back(statsBufferId);
 }
 
 void SoftwareIsp::inputReady(FrameBuffer *input)

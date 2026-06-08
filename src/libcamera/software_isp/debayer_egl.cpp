@@ -559,7 +559,7 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 }
 
 void DebayerEGL::process(uint32_t frame,
-			 [[maybe_unused]] const uint32_t statsBufferId,
+			 const uint32_t statsBufferId,
 			 const uint32_t paramsBufferId,
 			 FrameBuffer *input,
 			 FrameBuffer *output)
@@ -599,7 +599,7 @@ void DebayerEGL::process(uint32_t frame,
 			inDmaSyncer.emplace(input->planes()[0].fd, DmaSyncer::SyncType::Read);
 			inMapped.emplace(input, MappedFrameBuffer::MapFlag::Read);
 		}
-		stats_->processFrame(frame, 0, inMapped.value());
+		stats_->processFrame(frame, statsBufferId, inMapped.value());
 	}
 	inDmaSyncer.reset();
 
