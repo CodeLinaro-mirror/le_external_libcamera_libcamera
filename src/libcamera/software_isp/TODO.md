@@ -65,24 +65,6 @@ addressed now, I think it would be part of a larger refactoring
 stats in hardware, such as the i.MX7), but please keep it on your radar.
 ```
 
-### Store ISP parameters in per-frame buffers
-
-```
-> /**
->  * \fn void Debayer::process(FrameBuffer *input, FrameBuffer *output, DebayerParams params)
->  * \brief Process the bayer data into the requested format.
->  * \param[in] input The input buffer.
->  * \param[in] output The output buffer.
->  * \param[in] params The parameters to be used in debayering.
->  *
->  * \note DebayerParams is passed by value deliberately so that a copy is passed
->  * when this is run in another thread by invokeMethod().
->  */
-
-Possibly something to address later, by storing ISP parameters in
-per-frame buffers like we do for hardware ISPs.
-```
-
 ### DebayerCpu cleanups
 
 ```
