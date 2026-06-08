@@ -73,6 +73,11 @@ LOG_DEFINE_CATEGORY(SoftwareIsp)
  */
 
 /**
+ * \var SoftwareIsp::kParamStatBufferCount
+ * \brief The number of stats and params buffers (each of them)
+ */
+
+/**
  * \brief Constructs SoftwareIsp object
  * \param[in] pipe The pipeline handler in use
  * \param[in] sensor Pointer to the CameraSensor instance owned by the pipeline
@@ -150,7 +155,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 
 	ret = ipa_->init(IPASettings{ ipaTuningFile, sensor->model() },
 			 debayer_->getStatsFD(),
-			 sharedParams_.fd(),
+			 sharedParams_.begin()->second.fd(),
 			 sensorInfo,
 			 sensor->controls(),
 			 ipaControls,
@@ -179,14 +184,16 @@ SoftwareIsp::~SoftwareIsp()
 
 bool SoftwareIsp::allocateParamsBuffers()
 {
-	sharedParams_ = SharedMemObject<DebayerParams>("softIsp_params");
-	if (!sharedParams_) {
-		LOG(SoftwareIsp, Error) << "Failed to create shared memory for parameters";
-		return false;
-	}
+	for (unsigned int bufferId = 0; bufferId < kParamStatBufferCount; bufferId++) {
+		auto params = SharedMemObject<DebayerParams>("softIsp_params");
+		if (!params) {
+			LOG(SoftwareIsp, Error) << "Failed to create shared memory for parameters";
+			return false;
+		}
 
-	/* Just a single buffer for now, let's use 0 as its id. */
-	availableParams_.push_back(0);
+		availableParams_.push_back(bufferId);
+		sharedParams_.emplace(bufferId, std::move(params));
+	}
 
 	return true;
 }
@@ -442,7 +449,7 @@ int SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 
 void SoftwareIsp::saveIspParams([[maybe_unused]] const uint32_t paramsBufferId)
 {
-	debayerParams_ = *sharedParams_;
+	debayerParams_ = *sharedParams_.begin()->second;
 }
 
 void SoftwareIsp::paramsBufferReady(const uint32_t paramsBufferId)

@@ -97,7 +97,8 @@ private:
 	void outputReady(FrameBuffer *output);
 	std::unique_ptr<Debayer> debayer_;
 	Thread ispWorkerThread_;
-	SharedMemObject<DebayerParams> sharedParams_;
+	static constexpr unsigned int kParamStatBufferCount = 1;
+	std::map<uint32_t, SharedMemObject<DebayerParams>> sharedParams_;
 	DebayerParams debayerParams_;
 	std::vector<uint32_t> availableParams_;
 	DmaBufAllocator dmaHeap_;
