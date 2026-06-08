@@ -128,6 +128,7 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 
 	debayer_->inputBufferReady.connect(this, &SoftwareIsp::inputReady);
 	debayer_->outputBufferReady.connect(this, &SoftwareIsp::outputReady);
+	debayer_->paramsBufferReady.connect(this, &SoftwareIsp::paramsBufferReady);
 
 	ipa_ = pipe->createIPA<ipa::soft::IPAProxySoft>(0, 0);
 	if (!ipa_) {
@@ -408,14 +409,21 @@ void SoftwareIsp::stop()
  */
 void SoftwareIsp::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output)
 {
-	ipa_->computeParams(frame);
+	/* \todo Provide a real value */
+	constexpr uint32_t paramsBufferId = 0;
+	ipa_->computeParams(frame, paramsBufferId);
 	debayer_->invokeMethod(&Debayer::process,
-			       ConnectionTypeQueued, frame, input, output, debayerParams_);
+			       ConnectionTypeQueued, frame, paramsBufferId,
+			       input, output, debayerParams_);
 }
 
-void SoftwareIsp::saveIspParams()
+void SoftwareIsp::saveIspParams([[maybe_unused]] const uint32_t paramsBufferId)
 {
 	debayerParams_ = *sharedParams_;
+}
+
+void SoftwareIsp::paramsBufferReady([[maybe_unused]] const uint32_t paramsBufferId)
+{
 }
 
 void SoftwareIsp::setSensorCtrls(const ControlList &sensorControls)

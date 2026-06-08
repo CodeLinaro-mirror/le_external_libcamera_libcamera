@@ -104,9 +104,10 @@ Debayer::~Debayer()
  */
 
 /**
- * \fn void Debayer::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
+ * \fn void Debayer::process(uint32_t frame, const uint32_t paramsBufferId, FrameBuffer *input, FrameBuffer *output, DebayerParams params)
  * \brief Process the bayer data into the requested format
  * \param[in] frame The frame number
+ * \param[in] paramsBufferId The id of the params buffer in use
  * \param[in] input The input buffer
  * \param[in] output The output buffer
  * \param[in] params The parameters to be used in debayering
@@ -140,6 +141,11 @@ Debayer::~Debayer()
  *
  * \return The total output frame size in bytes as configured for the
  * current stream.
+ */
+
+/**
+ * \var Debayer::paramsBufferReady
+ * \brief Signals when the processing params are no longer needed
  */
 
 /**

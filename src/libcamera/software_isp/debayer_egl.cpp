@@ -555,7 +555,9 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 	return 0;
 }
 
-void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
+void DebayerEGL::process(uint32_t frame, const uint32_t paramsBufferId,
+			 FrameBuffer *input, FrameBuffer *output,
+			 const DebayerParams &params)
 {
 	bench_.startFrame();
 
@@ -572,6 +574,7 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 		LOG(Debayer, Error) << "debayerGPU failed";
 		goto error;
 	}
+	paramsBufferReady.emit(paramsBufferId);
 
 	metadata.planes()[0].bytesused = output->planes()[0].length;
 
@@ -602,6 +605,7 @@ void DebayerEGL::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	return;
 
 error:
+	paramsBufferReady.emit(paramsBufferId);
 	bench_.finishFrame();
 	metadata.status = FrameMetadata::FrameError;
 	return;

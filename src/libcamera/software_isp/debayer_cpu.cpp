@@ -1069,7 +1069,9 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 	params_ = params;
 }
 
-void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params)
+void DebayerCpu::process(uint32_t frame, const uint32_t paramsBufferId,
+			 FrameBuffer *input, FrameBuffer *output,
+			 const DebayerParams &params)
 {
 	bench_.startFrame();
 
@@ -1078,6 +1080,8 @@ void DebayerCpu::process(uint32_t frame, FrameBuffer *input, FrameBuffer *output
 	dmaSyncBegin(dmaSyncers, input, output);
 
 	updateLookupTables(params);
+
+	paramsBufferReady.emit(paramsBufferId);
 
 	/* Copy metadata from the input buffer */
 	FrameMetadata &metadata = output->_d()->metadata();
