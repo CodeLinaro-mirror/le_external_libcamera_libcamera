@@ -99,6 +99,8 @@ private:
 class eGL
 {
 public:
+	static bool isAvailable();
+
 	eGL();
 	~eGL();
 
@@ -126,6 +128,8 @@ public:
 
 private:
 	LIBCAMERA_DISABLE_COPY_AND_MOVE(eGL)
+
+	static EGLDisplay probeDisplay();
 
 	pid_t tid_;
 
