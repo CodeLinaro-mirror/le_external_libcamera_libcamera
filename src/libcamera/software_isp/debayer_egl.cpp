@@ -404,8 +404,9 @@ void DebayerEGL::setShaderVariableValues(const DebayerParams &params)
 	 * Scale input to output size, keeping the aspect ratio and preferring
 	 * cropping over black bars.
 	 */
-	GLfloat scale = std::max((GLfloat)window_.width / width_,
-				 (GLfloat)window_.height / height_);
+	Size maxInputSize = sizes(inputPixelFormat_, {width_, height_}).max;
+	GLfloat scale = std::max((GLfloat)window_.width / maxInputSize.width,
+				 (GLfloat)window_.height / maxInputSize.height);
 	GLfloat trans = -(1.0f - scale);
 	GLfloat projMatrix[] = {
 		scale, 0, 0, 0,
