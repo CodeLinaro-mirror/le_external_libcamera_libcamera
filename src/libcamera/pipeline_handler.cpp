@@ -76,6 +76,13 @@ PipelineHandler::PipelineHandler(CameraManager *manager,
 {
 }
 
+std::shared_ptr<Camera> PipelineHandler::createCamera(std::unique_ptr<Camera::Private> d,
+						      const std::string &id,
+						      const std::set<Stream *> &streams)
+{
+	return Camera::create(std::move(d), id, streams);
+}
+
 PipelineHandler::~PipelineHandler()
 {
 	for (std::shared_ptr<MediaDevice> &media : mediaDevices_)

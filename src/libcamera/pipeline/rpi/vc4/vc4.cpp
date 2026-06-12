@@ -400,7 +400,7 @@ int PipelineHandlerVc4::platformRegister(std::unique_ptr<RPi::CameraData> &camer
 	/* Create and register the camera. */
 	const std::string &id = data->sensor_->id();
 	std::shared_ptr<Camera> camera =
-		Camera::create(std::move(cameraData), id, streams);
+		createCamera(std::move(cameraData), id, streams);
 	PipelineHandler::registerCamera(std::move(camera));
 
 	LOG(RPI, Info) << "Registered camera " << id

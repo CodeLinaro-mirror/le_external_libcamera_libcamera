@@ -1101,7 +1101,7 @@ bool PipelineHandlerISI::match(DeviceEnumerator *enumerator)
 		}
 
 		std::shared_ptr<Camera> camera =
-			Camera::create(std::move(data), id, streams);
+			createCamera(std::move(data), id, streams);
 
 		registerCamera(std::move(camera));
 		numCameras++;

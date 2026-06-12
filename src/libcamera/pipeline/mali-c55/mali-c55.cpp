@@ -1778,8 +1778,7 @@ bool PipelineHandlerMaliC55::registerMaliCamera(std::unique_ptr<MaliC55CameraDat
 	if (dsFitted_)
 		streams.insert(&data->dsStream_);
 
-	std::shared_ptr<Camera> camera = Camera::create(std::move(data),
-							name, streams);
+	std::shared_ptr<Camera> camera = createCamera(std::move(data), name, streams);
 	registerCamera(std::move(camera));
 
 	return true;

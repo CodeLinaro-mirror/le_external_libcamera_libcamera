@@ -1133,7 +1133,7 @@ int PipelineHandlerIPU3::registerCameras()
 		/* Create and register the Camera instance. */
 		const std::string &cameraId = cio2->sensor()->id();
 		std::shared_ptr<Camera> camera =
-			Camera::create(std::move(data), cameraId, streams);
+			createCamera(std::move(data), cameraId, streams);
 
 		registerCamera(std::move(camera));
 

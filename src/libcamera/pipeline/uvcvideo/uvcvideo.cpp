@@ -485,7 +485,7 @@ bool PipelineHandlerUVC::match(DeviceEnumerator *enumerator)
 	std::string id = data->id();
 	std::set<Stream *> streams{ &data->stream_ };
 	std::shared_ptr<Camera> camera =
-		Camera::create(std::move(data), id, streams);
+		createCamera(std::move(data), id, streams);
 	registerCamera(std::move(camera));
 
 	/* Enable hot-unplug notifications. */

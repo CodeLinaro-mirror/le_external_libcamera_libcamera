@@ -402,7 +402,7 @@ bool PipelineHandlerVirtual::match([[maybe_unused]] DeviceEnumerator *enumerator
 		for (auto &streamConfig : data->streamConfigs_)
 			streams.insert(&streamConfig.stream);
 		std::string id = data->config_.id;
-		std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
+		std::shared_ptr<Camera> camera = createCamera(std::move(data), id, streams);
 
 		if (!initFrameGenerator(camera.get())) {
 			LOG(Virtual, Error) << "Failed to initialize frame "

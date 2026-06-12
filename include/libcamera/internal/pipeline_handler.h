@@ -14,6 +14,7 @@
 
 #include <libcamera/base/object.h>
 
+#include <libcamera/camera.h>
 #include <libcamera/controls.h>
 #include <libcamera/stream.h>
 
@@ -80,6 +81,10 @@ public:
 	}
 
 protected:
+	std::shared_ptr<Camera> createCamera(std::unique_ptr<Camera::Private> d,
+					     const std::string &id,
+					     const std::set<Stream *> &streams);
+
 	void registerCamera(std::shared_ptr<Camera> camera);
 	void hotplugMediaDevice(std::shared_ptr<MediaDevice> media);
 	unsigned int useCount() const { return useCount_; }

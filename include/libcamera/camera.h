@@ -116,10 +116,6 @@ class Camera final : public Object, public std::enable_shared_from_this<Camera>,
 	LIBCAMERA_DECLARE_PRIVATE()
 
 public:
-	static std::shared_ptr<Camera> create(std::unique_ptr<Private> d,
-					      const std::string &id,
-					      const std::set<Stream *> &streams);
-
 	const std::string &id() const;
 
 	Signal<Request *, FrameBuffer *> bufferCompleted;
@@ -153,6 +149,10 @@ public:
 
 private:
 	LIBCAMERA_DISABLE_COPY(Camera)
+
+	static std::shared_ptr<Camera> create(std::unique_ptr<Private> d,
+					      const std::string &id,
+					      const std::set<Stream *> &streams);
 
 	Camera(std::unique_ptr<Private> d, const std::string &id,
 	       const std::set<Stream *> &streams);

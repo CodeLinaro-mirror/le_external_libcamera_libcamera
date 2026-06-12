@@ -489,10 +489,11 @@ handler.
 
 Once the camera data has been initialized, the Camera device instances and the
 associated streams have to be registered. Create a set of streams for the
-camera, which for this device is only one. You create a camera using the static
-:doxy-int:`Camera::create` function, passing the Camera::Private instance, the
-id of the camera, and the streams available. Then register the camera with the
-pipeline handler and camera manager using :doxy-int:`PipelineHandler::registerCamera`.
+camera, which for this device is only one. You create a camera using the
+protected :doxy-int:`PipelineHandler::createCamera` helper, passing the
+Camera::Private instance, the id of the camera, and the streams available.
+Then register the camera with the pipeline handler and camera manager using
+:doxy-int:`PipelineHandler::registerCamera`.
 
 Finally with a successful construction, we return 'true' indicating that the
 PipelineHandler successfully matched and constructed a device.
@@ -501,7 +502,7 @@ PipelineHandler successfully matched and constructed a device.
 
    std::set<Stream *> streams{ &data->stream_ };
    const char *id = data->video_->deviceName();
-   std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
+   std::shared_ptr<Camera> camera = createCamera(std::move(data), id, streams);
    registerCamera(std::move(camera));
 
    return true;
@@ -529,7 +530,7 @@ Our match function should now look like the following:
    	/* Create and register the camera. */
    	std::set<Stream *> streams{ &data->stream_ };
    	const char *id = data->video_->deviceName();
-   	std::shared_ptr<Camera> camera = Camera::create(std::move(data), id, streams);
+   	std::shared_ptr<Camera> camera = createCamera(std::move(data), id, streams);
    	registerCamera(std::move(camera));
 
    	return true;
