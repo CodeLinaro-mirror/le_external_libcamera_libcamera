@@ -1,0 +1,273 @@
+/* SPDX-License-Identifier: LGPL-2.1-or-later */
+/*
+ * Copyright (C) 2026 Ideas on Board Oy
+ *
+ * libIPA CCM algorithm
+ */
+
+#include "ccm.h"
+
+/**
+ * \file ccm.h
+ * \brief libipa ccm (Colour Correction Matrix) algorithm
+ */
+
+namespace libcamera {
+
+namespace ipa {
+
+LOG_DEFINE_CATEGORY(Ccm)
+
+namespace ccm {
+
+/**
+ * \struct ActiveState
+ * \brief Active ccm state
+ *
+ * \var ActiveState::manual
+ * \brief The most recent manually requested ccm state
+ *
+ * \var ActiveState::automatic
+ * \brief The most recent automatically calculated ccm state
+ */
+
+/**
+ * \struct ActiveState::CcmState
+ * \brief Ccm coefficients and offsets
+ *
+ * \var ActiveState::CcmState::ccm
+ * \brief Matrix of 3x3 ccm coefficients
+ *
+ * \var ActiveState::CcmState::offsets
+ * \brief Vector of RGB ccm offsets
+ */
+
+/**
+ * \struct FrameContext
+ * \brief Per-frame ccm state
+ *
+ * \var FrameContext::ccm
+ * \brief Matrix of 3x3 ccm coefficients
+ *
+ * \var FrameContext::offsets
+ * \brief Vector of RGB ccm offsets
+ */
+
+} /* namespace ccm */
+
+/**
+ * \class CcmAlgorithmBase
+ * \brief Base class for CcmAlgorithm for non-templated functions implementation
+ *
+ * Base class for CcmAlgorithm where non-templated functions are implemented.
+ * IPA implementations shall use CcmAlgorithm and not this class.
+ */
+
+/**
+ * \brief Initialize the algorithm with the given tuning data
+ * \param[in] tuningData The tuning data to use for the algorithm
+ *
+ * Parse \a tuningData to initialize the ccm algorithm and register controls.
+ * IPA modules are expected to call this function as part of their
+ * implementation of Algorithm::init().
+ *
+ * \return 0 on success, a negative error code otherwise
+ */
+int CcmAlgorithmBase::init(const ValueNode &tuningData)
+{
+	int ret = ccm_.readYaml(tuningData["ccms"], "ct", "ccm");
+	if (ret < 0) {
+		LOG(Ccm, Warning)
+			<< "Failed to parse 'ccm' "
+			<< "parameter from tuning file; falling back to unit matrix";
+		ccm_.setData({ { 0, Matrix<float, 3, 3>::identity() } });
+	}
+
+	ret = offsets_.readYaml(tuningData["ccms"], "ct", "offsets");
+	if (ret < 0) {
+		LOG(Ccm, Warning)
+			<< "Failed to parse 'offsets' "
+			<< "parameter from tuning file; falling back to zero offsets";
+
+		offsets_.setData({ { 0, Matrix<int16_t, 3, 1>({ 0, 0, 0 }) } });
+	}
+
+	return 0;
+}
+
+/**
+ * \brief Configure the ccm algorithm
+ * \param[in] state The ccm active state
+ * \param[in] temperatureK The colour temperature in Kelvin
+ *
+ * Configure the ccm algorithm by initializing the manual and automatic
+ * states in \a state by interpolating the default colour correction matrix
+ * with the given colour temperature \a temperatureK.
+ *
+ * \return 0 if successful, an error code otherwise
+ */
+int CcmAlgorithmBase::configure(ccm::ActiveState &state, unsigned int temperatureK)
+{
+	state.manual.ccm = ccm_.getInterpolated(temperatureK);
+	state.manual.offsets = offsets_.getInterpolated(temperatureK);
+	state.automatic.ccm = ccm_.getInterpolated(temperatureK);
+	state.automatic.offsets = offsets_.getInterpolated(temperatureK);
+
+	return 0;
+}
+
+/**
+ * \brief Queue a Request to the ccm algorithm
+ * \param[in] state The ccm active state
+ * \param[in] context The ccm frame context
+ * \param[in] controls The list of controls part of the Request
+ *
+ * Queue a new Request to the ccm algorithm and store the manual colour
+ * correction matrix and temperature in \a frameContext.
+ *
+ * The currently handled controls are:
+ * - controls::ColourTemperature
+ * - controls::ColourCorrectionMatrix
+ *
+ * When controls::ColourCorrectionMatrix is passed in the supplied matrix is
+ * stored in \a state and \a context.
+ *
+ * When controls::ColourTemperature is passed in, the matrices loaded from
+ * configuration file are interpolated with the give temperature and the result
+ * is stored in \a state and \a context.
+ *
+ * If the IPA is running in manual mode, the IPA ccm algorithm implementations
+ * can use the matrix coefficients and offsets directly from \a context after
+ * calling this function to program the HW ccm engine, without calling prepare().
+ */
+void CcmAlgorithmBase::queueRequest(ccm::ActiveState &state,
+				    ccm::FrameContext &context,
+				    const ControlList &controls)
+{
+	const auto &colourTemperature = controls.get(controls::ColourTemperature);
+	const auto &ccmMatrix = controls.get(controls::ColourCorrectionMatrix);
+	if (ccmMatrix) {
+		state.manual.ccm = Matrix<float, 3, 3>(*ccmMatrix);
+		LOG(Ccm, Debug) << "Setting manual CCM from CCM control to "
+				<< state.manual.ccm;
+	} else if (colourTemperature) {
+		state.manual.ccm = ccm_.getInterpolated(*colourTemperature);
+		LOG(Ccm, Debug) << "Setting manual CCM from CT control to "
+				<< state.manual.ccm;
+	}
+
+	context.ccm = state.manual.ccm;
+	context.offsets = state.manual.offsets;
+}
+
+/**
+ * \brief Calculate the matrix coefficients for a colour temperature
+ * \param[in] state The ccm active state
+ * \param[in] context The ccm frame context
+ * \param[in] frame The frame number
+ * \param[in] temperatureK The colour temperature in Kelvin
+ *
+ * Interpolate the colour correction matrices as loaded from configuration file
+ * for colour temperature \a temperatureK.
+ *
+ * The function shall only be called if the IPA algorithm is running in auto
+ * mode. If running in manual mode the application supplied correction matrix is
+ * stored in \a frameContext at queueRequest() time.
+ */
+void CcmAlgorithmBase::prepare(ccm::ActiveState &state,
+			       ccm::FrameContext &context,
+			       unsigned int frame, unsigned int temperatureK)
+{
+	if (frame > 0 && temperatureK == ct_) {
+		context.ccm = state.automatic.ccm;
+		return;
+	}
+
+	ct_ = temperatureK;
+	context.ccm = ccm_.getInterpolated(ct_);
+	context.offsets = offsets_.getInterpolated(ct_);
+
+	state.automatic.ccm = context.ccm;
+	state.automatic.offsets = context.offsets;
+}
+
+/**
+ * \brief Populate metadata with the latest correction matrix coefficients
+ * \param[in] context The ccm frame context
+ * \param[out] metadata The metadata list
+ */
+void CcmAlgorithmBase::process(ccm::FrameContext &context, ControlList &metadata)
+{
+	metadata.set(controls::ColourCorrectionMatrix, context.ccm.data());
+}
+
+/**
+ * \var CcmAlgorithmBase::coeffMin_
+ * \brief The minimum supported coefficients value
+ *
+ * Minimum coefficient value used to clamp the ccm algorithm calculation results
+ * in the range supported by the platform ccm engine.
+ *
+ * The min and max gain values are initialized by CcmAlgorithm::init().
+ */
+
+/**
+ * \var CcmAlgorithmBase::coeffMax_
+ * \brief The maximum supported coefficients value
+ *
+ * Maximum coefficient value used to clamp the ccm algorithm calculation results
+ * in the range supported by the platform ccm engine.
+ *
+ * The min and max gain values are initialized by CcmAlgorithm::init().
+ */
+
+/**
+ * \class CcmAlgorithm
+ * \brief The libipa ccm algorithm
+ * \tparam Q The fixedpoint register representation of the colour correction
+ * coefficients
+ *
+ * Implement the ccm algorithm for libipa.
+ *
+ * The CcmAlgorithm class implement an interface similar in spirit to the one
+ * of the Algorithm class. IPA modules are expected to store an instance of
+ * CcmAlgorithm as class member, template it with the ccm coefficients register
+ * representation and call its function in their implementations of the
+ * Algorithm interface.
+ *
+ * The CcmAlgorithm class provides an init() function where tuning data are
+ * parsed and the per-colour temperature correction matrices are loaded from
+ * the tuning file.
+ *
+ * CcmAlgorithm supports both automatic and manual colour correction operations,
+ * but doesn't offer a way to select one of them. Enabling or disabling
+ * automatic ccm operations usually goes through the Awb algorithm
+ * enable/disable as the two algorithms should work with the same mode.
+ *
+ * When the Awb algorithm runs in manual mode a custom colour correction matrix
+ * or a custom colour temperature can be supplied to the ccm algorithm at
+ * queueRequest() time. If the Request contains a color correction matrix
+ * (controls::ColourCorrectionMatrix) then the matrix coefficients gets saved in
+ * the FrameContext and the IPA module can immediately use them and doesn't need
+ * to call process(). If a custom colour temperature is provided
+ * (controls::ColourTemperature) then the matrices loaded from configuration are
+ * interpolated with it and the result is saved in the FrameContext. In this
+ * case as well IPA modules can use the result immediately and should avoid
+ * calling process().
+ *
+ * When the Awb algorithm runs in automatic mode instead, it estimates the scene
+ * colour temperature. The estimated colour temperature shall be passed to
+ * process(), where it is used to interpolate the matrices loaded from the
+ * tuning file. The resulting coefficients are stored in the FrameContext for
+ * the IPA algorithm to use them to program their ccm engine registers.
+ */
+
+/**
+ * \fn CcmAlgorithm::init()
+ * \param[in] controls The info map of the IPA controls
+ * \copydoc CcmAlgorithmBase::init()
+ */
+
+} /* namespace ipa */
+
+} /* namespace libcamera */
