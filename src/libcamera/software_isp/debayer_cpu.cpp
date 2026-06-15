@@ -1051,7 +1051,7 @@ void DebayerCpu::updateLookupTables(const DebayerParams &params)
 			auto &blue = swapRedBlueGains_ ? red_ : blue_;
 			for (unsigned int i = 0; i < kRGBLookupSize; i++) {
 				/* Apply gamma after gain! */
-				const RGB<float> lutGains = (gains * i / div).min(gammaTableSize - 1);
+				const RGB<double> lutGains = (gains * i / div).min(gammaTableSize - 1);
 				red[i] = gammaTable_[static_cast<unsigned int>(lutGains.r())];
 				green[i] = gammaTable_[static_cast<unsigned int>(lutGains.g())];
 				blue[i] = gammaTable_[static_cast<unsigned int>(lutGains.b())];

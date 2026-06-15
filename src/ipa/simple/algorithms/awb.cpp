@@ -15,7 +15,6 @@
 #include <libcamera/control_ids.h>
 
 #include "libipa/colours.h"
-#include "simple/ipa_context.h"
 
 namespace libcamera {
 
@@ -23,40 +22,78 @@ LOG_DEFINE_CATEGORY(IPASoftAwb)
 
 namespace ipa::soft::algorithms {
 
+/*
+ * \todo Replace it with a proper Lux algorithm
+ */
+static constexpr unsigned int kDefaultLux = 500;
+
+class SimpleAwbStats final : public AwbStats
+{
+public:
+	SimpleAwbStats() {}
+	SimpleAwbStats(const RGB<double> &rgbMeans)
+		: AwbStats(rgbMeans)
+	{
+	}
+
+	/* Minimum mean value below which AWB can't operate. */
+	double minColourValue() const override
+	{
+		return 0.2;
+	}
+};
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::init
+ */
+int Awb::init(IPAContext &context, const ValueNode &tuningData)
+{
+	return awbAlgo_.init(tuningData, context.ctrlMap);
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::configure
+ */
 int Awb::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	auto &gains = context.activeState.awb.gains;
-	gains = { { 1.0, 1.0, 1.0 } };
-
-	return 0;
+	return awbAlgo_.configure(context.activeState.awb,
+				  context.configuration.awb);
 }
 
+/**
+ * \copydoc libcamera::ipa::Algorithm::queueRequest
+ */
+void Awb::queueRequest(IPAContext &context,
+		       const uint32_t frame,
+		       IPAFrameContext &frameContext,
+		       const ControlList &controls)
+{
+	awbAlgo_.queueRequest(context.activeState.awb, frame, frameContext.awb,
+			      controls);
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::prepare
+ */
 void Awb::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext,
 		  DebayerParams *params)
 {
-	auto &gains = context.activeState.awb.gains;
+	awbAlgo_.prepare(context.activeState.awb, frameContext.awb);
 
-	frameContext.gains = gains;
-	params->gains = gains;
+	params->gains = frameContext.awb.gains;
 }
 
-void Awb::process(IPAContext &context,
-		  [[maybe_unused]] const uint32_t frame,
-		  IPAFrameContext &frameContext,
-		  const SwIspStats *stats,
-		  ControlList &metadata)
+SimpleAwbStats Awb::calculateRgbMeans(IPAContext &context,
+				      const SwIspStats *stats) const
 {
+	if (!stats->valid)
+		return {};
+
 	const SwIspStats::Histogram &histogram = stats->yHistogram;
 	const uint8_t blackLevel = context.activeState.blc.level;
-
-	metadata.set(controls::ColourGains, { frameContext.gains.r(),
-					      frameContext.gains.b() });
-
-	if (!stats->valid)
-		return;
 
 	/*
 	 * Black level must be subtracted to get the correct AWB ratios, they
@@ -67,30 +104,37 @@ void Awb::process(IPAContext &context,
 		histogram.begin(), histogram.end(), uint64_t(0));
 	const uint64_t offset = blackLevel * nPixels;
 	const uint64_t minValid = 1;
+
 	/*
 	 * Make sure the sums are at least minValid, while preventing unsigned
 	 * integer underflow.
 	 */
 	const RGB<uint64_t> sum = stats->sum_.max(offset + minValid) - offset;
 
+	RGB<double> rgbMeans = { { static_cast<double>(sum.r() / nPixels),
+				   static_cast<double>(sum.g() / nPixels),
+				   static_cast<double>(sum.b() / nPixels) } };
+
 	/*
-	 * Calculate red and blue gains for AWB.
-	 * Clamp max gain at 4.0, this also avoids 0 division.
+	 * \todo Determine the minimum allowed thresholds from the mean
+	 * but we currently have the sum - not the mean value!
+	 *
+	 * Currently set to SimpleAwbStats::minColourValue() = 0.2.
 	 */
-	auto &gains = context.activeState.awb.gains;
-	gains = { {
-		sum.r() <= sum.g() / 4 ? 4.0f : static_cast<float>(sum.g()) / sum.r(),
-		1.0,
-		sum.b() <= sum.g() / 4 ? 4.0f : static_cast<float>(sum.g()) / sum.b(),
-	} };
+	return SimpleAwbStats(rgbMeans);
+}
 
-	RGB<double> rgbGains{ { 1 / gains.r(), 1 / gains.g(), 1 / gains.b() } };
-	context.activeState.awb.temperatureK = estimateCCT(rgbGains);
-	metadata.set(controls::ColourTemperature, context.activeState.awb.temperatureK);
+/**
+ * \copydoc libcamera::ipa::Algorithm::process
+ */
+void Awb::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext, const SwIspStats *stats,
+		  ControlList &metadata)
+{
+	SimpleAwbStats awbStats = calculateRgbMeans(context, stats);
 
-	LOG(IPASoftAwb, Debug)
-		<< "gain R/B: " << gains << "; temperature: "
-		<< context.activeState.awb.temperatureK;
+	awbAlgo_.process(context.activeState.awb, frameContext.awb, awbStats,
+			 kDefaultLux, metadata);
 }
 
 REGISTER_IPA_ALGORITHM(Awb, "Awb")
