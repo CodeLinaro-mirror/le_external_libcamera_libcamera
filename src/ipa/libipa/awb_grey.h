@@ -18,13 +18,14 @@ namespace libcamera {
 
 namespace ipa {
 
-class AwbGrey : public AwbAlgorithm
+class AwbGrey : public AwbImplementation
 {
 public:
 	AwbGrey() = default;
 
 	int init(const ValueNode &tuningData) override;
-	AwbResult calculateAwb(const AwbStats &stats, unsigned int lux) override;
+	AwbResult calculateAwb(const AwbStats &stats, unsigned int lux,
+			       std::array<double, 2> ranges) override;
 	std::optional<RGB<double>> gainsFromColourTemperature(double colourTemperature) override;
 
 private:

@@ -60,6 +60,7 @@ int AwbGrey::init(const ValueNode &tuningData)
  * \brief Calculate AWB data from the given statistics
  * \param[in] stats The statistics to use for the calculation
  * \param[in] lux The lux value of the scene
+ * \param[in] ranges The colour temperature search limits (AwbBayes only)
  *
  * The colour temperature is estimated based on the colours::estimateCCT()
  * function. The gains are calculated purely based on the RGB means provided by
@@ -70,20 +71,23 @@ int AwbGrey::init(const ValueNode &tuningData)
  *
  * \return The AWB result
  */
-AwbResult AwbGrey::calculateAwb(const AwbStats &stats, [[maybe_unused]] unsigned int lux)
+AwbImplementation::AwbResult
+AwbGrey::calculateAwb(const AwbStats &stats, [[maybe_unused]] unsigned int lux,
+		      [[maybe_unused]] std::array<double, 2> ranges)
 {
 	AwbResult result;
 	auto means = stats.rgbMeans();
 	result.colourTemperature = estimateCCT(means);
 
 	/*
-	 * Estimate the red and blue gains to apply in a grey world. The green
-	 * gain is hardcoded to 1.0. Avoid divisions by zero by clamping the
-	 * divisor to a minimum value of 1.0.
+	 * Calculate the red and blue gains to apply in a grey world by simply
+	 * inverting the red/green and blue/green ratios as reported in
+	 * statistics. The green gain is hardcoded to 1.0.
 	 */
-	result.gains.r() = means.g() / std::max(means.r(), 1.0);
+	result.gains.r() = 1.0 / stats.rgRatio();
 	result.gains.g() = 1.0;
-	result.gains.b() = means.g() / std::max(means.b(), 1.0);
+	result.gains.b() = 1.0 / stats.bgRatio();
+
 	return result;
 }
 

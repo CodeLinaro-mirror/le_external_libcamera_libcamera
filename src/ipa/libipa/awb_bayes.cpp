@@ -140,11 +140,6 @@ void Interpolator<Pwl>::interpolate(const Pwl &a, const Pwl &b, Pwl &dest, doubl
  * \brief How far to wander off CT curve towards "more green"
  */
 
-/**
- * \var AwbBayes::currentMode_
- * \brief The currently selected mode
- */
-
 int AwbBayes::init(const ValueNode &tuningData)
 {
 	int ret = colourGainCurve_.readYaml(tuningData["colourGains"], "ct", "gains");
@@ -171,14 +166,6 @@ int AwbBayes::init(const ValueNode &tuningData)
 		LOG(Awb, Error) << "Failed to read priors";
 		return ret;
 	}
-
-	ret = parseModeConfigs(tuningData, controls::AwbAuto);
-	if (ret) {
-		LOG(Awb, Error)
-			<< "Failed to parse mode parameter from tuning file";
-		return ret;
-	}
-	currentMode_ = &modes_[controls::AwbAuto];
 
 	transversePos_ = tuningData["transversePos"].get<double>(0.01);
 	transverseNeg_ = tuningData["transverseNeg"].get<double>(0.01);
@@ -260,18 +247,6 @@ int AwbBayes::readPriors(const ValueNode &tuningData)
 	return 0;
 }
 
-void AwbBayes::handleControls(const ControlList &controls)
-{
-	auto mode = controls.get(controls::AwbMode);
-	if (mode) {
-		auto it = modes_.find(static_cast<controls::AwbModeEnum>(*mode));
-		if (it != modes_.end())
-			currentMode_ = &it->second;
-		else
-			LOG(Awb, Error) << "Unsupported AWB mode " << *mode;
-	}
-}
-
 std::optional<RGB<double>> AwbBayes::gainsFromColourTemperature(double colourTemperature)
 {
 	/*
@@ -283,7 +258,9 @@ std::optional<RGB<double>> AwbBayes::gainsFromColourTemperature(double colourTem
 	return RGB<double>{ { gains[0], 1.0, gains[1] } };
 }
 
-AwbResult AwbBayes::calculateAwb(const AwbStats &stats, unsigned int lux)
+AwbImplementation::AwbResult
+AwbBayes::calculateAwb(const AwbStats &stats, unsigned int lux,
+		       std::array<double, 2> ranges)
 {
 	ipa::Pwl prior;
 	if (lux > 0) {
@@ -295,7 +272,7 @@ AwbResult AwbBayes::calculateAwb(const AwbStats &stats, unsigned int lux)
 		prior.append(0, 1.0);
 	}
 
-	double t = coarseSearch(prior, stats);
+	double t = coarseSearch(prior, stats, ranges);
 	double r = ctR_.eval(t);
 	double b = ctB_.eval(t);
 	LOG(Awb, Debug)
@@ -319,11 +296,12 @@ AwbResult AwbBayes::calculateAwb(const AwbStats &stats, unsigned int lux)
 	return { { { 1.0 / r, 1.0, 1.0 / b } }, t };
 }
 
-double AwbBayes::coarseSearch(const ipa::Pwl &prior, const AwbStats &stats) const
+double AwbBayes::coarseSearch(const ipa::Pwl &prior, const AwbStats &stats,
+			      std::array<double, 2> ranges) const
 {
 	std::vector<Pwl::Point> points;
 	size_t bestPoint = 0;
-	double t = currentMode_->ctLo;
+	double t = ranges[0];
 	int spanR = -1;
 	int spanB = -1;
 	LimitsRecorder<double> errorLimits;
@@ -345,14 +323,14 @@ double AwbBayes::coarseSearch(const ipa::Pwl &prior, const AwbStats &stats) cons
 		if (points.back().y() < points[bestPoint].y())
 			bestPoint = points.size() - 1;
 
-		if (t == currentMode_->ctHi)
+		if (t == ranges[1])
 			break;
 
 		/*
 		 * Ensure even steps along the r/b curve by scaling them by the
 		 * current t.
 		 */
-		t = std::min(t + t / 10 * kSearchStep, currentMode_->ctHi);
+		t = std::min(t + t / 10 * kSearchStep, ranges[1]);
 	}
 
 	t = points[bestPoint].x();
