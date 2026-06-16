@@ -313,6 +313,7 @@ int IPAIPU3::init(const IPASettings &settings,
 	context_.configuration = {};
 	context_.configuration.sensor.lineDuration =
 		sensorInfo.minLineLength * 1.0s / sensorInfo.pixelRate;
+	context_.sensorInfo = sensorInfo;
 
 	/* Load the tuning data file. */
 	File file(settings.configurationFile);

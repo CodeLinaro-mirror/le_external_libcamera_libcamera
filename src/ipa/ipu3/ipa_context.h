@@ -15,6 +15,8 @@
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
 
+#include <libcamera/ipa/core_ipa_interface.h>
+
 #include <libipa/awb.h>
 #include <libipa/ccm.h>
 #include <libipa/fc_queue.h>
@@ -93,6 +95,7 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+	IPACameraSensorInfo sensorInfo;
 };
 
 } /* namespace ipa::ipu3 */
