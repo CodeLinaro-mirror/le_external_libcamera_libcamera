@@ -110,6 +110,11 @@ namespace libcamera::ipa::ipu3 {
  */
 
 /**
+ * \var IPAActiveState::awb
+ * \brief Active auto-white balance parameters for the IPA
+ */
+
+/**
  * \var IPASessionConfiguration::sensor
  * \brief Sensor-specific configuration of the IPA
  *
@@ -121,6 +126,11 @@ namespace libcamera::ipa::ipu3 {
  *
  * \var IPASessionConfiguration::sensor.size
  * \brief Sensor output resolution
+ */
+
+/**
+ * \var IPASessionConfiguration::awb
+ * \brief Auto-white balance specific session configuration data
  */
 
 /**
@@ -137,26 +147,6 @@ namespace libcamera::ipa::ipu3 {
  * \brief Analogue gain multiplier
  *
  * The gain should be adapted to the sensor specific gain code before applying.
- */
-
-/**
- * \var IPAActiveState::awb
- * \brief Context for the Automatic White Balance algorithm
- *
- * \var IPAActiveState::awb.gains
- * \brief White balance gains
- *
- * \var IPAActiveState::awb.gains.red
- * \brief White balance gain for R channel
- *
- * \var IPAActiveState::awb.gains.green
- * \brief White balance gain for G channel
- *
- * \var IPAActiveState::awb.gains.blue
- * \brief White balance gain for B channel
- *
- * \var IPAActiveState::awb.temperatureK
- * \brief Estimated color temperature
  */
 
 /**
@@ -185,6 +175,11 @@ namespace libcamera::ipa::ipu3 {
  *
  * \var IPAFrameContext::sensor.gain
  * \brief Analogue gain multiplier
+ */
+
+/**
+ * \var IPAFrameContext::awb
+ * \brief Per-frame auto-white balance parameters for the IPA
  */
 
 } /* namespace libcamera::ipa::ipu3 */

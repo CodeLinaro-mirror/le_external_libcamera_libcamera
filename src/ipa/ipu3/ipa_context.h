@@ -15,6 +15,7 @@
 #include <libcamera/controls.h>
 #include <libcamera/geometry.h>
 
+#include <libipa/awb.h>
 #include <libipa/fc_queue.h>
 
 namespace libcamera {
@@ -44,6 +45,8 @@ struct IPASessionConfiguration {
 		utils::Duration lineDuration;
 		Size size;
 	} sensor;
+
+	ipa::awb::Session awb;
 };
 
 struct IPAActiveState {
@@ -60,15 +63,7 @@ struct IPAActiveState {
 		uint32_t exposureMode;
 	} agc;
 
-	struct {
-		struct {
-			double red;
-			double green;
-			double blue;
-		} gains;
-
-		double temperatureK;
-	} awb;
+	ipa::awb::ActiveState awb;
 
 	struct {
 		double gamma;
@@ -81,6 +76,8 @@ struct IPAFrameContext : public FrameContext {
 		uint32_t exposure;
 		double gain;
 	} sensor;
+
+	ipa::awb::FrameContext awb;
 };
 
 struct IPAContext {
