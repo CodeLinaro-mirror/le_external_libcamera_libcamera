@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <libipa/gamma.h>
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -18,7 +20,11 @@ class ToneMapping : public Algorithm
 public:
 	ToneMapping();
 
+	int init(IPAContext &context, const ValueNode &tuningData) override;
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
+	void queueRequest(IPAContext &context, const uint32_t frame,
+			  IPAFrameContext &frameContext,
+			  const ControlList &controls) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext, ipu3_uapi_params *params) override;
 	void process(IPAContext &context, const uint32_t frame,
@@ -27,7 +33,8 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	double gamma_;
+	static constexpr unsigned int kNumLutNodes = IPU3_UAPI_GAMMA_CORR_LUT_ENTRIES;
+	GammaAlgorithm<kNumLutNodes, UQ<0, 13>> gammaAlgo_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
