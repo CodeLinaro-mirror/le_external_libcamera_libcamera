@@ -9,6 +9,9 @@
 
 #include "algorithm.h"
 
+#include <libipa/fixedpoint.h>
+#include <libipa/gamma.h>
+
 namespace libcamera {
 
 namespace ipa::rkisp1::algorithms {
@@ -35,7 +38,7 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	float defaultGamma_;
+	GammaAlgorithm<RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V10, UQ<0, 10>> gammaAlgo_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
