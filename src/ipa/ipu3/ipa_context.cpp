@@ -115,6 +115,11 @@ namespace libcamera::ipa::ipu3 {
  */
 
 /**
+ * \var IPAActiveState::ccm
+ * \brief Active colour Correction Matrix parameters for the IPA
+ */
+
+/**
  * \var IPASessionConfiguration::sensor
  * \brief Sensor-specific configuration of the IPA
  *
@@ -180,6 +185,11 @@ namespace libcamera::ipa::ipu3 {
 /**
  * \var IPAFrameContext::awb
  * \brief Per-frame auto-white balance parameters for the IPA
+ */
+
+/**
+ * \var IPAFrameContext::ccm
+ * \brief Per-frame colour Correction Matrix parameters for the IPA
  */
 
 } /* namespace libcamera::ipa::ipu3 */
