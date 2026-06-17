@@ -33,11 +33,13 @@ public:
 
 	struct DewarpParams {
 		DewarpParams() : cm(Matrix<double, 3, 3>::identity()),
+				 cmNew(Matrix<double, 3, 3>::identity()),
 				 coefficients({})
 		{
 		}
 
 		Matrix<double, 3, 3> cm;
+		Matrix<double, 3, 3> cmNew;
 
 		union {
 			struct {
