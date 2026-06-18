@@ -2,4 +2,5 @@
 
 rppx1_ipa_algorithms = files([
     'awb.cpp',
+    'ccm.cpp'
 ])

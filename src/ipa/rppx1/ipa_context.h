@@ -21,6 +21,7 @@
 #include <libipa/fc_queue.h>
 
 #include "libipa/awb.h"
+#include "libipa/ccm.h"
 
 namespace libcamera {
 
@@ -37,10 +38,12 @@ struct IPASessionConfiguration {
 
 struct IPAActiveState {
 	ipa::awb::ActiveState awb;
+	ipa::ccm::ActiveState ccm;
 };
 
 struct IPAFrameContext : public FrameContext {
 	ipa::awb::FrameContext awb;
+	ipa::ccm::FrameContext ccm;
 };
 
 struct IPAContext {

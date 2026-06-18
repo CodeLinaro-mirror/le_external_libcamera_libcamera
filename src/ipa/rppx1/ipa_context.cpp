@@ -52,6 +52,11 @@ namespace libcamera::ipa::rppx1 {
  */
 
 /**
+ * \var IPAActiveState::ccm
+ * \copydoc ipa::ccm::ActiveState
+ */
+
+/**
  * \struct IPAFrameContext
  * \brief Per-frame context for algorithms
  */
@@ -59,6 +64,11 @@ namespace libcamera::ipa::rppx1 {
 /**
  * \var IPAFrameContext::awb
  * \copydoc ipa::awb::FrameContext
+ */
+
+/**
+ * \var IPAFrameContext::ccm
+ * \copydoc ipa::ccm::FrameContext
  */
 
 /**
