@@ -20,6 +20,7 @@ libipa_headers = files([
     'pwl.h',
     'quantized.h',
     'v4l2_params.h',
+    'v4l2_stats.h',
 ])
 
 libipa_sources = files([
@@ -42,6 +43,7 @@ libipa_sources = files([
     'pwl.cpp',
     'quantized.cpp',
     'v4l2_params.cpp',
+    'v4l2_stats.cpp',
 ])
 
 libipa_includes = include_directories('..')
