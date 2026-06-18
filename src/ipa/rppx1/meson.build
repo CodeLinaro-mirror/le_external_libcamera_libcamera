@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: CC0-1.0
+#
+subdir('algorithms')
 
 ipa_name = 'ipa_rppx1'
 
@@ -6,6 +8,8 @@ rppx1_ipa_sources = files([
     'ipa_context.cpp',
     'rppx1.cpp',
 ])
+
+rppx1_ipa_sources += rppx1_ipa_algorithms
 
 mod = shared_module(ipa_name, rppx1_ipa_sources,
                     name_prefix : '',

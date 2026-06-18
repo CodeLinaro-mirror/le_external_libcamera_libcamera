@@ -20,17 +20,27 @@
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
+#include "libipa/awb.h"
+
 namespace libcamera {
 
 namespace ipa::rppx1 {
 
+struct RppX1AwbSession {
+	struct rppx1_window measureWindow;
+	bool enabled;
+};
+
 struct IPASessionConfiguration {
+	struct RppX1AwbSession awb;
 };
 
 struct IPAActiveState {
+	ipa::awb::ActiveState awb;
 };
 
 struct IPAFrameContext : public FrameContext {
+	ipa::awb::FrameContext awb;
 };
 
 struct IPAContext {

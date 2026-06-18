@@ -17,8 +17,28 @@
 namespace libcamera::ipa::rppx1 {
 
 /**
+ * \struct RppX1AwbSession
+ * \brief RPP-X1 Awb session configuration
+ */
+
+/**
+ * \var RppX1AwbSession::measureWindow
+ * \brief Awb measurement window
+ */
+
+/**
+ * \var RppX1AwbSession::enabled
+ * \brief Awb enabled flag
+ */
+
+/**
  * \struct IPASessionConfiguration
  * \brief Session configuration for the IPA module
+ */
+
+/**
+ * \var IPASessionConfiguration::awb
+ * \brief Awb session configuration
  */
 
 /**
@@ -27,8 +47,18 @@ namespace libcamera::ipa::rppx1 {
  */
 
 /**
+ * \var IPAActiveState::awb
+ * \copydoc ipa::awb::ActiveState
+ */
+
+/**
  * \struct IPAFrameContext
  * \brief Per-frame context for algorithms
+ */
+
+/**
+ * \var IPAFrameContext::awb
+ * \copydoc ipa::awb::FrameContext
  */
 
 /**
