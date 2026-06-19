@@ -255,7 +255,6 @@ private:
 	std::unique_ptr<V4L2Subdevice> cif_;
 	std::unique_ptr<V4L2VideoDevice> video_;
 
-	std::shared_ptr<MediaDevice> ispMedia_;
 	std::unique_ptr<V4L2VideoDevice> rawrd_;
 	std::unique_ptr<V4L2Subdevice> isp_;
 	std::unique_ptr<V4L2VideoDevice> mainPath_;
@@ -717,6 +716,36 @@ int PipelineHandlerRkISP2::configure(Camera *camera,
 	const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
 	data->isRaw_ = info.colourEncoding == PixelFormatInfo::ColourEncodingRAW;
 
+	/*
+	 * No need to check usingIsp_ || isRaw_, since if we're capturing from
+	 * just VICAP we still don't want the link to the ISP, and if we're
+	 * using the ISP then we don't support inline mode yet.
+	 * \todo Support inline mode
+	 */
+	LOG(RkISP2, Debug) << "Disabling link from VICAP to ISP";
+	MediaLink *link = media_->link(cif_->entity(), 2, isp_->entity(), 4);
+	ret = link->setEnabled(false);
+	if (ret < 0) {
+		LOG(RkISP2, Error) << "Failed to disable link between VICAP and ISP";
+		return ret;
+	}
+
+	LOG(RkISP2, Debug) << "Enabling link from VICAP to capture node";
+	link = media_->link("rkcif-mipi2", 1, "rkcif-mipi2-id0", 0);
+	ret = link->setEnabled(true);
+	if (ret < 0) {
+		LOG(RkISP2, Error) << "Failed to enable link between VICAP and capture node";
+		return ret;
+	}
+
+	LOG(RkISP2, Debug) << "Enabling link from rawrd to ISP";
+	link = media_->link("rkisp2_rawrd0", 0, "rkisp2_isp", 0);
+	ret = link->setEnabled(true);
+	if (ret < 0) {
+		LOG(RkISP2, Error) << "Failed to enable link between rawrd and ISP";
+		return ret;
+	}
+
 	V4L2SubdeviceFormat format = config->sensorFormat();
 	LOG(RkISP2, Debug) << "Configuring sensor with " << format;
 
@@ -1124,6 +1153,10 @@ bool PipelineHandlerRkISP2::createCamera(bool usingIsp)
 
 bool PipelineHandlerRkISP2::match(DeviceEnumerator *enumerator)
 {
+	/*
+	 * \todo This needs to be reconciled with how shared media graphs are
+	 * named
+	 */
 	DeviceMatch dm("rockchip-cif");
 	/* \todo Generalize this for the other csi ports */
 	/*
@@ -1135,6 +1168,12 @@ bool PipelineHandlerRkISP2::match(DeviceEnumerator *enumerator)
 	/* \todo Generalize this for the other channels */
 	dm.add("rkcif-mipi2-id0");
 	dm.add("dw-mipi-csi2rx fdd30000.csi");
+
+	dm.add("rkisp2_isp");
+	/* \todo Generalize this for the other channels */
+	dm.add("rkisp2_rawrd0");
+	/* \todo Support self path */
+	dm.add("rkisp2_mainpath");
 
 	media_ = acquireMediaDevice(enumerator, dm);
 	if (!media_)
@@ -1179,49 +1218,35 @@ bool PipelineHandlerRkISP2::match(DeviceEnumerator *enumerator)
 		return createCamera(usingIsp);
 	}
 
-	/* Match ISP */
-
-	DeviceMatch dmIsp("rkisp2");
-	dmIsp.add("rkisp2_isp");
-	/* \todo Generalize this for the other channels */
-	dmIsp.add("rkisp2_rawrd0");
-	/* \todo Support self path */
-	dmIsp.add("rkisp2_mainpath");
-
-	ispMedia_ = acquireMediaDevice(enumerator, dmIsp);
-	if (!ispMedia_) {
-		usingIsp = false;
-		LOG(RkISP2, Debug) << "ISP not found";
-		return createCamera(usingIsp);
-	}
+	/* Acquire ISP */
 
 	/* \todo Support the other rawrd nodes */
-	rawrd_ = V4L2VideoDevice::fromEntityName(ispMedia_.get(), "rkisp2_rawrd0");
+	rawrd_ = V4L2VideoDevice::fromEntityName(media_.get(), "rkisp2_rawrd0");
 	if (!rawrd_ || rawrd_->open() < 0) {
 		LOG(RkISP2, Error) << "Failed to open rkisp2 rawrd device";
 		return false;
 	}
 
-	isp_ = V4L2Subdevice::fromEntityName(ispMedia_.get(), "rkisp2_isp");
+	isp_ = V4L2Subdevice::fromEntityName(media_.get(), "rkisp2_isp");
 	if (!isp_ || isp_->open() < 0) {
 		LOG(RkISP2, Error) << "Failed to open rkisp2 isp";
 		return false;
 	}
 
 	/* \todo Support self path */
-	mainPath_ = V4L2VideoDevice::fromEntityName(ispMedia_.get(), "rkisp2_mainpath");
+	mainPath_ = V4L2VideoDevice::fromEntityName(media_.get(), "rkisp2_mainpath");
 	if (!mainPath_ || mainPath_->open() < 0) {
 		LOG(RkISP2, Error) << "Failed to open rkisp2 main path";
 		return false;
 	}
 
-	param_ = V4L2VideoDevice::fromEntityName(ispMedia_.get(), "rkisp2_params");
+	param_ = V4L2VideoDevice::fromEntityName(media_.get(), "rkisp2_params");
 	if (!param_ || param_->open() < 0) {
 		LOG(RkISP2, Error) << "Failed to open rkisp2 params";
 		return false;
 	}
 
-	stat_ = V4L2VideoDevice::fromEntityName(ispMedia_.get(), "rkisp2_stats");
+	stat_ = V4L2VideoDevice::fromEntityName(media_.get(), "rkisp2_stats");
 	if (!stat_ || stat_->open() < 0) {
 		LOG(RkISP2, Error) << "Failed to open rkisp2 stats";
 		return false;
