@@ -185,6 +185,14 @@ public:
 		return apply(*this, scalar, [](T a, T b) -> T { return std::max(a, b); });
 	}
 
+	constexpr Vector clamp(T low, T high) const
+	{
+		Vector result;
+		for (unsigned int i = 0; i < Rows; i++)
+			result[i] = std::clamp(data_[i], low, high);
+		return result;
+	}
+
 	constexpr T dot(const Vector<T, Rows> &other) const
 	{
 		T ret = 0;
