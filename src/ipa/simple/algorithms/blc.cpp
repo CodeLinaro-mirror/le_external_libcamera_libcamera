@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * Copyright (C) 2024-2025, Red Hat Inc.
+ * Copyright (C) 2024-2026, Red Hat Inc.
  *
  * Black level handling
  */
@@ -52,8 +52,9 @@ void BlackLevel::prepare(IPAContext &context,
 			 [[maybe_unused]] IPAFrameContext &frameContext,
 			 DebayerParams *params)
 {
-	/* Latch the blacklevel gain so GPUISP can apply. */
-	params->blackLevel = RGB<float>(context.activeState.blc.level / 255.0f);
+	/* Make sure the black level is sane, i.e. below maximum pixel value. */
+	params->blackLevel = RGB<float>(context.activeState.blc.level / 255.0f)
+				     .min(0.99);
 }
 
 void BlackLevel::process(IPAContext &context,
