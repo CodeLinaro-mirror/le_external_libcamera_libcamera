@@ -12,8 +12,10 @@
 
 #include "libcamera/internal/bayer_format.h"
 
+#include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
+#include "libipa/awb.h"
 #include "libipa/fixedpoint.h"
 
 namespace libcamera {
@@ -54,10 +56,7 @@ struct IPAActiveState {
 		uint32_t temperatureK;
 	} agc;
 
-	struct {
-		UQ<4, 8> rGain;
-		UQ<4, 8> bGain;
-	} awb;
+	ipa::awb::ActiveState awb;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -67,10 +66,7 @@ struct IPAFrameContext : public FrameContext {
 		UQ<5, 8> ispGain;
 	} agc;
 
-	struct {
-		UQ<4, 8> rGain;
-		UQ<4, 8> bGain;
-	} awb;
+	ipa::awb::FrameContext awb;
 };
 
 struct IPAContext {
@@ -85,6 +81,9 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 
 	ControlInfoMap::Map ctrlMap;
+
+	/* Interface to the Camera Helper */
+	std::unique_ptr<CameraSensorHelper> camHelper;
 };
 
 } /* namespace ipa::mali_c55 */
