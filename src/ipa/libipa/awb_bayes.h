@@ -20,22 +20,23 @@ namespace libcamera {
 
 namespace ipa {
 
-class AwbBayes : public AwbAlgorithm
+class AwbBayes : public AwbImplementation
 {
 public:
 	AwbBayes() = default;
 
 	int init(const ValueNode &tuningData) override;
-	AwbResult calculateAwb(const AwbStats &stats, unsigned int lux) override;
+	awb::Context calculateAwb(const AwbStats &stats, unsigned int lux,
+				  std::array<double, 2> ranges) override;
 	std::optional<RGB<double>> gainsFromColourTemperature(double temperatureK) override;
-	void handleControls(const ControlList &controls) override;
 
 private:
 	int readPriors(const ValueNode &tuningData);
 
 	void fineSearch(double &t, double &r, double &b, ipa::Pwl const &prior,
 			const AwbStats &stats) const;
-	double coarseSearch(const ipa::Pwl &prior, const AwbStats &stats) const;
+	double coarseSearch(const ipa::Pwl &prior, const AwbStats &stats,
+			    std::array<double, 2> ranges) const;
 	double interpolateQuadratic(ipa::Pwl::Point const &a,
 				    ipa::Pwl::Point const &b,
 				    ipa::Pwl::Point const &c) const;
@@ -50,8 +51,6 @@ private:
 
 	double transversePos_;
 	double transverseNeg_;
-
-	ModeConfig *currentMode_ = nullptr;
 };
 
 } /* namespace ipa */
