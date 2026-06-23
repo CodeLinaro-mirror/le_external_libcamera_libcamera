@@ -1,15 +1,17 @@
 /* SPDX-License-Identifier: LGPL-2.1-or-later */
 /*
- * Copyright (C) 2024, Ideas On Board
+ * Copyright (C) 2026, Ideas On Board
  *
- * Helper for radial polynomial used in lens shading correction.
+ * Polynomial based lens shading correction
  */
+
 #pragma once
 
 #include <algorithm>
 #include <array>
-#include <assert.h>
 #include <cmath>
+#include <optional>
+#include <tuple>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/span.h>
@@ -18,55 +20,30 @@
 
 #include "libcamera/internal/value_node.h"
 
+#include "lsc_base.h"
+
 namespace libcamera {
 
 LOG_DECLARE_CATEGORY(LscPolynomial)
 
 namespace ipa {
 
-class LscPolynomial
+class Polynomial
 {
 public:
-	LscPolynomial(double cx = 0.0, double cy = 0.0, double k0 = 0.0,
-		      double k1 = 0.0, double k2 = 0.0, double k3 = 0.0,
-		      double k4 = 0.0)
+	Polynomial(double cx = 0.0, double cy = 0.0, double k0 = 0.0,
+		   double k1 = 0.0, double k2 = 0.0, double k3 = 0.0,
+		   double k4 = 0.0)
 		: cx_(cx), cy_(cy), cnx_(0), cny_(0),
 		  coefficients_({ k0, k1, k2, k3, k4 })
 	{
 	}
 
-	double sampleAtNormalizedPixelPos(double x, double y) const
-	{
-		double dx = x - cnx_;
-		double dy = y - cny_;
-		double r = sqrt(dx * dx + dy * dy);
-		double res = 1.0;
-		for (unsigned int i = 0; i < coefficients_.size(); i++) {
-			res += coefficients_[i] * std::pow(r, (i + 1) * 2);
-		}
-		return res;
-	}
+	Polynomial(const Polynomial &other) = default;
 
-	double getM() const
-	{
-		double cpx = imageSize_.width * cx_;
-		double cpy = imageSize_.height * cy_;
-		double mx = std::max(cpx, std::fabs(imageSize_.width - cpx));
-		double my = std::max(cpy, std::fabs(imageSize_.height - cpy));
-
-		return sqrt(mx * mx + my * my);
-	}
-
-	void setReferenceImageSize(const Size &size)
-	{
-		assert(!size.isNull());
-		imageSize_ = size;
-
-		/* Calculate normalized centers */
-		double m = getM();
-		cnx_ = (size.width * cx_) / m;
-		cny_ = (size.height * cy_) / m;
-	}
+	double sampleAtNormalizedPixelPos(double x, double y) const;
+	double getM() const;
+	void setReferenceImageSize(const Size &size);
 
 private:
 	double cx_;
@@ -74,34 +51,88 @@ private:
 	double cnx_;
 	double cny_;
 	std::array<double, 5> coefficients_;
-
 	Size imageSize_;
 };
 
-} /* namespace ipa */
+class LscPolynomialBase
+{
+private:
+	using Components = std::map<std::string, Polynomial>;
+	using ComponentsMap = std::map<unsigned int, Components>;
 
-#ifndef __DOXYGEN__
+public:
+	int parseLscData(const ValueNode &yamlSets,
+			 const LscDescriptor &descriptor);
 
-template<>
-struct ValueNode::Accessor<ipa::LscPolynomial> {
-	std::optional<ipa::LscPolynomial> get(const ValueNode &obj) const
+protected:
+	ComponentsMap lscData_;
+};
+
+template<typename T, typename U>
+class LscPolynomial : public LscPolynomialBase, public LscImplementation<T, U>
+{
+public:
+	~LscPolynomial() {}
+
+	int parseLscData(const ValueNode &yamlSets,
+			 const LscDescriptor &descriptor) override
 	{
-		std::optional<double> cx = obj["cx"].get<double>();
-		std::optional<double> cy = obj["cy"].get<double>();
-		std::optional<double> k0 = obj["k0"].get<double>();
-		std::optional<double> k1 = obj["k1"].get<double>();
-		std::optional<double> k2 = obj["k2"].get<double>();
-		std::optional<double> k3 = obj["k3"].get<double>();
-		std::optional<double> k4 = obj["k4"].get<double>();
+		return LscPolynomialBase::parseLscData(yamlSets, descriptor);
+	}
 
-		if (!(cx && cy && k0 && k1 && k2 && k3 && k4))
-			LOG(LscPolynomial, Error)
-				<< "Polynomial is missing a parameter";
+	lsc::ComponentsMap<T> resampleLscData(const Rectangle &cropRectangle,
+					      const std::vector<double> &xPos,
+					      const std::vector<double> &yPos) override
+	{
+		lsc::ComponentsMap<T> components;
 
-		return ipa::LscPolynomial(*cx, *cy, *k0, *k1, *k2, *k3, *k4);
+		for (auto &[t, c] : lscData_) {
+			lsc::Components<T> comp;
+
+			for (auto &[k, p] : c) {
+				comp.emplace(std::piecewise_construct,
+					     std::forward_as_tuple(k),
+					     std::forward_as_tuple(samplePolynomial(p, xPos, yPos,
+										    cropRectangle)));
+			}
+
+			components[t] = comp;
+		}
+
+		return components;
+	}
+
+private:
+	std::vector<T> samplePolynomial(const Polynomial &poly,
+					Span<const double> xPositions,
+					Span<const double> yPositions,
+					const Rectangle &cropRectangle)
+
+	{
+		double m = poly.getM();
+		double x0 = cropRectangle.x / m;
+		double y0 = cropRectangle.y / m;
+		double w = cropRectangle.width / m;
+		double h = cropRectangle.height / m;
+		std::vector<T> samples;
+
+		samples.reserve(xPositions.size() * yPositions.size());
+
+		for (double y : yPositions) {
+			for (double x : xPositions) {
+				double xp = x0 + x * w;
+				double yp = y0 + y * h;
+				float sample = static_cast<float>
+						(poly.sampleAtNormalizedPixelPos(xp, yp));
+
+				samples.push_back(U(sample).quantized());
+			}
+		}
+
+		return samples;
 	}
 };
 
-#endif
+} /* namespace ipa */
 
 } /* namespace libcamera */

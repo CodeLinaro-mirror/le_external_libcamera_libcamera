@@ -2,17 +2,23 @@
 /*
  * Copyright (C) 2021-2022, Ideas On Board
  *
- * RkISP1 Lens Shading Correction control
+ * RkISP1 Lens Shading Correction algorithm
  */
 
 #pragma once
 
-#include <map>
-#include <memory>
+#include <vector>
 
-#include "libipa/interpolator.h"
+#include <linux/rkisp1-config.h>
+
+#include "libcamera/internal/value_node.h"
+
+#include "libipa/fixedpoint.h"
+#include "libipa/lsc.h"
 
 #include "algorithm.h"
+#include "ipa_context.h"
+#include "params.h"
 
 namespace libcamera {
 
@@ -37,39 +43,28 @@ public:
 		     const rkisp1_stat_buffer *stats,
 		     ControlList &metadata) override;
 
-	struct Components {
-		std::vector<uint16_t> r;
-		std::vector<uint16_t> gr;
-		std::vector<uint16_t> gb;
-		std::vector<uint16_t> b;
-	};
-
-	class ShadingDescriptor
-	{
-	public:
-		virtual ~ShadingDescriptor() = default;
-		virtual Components sampleForCrop(const Rectangle &cropRectangle,
-						 Span<const double> xSizes,
-						 Span<const double> ySizes) = 0;
-	};
-
-	using ShadingDescriptorMap = std::map<unsigned int, std::unique_ptr<ShadingDescriptor>>;
-
 private:
-	void setParameters(rkisp1_cif_isp_lsc_config &config);
-	void copyTable(rkisp1_cif_isp_lsc_config &config, const Components &set0);
+	std::vector<double> parseSizes(const ValueNode &tuningData,
+				       const char *prop);
+	std::vector<double> sizesToPositions(Span<const double> sizes);
 
-	ShadingDescriptorMap shadingDescriptors_;
-	ipa::Interpolator<Components> sets_;
+	void setParameters(rkisp1_cif_isp_lsc_config &config);
+	void copyTable(rkisp1_cif_isp_lsc_config &config,
+		       const ipa::lsc::Components<uint16_t> &set0);
+
 	std::vector<double> xSize_;
 	std::vector<double> ySize_;
 	uint16_t xGrad_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	uint16_t yGrad_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	uint16_t xSizes_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	uint16_t ySizes_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
+	std::vector<double> xPos_;
+	std::vector<double> yPos_;
 
 	unsigned int lastAppliedCt_;
 	unsigned int lastAppliedQuantizedCt_;
+
+	LscAlgorithm<uint16_t, UQ<2, 10>> lscAlgo_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
