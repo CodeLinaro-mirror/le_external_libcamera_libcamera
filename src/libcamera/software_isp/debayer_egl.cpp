@@ -536,7 +536,7 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 			LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
 			return -ENODEV;
 		}
-		egl_.createTexture2D(*eglImageBayerIn_, inMapped->value().planes()[0].data());
+		egl_.createInputTexture2D(*eglImageBayerIn_, inMapped->value().planes()[0].data());
 	}
 
 	/* Generate the output render framebuffer as render to texture */
