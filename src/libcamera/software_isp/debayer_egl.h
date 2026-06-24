@@ -22,6 +22,7 @@
 #include "libcamera/internal/mapped_framebuffer.h"
 #include "libcamera/internal/software_isp/benchmark.h"
 #include "libcamera/internal/software_isp/swstats_cpu.h"
+#include "libcamera/internal/v4l2_videodevice.h"
 
 #include <EGL/egl.h>
 #include <EGL/eglext.h>
@@ -70,14 +71,21 @@ private:
 
 	bool use_dmabuf_;
 
+	int getBufferCache(V4L2BufferCache &buffercache, FrameBuffer *framebuffer, bool &hit);
+	eGLImage *getCachedInputFrameBuffer(FrameBuffer *input, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer);
+	eGLImage *getCachedOutputFrameBuffer(FrameBuffer *output);
+
+	std::unique_ptr<V4L2BufferCache> inputBufferCache_;
+	std::unique_ptr<V4L2BufferCache> outputBufferCache_;
+
 	/* Shader program identifiers */
 	GLuint vertexShaderId_ = 0;
 	GLuint fragmentShaderId_ = 0;
 	GLuint programId_ = 0;
 
 	/* Pointer to object representing input texture */
-	std::unique_ptr<eGLImage> eglImageBayerIn_;
-	std::unique_ptr<eGLImage> eglImageBayerOut_;
+	std::vector<std::unique_ptr<eGLImage>> eglImageBayerIn_;
+	std::vector<std::unique_ptr<eGLImage>> eglImageBayerOut_;
 
 	/* Shader parameters */
 	float firstRed_x_;
