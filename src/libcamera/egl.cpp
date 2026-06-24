@@ -268,13 +268,29 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
  */
 void eGL::createTexture2D(eGLImage &eglImage, void *data)
 {
+	GLenum format;
+	GLenum type = GL_UNSIGNED_BYTE;
+
 	ASSERT(tid_ == Thread::currentId());
 
 	glActiveTexture(eglImage.texture_unit_);
 	glBindTexture(GL_TEXTURE_2D, eglImage.texture_);
 
+	switch (eglImage.format_) {
+	case GL_R16F:
+		format = GL_RED;
+		type = GL_HALF_FLOAT;
+		break;
+	case GL_RG8:
+		format = GL_RG;
+		break;
+	case GL_LUMINANCE:
+		format = GL_LUMINANCE;
+		break;
+	}
+
 	// Generate texture, bind, associate image to texture, configure, unbind
-	glTexImage2D(GL_TEXTURE_2D, 0, eglImage.format_, eglImage.width_, eglImage.height_, 0, eglImage.format_, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, eglImage.format_, eglImage.width_, eglImage.height_, 0, format, type, data);
 
 	// Nearest filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
