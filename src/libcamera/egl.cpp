@@ -346,6 +346,22 @@ bool eGL::isAvailable()
 }
 
 /**
+ * \brief Create a 2D texture attached to an FBO for render-to-texture
+ * \param[in,out] eglImage EGL image to associate with the texture
+ * \param[in] format OpenGL internal format (e.g., GL_RGB, GL_RGBA)
+ *
+ * Creates a 2D texture in VRAM. The texture
+ * is configured with nearest filtering and clamp-to-edge wrapping. This
+ * is useful for uploading static data like lookup tables or uniform color
+ * matrices to the GPU.
+ */
+void eGL::createOutputTexture2D(eGLImage &eglImage)
+{
+	createInputTexture2D(eglImage, NULL);
+	attachTextureToFBO(eglImage);
+}
+
+/**
  * \brief Initialise the EGL context
  *
  * Sets up the EGL display, creates an OpenGL ES 2.0 context, and retrieves
