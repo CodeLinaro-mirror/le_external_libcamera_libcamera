@@ -138,6 +138,13 @@ int eGL::attachTextureToFBO(eGLImage &eglImage)
 	return ret;
 }
 
+void eGL::activateBindTexture(eGLImage &eglImage)
+{
+	// Bind texture unit and texture
+	glActiveTexture(eglImage.texture_unit_);
+	glBindTexture(GL_TEXTURE_2D, eglImage.texture_);
+}
+
 /**
  * \brief Create a DMA-BUF backed 2D texture
  * \param[in,out] eglImage EGL image to associate with the DMA-BUF
@@ -197,9 +204,7 @@ int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
 		return -ENODEV;
 	}
 
-	// Bind texture unit and texture
-	glActiveTexture(eglImage.texture_unit_);
-	glBindTexture(GL_TEXTURE_2D, eglImage.texture_);
+	activateBindTexture(eglImage);
 
 	// Generate texture with filter semantics
 	glEGLImageTargetTexture2DOES(GL_TEXTURE_2D, image);
@@ -273,8 +278,7 @@ void eGL::createInputTexture2D(eGLImage &eglImage, void *data)
 
 	ASSERT(tid_ == Thread::currentId());
 
-	glActiveTexture(eglImage.texture_unit_);
-	glBindTexture(GL_TEXTURE_2D, eglImage.texture_);
+	activateBindTexture(eglImage);
 
 	switch (eglImage.format_) {
 	case GL_R16F:
