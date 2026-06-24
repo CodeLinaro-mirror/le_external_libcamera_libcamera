@@ -217,6 +217,7 @@ bool V4L2BufferCache::isEmpty() const
 /**
  * \brief Find the best V4L2 buffer for a FrameBuffer
  * \param[in] buffer The FrameBuffer
+ * \param[out] hit. Indicates if there was a cache hit
  *
  * Find the best V4L2 buffer index to be used for the FrameBuffer \a buffer
  * based on previous mappings of frame buffers to V4L2 buffers. If a free V4L2
@@ -227,11 +228,12 @@ bool V4L2BufferCache::isEmpty() const
  * \return The index of the best V4L2 buffer, or -ENOENT if no free V4L2 buffer
  * is available
  */
-int V4L2BufferCache::get(const FrameBuffer &buffer)
+int V4L2BufferCache::get(const FrameBuffer &buffer, bool &hit)
 {
-	bool hit = false;
 	int use = -1;
 	uint64_t oldest = UINT64_MAX;
+
+	hit = false;
 
 	for (unsigned int index = 0; index < cache_.size(); index++) {
 		const Entry &entry = cache_[index];
@@ -1649,6 +1651,7 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer, const V4L2Request *request
 {
 	struct v4l2_plane v4l2Planes[VIDEO_MAX_PLANES] = {};
 	struct v4l2_buffer buf = {};
+	bool hit;
 	int ret;
 
 	if (state_ == State::Stopping) {
@@ -1666,7 +1669,7 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer, const V4L2Request *request
 		return -ENOENT;
 	}
 
-	ret = cache_->get(*buffer);
+	ret = cache_->get(*buffer, hit);
 	if (ret < 0)
 		return ret;
 

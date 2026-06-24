@@ -129,7 +129,7 @@ public:
 	~V4L2BufferCache();
 
 	bool isEmpty() const;
-	int get(const FrameBuffer &buffer);
+	int get(const FrameBuffer &buffer, bool &hit);
 	void put(unsigned int index);
 
 private:

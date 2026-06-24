@@ -35,7 +35,8 @@ public:
 	{
 		for (unsigned int i = 0; i < buffers.size() * 100; i++) {
 			int nBuffer = i % buffers.size();
-			int index = cache->get(*buffers[nBuffer].get());
+			bool hit;
+			int index = cache->get(*buffers[nBuffer].get(), hit);
 
 			if (index != nBuffer) {
 				std::cout << "Expected index " << nBuffer
@@ -60,7 +61,8 @@ public:
 
 		for (unsigned int i = 0; i < buffers.size() * 100; i++) {
 			int nBuffer = dist(generator_);
-			int index = cache->get(*buffers[nBuffer].get());
+			bool hit;
+			int index = cache->get(*buffers[nBuffer].get(), hit);
 
 			if (index < 0) {
 				std::cout << "Failed lookup from cache"
@@ -90,7 +92,8 @@ public:
 
 		/* Pick a hot buffer at random and store its index. */
 		int hotBuffer = dist(generator_);
-		int hotIndex = cache->get(*buffers[hotBuffer].get());
+		bool hit;
+		int hotIndex = cache->get(*buffers[hotBuffer].get(), hit);
 		cache->put(hotIndex);
 
 		/*
@@ -106,7 +109,7 @@ public:
 			else
 				nBuffer = dist(generator_);
 
-			index = cache->get(*buffers[nBuffer].get());
+			index = cache->get(*buffers[nBuffer].get(), hit);
 
 			if (index < 0) {
 				std::cout << "Failed lookup from cache"
@@ -135,7 +138,8 @@ public:
 
 		for (const auto &buffer : buffers) {
 			FrameBuffer &b = *buffer.get();
-			cache.get(b);
+			bool hit;
+			cache.get(b, hit);
 		}
 
 		if (cache.isEmpty())
