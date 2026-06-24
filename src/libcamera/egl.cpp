@@ -266,7 +266,7 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
  * is useful for uploading static data like lookup tables or uniform color
  * matrices to the GPU.
  */
-void eGL::createTexture2D(eGLImage &eglImage, void *data)
+void eGL::createInputTexture2D(eGLImage &eglImage, void *data)
 {
 	GLenum format;
 	GLenum type = GL_UNSIGNED_BYTE;
