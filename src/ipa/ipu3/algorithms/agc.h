@@ -13,6 +13,8 @@
 
 #include <libcamera/geometry.h>
 
+#include "libcamera/internal/vector.h"
+
 #include "libipa/agc_mean_luminance.h"
 #include "libipa/histogram.h"
 
@@ -49,9 +51,7 @@ private:
 	double maxAnalogueGain_;
 
 	uint32_t stride_;
-	double rGain_;
-	double gGain_;
-	double bGain_;
+	RGB<double> gains_;
 	ipu3_uapi_grid_config bdsGrid_;
 	std::vector<std::tuple<uint8_t, uint8_t, uint8_t>> rgbTriples_;
 };

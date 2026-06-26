@@ -186,8 +186,7 @@ double Agc::estimateLuminance(double gain) const
 		sum.b() += std::min(std::get<2>(rgbTriples_[i]) * gain, 255.0);
 	}
 
-	RGB<double> gains{{ rGain_, gGain_, bGain_ }};
-	double ySum = rec601LuminanceFromRGB(sum * gains);
+	double ySum = rec601LuminanceFromRGB(sum * gains_);
 	return ySum / (bdsGrid_.height * bdsGrid_.width) / 255;
 }
 
@@ -208,9 +207,9 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  ControlList &metadata)
 {
 	Histogram hist = parseStatistics(stats, context.configuration.grid.bdsGrid);
-	rGain_ = context.activeState.awb.gains.red;
-	gGain_ = context.activeState.awb.gains.blue;
-	bGain_ = context.activeState.awb.gains.green;
+	gains_ = RGB<double>({ context.activeState.awb.gains.red,
+			       context.activeState.awb.gains.blue,
+			       context.activeState.awb.gains.green });
 
 	/*
 	 * The Agc algorithm needs to know the effective exposure value that was
