@@ -330,6 +330,41 @@ bool eGL::isAvailable()
 }
 
 /**
+ * \brief Update a 2D texture already created
+ * \param[in,out] eglImage EGL image to associate with the texture
+ * \param[data] Data to update the texture with
+ *
+ * Updates a 2D texture in VRAM.
+ */
+void eGL::updateTexture2D(eGLImage &eglImage, void *data)
+{
+	GLenum format;
+	GLenum type = GL_UNSIGNED_BYTE;
+
+	ASSERT(tid_ == Thread::currentId());
+
+	glActiveTexture(eglImage.texture_unit_);
+	glBindTexture(GL_TEXTURE_2D, eglImage.texture_);
+
+	switch (eglImage.format_) {
+	case GL_R16F:
+		format = GL_RED;
+		type = GL_HALF_FLOAT;
+		break;
+	case GL_RG8:
+		format = GL_RG;
+		break;
+	case GL_LUMINANCE:
+	default:
+		format = GL_LUMINANCE;
+		break;
+	}
+
+	// Update an already exsiting texture
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, eglImage.width_, eglImage.height_, format, type, data);
+}
+
+/**
  * \brief Create a 2D texture attached to an FBO for render-to-texture
  * \param[in,out] eglImage EGL image to associate with the texture
  *
