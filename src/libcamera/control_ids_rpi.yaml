@@ -192,4 +192,15 @@ controls:
         just been applied. Controls normally take several frames to apply,
         so the number here will refer to a request submitted a number of
         frames earlier.
+
+  - SensorSequence:
+      type: int64_t
+      direction: out
+      description: |
+        Monotonic frontend/Unicam sequence number for the sensor frame.
+
+        Any break in this sequence number indicates that frames were not
+        captured into the frontend stream before this request completed. This
+        value is Raspberry Pi pipeline metadata and is intended for diagnostics
+        of sensor-side frame continuity.
 ...

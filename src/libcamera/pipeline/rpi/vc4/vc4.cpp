@@ -777,16 +777,18 @@ void Vc4CameraData::unicamBufferDequeue(FrameBuffer *buffer)
 		 */
 		auto [ctrl, delayContext] = delayedCtrls_->get(buffer->metadata().sequence);
 		/*
-		 * Add the frame timestamp to the ControlList for the IPA to use
-		 * as it does not receive the FrameBuffer object. Also derive a
-		 * corresponding wallclock value.
+		 * Add the frame timestamp and sequence number to the ControlList
+		 * for the IPA to use as it does not receive the FrameBuffer object.
+		 * Also derive a corresponding wallclock value.
 		 */
 		wallClockRecovery_.addSample();
 		uint64_t sensorTimestamp = buffer->metadata().timestamp;
 		uint64_t wallClockTimestamp = wallClockRecovery_.getOutput(sensorTimestamp);
+		unsigned int sensorSequence = buffer->metadata().sequence;
 
 		ctrl.set(controls::SensorTimestamp, sensorTimestamp);
 		ctrl.set(controls::FrameWallClock, wallClockTimestamp);
+		ctrl.set(controls::rpi::SensorSequence, sensorSequence);
 		bayerQueue_.push({ buffer, std::move(ctrl), delayContext });
 	} else {
 		embeddedQueue_.push(buffer);
