@@ -210,7 +210,6 @@ int eGL::createDMABufTexture2D(eGLImage &eglImage, int fd, bool output)
 
 	if (image == EGL_NO_IMAGE_KHR) {
 		LOG(eGL, Debug) << "eglCreateImageKHR fail";
-		eglImage.dmabuf_import_failed_ = true;
 		return -ENODEV;
 	}
 
