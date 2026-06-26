@@ -469,6 +469,34 @@ and the bytes used by planes.
    seq: 000040 bytesused: 1843200
    seq: 000042 bytesused: 1843200
 
+Request metadata
+~~~~~~~~~~~~~~~~
+
+Completed requests also expose metadata as a :doxy-pub:`ControlList` through
+:doxy-pub:`Request::metadata()`. Pipeline handlers populate this list with
+controls defined as ``direction: out`` in the control definition YAML files.
+
+Common entries include :doxy-pub:`controls::SensorTimestamp` and
+:doxy-pub:`controls::FrameWallClock`. On Raspberry Pi VC4 pipelines, the vendor
+control ``controls::rpi::SensorSequence`` reports the Unicam frontend
+``FrameBuffer::metadata().sequence`` for the sensor frame.
+
+While per-buffer :doxy-pub:`FrameMetadata::sequence` identifies frames in each
+completed stream, ``SensorSequence`` reflects the sensor/frontend capture path.
+If the value increases by more than one between consecutive completed requests,
+frames were not captured into the frontend stream before the earlier request
+finished. This complements sequence numbers derived from request delivery and
+is intended for diagnosing sensor-side frame continuity.
+
+.. code:: cpp
+
+   const ControlList &metadata = request->metadata();
+   if (auto seq = metadata.get<int64_t>(controls::rpi::SensorSequence))
+       std::cout << " sensor sequence: " << *seq << std::endl;
+
+See also ``controls::rpi::ControlListSequence``, which reports when a request's
+control list was applied rather than frontend capture timing.
+
 A completed buffer contains of course image data which can be accessed through
 the per-plane dma-buf file descriptor transported by the ``FrameBuffer``
 instance. An example of how to write image data to disk is available in the
