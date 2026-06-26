@@ -120,6 +120,11 @@ namespace libcamera::ipa::ipu3 {
  */
 
 /**
+ * \var IPAActiveState::gamma
+ * \brief Active gamma correction parameters for the IPA
+ */
+
+/**
  * \var IPASessionConfiguration::sensor
  * \brief Sensor-specific configuration of the IPA
  *
@@ -150,20 +155,6 @@ namespace libcamera::ipa::ipu3 {
  */
 
 /**
- * \var IPAActiveState::toneMapping
- * \brief Context for ToneMapping and Gamma control
- *
- * \var IPAActiveState::toneMapping.gamma
- * \brief Gamma value for the LUT
- *
- * \var IPAActiveState::toneMapping.gammaCorrection
- * \brief Per-pixel tone mapping implemented as a LUT
- *
- * The LUT structure is defined by the IPU3 kernel interface. See
- * <linux/intel-ipu3.h> struct ipu3_uapi_gamma_corr_lut for further details.
- */
-
-/**
  * \struct IPAFrameContext
  * \brief IPU3-specific FrameContext
  *
@@ -185,6 +176,11 @@ namespace libcamera::ipa::ipu3 {
 /**
  * \var IPAFrameContext::ccm
  * \brief Per-frame colour Correction Matrix parameters for the IPA
+ */
+
+/**
+ * \var IPAFrameContext::gamma
+ * \brief Per-frame gamma correction parameters for the IPA
  */
 
 } /* namespace libcamera::ipa::ipu3 */

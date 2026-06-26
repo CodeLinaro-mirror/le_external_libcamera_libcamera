@@ -18,6 +18,7 @@
 #include <libipa/awb.h>
 #include <libipa/ccm.h>
 #include <libipa/fc_queue.h>
+#include <libipa/gamma.h>
 
 namespace libcamera {
 
@@ -64,11 +65,7 @@ struct IPAActiveState {
 
 	ipa::awb::ActiveState awb;
 	ipa::ccm::ActiveState ccm;
-
-	struct {
-		double gamma;
-		struct ipu3_uapi_gamma_corr_lut gammaCorrection;
-	} toneMapping;
+	ipa::gamma::ActiveState gamma;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -79,6 +76,7 @@ struct IPAFrameContext : public FrameContext {
 
 	ipa::awb::FrameContext awb;
 	ipa::ccm::FrameContext ccm;
+	ipa::gamma::FrameContext gamma;
 };
 
 struct IPAContext {
