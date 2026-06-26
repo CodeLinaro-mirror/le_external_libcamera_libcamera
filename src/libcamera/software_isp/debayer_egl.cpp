@@ -316,6 +316,7 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	inputPixelFormat_ = inputCfg.pixelFormat;
 	width_ = inputCfg.size.width;
 	height_ = inputCfg.size.height;
+	use_dmabuf_ = true;
 
 	if (outputCfgs.size() != 1) {
 		LOG(Debayer, Error)
@@ -515,21 +516,19 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 
 int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer)
 {
-	bool dmabuf_import_succeeded = false;
-
 	/* eGL context switch */
 	egl_.makeCurrent();
 
 	/* Try to create texture for input buffer via dmabuf import */
-	if (!eglImageBayerIn_->dmabuf_import_failed_) {
-		if (egl_.createInputDMABufTexture2D(*eglImageBayerIn_, input->planes()[0].fd.get()) == 0)
-			dmabuf_import_succeeded = true;
-		else
+	if (use_dmabuf_) {
+		if (egl_.createInputDMABufTexture2D(*eglImageBayerIn_, input->planes()[0].fd.get()) != 0) {
+			use_dmabuf_ = false;
 			LOG(Debayer, Info) << "Importing input buffer with DMABuf import failed, falling back to upload";
+		}
 	}
 
 	/* Otherwise create texture for input buffer via upload from CPU */
-	if (!dmabuf_import_succeeded) {
+	if (!use_dmabuf_) {
 		inDmaSyncer->emplace(input->planes()[0].fd, DmaSyncer::SyncType::Read);
 		inMapped->emplace(input, MappedFrameBuffer::MapFlag::Read);
 		if (!inMapped->value().isValid()) {

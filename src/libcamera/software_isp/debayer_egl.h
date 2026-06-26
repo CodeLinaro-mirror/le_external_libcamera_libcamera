@@ -68,6 +68,8 @@ private:
 	void setShaderVariableValues(eGLImage &eGLImageIn, const DebayerParams &params);
 	int debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *mappedInputBuffer, std::optional<DmaSyncer> *inputBufferDmaSyncer);
 
+	bool use_dmabuf_;
+
 	/* Shader program identifiers */
 	GLuint vertexShaderId_ = 0;
 	GLuint fragmentShaderId_ = 0;
