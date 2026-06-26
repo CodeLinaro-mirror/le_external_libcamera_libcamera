@@ -165,8 +165,7 @@ protected:
 	std::string logPrefix() const override;
 
 private:
-	void updateControls(const IPACameraSensorInfo &sensorInfo,
-			    const ControlInfoMap &sensorControls,
+	void updateControls(const ControlInfoMap &sensorControls,
 			    ControlInfoMap *ipaControls);
 	void updateSessionConfiguration(const ControlInfoMap &sensorControls);
 
@@ -239,8 +238,7 @@ void IPAIPU3::updateSessionConfiguration(const ControlInfoMap &sensorControls)
  * - controls::ExposureTime
  * - controls::FrameDurationLimits
  */
-void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
-			     const ControlInfoMap &sensorControls,
+void IPAIPU3::updateControls(const ControlInfoMap &sensorControls,
 			     ControlInfoMap *ipaControls)
 {
 	ControlInfoMap::Map controls{};
@@ -267,19 +265,19 @@ void IPAIPU3::updateControls(const IPACameraSensorInfo &sensorInfo,
 	 */
 	const ControlInfo &v4l2HBlank = sensorControls.find(V4L2_CID_HBLANK)->second;
 	uint32_t hblank = v4l2HBlank.def().get<int32_t>();
-	uint32_t lineLength = sensorInfo.outputSize.width + hblank;
+	uint32_t lineLength = sensorInfo_.outputSize.width + hblank;
 
 	const ControlInfo &v4l2VBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
 	std::array<uint32_t, 3> frameHeights{
-		v4l2VBlank.min().get<int32_t>() + sensorInfo.outputSize.height,
-		v4l2VBlank.max().get<int32_t>() + sensorInfo.outputSize.height,
-		v4l2VBlank.def().get<int32_t>() + sensorInfo.outputSize.height,
+		v4l2VBlank.min().get<int32_t>() + sensorInfo_.outputSize.height,
+		v4l2VBlank.max().get<int32_t>() + sensorInfo_.outputSize.height,
+		v4l2VBlank.def().get<int32_t>() + sensorInfo_.outputSize.height,
 	};
 
 	std::array<int64_t, 3> frameDurations;
 	for (unsigned int i = 0; i < frameHeights.size(); ++i) {
 		uint64_t frameSize = lineLength * frameHeights[i];
-		frameDurations[i] = frameSize / (sensorInfo.pixelRate / 1000000U);
+		frameDurations[i] = frameSize / (sensorInfo_.pixelRate / 1000000U);
 	}
 	controls[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							       frameDurations[1],
@@ -313,6 +311,7 @@ int IPAIPU3::init(const IPASettings &settings,
 	context_.configuration = {};
 	context_.configuration.sensor.lineDuration =
 		sensorInfo.minLineLength * 1.0s / sensorInfo.pixelRate;
+	sensorInfo_ = sensorInfo;
 
 	/* Load the tuning data file. */
 	File file(settings.configurationFile);
@@ -346,7 +345,7 @@ int IPAIPU3::init(const IPASettings &settings,
 		return ret;
 
 	/* Initialize controls. */
-	updateControls(sensorInfo, sensorControls, ipaControls);
+	updateControls(sensorControls, ipaControls);
 
 	return 0;
 }
@@ -488,7 +487,7 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 	calculateBdsGrid(configInfo.bdsOutputSize);
 
 	/* Update the camera controls using the new sensor settings. */
-	updateControls(sensorInfo_, sensorCtrls_, ipaControls);
+	updateControls(sensorCtrls_, ipaControls);
 
 	/* Update the IPASessionConfiguration using the sensor settings. */
 	updateSessionConfiguration(sensorCtrls_);
