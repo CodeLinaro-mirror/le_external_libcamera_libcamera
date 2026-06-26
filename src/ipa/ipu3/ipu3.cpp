@@ -177,8 +177,6 @@ private:
 	ControlInfoMap sensorCtrls_;
 	ControlInfoMap lensCtrls_;
 
-	IPACameraSensorInfo sensorInfo_;
-
 	/* Interface to the Camera Helper */
 	std::unique_ptr<CameraSensorHelper> camHelper_;
 
@@ -265,19 +263,19 @@ void IPAIPU3::updateControls(const ControlInfoMap &sensorControls,
 	 */
 	const ControlInfo &v4l2HBlank = sensorControls.find(V4L2_CID_HBLANK)->second;
 	uint32_t hblank = v4l2HBlank.def().get<int32_t>();
-	uint32_t lineLength = sensorInfo_.outputSize.width + hblank;
+	uint32_t lineLength = context_.sensorInfo.outputSize.width + hblank;
 
 	const ControlInfo &v4l2VBlank = sensorControls.find(V4L2_CID_VBLANK)->second;
 	std::array<uint32_t, 3> frameHeights{
-		v4l2VBlank.min().get<int32_t>() + sensorInfo_.outputSize.height,
-		v4l2VBlank.max().get<int32_t>() + sensorInfo_.outputSize.height,
-		v4l2VBlank.def().get<int32_t>() + sensorInfo_.outputSize.height,
+		v4l2VBlank.min().get<int32_t>() + context_.sensorInfo.outputSize.height,
+		v4l2VBlank.max().get<int32_t>() + context_.sensorInfo.outputSize.height,
+		v4l2VBlank.def().get<int32_t>() + context_.sensorInfo.outputSize.height,
 	};
 
 	std::array<int64_t, 3> frameDurations;
 	for (unsigned int i = 0; i < frameHeights.size(); ++i) {
 		uint64_t frameSize = lineLength * frameHeights[i];
-		frameDurations[i] = frameSize / (sensorInfo_.pixelRate / 1000000U);
+		frameDurations[i] = frameSize / (context_.sensorInfo.pixelRate / 1000000U);
 	}
 	controls[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							       frameDurations[1],
@@ -311,7 +309,7 @@ int IPAIPU3::init(const IPASettings &settings,
 	context_.configuration = {};
 	context_.configuration.sensor.lineDuration =
 		sensorInfo.minLineLength * 1.0s / sensorInfo.pixelRate;
-	sensorInfo_ = sensorInfo;
+	context_.sensorInfo = sensorInfo;
 
 	/* Load the tuning data file. */
 	File file(settings.configurationFile);
@@ -464,7 +462,7 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 		return -ENODATA;
 	}
 
-	sensorInfo_ = configInfo.sensorInfo;
+	context_.sensorInfo = configInfo.sensorInfo;
 
 	lensCtrls_ = configInfo.lensControls;
 
@@ -475,8 +473,8 @@ int IPAIPU3::configure(const IPAConfigInfo &configInfo,
 
 	/* Initialise the sensor configuration. */
 	context_.configuration.sensor.lineDuration =
-		sensorInfo_.minLineLength * 1.0s / sensorInfo_.pixelRate;
-	context_.configuration.sensor.size = sensorInfo_.outputSize;
+		context_.sensorInfo.minLineLength * 1.0s / context_.sensorInfo.pixelRate;
+	context_.configuration.sensor.size = context_.sensorInfo.outputSize;
 
 	/*
 	 * Compute the sensor V4L2 controls to be used by the algorithms and
