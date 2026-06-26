@@ -207,9 +207,11 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  ControlList &metadata)
 {
 	Histogram hist = parseStatistics(stats, context.configuration.grid.bdsGrid);
-	gains_ = RGB<double>({ context.activeState.awb.gains.red,
-			       context.activeState.awb.gains.blue,
-			       context.activeState.awb.gains.green });
+
+	if (context.activeState.awb.autoEnabled)
+		gains_ = context.activeState.awb.automatic.gains;
+	else
+		gains_ = context.activeState.awb.manual.gains;
 
 	/*
 	 * The Agc algorithm needs to know the effective exposure value that was
