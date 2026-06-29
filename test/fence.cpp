@@ -36,10 +36,9 @@ protected:
 	int run() override;
 
 private:
-	int validateExpiredRequest(Request *request);
+	int validateExpiredBuffer(FrameBuffer *buffer);
 	int validateRequest(Request *request);
 	void requestComplete(Request *request);
-	void requestRequeue(Request *request);
 
 	void signalFence();
 
@@ -55,15 +54,11 @@ private:
 	Stream *stream_;
 
 	bool expectedCompletionResult_ = true;
-	bool setFence_ = true;
 
-	/*
-	 * Request IDs track the number of requests that have completed. They
-	 * are one-based, and don't wrap.
-	 */
 	unsigned int completedRequestId_;
-	unsigned int signalledRequestId_;
-	unsigned int expiredRequestId_;
+	unsigned int queuedRequests_ = 0;
+	FrameBuffer *testBuffer_ = nullptr;
+	unsigned testBufferSeen_ = 0;
 	unsigned int nbuffers_;
 
 	int efd2_;
@@ -123,38 +118,30 @@ int FenceTest::init()
 	if (allocator_->allocate(stream_) < 0)
 		return TestFail;
 
-	nbuffers_ = allocator_->buffers(stream_).size();
+	const auto &buffers = allocator_->buffers(stream_);
+	nbuffers_ = buffers.size();
 	if (nbuffers_ < 2) {
 		cerr << "Not enough buffers available" << endl;
 		return TestFail;
 	}
 
 	completedRequestId_ = 0;
+	queuedRequests_ = 0;
 
 	/*
-	 * All but two requests are queued without a fence. Request
-	 * expiredRequestId_ will be queued with a fence that we won't signal
-	 * (which is then expected to expire), and request signalledRequestId_
-	 * will be queued with a fence that gets signalled. Select nbuffers_
-	 * and nbuffers_ * 2 for those two requests, to space them by a few
-	 * frames while still not requiring a long time for the test to
-	 * complete.
+	 * The buffer to use for testing. It will be queued 3 times:
+	 *   * first, without any fence
+	 *   * second, with a fence that is signalled
+	 *   * third,with a fence that won't be signalled
 	 */
-	expiredRequestId_ = nbuffers_;
-	signalledRequestId_ = nbuffers_ * 2;
+	testBuffer_ = buffers.front().get();
+	testBufferSeen_ = 0;
 
 	return TestPass;
 }
 
-int FenceTest::validateExpiredRequest(Request *request)
+int FenceTest::validateExpiredBuffer(FrameBuffer *buffer)
 {
-	/* The last request is expected to fail. */
-	if (request->status() != Request::RequestCancelled) {
-		cerr << "The last request should have failed: " << endl;
-		return TestFail;
-	}
-
-	FrameBuffer *buffer = request->buffers().begin()->second;
 	std::unique_ptr<Fence> fence = buffer->releaseFence();
 	if (!fence) {
 		cerr << "The expired fence should be present" << endl;
@@ -198,50 +185,21 @@ int FenceTest::validateRequest(Request *request)
 	return TestPass;
 }
 
-void FenceTest::requestRequeue(Request *request)
+void FenceTest::requestComplete(Request *request)
 {
 	const Request::BufferMap &buffers = request->buffers();
 	const Stream *stream = buffers.begin()->first;
 	FrameBuffer *buffer = buffers.begin()->second;
 
-	request->reuse();
+	completedRequestId_ += 1;
 
-	if (completedRequestId_ == signalledRequestId_ - nbuffers_ && setFence_) {
-		/*
-		 * This is the request that will be used to test fence
-		 * signalling when it completes next time. Add a fence to it,
-		 * using efd2_. The main loop will signal the fence by using a
-		 * timer to write to the efd2_ file descriptor before the fence
-		 * expires.
-		 */
-		std::unique_ptr<Fence> fence =
-			std::make_unique<Fence>(std::move(eventFd2_));
-		request->addBuffer(stream, buffer, std::move(fence));
-	} else {
-		/* All the other requests continue to operate without fences. */
-		request->addBuffer(stream, buffer);
-	}
+	if (buffer == testBuffer_)
+		testBufferSeen_ += 1;
 
-	camera_->queueRequest(request);
-}
-
-void FenceTest::requestComplete(Request *request)
-{
-	completedRequestId_++;
-
-	/*
-	 * Request expiredRequestId_ is expected to fail as its fence has not
-	 * been signalled.
-	 *
-	 * Validate the fence status but do not re-queue it.
-	 */
-	if (completedRequestId_ == expiredRequestId_) {
-		if (validateExpiredRequest(request) != TestPass)
-			expectedCompletionResult_ = false;
-
-		dispatcher_->interrupt();
-		return;
-	}
+	cout << "completedRequestId:" << completedRequestId_ << " "
+	     << "buffer:" << buffer << " "
+	     << "testBufferSeen:" << testBufferSeen_
+	     << endl;
 
 	/* Validate all other requests. */
 	if (validateRequest(request) != TestPass) {
@@ -251,12 +209,41 @@ void FenceTest::requestComplete(Request *request)
 		return;
 	}
 
-	requestRequeue(request);
+	if (completedRequestId_ % nbuffers_ == 0) {
+		for (const auto &b : allocator_->buffers(stream_)) {
+			std::unique_ptr<Fence> fence;
 
-	/*
-	 * Interrupt the dispatcher to return control to the main loop and
-	 * activate the fenceTimer.
-	 */
+			if (b.get() == testBuffer_) {
+				if (testBufferSeen_ == 1) {
+					/* This fence will be signalled. */
+					assert(eventFd2_.isValid());
+					fence = std::make_unique<Fence>(std::move(eventFd2_));
+				} else if (testBufferSeen_ == 2) {
+					/* This fence won't be signalled. */
+					assert(eventFd_.isValid());
+					fence = std::make_unique<Fence>(std::move(eventFd_));
+				}
+			}
+
+			cout << "adding buffer:" << b.get() << " fence:" << (fence ? fence->fd().get() : -1) << endl;
+			camera_->addBuffer(stream_, b.get(), std::move(fence));
+		}
+	}
+
+	if (testBufferSeen_ == 1 && completedRequestId_ == 2 * nbuffers_ - 1) {
+		cout << "signalling fence:" << efd2_ << endl;
+		signalFence();
+	}
+
+	request->reuse();
+
+	if (queuedRequests_ < 3 * nbuffers_ - 1) {
+		cout << "queueing request:" << request << endl;
+		request->enableStream(stream, true);
+		camera_->queueRequest(request);
+		queuedRequests_ += 1;
+	}
+
 	dispatcher_->interrupt();
 }
 
@@ -269,9 +256,6 @@ void FenceTest::signalFence()
 	ret = write(efd2_, &value, sizeof(value));
 	if (ret != sizeof(value))
 		cerr << "Failed to signal fence" << endl;
-
-	setFence_ = false;
-	dispatcher_->processEvents();
 }
 
 int FenceTest::run()
@@ -283,26 +267,7 @@ int FenceTest::run()
 			return TestFail;
 		}
 
-		int ret;
-		if (i == expiredRequestId_ - 1) {
-			/* This request will have a fence, and it will expire. */
-			std::unique_ptr<Fence> fence =
-				std::make_unique<Fence>(std::move(eventFd_));
-			if (!fence->isValid()) {
-				cerr << "Fence should be valid" << endl;
-				return TestFail;
-			}
-
-			ret = request->addBuffer(stream_, buffer.get(), std::move(fence));
-		} else {
-			/* All other requests will have no Fence. */
-			ret = request->addBuffer(stream_, buffer.get());
-		}
-
-		if (ret) {
-			cerr << "Failed to associate buffer with request" << endl;
-			return TestFail;
-		}
+		request->enableStream(stream_, true);
 
 		requests_.push_back(std::move(request));
 	}
@@ -314,8 +279,14 @@ int FenceTest::run()
 		return TestFail;
 	}
 
-	for (std::unique_ptr<Request> &request : requests_) {
-		if (camera_->queueRequest(request.get())) {
+	for (const auto &[i, buffer] : utils::enumerate(allocator_->buffers(stream_))) {
+		int ret = camera_->addBuffer(stream_, buffer.get());
+		if (ret) {
+			cerr << "Failed to associate buffer with request" << endl;
+			return TestFail;
+		}
+
+		if (camera_->queueRequest(requests_[i].get())) {
 			cerr << "Failed to queue request" << endl;
 			return TestFail;
 		}
@@ -323,35 +294,56 @@ int FenceTest::run()
 
 	expectedCompletionResult_ = true;
 
-	/* This timer serves to signal fences associated with "signalledRequestId_" */
-	Timer fenceTimer;
-	fenceTimer.timeout.connect(this, &FenceTest::signalFence);
-
 	/*
 	 * Loop long enough for all requests to complete, allowing 500ms per
 	 * request.
 	 */
 	Timer timer;
-	timer.start(500ms * (signalledRequestId_ + 1));
-	while (timer.isRunning() && expectedCompletionResult_ &&
-	       completedRequestId_ <= signalledRequestId_ + 1) {
-		if (completedRequestId_ == signalledRequestId_ - 1 && setFence_)
-			/*
-			 * The request just before signalledRequestId_ has just
-			 * completed. Request signalledRequestId_ has been
-			 * queued with a fence, and libcamera is likely already
-			 * waiting on the fence, or will soon. Start the timer
-			 * to signal the fence in 10 msec.
-			 */
-			fenceTimer.start(10ms);
+	timer.start(500ms * (3 + 1) * nbuffers_);
+	for (;;) {
+		if (!timer.isRunning() || !expectedCompletionResult_)
+			break;
+
+		if (completedRequestId_ == 3 * nbuffers_ - 1 && testBufferSeen_ == 2)
+			break;
 
 		dispatcher_->processEvents();
 	}
 
 	camera_->requestCompleted.disconnect();
 
-	if (camera_->stop()) {
+	bool testBufferFound = false;
+	camera_->bufferCompleted.connect(this, [&](Request *request, [[maybe_unused]] const Stream *stream, FrameBuffer *buffer) {
+		if (request)
+			return;
+
+		if (buffer == testBuffer_) {
+			if (validateExpiredBuffer(buffer) != TestPass)
+				expectedCompletionResult_ = false;
+			testBufferFound = true;
+		}
+	});
+
+	int ret = camera_->stop();
+	camera_->bufferCompleted.disconnect(this);
+
+	if (ret) {
 		cerr << "Failed to stop camera" << endl;
+		return TestFail;
+	}
+
+	if (testBufferSeen_ != 2) {
+		cerr << "Test buffer not seen exactly twice" << endl;
+		return TestFail;
+	}
+
+	if (completedRequestId_ != 3 * nbuffers_ - 1) {
+		cerr << "Test buffer not seen exactly twice" << endl;
+		return TestFail;
+	}
+
+	if (!testBufferFound) {
+		cerr << "Buffer with non-signalled fence not returned" << endl;
 		return TestFail;
 	}
 

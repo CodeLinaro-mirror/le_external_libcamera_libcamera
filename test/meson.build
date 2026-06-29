@@ -80,7 +80,7 @@ internal_tests = [
 ]
 
 internal_non_parallel_tests = [
-    # {'name': 'fence', 'sources': ['fence.cpp']},
+    {'name': 'fence', 'sources': ['fence.cpp']},
     {'name': 'mapped-buffer', 'sources': ['mapped-buffer.cpp']},
 ]
 
