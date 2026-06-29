@@ -59,6 +59,12 @@ public:
 	using PooledFrameBuffer = std::unique_ptr<FrameBuffer, FrameBufferPoolDeleter>;
 
 	[[nodiscard]] PooledFrameBuffer acquireBuffer(const Stream *stream);
+	void rejectBuffer(FrameBuffer *buffer);
+
+	void rejectBuffer(PooledFrameBuffer buffer)
+	{
+		return rejectBuffer(buffer.release());
+	}
 
 private:
 	enum State {

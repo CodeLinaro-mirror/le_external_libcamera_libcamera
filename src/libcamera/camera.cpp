@@ -790,6 +790,38 @@ Camera::Private::acquireBuffer(const Stream *stream)
 	it->second.buffers.pop_back();
 	return { buffer, { &it->second.buffers } };
 }
+
+/**
+ * \brief Return a buffer to the application
+ * \param[in] buffer The buffer
+ *
+ * \note \a buffer must not be in the camera's buffer pool
+ * \todo return fence on timeout?
+ */
+void Camera::Private::rejectBuffer(FrameBuffer *buffer)
+{
+	ASSERT(!buffer->_d()->request());
+	ASSERT(buffer->_d()->stream_);
+
+	LOG(Camera, Debug)
+		<< "Camera:" << LIBCAMERA_O_PTR() << " rejects buffer:"
+		<< buffer << " for stream:" << buffer->_d()->stream_;
+
+	/*
+	 * \todo Not `FrameError` because that requires `timestamp` and
+	 * `sequence` to be valid.
+	 */
+	buffer->_d()->cancel();
+	buffer->_d()->stream_ = nullptr;
+
+	// \todo separate event (with stream) ?
+	LIBCAMERA_O_PTR()->bufferCompleted.emit(nullptr, buffer);
+}
+
+/**
+ * \fn Camera::Private::rejectBuffer(PooledFrameBuffer buffer)
+ * \copydoc Camera::Private::rejectBuffer(FrameBuffer *buffer)
+ */
 #endif /* __DOXYGEN_PUBLIC__ */
 
 /**
