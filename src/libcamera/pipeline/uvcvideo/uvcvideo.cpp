@@ -62,6 +62,8 @@ public:
 	std::optional<v4l2_exposure_auto_type> autoExposureMode_;
 	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
 
+	size_t processedRequests_ = 0;
+
 private:
 	bool generateId();
 
@@ -95,6 +97,8 @@ public:
 	void stopDevice(Camera *camera) override;
 
 	int queueRequestDevice(Camera *camera, Request *request) override;
+	void buffersAddedDevice(Camera *camera) override;
+	void tryRunCamera(UVCCameraData *data);
 
 	bool match(DeviceEnumerator *enumerator) override;
 
@@ -230,7 +234,7 @@ CameraConfiguration::Status UVCCameraConfiguration::validate()
 }
 
 PipelineHandlerUVC::PipelineHandlerUVC(CameraManager *manager)
-	: PipelineHandler(manager, {})
+	: PipelineHandler(manager, { .usesBufferPool = true })
 {
 }
 
@@ -323,6 +327,9 @@ void PipelineHandlerUVC::stopDevice(Camera *camera)
 	UVCCameraData *data = cameraData(camera);
 	data->video_->streamOff();
 	data->video_->releaseBuffers();
+
+	while (!data->queuedRequests_.empty())
+		cancelRequest(data->queuedRequests_.front());
 }
 
 int PipelineHandlerUVC::processControl(const UVCCameraData *data, ControlList *controls,
@@ -446,26 +453,49 @@ int PipelineHandlerUVC::processControls(UVCCameraData *data, const ControlList &
 	return ret;
 }
 
-int PipelineHandlerUVC::queueRequestDevice(Camera *camera, Request *request)
+int PipelineHandlerUVC::queueRequestDevice(Camera *camera, [[maybe_unused]] Request *request)
 {
-	UVCCameraData *data = cameraData(camera);
-	FrameBuffer *buffer = request->findBuffer(&data->stream_);
-	if (!buffer) {
-		LOG(UVC, Error)
-			<< "Attempt to queue request with invalid stream";
-
-		return -ENOENT;
-	}
-
-	int ret = processControls(data, request->controls());
-	if (ret < 0)
-		return ret;
-
-	ret = data->video_->queueBuffer(buffer);
-	if (ret < 0)
-		return ret;
-
+	/* `request` is already in `Camera::Private::queuedRequests_` */
+	tryRunCamera(cameraData(camera));
 	return 0;
+}
+
+void PipelineHandlerUVC::buffersAddedDevice(Camera *camera)
+{
+	tryRunCamera(cameraData(camera));
+}
+
+void PipelineHandlerUVC::tryRunCamera(UVCCameraData *data)
+{
+	ASSERT(data->processedRequests_ <= data->queuedRequests_.size());
+
+	auto it = std::next(data->queuedRequests_.begin(), data->processedRequests_);
+	for (; it != data->queuedRequests_.end(); ++it, data->processedRequests_++) {
+		Request *request = *it;
+		ASSERT(request->status() == Request::RequestPending);
+
+		int ret = processControls(data, request->controls());
+		if (ret < 0) {
+			cancelRequest(request);
+			continue;
+		}
+
+again:;
+		auto buffer = data->acquireBuffer(&data->stream_);
+		if (!buffer)
+			break;
+
+		ret = data->video_->queueBuffer(buffer.get());
+		if (ret < 0) {
+			// \todo do not do this if the error is "too many buffers"
+			// but that probably shouldn't ever be the case because
+			// VIDEO_MAX_FRAME == 32 == maxQueuedRequestsDevice
+			data->rejectBuffer(std::move(buffer));
+			goto again;
+		}
+
+		buffer.release();
+	}
 }
 
 bool PipelineHandlerUVC::match(DeviceEnumerator *enumerator)
@@ -893,14 +923,19 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 
 void UVCCameraData::imageBufferReady(FrameBuffer *buffer)
 {
-	Request *request = buffer->_d()->request();
+	ASSERT(!queuedRequests_.empty());
+	ASSERT(processedRequests_ > 0);
+
+	Request *request = queuedRequests_.front();
 
 	/* \todo Use the UVC metadata to calculate a more precise timestamp */
 	request->_d()->metadata().set(controls::SensorTimestamp,
 				      buffer->metadata().timestamp);
 
 	pipe()->completeBuffer(request, buffer);
-	pipe()->completeRequest(request);
+	processedRequests_ -= pipe()->completeRequest(request);
+
+	static_cast<PipelineHandlerUVC *>(pipe())->tryRunCamera(this);
 }
 
 REGISTER_PIPELINE_HANDLER(PipelineHandlerUVC, "uvcvideo")
