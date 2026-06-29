@@ -43,6 +43,8 @@ public:
 		StreamBuffer(StreamBuffer &&);
 		StreamBuffer &operator=(StreamBuffer &&);
 
+		[[nodiscard]] camera3_stream_buffer_t prepareToReturn();
+
 		CameraStream *stream;
 		buffer_handle_t *camera3Buffer;
 		std::unique_ptr<HALFrameBuffer> frameBuffer;

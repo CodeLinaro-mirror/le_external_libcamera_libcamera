@@ -192,3 +192,23 @@ Camera3RequestDescriptor::StreamBuffer::StreamBuffer(StreamBuffer &&) = default;
 
 Camera3RequestDescriptor::StreamBuffer &
 Camera3RequestDescriptor::StreamBuffer::operator=(Camera3RequestDescriptor::StreamBuffer &&) = default;
+
+camera3_stream_buffer_t Camera3RequestDescriptor::StreamBuffer::prepareToReturn()
+{
+	/*
+	 * Pass the buffer fence back to the camera framework as
+	 * a release fence. This instructs the framework to wait
+	 * on the acquire fence in case we haven't done so
+	 * ourselves for any reason.
+	 */
+
+	return {
+		.stream = stream->camera3Stream(),
+		.buffer = camera3Buffer,
+		.status = status == Camera3RequestDescriptor::Status::Success
+				? CAMERA3_BUFFER_STATUS_OK
+				: CAMERA3_BUFFER_STATUS_ERROR,
+		.acquire_fence = -1,
+		.release_fence = fence.release(),
+	};
+}

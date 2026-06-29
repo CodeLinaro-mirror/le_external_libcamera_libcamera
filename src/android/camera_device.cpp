@@ -1308,22 +1308,8 @@ void CameraDevice::sendCaptureResults()
 		std::vector<camera3_stream_buffer_t> resultBuffers;
 		resultBuffers.reserve(descriptor->buffers_.size());
 
-		for (auto &buffer : descriptor->buffers_) {
-			camera3_buffer_status status = CAMERA3_BUFFER_STATUS_ERROR;
-
-			if (buffer.status == Camera3RequestDescriptor::Status::Success)
-				status = CAMERA3_BUFFER_STATUS_OK;
-
-			/*
-			 * Pass the buffer fence back to the camera framework as
-			 * a release fence. This instructs the framework to wait
-			 * on the acquire fence in case we haven't done so
-			 * ourselves for any reason.
-			 */
-			resultBuffers.push_back({ buffer.stream->camera3Stream(),
-						  buffer.camera3Buffer, status,
-						  -1, buffer.fence.release() });
-		}
+		for (auto &buffer : descriptor->buffers_)
+			resultBuffers.push_back(buffer.prepareToReturn());
 
 		captureResult.num_output_buffers = resultBuffers.size();
 		captureResult.output_buffers = resultBuffers.data();
