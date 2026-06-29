@@ -54,7 +54,7 @@ public:
 	libcamera::ControlList &controls() { return controls_; }
 	const libcamera::ControlInfoMap &controlInfo() { return camera_->controls(); }
 
-	int allocBuffers(unsigned int count);
+	int allocBuffers();
 	void freeBuffers();
 	int getBufferFd(unsigned int index);
 

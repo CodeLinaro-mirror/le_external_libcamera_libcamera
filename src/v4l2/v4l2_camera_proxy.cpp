@@ -542,15 +542,15 @@ int V4L2CameraProxy::vidioc_reqbufs(V4L2CameraFile *file, struct v4l2_requestbuf
 	if (ret < 0)
 		return -EINVAL;
 
-	setFmtFromConfig(streamConfig_);
-
-	arg->count = streamConfig_.bufferCount;
-
-	ret = vcam_->allocBuffers(arg->count);
+	ret = vcam_->allocBuffers();
 	if (ret < 0) {
 		arg->count = 0;
 		return ret;
 	}
+
+	arg->count = ret;
+
+	setFmtFromConfig(streamConfig_);
 
 	buffers_.resize(arg->count);
 	for (unsigned int i = 0; i < arg->count; i++) {

@@ -154,7 +154,7 @@ int V4L2Camera::validateConfiguration(const PixelFormat &pixelFormat,
 	return 0;
 }
 
-int V4L2Camera::allocBuffers(unsigned int count)
+int V4L2Camera::allocBuffers()
 {
 	Stream *stream = config_->at(0).stream();
 
@@ -162,7 +162,9 @@ int V4L2Camera::allocBuffers(unsigned int count)
 	if (ret < 0)
 		return ret;
 
-	for (unsigned int i = 0; i < count; i++) {
+	const auto &buffers = bufferAllocator_->buffers(stream);
+
+	for (size_t i = 0; i < buffers.size(); i++) {
 		std::unique_ptr<Request> request = camera_->createRequest(i);
 		if (!request) {
 			requestPool_.clear();
@@ -171,7 +173,7 @@ int V4L2Camera::allocBuffers(unsigned int count)
 		requestPool_.push_back(std::move(request));
 	}
 
-	return ret;
+	return buffers.size();
 }
 
 void V4L2Camera::freeBuffers()
