@@ -544,6 +544,7 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  */
 
 /**
+ * \fn PipelineHandler::completeBuffer(Request *request, FrameBuffer *buffer)
  * \brief Complete a buffer for a request
  * \param[in] request The request the buffer belongs to
  * \param[in] buffer The buffer that has completed
@@ -560,10 +561,6 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  * \return True if all buffers contained in the request have completed, false
  * otherwise
  */
-bool PipelineHandler::completeBuffer(Request *request, FrameBuffer *buffer)
-{
-	return request->_d()->completeBuffer(buffer);
-}
 
 /**
  * \brief Signal request completion

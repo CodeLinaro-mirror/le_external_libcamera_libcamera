@@ -19,6 +19,7 @@
 
 #include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/ipa_manager.h"
+#include "libcamera/internal/request.h"
 
 namespace libcamera {
 
@@ -60,7 +61,11 @@ public:
 	void registerRequest(Request *request);
 	void queueRequest(Request *request);
 
-	bool completeBuffer(Request *request, FrameBuffer *buffer);
+	static bool completeBuffer(Request *request, FrameBuffer *buffer)
+	{
+		return request->_d()->completeBuffer(buffer);
+	}
+
 	void completeRequest(Request *request);
 	void cancelRequest(Request *request);
 
