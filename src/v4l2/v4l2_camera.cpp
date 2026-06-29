@@ -70,11 +70,10 @@ void V4L2Camera::unbind()
 
 std::vector<V4L2Camera::Buffer> V4L2Camera::completedBuffers()
 {
-	std::vector<Buffer> v;
-
 	MutexLocker lock(bufferLock_);
-	for (std::unique_ptr<Buffer> &metadata : completedBuffers_)
-		v.push_back(*metadata.get());
+	std::vector v(std::move_iterator(completedBuffers_.begin()),
+		      std::move_iterator(completedBuffers_.end()));
+
 	completedBuffers_.clear();
 
 	return v;
@@ -88,9 +87,7 @@ void V4L2Camera::requestComplete(Request *request)
 	/* We only have one stream at the moment. */
 	bufferLock_.lock();
 	FrameBuffer *buffer = request->buffers().begin()->second;
-	std::unique_ptr<Buffer> metadata =
-		std::make_unique<Buffer>(request->cookie(), buffer->metadata());
-	completedBuffers_.push_back(std::move(metadata));
+	completedBuffers_.emplace_back(request->cookie(), buffer->metadata());
 	bufferLock_.unlock();
 
 	uint64_t data = 1;

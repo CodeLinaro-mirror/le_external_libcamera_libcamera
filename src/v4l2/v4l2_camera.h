@@ -85,7 +85,7 @@ private:
 	std::vector<std::unique_ptr<libcamera::Request>> requestPool_;
 
 	std::deque<libcamera::Request *> pendingRequests_;
-	std::deque<std::unique_ptr<Buffer>> completedBuffers_
+	std::deque<Buffer> completedBuffers_
 		LIBCAMERA_TSA_GUARDED_BY(bufferLock_);
 
 	int efd_;
