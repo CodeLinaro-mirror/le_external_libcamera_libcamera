@@ -29,6 +29,8 @@ public:
 	Camera *camera() const { return camera_; }
 	bool hasPendingBuffers() const { return pending_ > 0; }
 
+	[[nodiscard]] Request::BufferMap &buffers() { return LIBCAMERA_O_PTR()->bufferMap_; } // \todo fixme suboptimal
+
 	ControlList &metadata() { return metadata_; }
 
 	bool completeBuffer(FrameBuffer *buffer);

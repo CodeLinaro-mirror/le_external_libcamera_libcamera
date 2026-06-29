@@ -39,6 +39,7 @@ class PipelineHandler : public std::enable_shared_from_this<PipelineHandler>,
 public:
 	struct Options {
 		unsigned int maxQueuedRequestsDevice = 32;
+		bool usesBufferPool = false;
 	};
 
 	PipelineHandler(CameraManager *manager, const Options &options);
@@ -110,8 +111,11 @@ private:
 	void mediaDeviceDisconnected(std::shared_ptr<MediaDevice> media);
 	virtual void disconnect();
 
+	[[nodiscard]] bool prepareRequest(Request *request);
 	void doQueueRequest(Request *request);
 	void doQueueRequests(Camera *camera);
+
+	void buffersAdded(Camera *camera);
 
 	std::vector<std::shared_ptr<MediaDevice>> mediaDevices_;
 	std::vector<std::weak_ptr<Camera>> cameras_;

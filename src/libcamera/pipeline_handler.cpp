@@ -79,6 +79,16 @@ LOG_DEFINE_CATEGORY(Pipeline)
  */
 
 /**
+ * \var PipelineHandler::Options::usesBufferPool
+ * \brief Whether or not the pipeline handler uses the camera's buffer pool
+ *
+ * If this option is set to \a false, then the pipeline handler base class
+ * will ensure that the requests have the necessary buffers when queueRequestDevice()
+ * is called. Otherwise it is the responsibility of the derived class to
+ * manage the buffers.
+ */
+
+/**
  * \brief Construct a PipelineHandler instance
  * \param[in] manager The camera manager
  * \param[in] options The options options for the pipeline handler base class
@@ -493,6 +503,38 @@ void PipelineHandler::queueRequest(Request *request)
 	doQueueRequests(camera);
 }
 
+bool PipelineHandler::prepareRequest(Request *request)
+{
+	if (!options_.usesBufferPool) {
+		Camera *camera = request->_d()->camera();
+		Camera::Private *data = camera->_d();
+		auto &buffers = request->_d()->buffers();
+
+		ASSERT(request->_d()->pending_ == buffers.size());
+
+		for (auto &[stream, buffer] : buffers) {
+			auto it = data->streamData_.find(stream);
+			ASSERT(it != data->streamData_.end());
+			ASSERT(it->second.active);
+
+			if (buffer)
+				continue;
+
+			auto &pool = it->second.buffers;
+			if (pool.empty())
+				return false;
+
+			buffer = pool.back();
+			pool.pop_back();
+
+			buffer->_d()->setRequest(request);
+			buffer->_d()->stream_ = stream;
+		}
+	}
+
+	return true;
+}
+
 /**
  * \brief Queue one requests to the device
  */
@@ -514,6 +556,9 @@ void PipelineHandler::doQueueRequest(Request *request)
 	int ret = queueRequestDevice(camera, request);
 	if (ret)
 		cancelRequest(request);
+		// \todo what to do with buffers from pool? probably nothing?
+		// let's say it's the applications responsibility to process
+		// *all* buffers in *all* completed requests
 }
 
 /**
@@ -530,6 +575,8 @@ void PipelineHandler::doQueueRequests(Camera *camera)
 			break;
 
 		Request *request = data->waitingRequests_.front();
+		if (!prepareRequest(request))
+			break;
 
 		/*
 		 * Pop the request first, in case doQueueRequests() is called
@@ -625,6 +672,12 @@ void PipelineHandler::cancelRequest(Request *request)
 	completeRequest(request);
 }
 
+void PipelineHandler::buffersAdded(Camera *camera)
+{
+	if (!options_.usesBufferPool)
+		doQueueRequests(camera);
+}
+
 /**
  * \fn PipelineHandler::addBuffer()
  * \brief Add buffers to the buffer pool of the camera
@@ -679,18 +732,24 @@ void PipelineHandler::addBuffer(Camera *camera,
 			<< "Waiting on fence:" << buffer->_d()->fence()->fd().get()
 			<< " for stream:" << stream << " buffer:" << buffer;
 
-		it2->notifier.activated.connect(this, [=] {
+		it2->notifier.activated.connect(this, [=, this] {
 			LOG(Pipeline, Debug)
 				<< "Activated fence:" << it2->buffer->_d()->fence()->fd().get()
 				<< " for stream:" << it2->stream << " buffer:" << it2->buffer;
+
+			PipelineHandler *self = this;
+			Camera *cam = camera;
 
 			std::ignore = it2->buffer->releaseFence();
 			it->second.buffers.push_back(it2->buffer);
 			d->pendingFences_.erase(it2);
 			/* Lambda is now destroy, no captured variable should be accessed. */
+
+			self->buffersAdded(cam);
 		});
 	} else {
 		it->second.buffers.push_back(buffer);
+		buffersAdded(camera);
 	}
 }
 

@@ -80,6 +80,11 @@ Request::Private::~Private()
  */
 
 /**
+ * \fn Request::Private::buffers()
+ * \copydoc Request::buffers()
+ */
+
+/**
  * \fn Request::Private::metadata()
  * \brief Retrieve the request's metadata
  * \return The metadata associated with the request
