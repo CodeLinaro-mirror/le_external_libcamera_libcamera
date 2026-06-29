@@ -14,6 +14,7 @@
 #include <set>
 #include <stdint.h>
 #include <string>
+#include <unordered_map>
 
 #include <libcamera/base/class.h>
 
@@ -54,6 +55,10 @@ private:
 		CameraRunning,
 	};
 
+	struct StreamData {
+		bool active = false;
+	};
+
 	bool isAcquired() const;
 	bool isRunning() const;
 	int isAccessAllowed(State state, bool allowDisconnected = false,
@@ -68,7 +73,7 @@ private:
 	std::shared_ptr<PipelineHandler> pipe_;
 	std::string id_;
 	std::set<Stream *> streams_;
-	std::set<const Stream *> activeStreams_;
+	std::unordered_map<const Stream *, StreamData> streamData_;
 
 	bool disconnected_;
 	std::atomic<State> state_;

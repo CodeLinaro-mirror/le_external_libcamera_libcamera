@@ -934,6 +934,11 @@ Camera::Camera(std::unique_ptr<Private> d, const std::string &id,
 	_d()->properties_.set(properties::PipelineHandler, _d()->pipe_->name());
 	_d()->streams_ = streams;
 	_d()->validator_ = std::make_unique<CameraControlValidator>(this);
+
+	for (const Stream *s : streams) {
+		[[maybe_unused]] auto [it, inserted] = _d()->streamData_.try_emplace(s);
+		ASSERT(inserted);
+	}
 }
 
 Camera::~Camera()
@@ -969,10 +974,11 @@ int Camera::exportFrameBuffers(Stream *stream,
 	if (ret < 0)
 		return ret;
 
-	if (streams().find(stream) == streams().end())
+	auto it = d->streamData_.find(stream);
+	if (it == d->streamData_.end())
 		return -EINVAL;
 
-	if (d->activeStreams_.find(stream) == d->activeStreams_.end())
+	if (!it->second.active)
 		return -EINVAL;
 
 	return d->pipe_->invokeMethod(&PipelineHandler::exportFrameBuffers,
@@ -1220,21 +1226,29 @@ int Camera::configure(CameraConfiguration *config)
 	if (ret)
 		return ret;
 
-	d->activeStreams_.clear();
+	auto resetStreamData = [&] {
+		for (auto &[stream, data] : d->streamData_)
+			data.active = false;
+	};
+	utils::scope_exit streamDataGuard(std::ref(resetStreamData));
+
+	resetStreamData();
 	for (const StreamConfiguration &cfg : *config) {
 		Stream *stream = cfg.stream();
-		if (!stream) {
+		auto it = d->streamData_.find(stream);
+
+		if (it == d->streamData_.end() || it->second.active) {
 			LOG(Camera, Fatal)
 				<< "Pipeline handler failed to update stream configuration";
-			d->activeStreams_.clear();
 			return -EINVAL;
 		}
 
 		stream->configuration_ = cfg;
-		d->activeStreams_.insert(stream);
+		it->second.active = true;
 	}
 
 	d->setState(Private::CameraConfigured);
+	streamDataGuard.release();
 
 	return 0;
 }
@@ -1364,7 +1378,8 @@ int Camera::queueRequest(Request *request)
 	}
 
 	for (const auto &[stream, buffer] : request->buffers()) {
-		if (d->activeStreams_.find(stream) == d->activeStreams_.end()) {
+		auto it = d->streamData_.find(stream);
+		if (it == d->streamData_.end() || !it->second.active) {
 			LOG(Camera, Error) << "Invalid request";
 			return -EINVAL;
 		}
