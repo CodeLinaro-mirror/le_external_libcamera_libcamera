@@ -70,24 +70,30 @@ void V4L2Camera::unbind()
 
 void V4L2Camera::requestComplete(Request *request)
 {
-	if (request->status() == Request::RequestCancelled)
-		return;
+	bool hasBuffer = false;
 
 	/* We only have one stream at the moment. */
 	{
 		MutexLocker locker(bufferMutex_);
-		FrameBuffer *buffer = request->buffers().begin()->second;
-		completedBuffers_.emplace_back(buffer->cookie(), buffer->metadata());
+		FrameBuffer *buffer = request->findBuffer(config_->at(0).stream());
 
-		uint64_t data = 1;
-		int ret = ::write(efd_, &data, sizeof(data));
-		if (ret != sizeof(data))
-			LOG(V4L2Compat, Error) << "Failed to signal eventfd POLLIN";
+		if (buffer) {
+			completedBuffers_.emplace_back(buffer->cookie(), buffer->metadata());
+
+			uint64_t data = 1;
+			int ret = ::write(efd_, &data, sizeof(data));
+			if (ret != sizeof(data))
+				LOG(V4L2Compat, Error) << "Failed to signal eventfd POLLIN";
+
+			hasBuffer = true;
+		}
 
 		request->reuse();
+		freeRequests_.push_back(request);
 	}
 
-	bufferCV_.notify_all();
+	if (hasBuffer)
+		bufferCV_.notify_all();
 }
 
 int V4L2Camera::configure(StreamConfiguration *streamConfigOut,
@@ -150,6 +156,7 @@ int V4L2Camera::allocBuffers()
 		return ret;
 
 	const auto &buffers = bufferAllocator_->buffers(stream);
+	MutexLocker locker(bufferMutex_);
 
 	for (size_t i = 0; i < buffers.size(); i++) {
 		std::unique_ptr<Request> request = camera_->createRequest(i);
@@ -157,6 +164,7 @@ int V4L2Camera::allocBuffers()
 			requestPool_.clear();
 			return -ENOMEM;
 		}
+		freeRequests_.push_back(request.get());
 		requestPool_.push_back(std::move(request));
 
 		buffers[i]->setCookie(i);
@@ -167,8 +175,14 @@ int V4L2Camera::allocBuffers()
 
 void V4L2Camera::freeBuffers()
 {
-	pendingRequests_.clear();
+	{
+		MutexLocker locker(bufferMutex_);
+		freeRequests_.clear();
+	}
+
 	requestPool_.clear();
+
+	pendingBuffers_.clear();
 
 	Stream *stream = config_->at(0).stream();
 	bufferAllocator_->free(stream);
@@ -199,21 +213,34 @@ int V4L2Camera::streamOn()
 
 	isRunning_ = true;
 
-	for (Request *req : pendingRequests_) {
+	Stream *stream = config_->at(0).stream();
+
+	MutexLocker locker(bufferMutex_);
+
+	for (FrameBuffer *buffer : pendingBuffers_) {
+		ASSERT(!pendingBuffers_.empty());
+		Request *req = freeRequests_.back();
+		freeRequests_.pop_back();
+
+		req->enableStream(stream, true);
+
 		/* \todo What should we do if this returns -EINVAL? */
 		ret = camera_->queueRequest(req);
 		if (ret < 0)
 			return ret == -EACCES ? -EBUSY : ret;
+
+		/* \todo error handling how? */
+		std::ignore = camera_->addBuffer(stream, buffer);
 	}
 
-	pendingRequests_.clear();
+	pendingBuffers_.clear();
 
 	return 0;
 }
 
 int V4L2Camera::streamOff()
 {
-	pendingRequests_.clear();
+	pendingBuffers_.clear();
 
 	if (!isRunning_) {
 		for (std::unique_ptr<Request> &req : requestPool_)
@@ -238,32 +265,41 @@ int V4L2Camera::streamOff()
 
 int V4L2Camera::qbuf(unsigned int index)
 {
-	if (index >= requestPool_.size()) {
+	Stream *stream = config_->at(0).stream();
+	const auto &buffers = bufferAllocator_->buffers(stream);
+
+	if (index >= buffers.size()) {
 		LOG(V4L2Compat, Error) << "Invalid index";
 		return -EINVAL;
 	}
-	Request *request = requestPool_[index].get();
 
-	Stream *stream = config_->at(0).stream();
-	FrameBuffer *buffer = bufferAllocator_->buffers(stream)[index].get();
-	int ret = request->addBuffer(stream, buffer);
-	if (ret < 0) {
-		LOG(V4L2Compat, Error) << "Can't set buffer for request";
-		return -ENOMEM;
-	}
+	FrameBuffer *buffer = buffers[index].get();
 
 	if (!isRunning_) {
-		pendingRequests_.push_back(request);
+		pendingBuffers_.push_back(buffer);
 		return 0;
 	}
 
-	request->controls().merge(std::move(controls_));
+	MutexLocker locker(bufferMutex_);
 
-	ret = camera_->queueRequest(request);
+	if (freeRequests_.empty())
+		return -EBUSY;
+
+	Request *request = freeRequests_.back();
+
+	request->controls().merge(std::move(controls_));
+	request->enableStream(stream, true);
+
+	int ret = camera_->queueRequest(request);
 	if (ret < 0) {
 		LOG(V4L2Compat, Error) << "Can't queue request";
 		return ret == -EACCES ? -EBUSY : ret;
 	}
+
+	freeRequests_.pop_back();
+
+	/* \todo error handling how? */
+	std::ignore = camera_->addBuffer(stream, buffer);
 
 	return 0;
 }

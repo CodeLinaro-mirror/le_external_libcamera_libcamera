@@ -79,8 +79,10 @@ private:
 	std::unique_ptr<libcamera::FrameBufferAllocator> bufferAllocator_;
 
 	std::vector<std::unique_ptr<libcamera::Request>> requestPool_;
+	std::vector<libcamera::Request *> freeRequests_
+		LIBCAMERA_TSA_GUARDED_BY(bufferMutex_);
 
-	std::deque<libcamera::Request *> pendingRequests_;
+	std::deque<libcamera::FrameBuffer *> pendingBuffers_;
 	std::deque<CompletedBuffer> completedBuffers_
 		LIBCAMERA_TSA_GUARDED_BY(bufferMutex_);
 
