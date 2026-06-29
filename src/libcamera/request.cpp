@@ -446,66 +446,12 @@ const ControlList &Request::metadata() const
  * \param[in] stream The stream the buffer belongs to
  * \param[in] buffer The FrameBuffer to add to the request
  * \param[in] fence The optional fence
- *
- * A reference to the buffer is stored in the request. The caller is responsible
- * for ensuring that the buffer will remain valid until the request complete
- * callback is called.
- *
- * A request can only contain one buffer per stream. If a buffer has already
- * been added to the request for the same stream, this function returns -EEXIST.
- *
- * A Fence can be optionally associated with the \a buffer.
- *
- * When a valid Fence is provided to this function, \a fence is moved to \a
- * buffer and this Request will only be queued to the device once the
- * fences of all its buffers have been correctly signalled. Ownership of the
- * fence will only be taken in case of success, otherwise the fence will
- * be left unmodified.
- *
- * If the \a fence associated with \a buffer isn't signalled, the request will
- * fail after a timeout. The buffer will still contain the fence, which
- * applications must retrieve with FrameBuffer::releaseFence() before the buffer
- * can be reused in another request. Attempting to add a buffer that still
- * contains a fence to a request will result in this function returning -EEXIST.
- *
- * \sa FrameBuffer::releaseFence()
- *
- * \return 0 on success or a negative error code otherwise
- * \retval -EEXIST The request already contains a buffer for the stream
- *  or the buffer still references a fence
- * \retval -EINVAL The buffer does not reference a valid Stream
  */
-int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
-		       std::unique_ptr<Fence> &&fence)
+int Request::addBuffer(const Stream *, FrameBuffer *,
+		       std::unique_ptr<Fence> &&)
 {
-	if (!stream) {
-		LOG(Request, Error) << "Invalid stream reference";
-		return -EINVAL;
-	}
-
-	/*
-	 * Make sure the fence has been extracted from the buffer
-	 * to avoid waiting on a stale fence.
-	 */
-	if (buffer->_d()->fence()) {
-		LOG(Request, Error) << "Can't add buffer that still references a fence";
-		return -EEXIST;
-	}
-
-	auto [it, inserted] = bufferMap_.try_emplace(stream, buffer);
-	if (!inserted) {
-		LOG(Request, Error) << "FrameBuffer already set for stream";
-		return -EEXIST;
-	}
-
-	buffer->_d()->setRequest(this);
-	buffer->_d()->stream_ = stream;
-	_d()->pending_.insert(buffer);
-
-	if (fence && fence->isValid())
-		buffer->_d()->setFence(std::move(fence));
-
-	return 0;
+	LOG(Request, Fatal) << "REMOVED";
+	return -ENOTSUP;
 }
 
 /**
