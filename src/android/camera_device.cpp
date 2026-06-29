@@ -1146,25 +1146,8 @@ void CameraDevice::requestComplete(Request *request)
 	 * The buffer status is set to Success and later changed to Error if
 	 * post-processing/compression fails.
 	 */
-	for (auto &buffer : descriptor->buffers_) {
-		CameraStream *stream = buffer.stream;
-
-		/*
-		 * Streams of type Direct have been queued to the
-		 * libcamera::Camera and their acquire fences have
-		 * already been waited on by the library.
-		 *
-		 * Acquire fences of streams of type Internal and Mapped
-		 * will be handled during post-processing.
-		 */
-		if (stream->type() == CameraStream::Type::Direct) {
-			/* If handling of the fence has failed restore buffer.fence. */
-			std::unique_ptr<Fence> fence = buffer.frameBuffer->releaseFence();
-			if (fence)
-				buffer.fence = fence->release();
-		}
+	for (auto &buffer : descriptor->buffers_)
 		buffer.status = Camera3RequestDescriptor::Status::Success;
-	}
 
 	/*
 	 * If the Request has failed, abort the request by notifying the error

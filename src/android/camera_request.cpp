@@ -10,6 +10,7 @@
 #include <libcamera/base/span.h>
 
 #include "camera_buffer.h"
+#include "camera_stream.h"
 
 using namespace libcamera;
 
@@ -195,6 +196,18 @@ Camera3RequestDescriptor::StreamBuffer::operator=(Camera3RequestDescriptor::Stre
 
 camera3_stream_buffer_t Camera3RequestDescriptor::StreamBuffer::prepareToReturn()
 {
+	/*
+	 * Streams of type Direct have a non-nullptr `frameBuffer` and
+	 * have been queued to the libcamera::Camera and their acquire
+	 * fences have already been waited on by the library.
+	 */
+	if (frameBuffer) {
+		/* If handling of the fence has failed restore buffer.fence. */
+		auto f = frameBuffer->releaseFence();
+		if (f)
+			fence = f->release();
+	}
+
 	/*
 	 * Pass the buffer fence back to the camera framework as
 	 * a release fence. This instructs the framework to wait
