@@ -41,7 +41,7 @@ LOG_DECLARE_CATEGORY(V4L2Compat)
 
 V4L2CameraProxy::V4L2CameraProxy(unsigned int index,
 				 std::shared_ptr<Camera> camera)
-	: refcount_(0), index_(index), bufferCount_(0), currentBuf_(0),
+	: refcount_(0), index_(index), currentBuf_(0),
 	  vcam_(std::make_unique<V4L2Camera>(camera)), owner_(nullptr)
 {
 	querycap(camera);
@@ -393,7 +393,7 @@ int V4L2CameraProxy::vidioc_s_fmt(V4L2CameraFile *file, struct v4l2_format *arg)
 	Size size(arg->fmt.pix.width, arg->fmt.pix.height);
 	V4L2PixelFormat v4l2Format = V4L2PixelFormat(arg->fmt.pix.pixelformat);
 	ret = vcam_->configure(&streamConfig_, size, v4l2Format.toPixelFormat(),
-			       bufferCount_);
+			       buffers_.size());
 	if (ret < 0)
 		return -EINVAL;
 
@@ -495,7 +495,6 @@ void V4L2CameraProxy::freeBuffers()
 {
 	vcam_->freeBuffers();
 	buffers_.clear();
-	bufferCount_ = 0;
 }
 
 int V4L2CameraProxy::vidioc_reqbufs(V4L2CameraFile *file, struct v4l2_requestbuffers *arg)
@@ -533,7 +532,7 @@ int V4L2CameraProxy::vidioc_reqbufs(V4L2CameraFile *file, struct v4l2_requestbuf
 		return 0;
 	}
 
-	if (bufferCount_ > 0)
+	if (!buffers_.empty())
 		freeBuffers();
 
 	Size size(v4l2PixFormat_.width, v4l2PixFormat_.height);
@@ -546,7 +545,6 @@ int V4L2CameraProxy::vidioc_reqbufs(V4L2CameraFile *file, struct v4l2_requestbuf
 	setFmtFromConfig(streamConfig_);
 
 	arg->count = streamConfig_.bufferCount;
-	bufferCount_ = arg->count;
 
 	ret = vcam_->allocBuffers(arg->count);
 	if (ret < 0) {
@@ -579,7 +577,7 @@ int V4L2CameraProxy::vidioc_querybuf(V4L2CameraFile *file, struct v4l2_buffer *a
 	LOG(V4L2Compat, Debug)
 		<< "[" << file->description() << "] " << __func__ << "()";
 
-	if (arg->index >= bufferCount_)
+	if (arg->index >= buffers_.size())
 		return -EINVAL;
 
 	if (!validateBufferType(arg->type))
@@ -601,7 +599,7 @@ int V4L2CameraProxy::vidioc_prepare_buf(V4L2CameraFile *file, struct v4l2_buffer
 	if (!hasOwnership(file))
 		return -EBUSY;
 
-	if (arg->index >= bufferCount_)
+	if (arg->index >= buffers_.size())
 		return -EINVAL;
 
 	if (arg->flags & V4L2_BUF_FLAG_REQUEST_FD)
@@ -630,7 +628,7 @@ int V4L2CameraProxy::vidioc_qbuf(V4L2CameraFile *file, struct v4l2_buffer *arg)
 		<< "[" << file->description() << "] " << __func__
 		<< "(index=" << arg->index << ")";
 
-	if (arg->index >= bufferCount_)
+	if (arg->index >= buffers_.size())
 		return -EINVAL;
 
 	if (buffers_[arg->index].flags & V4L2_BUF_FLAG_QUEUED)
@@ -660,7 +658,7 @@ int V4L2CameraProxy::vidioc_dqbuf(V4L2CameraFile *file, struct v4l2_buffer *arg,
 	LOG(V4L2Compat, Debug)
 		<< "[" << file->description() << "] " << __func__ << "()";
 
-	if (arg->index >= bufferCount_)
+	if (arg->index >= buffers_.size())
 		return -EINVAL;
 
 	if (!hasOwnership(file))
@@ -695,7 +693,7 @@ int V4L2CameraProxy::vidioc_dqbuf(V4L2CameraFile *file, struct v4l2_buffer *arg,
 	buf.length = sizeimage_;
 	*arg = buf;
 
-	currentBuf_ = (currentBuf_ + 1) % bufferCount_;
+	currentBuf_ = (currentBuf_ + 1) % buffers_.size();
 
 	uint64_t data;
 	int ret = ::read(file->efd(), &data, sizeof(data));
@@ -717,7 +715,7 @@ int V4L2CameraProxy::vidioc_expbuf(V4L2CameraFile *file, struct v4l2_exportbuffe
 	if (!validateBufferType(arg->type))
 		return -EINVAL;
 
-	if (arg->index >= bufferCount_)
+	if (arg->index >= buffers_.size())
 		return -EINVAL;
 
 	if (arg->flags & ~(O_CLOEXEC | O_ACCMODE))
@@ -737,7 +735,7 @@ int V4L2CameraProxy::vidioc_streamon(V4L2CameraFile *file, int *arg)
 	LOG(V4L2Compat, Debug)
 		<< "[" << file->description() << "] " << __func__ << "()";
 
-	if (bufferCount_ == 0)
+	if (buffers_.empty())
 		return -EINVAL;
 
 	if (!validateBufferType(*arg))

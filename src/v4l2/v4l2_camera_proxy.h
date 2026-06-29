@@ -80,7 +80,6 @@ private:
 	unsigned int index_;
 
 	libcamera::StreamConfiguration streamConfig_;
-	unsigned int bufferCount_;
 	unsigned int currentBuf_;
 	unsigned int sizeimage_;
 
