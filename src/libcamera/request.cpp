@@ -62,7 +62,6 @@ Request::Private::Private(Camera *camera)
 
 Request::Private::~Private()
 {
-	doCancelRequest();
 }
 
 /**
@@ -141,12 +140,6 @@ void Request::Private::complete()
 	LIBCAMERA_TRACEPOINT(request_complete, this);
 }
 
-void Request::Private::doCancelRequest()
-{
-	cancelled_ = true;
-	pending_ = 0;
-}
-
 /**
  * \brief Cancel a queued request
  *
@@ -162,7 +155,8 @@ void Request::Private::cancel()
 	Request *request = _o<Request>();
 	ASSERT(request->status() == RequestPending);
 
-	doCancelRequest();
+	cancelled_ = true;
+	pending_ = 0;
 }
 
 /**

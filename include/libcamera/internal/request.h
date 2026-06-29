@@ -40,8 +40,6 @@ private:
 	friend class PipelineHandler;
 	friend std::ostream &operator<<(std::ostream &out, const Request &r);
 
-	void doCancelRequest();
-
 	Camera *camera_;
 	bool cancelled_;
 	uint32_t sequence_ = 0;
