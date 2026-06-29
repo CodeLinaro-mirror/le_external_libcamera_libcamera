@@ -68,7 +68,7 @@ void V4L2Camera::unbind()
 	efd_ = -1;
 }
 
-std::vector<V4L2Camera::Buffer> V4L2Camera::completedBuffers()
+std::vector<V4L2Camera::CompletedBuffer> V4L2Camera::completedBuffers()
 {
 	MutexLocker lock(bufferLock_);
 	std::vector v(std::move_iterator(completedBuffers_.begin()),

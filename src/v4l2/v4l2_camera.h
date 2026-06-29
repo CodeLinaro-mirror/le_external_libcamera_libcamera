@@ -23,8 +23,8 @@
 class V4L2Camera
 {
 public:
-	struct Buffer {
-		Buffer(unsigned int index, const libcamera::FrameMetadata &data)
+	struct CompletedBuffer {
+		CompletedBuffer(unsigned int index, const libcamera::FrameMetadata &data)
 			: index_(index), data_(data)
 		{
 		}
@@ -41,7 +41,7 @@ public:
 	void bind(int efd);
 	void unbind();
 
-	std::vector<Buffer> completedBuffers() LIBCAMERA_TSA_EXCLUDES(bufferLock_);
+	std::vector<CompletedBuffer> completedBuffers() LIBCAMERA_TSA_EXCLUDES(bufferLock_);
 
 	int configure(libcamera::StreamConfiguration *streamConfigOut,
 		      const libcamera::Size &size,
@@ -85,7 +85,7 @@ private:
 	std::vector<std::unique_ptr<libcamera::Request>> requestPool_;
 
 	std::deque<libcamera::Request *> pendingRequests_;
-	std::deque<Buffer> completedBuffers_
+	std::deque<CompletedBuffer> completedBuffers_
 		LIBCAMERA_TSA_GUARDED_BY(bufferLock_);
 
 	int efd_;
