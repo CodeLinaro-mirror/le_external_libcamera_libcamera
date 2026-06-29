@@ -754,6 +754,42 @@ Camera::Private::PendingFence::PendingFence(const Stream *s, FrameBuffer *b)
 	  buffer(b)
 {
 }
+
+/**
+ * \typedef Camera::Private::PooledFrameBuffer
+ * \brief An std::unique_ptr for automatically returning the FrameBuffer to the pool to simplify error handling.
+ */
+
+#ifndef __DOXYGEN__
+void Camera::Private::FrameBufferPoolDeleter::operator()(FrameBuffer *buffer) const
+{
+	pool->push_back(buffer);
+}
+#endif
+
+/**
+ * \brief Acquire a buffer for a stream
+ * \param[in] stream The stream
+ *
+ * \return A buffer or an empty handle if not available
+ */
+Camera::Private::PooledFrameBuffer
+Camera::Private::acquireBuffer(const Stream *stream)
+{
+	auto it = streamData_.find(stream);
+	if (it == streamData_.end() || !it->second.active || it->second.buffers.empty())
+		return {};
+
+	FrameBuffer *buffer = it->second.buffers.back();
+	buffer->_d()->stream_ = stream;
+
+	LOG(Camera, Debug)
+		<< "Camera:" << LIBCAMERA_O_PTR() << " acquired buffer:"
+		<< buffer << " for stream:" << stream;
+
+	it->second.buffers.pop_back();
+	return { buffer, { &it->second.buffers } };
+}
 #endif /* __DOXYGEN_PUBLIC__ */
 
 /**

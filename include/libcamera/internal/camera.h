@@ -49,6 +49,17 @@ public:
 
 	const CameraControlValidator *validator() const { return validator_.get(); }
 
+#ifndef __DOXYGEN__
+	struct FrameBufferPoolDeleter {
+		std::vector<FrameBuffer *> *pool = nullptr;
+		void operator()(FrameBuffer *buffer) const;
+	};
+#endif
+
+	using PooledFrameBuffer = std::unique_ptr<FrameBuffer, FrameBufferPoolDeleter>;
+
+	[[nodiscard]] PooledFrameBuffer acquireBuffer(const Stream *stream);
+
 private:
 	enum State {
 		CameraAvailable,
