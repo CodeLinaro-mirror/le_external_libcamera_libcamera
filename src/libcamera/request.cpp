@@ -390,17 +390,12 @@ void Request::reuse(ReuseFlag flags)
 {
 	LIBCAMERA_TRACEPOINT(request_reuse, this);
 
+	if (flags)
+		LOG(Request, Fatal) << "NOT IMPLEMENTED";
+
 	_d()->reset();
 
-	if (flags & ReuseBuffers) {
-		for (const auto &[stream, buffer] : bufferMap_) {
-			buffer->_d()->setRequest(this);
-			_d()->pending_.insert(buffer);
-		}
-	} else {
-		bufferMap_.clear();
-	}
-
+	bufferMap_.clear();
 	status_ = RequestPending;
 
 	controls_.clear();
