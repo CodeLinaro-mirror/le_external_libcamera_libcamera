@@ -55,7 +55,7 @@ private:
 	int queueRequest(libcamera::Request *request);
 	void requestComplete(libcamera::Request *request);
 	void processRequest(libcamera::Request *request);
-	void sinkRelease(libcamera::Request *request);
+	void requeueRequest(libcamera::Request *request);
 
 	const OptionsParser::Options &options_;
 	std::shared_ptr<libcamera::Camera> camera_;

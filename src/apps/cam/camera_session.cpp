@@ -326,7 +326,7 @@ int CameraSession::start()
 			return ret;
 		}
 
-		sink_->requestProcessed.connect(this, &CameraSession::sinkRelease);
+		sink_->requestProcessed.connect(this, &CameraSession::requeueRequest);
 	}
 
 	allocator_ = std::make_unique<FrameBufferAllocator>(camera_);
@@ -542,14 +542,11 @@ void CameraSession::processRequest(Request *request)
 	 * If the frame sink holds on the request, we'll requeue it later in the
 	 * complete handler.
 	 */
-	if (!requeue)
-		return;
-
-	request->reuse(Request::ReuseBuffers);
-	queueRequest(request);
+	if (requeue)
+		requeueRequest(request);
 }
 
-void CameraSession::sinkRelease(Request *request)
+void CameraSession::requeueRequest(Request *request)
 {
 	request->reuse(Request::ReuseBuffers);
 	queueRequest(request);
