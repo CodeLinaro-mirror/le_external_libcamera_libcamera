@@ -421,20 +421,20 @@ void PipelineHandler::stop(Camera *camera)
 		doQueueRequest(request);
 	}
 
-	const auto returnBuffer = [&](FrameBuffer *buffer) {
+	const auto returnBuffer = [&](const Stream *stream, FrameBuffer *buffer) {
 		ASSERT(!buffer->_d()->stream_);
 		buffer->_d()->cancel();
-		camera->bufferCompleted.emit(nullptr, buffer);
+		camera->bufferCompleted.emit(nullptr, stream, buffer);
 	};
 
 	for (auto &pf : data->pendingFences_)
-		returnBuffer(pf.buffer);
+		returnBuffer(pf.stream, pf.buffer);
 
 	data->pendingFences_.clear();
 
 	for (auto &[stream, streamData] : data->streamData_) {
 		for (FrameBuffer *buffer : streamData.buffers)
-			returnBuffer(buffer);
+			returnBuffer(stream, buffer);
 
 		streamData.buffers.clear();
 	}

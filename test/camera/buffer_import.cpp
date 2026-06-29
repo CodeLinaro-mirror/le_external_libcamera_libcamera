@@ -39,6 +39,7 @@ public:
 
 protected:
 	void bufferComplete([[maybe_unused]] Request *request,
+			    [[maybe_unused]] const Stream *stream,
 			    FrameBuffer *buffer)
 	{
 		if (buffer->metadata().status != FrameMetadata::FrameSuccess)

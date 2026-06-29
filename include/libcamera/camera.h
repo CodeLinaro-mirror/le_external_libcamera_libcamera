@@ -124,7 +124,7 @@ public:
 
 	const std::string &id() const;
 
-	Signal<Request *, FrameBuffer *> bufferCompleted;
+	Signal<Request *, const Stream *, FrameBuffer *> bufferCompleted;
 	Signal<Request *> requestCompleted;
 	Signal<> disconnected;
 

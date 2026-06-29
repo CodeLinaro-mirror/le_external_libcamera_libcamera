@@ -800,12 +800,14 @@ Camera::Private::acquireBuffer(const Stream *stream)
  */
 void Camera::Private::rejectBuffer(FrameBuffer *buffer)
 {
+	const Stream *stream = buffer->_d()->stream_;
+
 	ASSERT(!buffer->_d()->request());
-	ASSERT(buffer->_d()->stream_);
+	ASSERT(stream);
 
 	LOG(Camera, Debug)
 		<< "Camera:" << LIBCAMERA_O_PTR() << " rejects buffer:"
-		<< buffer << " for stream:" << buffer->_d()->stream_;
+		<< buffer << " for stream:" << stream;
 
 	/*
 	 * \todo Not `FrameError` because that requires `timestamp` and
@@ -814,8 +816,8 @@ void Camera::Private::rejectBuffer(FrameBuffer *buffer)
 	buffer->_d()->cancel();
 	buffer->_d()->stream_ = nullptr;
 
-	// \todo separate event (with stream) ?
-	LIBCAMERA_O_PTR()->bufferCompleted.emit(nullptr, buffer);
+	// \todo separate event?
+	LIBCAMERA_O_PTR()->bufferCompleted.emit(nullptr, stream, buffer);
 }
 
 /**
