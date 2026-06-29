@@ -230,7 +230,7 @@ CameraConfiguration::Status UVCCameraConfiguration::validate()
 }
 
 PipelineHandlerUVC::PipelineHandlerUVC(CameraManager *manager)
-	: PipelineHandler(manager)
+	: PipelineHandler(manager, {})
 {
 }
 

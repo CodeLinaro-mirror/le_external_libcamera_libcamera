@@ -217,7 +217,7 @@ stub implementations for the overridden class members.
    };
 
    PipelineHandlerVivid::PipelineHandlerVivid(CameraManager *manager)
-          : PipelineHandler(manager)
+          : PipelineHandler(manager, {})
    {
    }
 

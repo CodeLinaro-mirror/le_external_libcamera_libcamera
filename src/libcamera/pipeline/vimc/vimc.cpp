@@ -196,7 +196,7 @@ CameraConfiguration::Status VimcCameraConfiguration::validate()
 }
 
 PipelineHandlerVimc::PipelineHandlerVimc(CameraManager *manager)
-	: PipelineHandler(manager)
+	: PipelineHandler(manager, {})
 {
 }
 

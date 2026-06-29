@@ -243,7 +243,7 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 bool PipelineHandlerVirtual::created_ = false;
 
 PipelineHandlerVirtual::PipelineHandlerVirtual(CameraManager *manager)
-	: PipelineHandler(manager),
+	: PipelineHandler(manager, {}),
 	  dmaBufAllocator_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
 			   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
 			   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)

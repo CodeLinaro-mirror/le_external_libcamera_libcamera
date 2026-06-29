@@ -203,7 +203,7 @@ class PipelineHandlerBase : public PipelineHandler
 {
 public:
 	PipelineHandlerBase(CameraManager *manager)
-		: PipelineHandler(manager)
+		: PipelineHandler(manager, {})
 	{
 	}
 

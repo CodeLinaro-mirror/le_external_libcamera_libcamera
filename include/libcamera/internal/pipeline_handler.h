@@ -37,8 +37,11 @@ class PipelineHandler : public std::enable_shared_from_this<PipelineHandler>,
 			public Object
 {
 public:
-	PipelineHandler(CameraManager *manager,
-			unsigned int maxQueuedRequestsDevice = 32);
+	struct Options {
+		unsigned int maxQueuedRequestsDevice = 32;
+	};
+
+	PipelineHandler(CameraManager *manager, const Options &options);
 	virtual ~PipelineHandler();
 
 	virtual bool match(DeviceEnumerator *enumerator) = 0;
@@ -100,7 +103,6 @@ protected:
 	virtual void releaseDevice(Camera *camera);
 
 	CameraManager *manager_;
-	const unsigned int maxQueuedRequestsDevice_;
 
 private:
 	void unlockMediaDevices();
@@ -116,6 +118,8 @@ private:
 
 	const char *name_;
 	unsigned int useCount_;
+
+	const Options options_;
 
 	friend class PipelineHandlerFactoryBase;
 };

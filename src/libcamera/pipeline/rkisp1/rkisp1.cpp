@@ -782,7 +782,8 @@ CameraConfiguration::Status RkISP1CameraConfiguration::validate()
  */
 
 PipelineHandlerRkISP1::PipelineHandlerRkISP1(CameraManager *manager)
-	: PipelineHandler(manager, kRkISP1MaxQueuedRequests), hasSelfPath_(true)
+	: PipelineHandler(manager, { .maxQueuedRequestsDevice = kRkISP1MaxQueuedRequests }),
+	  hasSelfPath_(true)
 {
 }
 

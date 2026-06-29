@@ -786,7 +786,8 @@ private:
 };
 
 PipelineHandlerMaliC55::PipelineHandlerMaliC55(CameraManager *manager)
-	: PipelineHandler(manager, kMaliC55BufferCount), dsFitted_(true)
+	: PipelineHandler(manager, { .maxQueuedRequestsDevice = kMaliC55BufferCount }),
+	  dsFitted_(true)
 {
 }
 

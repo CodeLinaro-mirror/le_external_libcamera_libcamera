@@ -60,19 +60,36 @@ LOG_DEFINE_CATEGORY(Pipeline)
  */
 
 /**
+ * \class PipelineHandler::Options
+ * \brief The collection of optional options of the base class
+ */
+
+/**
+ * \var PipelineHandler::Options::maxQueuedRequestsDevice
+ * \brief The maximum number of requests the pipeline handler shall queue to the
+ * device
+ *
+ * maxQueuedRequestsDevice limits the number of request that the
+ * pipeline handler shall queue to the underlying hardware, in order to
+ * saturate the pipeline with requests. The application may choose to queue
+ * as many requests as it desires, however only maxQueuedRequestsDevice
+ * requests will be queued to the hardware at a given point in time. The
+ * remaining requests will be kept waiting in the internal waiting
+ * queue, to be queued at a later stage.
+ */
+
+/**
  * \brief Construct a PipelineHandler instance
  * \param[in] manager The camera manager
- * \param[in] maxQueuedRequestsDevice The maximum number of requests queued to
- * the device
+ * \param[in] options The options options for the pipeline handler base class
  *
  * In order to honour the std::enable_shared_from_this<> contract,
  * PipelineHandler instances shall never be constructed manually, but always
  * through the PipelineHandlerFactoryBase::create() function.
  */
 PipelineHandler::PipelineHandler(CameraManager *manager,
-				 unsigned int maxQueuedRequestsDevice)
-	: manager_(manager), maxQueuedRequestsDevice_(maxQueuedRequestsDevice),
-	  useCount_(0)
+				 const Options &options)
+	: manager_(manager), useCount_(0), options_(options)
 {
 }
 
@@ -453,7 +470,7 @@ bool PipelineHandler::hasPendingRequests(const Camera *camera) const
  * queued to the pipeline handler.
  *
  * The queue of waiting requests is iterated and up to \a
- * maxQueuedRequestsDevice_ prepared requests are passed to the pipeline handler
+ * maxQueuedRequestsDevice prepared requests are passed to the pipeline handler
  * in the same order they have been queued by calling this function.
  *
  * If a Request fails during the preparation phase or if the pipeline handler
@@ -509,7 +526,7 @@ void PipelineHandler::doQueueRequests(Camera *camera)
 {
 	Camera::Private *data = camera->_d();
 	while (!data->waitingRequests_.empty()) {
-		if (data->queuedRequests_.size() == maxQueuedRequestsDevice_)
+		if (data->queuedRequests_.size() == options_.maxQueuedRequestsDevice)
 			break;
 
 		Request *request = data->waitingRequests_.front();
@@ -860,20 +877,6 @@ void PipelineHandler::disconnect()
  * The camera manager pointer is stored in the pipeline handler for the
  * convenience of pipeline handler implementations. It remains valid and
  * constant for the whole lifetime of the pipeline handler.
- */
-
-/**
- * \var PipelineHandler::maxQueuedRequestsDevice_
- * \brief The maximum number of requests the pipeline handler shall queue to the
- * device
- *
- * maxQueuedRequestsDevice_ limits the number of request that the
- * pipeline handler shall queue to the underlying hardware, in order to
- * saturate the pipeline with requests. The application may choose to queue
- * as many requests as it desires, however only maxQueuedRequestsDevice_
- * requests will be queued to the hardware at a given point in time. The
- * remaining requests will be kept waiting in the internal waiting
- * queue, to be queued at a later stage.
  */
 
 /**

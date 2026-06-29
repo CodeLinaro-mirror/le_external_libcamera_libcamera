@@ -385,7 +385,7 @@ CameraConfiguration::Status IPU3CameraConfiguration::validate()
 }
 
 PipelineHandlerIPU3::PipelineHandlerIPU3(CameraManager *manager)
-	: PipelineHandler(manager), cio2MediaDev_(nullptr), imguMediaDev_(nullptr)
+	: PipelineHandler(manager, {}), cio2MediaDev_(nullptr), imguMediaDev_(nullptr)
 {
 }
 

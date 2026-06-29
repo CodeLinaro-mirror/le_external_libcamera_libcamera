@@ -1402,7 +1402,7 @@ CameraConfiguration::Status SimpleCameraConfiguration::validate()
  */
 
 SimplePipelineHandler::SimplePipelineHandler(CameraManager *manager)
-	: PipelineHandler(manager, kMaxQueuedRequestsDevice),
+	: PipelineHandler(manager, { .maxQueuedRequestsDevice = kMaxQueuedRequestsDevice }),
 	  converter_(nullptr)
 {
 }

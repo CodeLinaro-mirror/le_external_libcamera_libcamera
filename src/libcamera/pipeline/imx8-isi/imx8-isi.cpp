@@ -612,7 +612,7 @@ CameraConfiguration::Status ISICameraConfiguration::validate()
  */
 
 PipelineHandlerISI::PipelineHandlerISI(CameraManager *manager)
-	: PipelineHandler(manager)
+	: PipelineHandler(manager, {})
 {
 }
 
