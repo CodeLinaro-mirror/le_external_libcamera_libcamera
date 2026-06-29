@@ -107,10 +107,13 @@ bool Request::Private::completeBuffer(FrameBuffer *buffer)
 	Request *request = LIBCAMERA_O_PTR();
 	camera_->bufferCompleted.emit(request, buffer);
 
+	ASSERT(request->findBuffer(buffer->_d()->stream_) == buffer);
+
 	int ret = pending_.erase(buffer);
 	ASSERT(ret == 1);
 
 	buffer->_d()->setRequest(nullptr);
+	buffer->_d()->stream_ = nullptr;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled)
 		cancelled_ = true;
@@ -147,6 +150,7 @@ void Request::Private::doCancelRequest()
 		buffer->_d()->cancel();
 		camera_->bufferCompleted.emit(request, buffer);
 		buffer->_d()->setRequest(nullptr);
+		buffer->_d()->stream_ = nullptr;
 	}
 
 	cancelled_ = true;
@@ -495,6 +499,7 @@ int Request::addBuffer(const Stream *stream, FrameBuffer *buffer,
 	}
 
 	buffer->_d()->setRequest(this);
+	buffer->_d()->stream_ = stream;
 	_d()->pending_.insert(buffer);
 
 	if (fence && fence->isValid())

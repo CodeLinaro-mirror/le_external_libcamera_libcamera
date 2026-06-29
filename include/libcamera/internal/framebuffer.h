@@ -19,6 +19,8 @@
 
 namespace libcamera {
 
+class Stream;
+
 class FrameBuffer::Private : public Extensible::Private
 {
 	LIBCAMERA_DECLARE_PUBLIC(FrameBuffer)
@@ -38,6 +40,8 @@ public:
 	void cancel() { metadata_.status = FrameMetadata::FrameCancelled; }
 
 	FrameMetadata &metadata() { return metadata_; }
+
+	const Stream *stream_ = nullptr;
 
 private:
 	std::vector<Plane> planes_;

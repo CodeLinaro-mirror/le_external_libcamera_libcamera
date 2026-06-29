@@ -232,6 +232,14 @@ FrameBuffer::Private::~Private()
  * \brief Retrieve the dynamic metadata
  * \return Dynamic metadata for the frame contained in the buffer
  */
+
+/**
+ * \var FrameBuffer::Private::stream_
+ * \brief The Stream the buffer belongs to
+ *
+ * This member designates the Stream of the Camera that the buffer belongs
+ * to at the moment.
+ */
 #endif /* __DOXYGEN_PUBLIC__ */
 
 /**
