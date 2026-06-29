@@ -582,8 +582,7 @@ int V4L2CameraProxy::vidioc_querybuf(V4L2CameraFile *file, struct v4l2_buffer *a
 	if (arg->index >= bufferCount_)
 		return -EINVAL;
 
-	if (!validateBufferType(arg->type) ||
-	    arg->index >= bufferCount_)
+	if (!validateBufferType(arg->type))
 		return -EINVAL;
 
 	updateBuffers();
@@ -641,8 +640,7 @@ int V4L2CameraProxy::vidioc_qbuf(V4L2CameraFile *file, struct v4l2_buffer *arg)
 		return -EBUSY;
 
 	if (!validateBufferType(arg->type) ||
-	    !validateMemoryType(arg->memory) ||
-	    arg->index >= bufferCount_)
+	    !validateMemoryType(arg->memory))
 		return -EINVAL;
 
 	int ret = vcam_->qbuf(arg->index);
