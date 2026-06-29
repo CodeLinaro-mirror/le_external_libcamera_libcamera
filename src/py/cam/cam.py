@@ -205,13 +205,6 @@ class CameraContext:
 
         for buf_num in range(num_bufs):
             request = self.camera.create_request(self.idx)
-
-            for stream in self.streams:
-                buffers = self.allocator.buffers(stream)
-                buffer = buffers[buf_num]
-
-                request.add_buffer(stream, buffer)
-
             requests.append(request)
 
         self.requests = requests
@@ -223,7 +216,14 @@ class CameraContext:
         self.camera.stop()
 
     def queue_requests(self):
+        for stream in self.streams:
+            for buffer in self.allocator.buffers(stream):
+                self.camera.add_buffer(stream, buffer)
+
         for request in self.requests:
+            for stream in self.streams:
+                request.enable_stream(stream, True)
+
             self.camera.queue_request(request)
             self.reqs_queued += 1
 
@@ -305,7 +305,13 @@ class CaptureState:
     # Called from renderer when it has finished with a request
     def request_processed(self, ctx, req):
         if ctx.reqs_queued < ctx.opt_capture:
+            for (stream, buffer) in req.buffers.items():
+                ctx.camera.add_buffer(stream, buffer)
+
             req.reuse()
+            for stream in ctx.streams:
+                req.enable_stream(stream, True)
+
             ctx.camera.queue_request(req)
             ctx.reqs_queued += 1
 

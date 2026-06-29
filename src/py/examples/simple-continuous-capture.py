@@ -19,8 +19,10 @@ import sys
 class CameraCaptureContext:
     idx: int
     cam: libcam.Camera
+    cam_config: libcam.CameraConfiguration
     reqs: list[libcam.Request]
     mfbs: dict[libcam.FrameBuffer, libcamera.utils.MappedFrameBuffer]
+    buffers: list[libcam.FrameBuffer]
 
     def __init__(self, cam, idx):
         self.idx = idx
@@ -32,11 +34,11 @@ class CameraCaptureContext:
 
         # Configure the camera
 
-        cam_config = cam.generate_configuration([libcam.StreamRole.Viewfinder])
+        self.cam_config = cam.generate_configuration([libcam.StreamRole.Viewfinder])
 
-        stream_config = cam_config.at(0)
+        stream_config = self.cam_config.at(0)
 
-        cam.configure(cam_config)
+        cam.configure(self.cam_config)
 
         stream = stream_config.stream
 
@@ -44,24 +46,19 @@ class CameraCaptureContext:
 
         allocator = libcam.FrameBufferAllocator(cam)
         ret = allocator.allocate(stream)
-        assert ret > 0
+        self.buffers = allocator.buffers(stream)
+        assert ret > 0 and len(self.buffers) > 0
 
-        num_bufs = len(allocator.buffers(stream))
-
-        print(f'cam{idx} ({cam.id}): capturing {num_bufs} buffers with {stream_config}')
+        print(f'cam{idx} ({cam.id}): capturing {len(self.buffers)} buffers with {stream_config}')
 
         # Create the requests and assign a buffer for each request
 
         self.reqs = []
         self.mfbs = {}
 
-        for i in range(num_bufs):
+        for buffer in self.buffers:
             # Use the camera index as the "cookie"
             req = cam.create_request(idx)
-
-            buffer = allocator.buffers(stream)[i]
-            req.add_buffer(stream, buffer)
-
             self.reqs.append(req)
 
             # Save a mmapped buffer so we can calculate the CRC later
@@ -127,7 +124,12 @@ class CaptureContext:
         # a new Request, we re-use the old one. We need to call req.reuse()
         # to re-initialize the Request before queuing.
 
+        for (stream, buffer) in req.buffers.items():
+            cam_ctx.cam.add_buffer(stream, buffer)
+
         req.reuse()
+        req.enable_stream(stream, True)
+
         cam_ctx.cam.queue_request(req)
 
     def handle_key_event(self):
@@ -139,7 +141,13 @@ class CaptureContext:
         # Queue the requests to the camera
 
         for cam_ctx in self.camera_contexts:
+            stream = cam_ctx.cam_config.at(0).stream
+
+            for buffer in cam_ctx.buffers:
+                cam_ctx.cam.add_buffer(stream, buffer)
+
             for req in cam_ctx.reqs:
+                req.enable_stream(stream, True)
                 cam_ctx.cam.queue_request(req)
 
         # Use Selector to wait for events from the camera and from the keyboard

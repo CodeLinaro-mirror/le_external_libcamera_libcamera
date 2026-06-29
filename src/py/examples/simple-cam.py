@@ -73,7 +73,12 @@ def process_request(request):
         # must be mapped by the application
 
     # Re-queue the Request to the camera.
+    for (stream, buffer) in request.buffers.items():
+        camera.add_buffer(stream, buffer)
+
     request.reuse()
+    request.enable_stream(stream, True)
+
     camera.queue_request(request)
 
 
@@ -285,9 +290,6 @@ def main():
     for i in range(len(buffers)):
         request = camera.create_request()
 
-        buffer = buffers[i]
-        request.add_buffer(stream, buffer)
-
         # Controls can be added to a request on a per frame basis.
         request.set_control(libcam.controls.Brightness, 0.5)
 
@@ -311,7 +313,12 @@ def main():
     # be waited upon using e.g. Python's selectors.
 
     camera.start()
+
+    for buffer in buffers:
+        camera.add_buffer(stream, buffer)
+
     for request in requests:
+        request.enable_stream(stream, True)
         camera.queue_request(request)
 
     sel = selectors.DefaultSelector()

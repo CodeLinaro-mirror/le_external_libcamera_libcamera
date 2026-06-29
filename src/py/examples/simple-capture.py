@@ -69,20 +69,15 @@ def main():
 
     allocator = libcam.FrameBufferAllocator(cam)
     ret = allocator.allocate(stream)
-    assert ret > 0
-
-    num_bufs = len(allocator.buffers(stream))
+    buffers = allocator.buffers(stream)
+    assert ret > 0 and len(buffers) > 0
 
     # Create the requests and assign a buffer for each request
 
     reqs = []
-    for i in range(num_bufs):
+    for i in range(len(buffers)):
         # Use the buffer index as the cookie
         req = cam.create_request(i)
-
-        buffer = allocator.buffers(stream)[i]
-        req.add_buffer(stream, buffer)
-
         reqs.append(req)
 
     # Start the camera
@@ -96,7 +91,11 @@ def main():
 
     # Queue the requests to the camera
 
+    for buffer in buffers:
+        cam.add_buffer(stream, buffer)
+
     for req in reqs:
+        req.enable_stream(stream, True)
         cam.queue_request(req)
         frames_queued += 1
 
@@ -144,7 +143,12 @@ def main():
             # We could create a totally new Request, but it is more efficient
             # to reuse the existing one that we just received.
             if frames_queued < TOTAL_FRAMES:
+                for (stream, buffer) in req.buffers.items():
+                    cam.add_buffer(stream, buffer)
+
                 req.reuse()
+                req.enable_stream(stream, True)
+
                 cam.queue_request(req)
                 frames_queued += 1
 

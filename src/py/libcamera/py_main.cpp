@@ -110,6 +110,16 @@ PYBIND11_MODULE(_libcamera, m)
 	 * https://pybind11.readthedocs.io/en/latest/advanced/misc.html#avoiding-c-types-in-docstrings
 	 */
 
+	struct RequestDeleter : std::default_delete<Request> {
+		void operator()(Request *request)
+		{
+			for (const auto &[stream, buffer] : request->buffers())
+				py::cast(buffer).dec_ref();
+
+			std::default_delete<Request>::operator()(request);
+		}
+	};
+
 	auto pyCameraManager = py::class_<PyCameraManager, std::shared_ptr<PyCameraManager>>(m, "CameraManager");
 	auto pyCamera = py::class_<Camera, PyCameraHolder>(m, "Camera");
 	auto pySensorConfiguration = py::class_<SensorConfiguration>(m, "SensorConfiguration");
@@ -123,7 +133,7 @@ PYBIND11_MODULE(_libcamera, m)
 	auto pyStream = py::class_<Stream>(m, "Stream");
 	auto pyControlId = py::class_<ControlId>(m, "ControlId");
 	auto pyControlInfo = py::class_<ControlInfo>(m, "ControlInfo");
-	auto pyRequest = py::class_<Request>(m, "Request");
+	auto pyRequest = py::class_<Request, std::unique_ptr<Request, RequestDeleter>>(m, "Request");
 	auto pyRequestStatus = py::enum_<Request::Status>(pyRequest, "Status");
 	auto pyRequestReuse = py::enum_<Request::ReuseFlag>(pyRequest, "Reuse");
 	auto pyFrameMetadata = py::class_<FrameMetadata>(m, "FrameMetadata");
@@ -195,9 +205,20 @@ PYBIND11_MODULE(_libcamera, m)
 		}, py::arg("controls") = std::unordered_map<const ControlId *, py::object>())
 
 		.def("stop", [](Camera &self) {
+			std::vector<FrameBuffer *> queued;
+
+			self.bufferCompleted.connect(&queued, [&](Request *request, const Stream *, FrameBuffer *buffer) {
+				if (!request)
+					queued.push_back(buffer);
+			});
+
 			int ret = self.stop();
 
+			self.bufferCompleted.disconnect(&queued);
 			self.requestCompleted.disconnect();
+
+			for (auto *buffer : queued)
+				py::cast(buffer).dec_ref();
 
 			if (ret)
 				throw std::system_error(-ret, std::generic_category(),
@@ -221,7 +242,7 @@ PYBIND11_MODULE(_libcamera, m)
 		})
 
 		.def("create_request", [](Camera &self, uint64_t cookie) {
-			std::unique_ptr<Request> req = self.createRequest(cookie);
+			std::unique_ptr<Request, RequestDeleter> req(self.createRequest(cookie).release());
 			if (!req)
 				throw std::system_error(ENOMEM, std::generic_category(),
 							"Failed to create request");
@@ -243,6 +264,20 @@ PYBIND11_MODULE(_libcamera, m)
 				py_req.dec_ref();
 				throw std::system_error(-ret, std::generic_category(),
 							"Failed to queue request");
+			}
+		})
+
+		/* \todo Fence is not supported */
+		.def("add_buffer", [](Camera &self, const Stream *stream, FrameBuffer *buffer) {
+			py::object py_buf = py::cast(buffer);
+
+			py_buf.inc_ref();
+
+			int ret = self.addBuffer(stream, buffer);
+			if (ret) {
+				py_buf.dec_ref();
+				throw std::system_error(-ret, std::generic_category(),
+							"Failed to add buffer");
 			}
 		})
 
@@ -457,13 +492,6 @@ PYBIND11_MODULE(_libcamera, m)
 		});
 
 	pyRequest
-		/* \todo Fence is not supported, so we cannot expose addBuffer() directly */
-		.def("add_buffer", [](Request &self, const Stream *stream, FrameBuffer *buffer) {
-			int ret = self.addBuffer(stream, buffer);
-			if (ret)
-				throw std::system_error(-ret, std::generic_category(),
-							"Failed to add buffer");
-		}, py::keep_alive<1, 3>()) /* Request keeps Framebuffer alive */
 		.def_property_readonly("status", &Request::status)
 		.def_property_readonly("buffers", &Request::buffers)
 		.def_property_readonly("cookie", &Request::cookie)
@@ -485,21 +513,21 @@ PYBIND11_MODULE(_libcamera, m)
 
 			return ret;
 		})
-		/*
-		 * \todo As we add a keep_alive to the fb in addBuffers(), we
-		 * can only allow reuse with ReuseBuffers.
-		 */
-		.def("reuse", [](Request &self) { self.reuse(Request::ReuseFlag::ReuseBuffers); })
+		.def("reuse", [](Request &self) {
+			for (const auto &[stream, buffer] : self.buffers())
+				py::cast(buffer).dec_ref();
+
+			self.reuse();
+		})
+		.def("enable_stream", [](Request &self, const Stream *stream, bool enabled) {
+			self.enableStream(stream, enabled);
+		})
 		.def("__str__", &Request::toString);
 
 	pyRequestStatus
 		.value("Pending", Request::RequestPending)
 		.value("Complete", Request::RequestComplete)
 		.value("Cancelled", Request::RequestCancelled);
-
-	pyRequestReuse
-		.value("Default", Request::ReuseFlag::Default)
-		.value("ReuseBuffers", Request::ReuseFlag::ReuseBuffers);
 
 	pyFrameMetadata
 		.def_readonly("status", &FrameMetadata::status)
