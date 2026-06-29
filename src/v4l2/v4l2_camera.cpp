@@ -226,14 +226,14 @@ int V4L2Camera::streamOn()
 
 int V4L2Camera::streamOff()
 {
+	pendingRequests_.clear();
+
 	if (!isRunning_) {
 		for (std::unique_ptr<Request> &req : requestPool_)
 			req->reuse();
 
 		return 0;
 	}
-
-	pendingRequests_.clear();
 
 	int ret = camera_->stop();
 	if (ret < 0)
