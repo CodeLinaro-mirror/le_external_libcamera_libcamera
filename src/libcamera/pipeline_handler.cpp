@@ -22,6 +22,7 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/request.h"
 #include "libcamera/internal/tracepoints.h"
@@ -394,6 +395,24 @@ void PipelineHandler::stop(Camera *camera)
 		doQueueRequest(request);
 	}
 
+	const auto returnBuffer = [&](FrameBuffer *buffer) {
+		ASSERT(!buffer->_d()->stream_);
+		buffer->_d()->cancel();
+		camera->bufferCompleted.emit(nullptr, buffer);
+	};
+
+	for (auto &pf : data->pendingFences_)
+		returnBuffer(pf.buffer);
+
+	data->pendingFences_.clear();
+
+	for (auto &[stream, streamData] : data->streamData_) {
+		for (FrameBuffer *buffer : streamData.buffers)
+			returnBuffer(buffer);
+
+		streamData.buffers.clear();
+	}
+
 	/* Make sure no requests are pending. */
 	ASSERT(data->queuedRequests_.empty());
 	ASSERT(data->waitingRequests_.empty());
@@ -609,6 +628,75 @@ void PipelineHandler::cancelRequest(Request *request)
 {
 	request->_d()->cancel();
 	completeRequest(request);
+}
+
+/**
+ * \fn PipelineHandler::addBuffer()
+ * \brief Add buffers to the buffer pool of the camera
+ * \param[in] camera The camera
+ * \param[in] stream The stream of \a camera
+ * \param[in] buffer The buffer
+ * \param[in] fence The fence for \a buffer
+ *
+ * \context This function may only be called from the CameraManager thread.
+ */
+void PipelineHandler::addBuffer(Camera *camera,
+				const Stream *stream, FrameBuffer *buffer,
+				std::unique_ptr<Fence> &&fence)
+{
+	Camera::Private *const d = camera->_d();
+
+	auto it = d->streamData_.find(stream);
+	ASSERT(it != d->streamData_.end());
+
+	[[maybe_unused]] const auto checkUnique = [&] {
+		for (const auto &[_, data] : d->streamData_) {
+			for (const auto *b : data.buffers) {
+				if (b == buffer)
+					return false;
+			}
+		}
+
+		for (const auto &pf : d->pendingFences_) {
+			if (pf.buffer == buffer)
+				return false;
+
+			if (fence && fence->isValid()) {
+				if (pf.buffer->_d()->fence()->fd().get() == fence->fd().get())
+					return false;
+			}
+		}
+
+		return true;
+	};
+	ASSERT(checkUnique() && "buffer or fence is already present in the pool");
+
+	if (fence && fence->isValid()) {
+		buffer->_d()->setFence(std::move(fence));
+
+		auto it2 = d->pendingFences_.emplace(
+			d->pendingFences_.end(),
+			stream,
+			buffer
+		);
+
+		LOG(Pipeline, Debug)
+			<< "Waiting on fence:" << buffer->_d()->fence()->fd().get()
+			<< " for stream:" << stream << " buffer:" << buffer;
+
+		it2->notifier.activated.connect(this, [=] {
+			LOG(Pipeline, Debug)
+				<< "Activated fence:" << it2->buffer->_d()->fence()->fd().get()
+				<< " for stream:" << it2->stream << " buffer:" << it2->buffer;
+
+			std::ignore = it2->buffer->releaseFence();
+			it->second.buffers.push_back(it2->buffer);
+			d->pendingFences_.erase(it2);
+			/* Lambda is now destroy, no captured variable should be accessed. */
+		});
+	} else {
+		it->second.buffers.push_back(buffer);
+	}
 }
 
 /**

@@ -15,14 +15,17 @@
 #include <stdint.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include <libcamera/base/class.h>
+#include <libcamera/base/event_notifier.h>
 
 #include <libcamera/camera.h>
 
 namespace libcamera {
 
 class CameraControlValidator;
+class Fence;
 class PipelineHandler;
 class Stream;
 
@@ -57,6 +60,15 @@ private:
 
 	struct StreamData {
 		bool active = false;
+		std::vector<FrameBuffer *> buffers;
+	};
+
+	struct PendingFence {
+		EventNotifier notifier;
+		const Stream *stream;
+		FrameBuffer *buffer;
+
+		PendingFence(const Stream *s, FrameBuffer *b);
 	};
 
 	bool isAcquired() const;
@@ -74,11 +86,14 @@ private:
 	std::string id_;
 	std::set<Stream *> streams_;
 	std::unordered_map<const Stream *, StreamData> streamData_;
+	std::list<PendingFence> pendingFences_;
 
 	bool disconnected_;
 	std::atomic<State> state_;
 
 	std::unique_ptr<CameraControlValidator> validator_;
+
+	friend PipelineHandler;
 };
 
 } /* namespace libcamera */

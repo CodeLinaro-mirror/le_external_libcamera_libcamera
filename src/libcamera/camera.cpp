@@ -27,6 +27,7 @@
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_controls.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
 
@@ -746,6 +747,13 @@ void Camera::Private::setState(State state)
 {
 	state_.store(state, std::memory_order_release);
 }
+
+Camera::Private::PendingFence::PendingFence(const Stream *s, FrameBuffer *b)
+	: notifier(b->_d()->fence()->fd().get(), EventNotifier::Read),
+	  stream(s),
+	  buffer(b)
+{
+}
 #endif /* __DOXYGEN_PUBLIC__ */
 
 /**
@@ -1060,6 +1068,9 @@ int Camera::release()
 	if (d->isAcquired())
 		d->pipe_->invokeMethod(&PipelineHandler::release,
 				       ConnectionTypeBlocking, this);
+
+	// \todo clear buffer pool
+	// \todo empty `pendingBuffers_` and report "cancelled" fences
 
 	d->setState(Private::CameraAvailable);
 
@@ -1448,6 +1459,9 @@ int Camera::start(const ControlList *controls)
  * This function stops capturing and processing requests immediately. All
  * pending requests are cancelled and complete synchronously in an error state.
  *
+ * All buffers in the camera's buffer pool are returned via the Camera::bufferCompleted
+ * event synchronously with the \a request parameter equal to \a nullptr.
+ *
  * \context This function may be called in any camera state as defined in \ref
  * camera_operation, and shall be synchronized by the caller with other
  * functions that affect the camera state. If called when the camera isn't
@@ -1482,6 +1496,43 @@ int Camera::stop()
 	ASSERT(!d->pipe_->hasPendingRequests(this));
 
 	d->setState(Private::CameraConfigured);
+
+	return 0;
+}
+
+/**
+ * \fn Camera::addBuffer()
+ * \brief Add a buffer to buffer pool of the camera
+ * \param[in] stream The stream
+ * \param[in] buffer The buffer
+ * \param[in] fence The fence for \a buffer
+ *
+ * \context This function may only be called when the camera is
+ * in the Running state as defined in \ref camera_operation.
+ *
+ * \return 0 on success or a negative error code otherwise
+ *
+ * \internal
+ * \todo Add `addBuffers()` that accepts a list of (stream, buffer, fence) tuples.
+ */
+int Camera::addBuffer(const Stream *stream, FrameBuffer *buffer, std::unique_ptr<Fence> &&fence)
+{
+	Private *const d = _d();
+
+	int ret = d->isAccessAllowed(Private::CameraRunning);
+	if (ret < 0)
+		return ret;
+
+	auto it = d->streamData_.find(stream);
+	if (it == d->streamData_.end() || !it->second.active)
+		return -EINVAL;
+	if (!buffer)
+		return -EINVAL;
+	if (buffer->_d()->fence())
+		return -EINVAL;
+
+	d->pipe_->invokeMethod(&PipelineHandler::addBuffer, ConnectionTypeQueued,
+			       this, stream, buffer, std::move(fence));
 
 	return 0;
 }

@@ -28,6 +28,7 @@
 
 namespace libcamera {
 
+class Fence;
 class FrameBuffer;
 class FrameBufferAllocator;
 class PipelineHandler;
@@ -151,6 +152,8 @@ public:
 
 	int start(const ControlList *controls = nullptr);
 	int stop();
+
+	int addBuffer(const Stream *stream, FrameBuffer *buffer, std::unique_ptr<Fence> &&fence = {});
 
 private:
 	LIBCAMERA_DISABLE_COPY(Camera)

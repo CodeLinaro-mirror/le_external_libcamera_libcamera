@@ -27,6 +27,7 @@ class Camera;
 class CameraConfiguration;
 class DeviceEnumerator;
 class DeviceMatch;
+class Fence;
 class FrameBuffer;
 class MediaDevice;
 class PipelineHandler;
@@ -68,6 +69,10 @@ public:
 
 	void completeRequest(Request *request);
 	void cancelRequest(Request *request);
+
+	void addBuffer(Camera *camera,
+		       const Stream *stream, FrameBuffer *buffer,
+		       std::unique_ptr<Fence> &&fence);
 
 	std::string configurationFile(const std::string &subdir,
 				      const std::string &name,
