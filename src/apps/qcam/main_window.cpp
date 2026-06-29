@@ -466,30 +466,7 @@ int MainWindow::startCapture()
 				Image::fromFrameBuffer(buffer.get(), Image::MapMode::ReadOnly);
 			assert(image != nullptr);
 			mappedBuffers_[buffer.get()] = std::move(image);
-
-			/* Store buffers on the free list. */
-			freeBuffers_[stream].enqueue(buffer.get());
 		}
-	}
-
-	/* Create requests and fill them with buffers from the viewfinder. */
-	while (!freeBuffers_[vfStream_].isEmpty()) {
-		FrameBuffer *buffer = freeBuffers_[vfStream_].dequeue();
-
-		std::unique_ptr<Request> request = camera_->createRequest();
-		if (!request) {
-			qWarning() << "Can't create request";
-			ret = -ENOMEM;
-			goto error;
-		}
-
-		ret = request->addBuffer(vfStream_, buffer);
-		if (ret < 0) {
-			qWarning() << "Can't set buffer for request";
-			goto error;
-		}
-
-		requests_.push_back(std::move(request));
 	}
 
 	/* Start the title timer and the camera. */
@@ -507,13 +484,36 @@ int MainWindow::startCapture()
 
 	camera_->requestCompleted.connect(this, &MainWindow::requestComplete);
 
+	for (StreamConfiguration &config : *config_) {
+		Stream *stream = config.stream();
+
+		for (const std::unique_ptr<FrameBuffer> &buffer : allocator_->buffers(stream)) {
+			ret = camera_->addBuffer(stream, buffer.get());
+			if (ret < 0) {
+				qWarning() << "Can't add buffer";
+				goto error_disconnect;
+			}
+		}
+	}
+
 	/* Queue all requests. */
-	for (std::unique_ptr<Request> &request : requests_) {
+	for ([[maybe_unused]] const auto &buffer : allocator_->buffers(vfStream_)) {
+		std::unique_ptr<Request> request = camera_->createRequest();
+		if (!request) {
+			qWarning() << "Can't create request";
+			ret = -ENOMEM;
+			goto error_disconnect;
+		}
+
+		request->enableStream(vfStream_, true);
+
 		ret = queueRequest(request.get());
 		if (ret < 0) {
 			qWarning() << "Can't queue request";
 			goto error_disconnect;
 		}
+
+		requests_.push_back(std::move(request));
 	}
 
 	isCapturing_ = true;
@@ -528,8 +528,6 @@ error:
 	requests_.clear();
 
 	mappedBuffers_.clear();
-
-	freeBuffers_.clear();
 
 	allocator_.reset();
 
@@ -574,7 +572,6 @@ void MainWindow::stopCapture()
 	 * but not processed yet. Clear the queue of done buffers to avoid
 	 * racing with the event handler.
 	 */
-	freeBuffers_.clear();
 	doneQueue_.clear();
 
 	titleTimer_.stop();
@@ -661,11 +658,6 @@ void MainWindow::processRaw(FrameBuffer *buffer,
 				 memory);
 	}
 #endif
-
-	{
-		QMutexLocker locker(&mutex_);
-		freeBuffers_[rawStream_].enqueue(buffer);
-	}
 }
 
 /* -----------------------------------------------------------------------------
@@ -710,8 +702,10 @@ void MainWindow::processCapture()
 	if (request->buffers().count(vfStream_))
 		processViewfinder(request->buffers().at(vfStream_));
 
-	if (request->buffers().count(rawStream_))
-		processRaw(request->buffers().at(rawStream_), request->metadata());
+	if (auto it = request->buffers().find(rawStream_); it != request->buffers().end()) {
+		processRaw(it->second, request->metadata());
+		camera_->addBuffer(it->first, it->second);
+	}
 
 	request->reuse();
 	QMutexLocker locker(&mutex_);
@@ -744,6 +738,8 @@ void MainWindow::processViewfinder(FrameBuffer *buffer)
 
 void MainWindow::renderComplete(FrameBuffer *buffer)
 {
+	camera_->addBuffer(vfStream_, buffer);
+
 	Request *request;
 	{
 		QMutexLocker locker(&mutex_);
@@ -753,23 +749,11 @@ void MainWindow::renderComplete(FrameBuffer *buffer)
 		request = freeQueue_.dequeue();
 	}
 
-	request->addBuffer(vfStream_, buffer);
+	request->enableStream(vfStream_, true);
 
 	if (captureRaw_) {
-		FrameBuffer *rawBuffer = nullptr;
-
-		{
-			QMutexLocker locker(&mutex_);
-			if (!freeBuffers_[rawStream_].isEmpty())
-				rawBuffer = freeBuffers_[rawStream_].dequeue();
-		}
-
-		if (rawBuffer) {
-			request->addBuffer(rawStream_, rawBuffer);
-			captureRaw_ = false;
-		} else {
-			qWarning() << "No free buffer available for RAW capture";
-		}
+		request->enableStream(rawStream_, true);
+		captureRaw_ = false;
 	}
 	queueRequest(request);
 }

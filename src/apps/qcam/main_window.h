@@ -119,7 +119,6 @@ private:
 	bool captureRaw_;
 	libcamera::Stream *vfStream_;
 	libcamera::Stream *rawStream_;
-	std::map<const libcamera::Stream *, QQueue<libcamera::FrameBuffer *>> freeBuffers_;
 	QQueue<libcamera::Request *> doneQueue_;
 	QQueue<libcamera::Request *> freeQueue_;
 	QMutex mutex_; /* Protects freeBuffers_, doneQueue_, and freeQueue_ */
