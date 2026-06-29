@@ -790,12 +790,7 @@ void IPU3CameraData::cancelPendingRequests()
 	while (!pendingRequests_.empty()) {
 		Request *request = pendingRequests_.front();
 
-		for (const auto &[stream, buffer] : request->buffers()) {
-			buffer->_d()->cancel();
-			pipe()->completeBuffer(request, buffer);
-		}
-
-		pipe()->completeRequest(request);
+		pipe()->cancelRequest(request);
 		pendingRequests_.pop();
 	}
 }
@@ -1299,13 +1294,8 @@ void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 
 	/* If the buffer is cancelled force a complete of the whole request. */
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
-		for (const auto &[stream, b] : request->buffers()) {
-			b->_d()->cancel();
-			pipe()->completeBuffer(request, b);
-		}
-
 		frameInfos_.remove(info);
-		pipe()->completeRequest(request);
+		pipe()->cancelRequest(request);
 		return;
 	}
 

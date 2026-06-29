@@ -605,12 +605,7 @@ void VimcCameraData::imageBufferReady(FrameBuffer *buffer)
 
 	/* If the buffer is cancelled force a complete of the whole request. */
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {
-		for (const auto &[stream, b] : request->buffers()) {
-			b->_d()->cancel();
-			pipe->completeBuffer(request, b);
-		}
-
-		pipe->completeRequest(request);
+		pipe->cancelRequest(request);
 		return;
 	}
 

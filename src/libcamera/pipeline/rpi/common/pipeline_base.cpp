@@ -1401,21 +1401,7 @@ void CameraData::clearIncompleteRequests()
 	 * back to the application.
 	 */
 	while (!requestQueue_.empty()) {
-		Request *request = requestQueue_.front();
-
-		for (auto &b : request->buffers()) {
-			FrameBuffer *buffer = b.second;
-			/*
-			 * Has the buffer already been handed back to the
-			 * request? If not, do so now.
-			 */
-			if (buffer->request()) {
-				buffer->_d()->cancel();
-				pipe()->completeBuffer(request, buffer);
-			}
-		}
-
-		pipe()->completeRequest(request);
+		pipe()->cancelRequest(requestQueue_.front());
 		requestQueue_.pop();
 	}
 }
