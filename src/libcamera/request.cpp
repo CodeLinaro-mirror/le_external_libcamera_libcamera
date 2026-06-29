@@ -288,19 +288,6 @@ const ControlList &Request::metadata() const
  */
 
 /**
- * \brief Add a FrameBuffer with its associated Stream to the Request
- * \param[in] stream The stream the buffer belongs to
- * \param[in] buffer The FrameBuffer to add to the request
- * \param[in] fence The optional fence
- */
-int Request::addBuffer(const Stream *, FrameBuffer *,
-		       std::unique_ptr<Fence> &&)
-{
-	LOG(Request, Fatal) << "REMOVED";
-	return -ENOTSUP;
-}
-
-/**
  * \var Request::bufferMap_
  * \brief Mapping of streams to buffers for this request
  *

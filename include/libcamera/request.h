@@ -47,8 +47,6 @@ public:
 	ControlList &controls() { return controls_; }
 	const ControlList &metadata() const;
 	const BufferMap &buffers() const { return bufferMap_; }
-	int addBuffer(const Stream *stream, FrameBuffer *buffer,
-		      std::unique_ptr<Fence> &&fence = {});
 	FrameBuffer *findBuffer(const Stream *stream) const;
 	void enableStream(const Stream *stream, bool enabled);
 

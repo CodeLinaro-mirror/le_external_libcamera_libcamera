@@ -52,12 +52,10 @@ namespace libcamera {
  *
  * A Fence is constructed with a UniqueFD whose ownership is moved in the Fence.
  * A FrameBuffer can be associated with a Fence by passing it to the
- * Request::addBuffer() function, which will move the Fence into the FrameBuffer
- * itself. Once a Request is queued to the Camera, a preparation phase
- * guarantees that before actually applying the Request to the hardware, all the
- * valid fences of the frame buffers in a Request are correctly signalled. Once
- * a Fence has completed, the library will release the FrameBuffer fence so that
- * application won't be allowed to access it.
+ * Camera::addBuffer() function, which will move the Fence into the FrameBuffer
+ * itself. The buffer will not be used in any completed request until the fence
+ * is signalled. Once a Fence has completed, the library will release the FrameBuffer
+ * fence so that application won't be allowed to access it.
  *
  * An optional timeout can be started while waiting for a fence to complete. If
  * waiting on a Fence fails for whatever reason, the FrameBuffer's fence is not

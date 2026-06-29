@@ -151,7 +151,7 @@ FrameBuffer::Private::~Private()
  * The intended callers of this function are buffer completion handlers that
  * need to associate a buffer to the request it belongs to.
  *
- * A FrameBuffer is associated to a request by Request::addBuffer() and the
+ * A FrameBuffer is associated to a request by the libcamera core and the
  * association is valid until the buffer completes. The returned request
  * pointer is valid only during that interval.
  *
@@ -164,9 +164,7 @@ FrameBuffer::Private::~Private()
  * \brief Set the request this buffer belongs to
  * \param[in] request Request to set
  *
- * For buffers added to requests by applications, this function is called by
- * Request::addBuffer() or Request::reuse(). For buffers internal to pipeline
- * handlers, it is called by the pipeline handlers themselves.
+ * For buffers internal to pipeline handlers, it is called by the pipeline handlers themselves.
  */
 
 /**
@@ -439,7 +437,7 @@ void FrameBuffer::setCookie(uint64_t cookie)
  *
  * If buffer with a Fence completes with errors due to a failure in handling
  * the fence, applications are responsible for releasing the Fence before
- * calling Request::addBuffer() again.
+ * reusing the buffer.
  *
  * \return A unique pointer to the Fence if set, or nullptr if the fence has
  * been released already
