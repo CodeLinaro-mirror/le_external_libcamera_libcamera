@@ -55,6 +55,7 @@ public:
 	int addBuffer(const Stream *stream, FrameBuffer *buffer,
 		      std::unique_ptr<Fence> &&fence = {});
 	FrameBuffer *findBuffer(const Stream *stream) const;
+	void enableStream(const Stream *stream, bool enabled);
 
 	uint32_t sequence() const;
 	uint64_t cookie() const { return cookie_; }

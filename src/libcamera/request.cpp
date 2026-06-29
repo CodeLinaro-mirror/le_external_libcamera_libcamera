@@ -110,13 +110,16 @@ bool Request::Private::completeBuffer(FrameBuffer *buffer)
 	Request *request = LIBCAMERA_O_PTR();
 	camera_->bufferCompleted.emit(request, buffer);
 
-	ASSERT(request->findBuffer(buffer->_d()->stream_) == buffer);
+	auto it = request->bufferMap_.find(buffer->_d()->stream_);
+	ASSERT(it != request->bufferMap_.end());
+	ASSERT(it->second == buffer || !it->second);
 
 	ASSERT(pending_ > 0);
 	pending_ -= 1;
 
 	buffer->_d()->setRequest(nullptr);
 	buffer->_d()->stream_ = nullptr;
+	it->second = buffer;
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled)
 		cancelled_ = true;
@@ -335,6 +338,31 @@ FrameBuffer *Request::findBuffer(const Stream *stream) const
 		return nullptr;
 
 	return it->second;
+}
+
+/**
+ * \brief Change whether the particular stream should be captured
+ * \param[in] stream The stream
+ * \param[in] enabled Whether to enable or disable the stream
+ */
+void Request::enableStream(const Stream *stream, bool enabled)
+{
+	ASSERT(stream);
+
+	Request::Private *const d = _d();
+
+	if (enabled) {
+		const auto [it, inserted] = bufferMap_.try_emplace(stream);
+
+		it->second = nullptr;
+		d->pending_ += inserted;
+	} else {
+		d->pending_ -= bufferMap_.erase(stream);
+	}
+
+	LOG(Request, Debug)
+		<< "request:" << this << " stream:" << stream
+		<< ' ' << (enabled ? "en" : "dis") << "abled pending:" << d->pending_;
 }
 
 /**
