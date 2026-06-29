@@ -114,21 +114,6 @@ Camera3RequestDescriptor::Camera3RequestDescriptor(
 {
 	frameNumber_ = camera3Request->frame_number;
 
-	/* Copy the camera3 request stream information for later access. */
-	const Span<const camera3_stream_buffer_t> buffers{
-		camera3Request->output_buffers,
-		camera3Request->num_output_buffers
-	};
-
-	buffers_.reserve(buffers.size());
-
-	for (const camera3_stream_buffer_t &buffer : buffers) {
-		CameraStream *stream =
-			static_cast<CameraStream *>(buffer.stream->priv);
-
-		buffers_.emplace_back(stream, buffer, this);
-	}
-
 	/* Clone the controls associated with the camera3 request. */
 	settings_ = CameraMetadata(camera3Request->settings);
 
@@ -180,10 +165,9 @@ Camera3RequestDescriptor::~Camera3RequestDescriptor() = default;
  * \brief Back pointer to the Camera3RequestDescriptor to which the StreamBuffer belongs
  */
 Camera3RequestDescriptor::StreamBuffer::StreamBuffer(
-	CameraStream *cameraStream, const camera3_stream_buffer_t &buffer,
-	Camera3RequestDescriptor *requestDescriptor)
+	CameraStream *cameraStream, const camera3_stream_buffer_t &buffer)
 	: stream(cameraStream), camera3Buffer(buffer.buffer),
-	  fence(buffer.acquire_fence), request(requestDescriptor)
+	  fence(buffer.acquire_fence)
 {
 }
 

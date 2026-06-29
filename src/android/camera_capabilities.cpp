@@ -1453,6 +1453,9 @@ int CameraCapabilities::initializeStaticMetadata()
 	LOG(HAL, Info)
 		<< "Hardware level: " << hwLevelStrings.find(hwLevel_)->second;
 
+	staticMetadata_->addEntry(ANDROID_INFO_SUPPORTED_BUFFER_MANAGEMENT_VERSION,
+				  ANDROID_INFO_SUPPORTED_BUFFER_MANAGEMENT_VERSION_HIDL_DEVICE_3_5);
+
 	staticMetadata_->addEntry(ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS,
 				  std::vector<int32_t>(availableCharacteristicsKeys_.begin(),
 						       availableCharacteristicsKeys_.end()));

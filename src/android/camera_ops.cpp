@@ -77,6 +77,18 @@ static int hal_dev_flush(const struct camera3_device *dev)
 	return 0;
 }
 
+static void hal_dev_signal_stream_flush(const struct camera3_device *dev,
+					uint32_t num_streams,
+					const camera3_stream_t* const* streams)
+{
+	if (!dev)
+		return;
+
+	CameraDevice *camera = reinterpret_cast<CameraDevice *>(dev->priv);
+
+	camera->signalStreamFlush({ streams, num_streams });
+}
+
 int hal_dev_close(hw_device_t *hw_device)
 {
 	if (!hw_device)
@@ -99,7 +111,7 @@ camera3_device_ops hal_dev_ops = {
 	.get_metadata_vendor_tag_ops = nullptr,
 	.dump = hal_dev_dump,
 	.flush = hal_dev_flush,
-	.signal_stream_flush = nullptr,
+	.signal_stream_flush = hal_dev_signal_stream_flush,
 	.is_reconfiguration_required = nullptr,
 	.reserved = {},
 };

@@ -7,8 +7,8 @@
 
 #pragma once
 
-#include <map>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include <libcamera/base/class.h>
@@ -36,8 +36,7 @@ public:
 
 	struct StreamBuffer {
 		StreamBuffer(CameraStream *stream,
-			     const camera3_stream_buffer_t &buffer,
-			     Camera3RequestDescriptor *request);
+			     const camera3_stream_buffer_t &buffer);
 		~StreamBuffer();
 
 		StreamBuffer(StreamBuffer &&);
@@ -53,14 +52,14 @@ public:
 		libcamera::FrameBuffer *internalBuffer = nullptr;
 		const libcamera::FrameBuffer *srcBuffer = nullptr;
 		std::unique_ptr<CameraBuffer> dstBuffer;
-		Camera3RequestDescriptor *request;
+		Camera3RequestDescriptor *request = nullptr;
 
 	private:
 		LIBCAMERA_DISABLE_COPY(StreamBuffer)
 	};
 
 	/* Keeps track of streams requiring post-processing. */
-	std::map<CameraStream *, StreamBuffer *> pendingStreamsToProcess_
+	std::unordered_set<CameraStream *> pendingStreamsToProcess_
 		LIBCAMERA_TSA_GUARDED_BY(streamsProcessMutex_);
 	libcamera::Mutex streamsProcessMutex_;
 

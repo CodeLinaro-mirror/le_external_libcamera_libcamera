@@ -18,6 +18,7 @@
 #include <libcamera/base/log.h>
 #include <libcamera/base/message.h>
 #include <libcamera/base/mutex.h>
+#include <libcamera/base/span.h>
 
 #include <libcamera/camera.h>
 #include <libcamera/framebuffer.h>
@@ -67,6 +68,8 @@ public:
 	void requestComplete(libcamera::Request *request);
 	void streamProcessingComplete(Camera3RequestDescriptor::StreamBuffer *bufferStream,
 				      Camera3RequestDescriptor::Status status);
+
+	void signalStreamFlush(libcamera::Span<const camera3_stream_t * const> streams);
 
 protected:
 	std::string logPrefix() const override;
@@ -118,6 +121,7 @@ private:
 	std::vector<CameraStream> streams_;
 
 	libcamera::Mutex descriptorsMutex_ LIBCAMERA_TSA_ACQUIRED_AFTER(stateMutex_);
+	libcamera::ConditionVariable descriptorsCv_;
 	std::queue<std::unique_ptr<Camera3RequestDescriptor>> descriptors_
 		LIBCAMERA_TSA_GUARDED_BY(descriptorsMutex_);
 

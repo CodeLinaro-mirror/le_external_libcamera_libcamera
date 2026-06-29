@@ -394,7 +394,7 @@ int CameraDevice::open(const hw_module_t *hardwareModule)
 
 	/* Initialize the hw_device_t in the instance camera3_module_t. */
 	camera3Device_.common.tag = HARDWARE_DEVICE_TAG;
-	camera3Device_.common.version = CAMERA_DEVICE_API_VERSION_3_3;
+	camera3Device_.common.version = CAMERA_DEVICE_API_VERSION_3_6;
 	camera3Device_.common.module = (hw_module_t *)hardwareModule;
 	camera3Device_.common.close = hal_dev_close;
 
@@ -434,8 +434,44 @@ void CameraDevice::flush()
 void CameraDevice::stop()
 {
 	MutexLocker stateLock(stateMutex_);
+	std::vector<Camera3RequestDescriptor::StreamBuffer> streamBuffers;
+
+	camera_->bufferCompleted.connect(&streamBuffers, [&](libcamera::Request *request, [[maybe_unused]] const libcamera::Stream *stream, libcamera::FrameBuffer *fb) {
+		if (request)
+			return;
+
+		/* Collect buffers from the pool that were not used for a request. */
+
+		std::unique_ptr<Camera3RequestDescriptor::StreamBuffer> buffer(
+			reinterpret_cast<Camera3RequestDescriptor::StreamBuffer *>(fb->cookie()));
+		fb->setCookie(0);
+
+		streamBuffers.push_back(std::move(*buffer));
+	});
 
 	camera_->stop();
+
+	camera_->bufferCompleted.disconnect(&streamBuffers);
+
+	/* Return buffers that were unused by requests. */
+	{
+		std::vector<camera3_stream_buffer_t> returnBuffers;
+		returnBuffers.reserve(streamBuffers.size());
+
+		for (auto &buffer : streamBuffers) {
+			if (buffer.internalBuffer)
+				buffer.stream->putBuffer(buffer.internalBuffer);
+
+			buffer.status = Camera3RequestDescriptor::Status::Error;
+			returnBuffers.push_back(buffer.prepareToReturn());
+		}
+
+		auto bufferPtrs = std::make_unique<const camera3_stream_buffer *[]>(returnBuffers.size());
+		for (const auto &[i, buffers] : utils::enumerate(returnBuffers))
+			bufferPtrs[i] = &buffers;
+
+		callbacks_->return_stream_buffers(callbacks_, returnBuffers.size(), bufferPtrs.get());
+	}
 
 	{
 		MutexLocker descriptorsLock(descriptorsMutex_);
@@ -879,7 +915,7 @@ bool CameraDevice::isValidRequest(camera3_capture_request_t *camera3Request) con
 
 	if (!camera3Request->num_output_buffers ||
 	    !camera3Request->output_buffers) {
-		LOG(HAL, Error) << "No output buffers provided";
+		LOG(HAL, Error) << "No streams requested";
 		return false;
 	}
 
@@ -892,25 +928,8 @@ bool CameraDevice::isValidRequest(camera3_capture_request_t *camera3Request) con
 	for (uint32_t i = 0; i < camera3Request->num_output_buffers; i++) {
 		const camera3_stream_buffer_t &outputBuffer =
 			camera3Request->output_buffers[i];
-		if (!outputBuffer.buffer || !(*outputBuffer.buffer)) {
-			LOG(HAL, Error) << "Invalid native handle";
-			return false;
-		}
-
-		const native_handle_t *handle = *outputBuffer.buffer;
-		constexpr int kNativeHandleMaxFds = 1024;
-		if (handle->numFds < 0 || handle->numFds > kNativeHandleMaxFds) {
-			LOG(HAL, Error)
-				<< "Invalid number of fds (" << handle->numFds
-				<< ") in buffer " << i;
-			return false;
-		}
-
-		constexpr int kNativeHandleMaxInts = 1024;
-		if (handle->numInts < 0 || handle->numInts > kNativeHandleMaxInts) {
-			LOG(HAL, Error)
-				<< "Invalid number of ints (" << handle->numInts
-				<< ") in buffer " << i;
+		if (outputBuffer.buffer || *outputBuffer.buffer) {
+			LOG(HAL, Error) << "Unexpected native buffer handle";
 			return false;
 		}
 
@@ -940,6 +959,11 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	if (!isValidRequest(camera3Request))
 		return -EINVAL;
 
+	const Span<const camera3_stream_buffer_t> buffers{
+		camera3Request->output_buffers,
+		camera3Request->num_output_buffers
+	};
+
 	/*
 	 * Save the request descriptors for use at completion time.
 	 * The descriptor and the associated memory reserved here are freed
@@ -960,7 +984,73 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	descriptor->settings_ = lastSettings_;
 
 	LOG(HAL, Debug) << "Queueing request " << descriptor->request_->cookie()
-			<< " with " << descriptor->buffers_.size() << " streams";
+			<< " with " << buffers.size() << " streams";
+
+	std::unordered_map<CameraStream *, std::unique_ptr<Camera3RequestDescriptor::StreamBuffer>> streamBuffers;
+
+	utils::scope_exit bufferGuard([&] {
+		std::vector<camera3_stream_buffer_t> returnBuffers;
+
+		for (auto &[stream, buffer] : streamBuffers) {
+			if (!buffer)
+				continue;
+
+			returnBuffers.push_back(buffer->prepareToReturn());
+		}
+
+		auto bufferPtrs = std::make_unique<const camera3_stream_buffer_t *[]>(returnBuffers.size());
+		for (const auto &[i, buffer] : utils::enumerate(returnBuffers))
+			bufferPtrs[i] = &buffer;
+
+		callbacks_->return_stream_buffers(callbacks_, returnBuffers.size(), bufferPtrs.get());
+	});
+
+	{
+		uint32_t count = buffers.size();
+
+		auto bufferResults = std::make_unique<camera3_stream_buffer_ret_t[]>(count);
+		auto bufferRequests = std::make_unique<camera3_buffer_request_t[]>(count);
+		auto returnedBuffers = std::make_unique<camera3_stream_buffer_t[]>(count);
+
+		for (size_t i = 0; i < count; i++) {
+			bufferRequests[i] = {
+				.stream = buffers[i].stream,
+				.num_buffers_requested = 1,
+			};
+
+			/* Must provide storage for result. */
+			bufferResults[i].output_buffers = &returnedBuffers[i];
+		}
+
+		auto ret = callbacks_->request_stream_buffers(callbacks_,
+							      count, bufferRequests.get(),
+							      &count, bufferResults.get());
+
+		for (size_t i = 0; i < count; i++) {
+			auto &result = bufferResults[i];
+			if (result.status != CAMERA3_PS_BUF_REQ_OK)
+				continue;
+
+			auto *stream = static_cast<CameraStream *>(result.stream->priv);
+			ASSERT(result.num_output_buffers == 1);
+
+			[[maybe_unused]] auto [it, inserted] = streamBuffers.try_emplace(stream,
+				std::make_unique<Camera3RequestDescriptor::StreamBuffer>(
+					stream, result.output_buffers[0]
+				)
+			);
+			ASSERT(inserted);
+		}
+
+		if (ret != CAMERA3_BUF_REQ_OK) {
+			/*
+			 * \todo Improve error handling. For now every stream must get
+			 * a buffer successfully. This is checked here so that any successfully
+			 * allocated buffer is returned by `bufferGuard`.
+			 */
+			return -ENOBUFS;
+		}
+	}
 
 	/*
 	 * Process all the Direct and Internal streams first, they map directly
@@ -970,8 +1060,8 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	 * Since requestedStreams is an std:set<>, no duplications can happen.
 	 */
 	std::set<CameraStream *> requestedStreams;
-	for (const auto &[i, buffer] : utils::enumerate(descriptor->buffers_)) {
-		CameraStream *cameraStream = buffer.stream;
+	for (const auto &[i, buffer] : utils::enumerate(buffers)) {
+		auto *cameraStream = static_cast<CameraStream *>(buffer.stream->priv);
 		camera3_stream_t *camera3Stream = cameraStream->camera3Stream();
 
 		std::stringstream ss;
@@ -986,7 +1076,7 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		 * and add them to the Request if required.
 		 */
 		FrameBuffer *frameBuffer = nullptr;
-		UniqueFD acquireFence;
+		auto &streamBuffer = *streamBuffers.at(cameraStream);
 
 		MutexLocker lock(descriptor->streamsProcessMutex_);
 
@@ -1002,12 +1092,11 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 			 * associate it with the Camera3RequestDescriptor for
 			 * lifetime management only.
 			 */
-			buffer.frameBuffer =
-				createFrameBuffer(*buffer.camera3Buffer,
+			streamBuffer.frameBuffer =
+				createFrameBuffer(*streamBuffer.camera3Buffer,
 						  cameraStream->configuration().pixelFormat,
 						  cameraStream->configuration().size);
-			frameBuffer = buffer.frameBuffer.get();
-			acquireFence = std::move(buffer.fence);
+			frameBuffer = streamBuffer.frameBuffer.get();
 			LOG(HAL, Debug) << ss.str() << " (direct)";
 			break;
 
@@ -1020,11 +1109,10 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 			 * once it has been processed.
 			 */
 			frameBuffer = cameraStream->getBuffer();
-			buffer.internalBuffer = frameBuffer;
+			streamBuffer.internalBuffer = frameBuffer;
 			LOG(HAL, Debug) << ss.str() << " (internal)";
 
-			descriptor->pendingStreamsToProcess_.insert(
-				{ cameraStream, &buffer });
+			descriptor->pendingStreamsToProcess_.insert(cameraStream);
 			break;
 		}
 
@@ -1032,10 +1120,6 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 			LOG(HAL, Error) << "Failed to create frame buffer";
 			return -ENOMEM;
 		}
-
-		auto fence = std::make_unique<Fence>(std::move(acquireFence));
-		descriptor->request_->addBuffer(cameraStream->stream(),
-						frameBuffer, std::move(fence));
 
 		requestedStreams.insert(cameraStream);
 	}
@@ -1045,8 +1129,8 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 	 * because their corresponding direct source stream is not part of this
 	 * particular request, add one here.
 	 */
-	for (const auto &[i, buffer] : utils::enumerate(descriptor->buffers_)) {
-		CameraStream *cameraStream = buffer.stream;
+	for (const auto &[i, buffer] : utils::enumerate(buffers)) {
+		auto *cameraStream = static_cast<CameraStream *>(buffer.stream->priv);
 		camera3_stream_t *camera3Stream = cameraStream->camera3Stream();
 
 		if (cameraStream->type() != CameraStream::Type::Mapped)
@@ -1060,7 +1144,7 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 				<< " (mapped)";
 
 		MutexLocker lock(descriptor->streamsProcessMutex_);
-		descriptor->pendingStreamsToProcess_.insert({ cameraStream, &buffer });
+		descriptor->pendingStreamsToProcess_.insert(cameraStream);
 
 		/*
 		 * Make sure the CameraStream this stream is mapped on has been
@@ -1071,15 +1155,14 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		if (requestedStreams.find(sourceStream) != requestedStreams.end())
 			continue;
 
+		auto &streamBuffer = *streamBuffers.at(cameraStream);
+
 		/*
 		 * If that's not the case, we need to add a buffer to the request
 		 * for this stream.
 		 */
 		FrameBuffer *frameBuffer = cameraStream->getBuffer();
-		buffer.internalBuffer = frameBuffer;
-
-		descriptor->request_->addBuffer(sourceStream->stream(),
-						frameBuffer);
+		streamBuffer.internalBuffer = frameBuffer;
 
 		requestedStreams.insert(sourceStream);
 	}
@@ -1123,6 +1206,38 @@ int CameraDevice::processCaptureRequest(camera3_capture_request_t *camera3Reques
 		state_ = State::Running;
 	}
 
+	for (auto *cameraStream : requestedStreams) {
+		auto &buffer = streamBuffers.at(cameraStream);
+		const Stream *stream = nullptr;
+		FrameBuffer *fb = nullptr;
+		UniqueFD acquireFence;
+
+		switch (cameraStream->type()) {
+		case CameraStream::Type::Direct:
+			stream = cameraStream->stream();
+			fb = buffer->frameBuffer.get();
+			acquireFence = std::move(buffer->fence);
+			break;
+		case CameraStream::Type::Internal:
+			stream = cameraStream->stream();
+			fb = buffer->internalBuffer;
+			break;
+		case CameraStream::Type::Mapped:
+			stream = cameraStream->sourceStream()->stream();
+			fb = buffer->internalBuffer;
+			break;
+		default:
+			ASSERT(false);
+			continue;
+		}
+
+
+		fb->setCookie(reinterpret_cast<uint64_t>(buffer.release()));
+		camera_->addBuffer(stream, fb, std::make_unique<Fence>(std::move(acquireFence)));
+
+		descriptor->request_->enableStream(stream, true);
+	}
+
 	Request *request = descriptor->request_.get();
 
 	{
@@ -1139,6 +1254,17 @@ void CameraDevice::requestComplete(Request *request)
 {
 	Camera3RequestDescriptor *descriptor =
 		reinterpret_cast<Camera3RequestDescriptor *>(request->cookie());
+
+	std::vector<std::unique_ptr<Camera3RequestDescriptor::StreamBuffer>> buffers;
+
+	for (const auto &[stream, fb] : request->buffers()) {
+		std::unique_ptr<Camera3RequestDescriptor::StreamBuffer> buffer(
+			reinterpret_cast<Camera3RequestDescriptor::StreamBuffer *>(fb->cookie()));
+		fb->setCookie(0);
+
+		buffer->request = descriptor;
+		descriptor->buffers_.push_back(std::move(*buffer));
+	}
 
 	/*
 	 * Prepare the capture result for the Android camera stack.
@@ -1208,18 +1334,17 @@ void CameraDevice::requestComplete(Request *request)
 	 */
 	auto iter = descriptor->pendingStreamsToProcess_.begin();
 	while (iter != descriptor->pendingStreamsToProcess_.end()) {
-		CameraStream *stream = iter->first;
-		Camera3RequestDescriptor::StreamBuffer *buffer = iter->second;
-
-		FrameBuffer *src = request->findBuffer(stream->stream());
-		if (!src) {
+		CameraStream *stream = *iter;
+		auto it = std::find_if(descriptor->buffers_.begin(), descriptor->buffers_.end(),
+				       [&](const auto &d) { return d.stream == stream; });
+		if (it == descriptor->buffers_.end()) {
 			LOG(HAL, Error) << "Failed to find a source stream buffer";
-			setBufferStatus(*buffer, Camera3RequestDescriptor::Status::Error);
 			iter = descriptor->pendingStreamsToProcess_.erase(iter);
 			continue;
 		}
 
-		buffer->srcBuffer = src;
+		auto *buffer = &*it;
+		buffer->srcBuffer = buffer->internalBuffer;
 
 		++iter;
 		int ret = stream->process(buffer);
@@ -1276,6 +1401,8 @@ void CameraDevice::completeDescriptor(Camera3RequestDescriptor *descriptor)
  */
 void CameraDevice::sendCaptureResults()
 {
+	bool notify = false;
+
 	while (!descriptors_.empty() && !descriptors_.front()->isPending()) {
 		auto descriptor = std::move(descriptors_.front());
 		descriptors_.pop();
@@ -1301,7 +1428,11 @@ void CameraDevice::sendCaptureResults()
 			captureResult.partial_result = 1;
 
 		callbacks_->process_capture_result(callbacks_, &captureResult);
+		notify = true;
 	}
+
+	if (notify)
+		descriptorsCv_.notify_all();
 }
 
 void CameraDevice::setBufferStatus(Camera3RequestDescriptor::StreamBuffer &streamBuffer,
@@ -1355,6 +1486,25 @@ void CameraDevice::streamProcessingComplete(Camera3RequestDescriptor::StreamBuff
 	}
 
 	completeDescriptor(streamBuffer->request);
+}
+
+void CameraDevice::signalStreamFlush([[maybe_unused]] libcamera::Span<const camera3_stream_t * const> streams)
+{
+	/*
+	 * `streams` is ignored because it is not possible to selectively
+	 * retrieve all buffers a given stream.
+	 */
+
+	{
+		libcamera::MutexLocker locker(descriptorsMutex_);
+
+		descriptorsCv_.wait(locker, [&]() LIBCAMERA_TSA_REQUIRES(descriptorsMutex_) {
+			return descriptors_.empty();
+		});
+	}
+
+	/* \todo Is stopping ok here? */
+	stop();
 }
 
 std::string CameraDevice::logPrefix() const
