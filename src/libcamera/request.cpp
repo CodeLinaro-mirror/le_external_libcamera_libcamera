@@ -108,8 +108,8 @@ bool Request::Private::completeBuffer(FrameBuffer *buffer)
 
 	ASSERT(request->findBuffer(buffer->_d()->stream_) == buffer);
 
-	int ret = pending_.erase(buffer);
-	ASSERT(ret == 1);
+	ASSERT(pending_ > 0);
+	pending_ -= 1;
 
 	buffer->_d()->setRequest(nullptr);
 	buffer->_d()->stream_ = nullptr;
@@ -143,17 +143,8 @@ void Request::Private::complete()
 
 void Request::Private::doCancelRequest()
 {
-	Request *request = _o<Request>();
-
-	for (FrameBuffer *buffer : pending_) {
-		buffer->_d()->cancel();
-		camera_->bufferCompleted.emit(request, buffer);
-		buffer->_d()->setRequest(nullptr);
-		buffer->_d()->stream_ = nullptr;
-	}
-
 	cancelled_ = true;
-	pending_.clear();
+	pending_ = 0;
 }
 
 /**
@@ -184,7 +175,7 @@ void Request::Private::reset()
 {
 	sequence_ = 0;
 	cancelled_ = false;
-	pending_.clear();
+	pending_ = 0;
 }
 #endif /* __DOXYGEN_PUBLIC__ */
 
@@ -426,7 +417,7 @@ std::ostream &operator<<(std::ostream &out, const Request &r)
 
 	/* Example Output: Request(55:P:1/2:6523524) */
 	out << "Request(" << r.sequence() << ":" << statuses[r.status()] << ":"
-	    << r._d()->pending_.size() << "/" << r.buffers().size() << ":"
+	    << r._d()->pending_ << "/" << r.buffers().size() << ":"
 	    << r.cookie() << ")";
 
 	return out;

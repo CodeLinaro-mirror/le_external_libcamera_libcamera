@@ -8,7 +8,6 @@
 #pragma once
 
 #include <stdint.h>
-#include <unordered_set>
 
 #include <libcamera/base/event_notifier.h>
 
@@ -28,7 +27,7 @@ public:
 	~Private();
 
 	Camera *camera() const { return camera_; }
-	bool hasPendingBuffers() const { return !pending_.empty(); }
+	bool hasPendingBuffers() const { return pending_ > 0; }
 
 	ControlList &metadata() { return metadata_; }
 
@@ -47,7 +46,7 @@ private:
 	bool cancelled_;
 	uint32_t sequence_ = 0;
 
-	std::unordered_set<FrameBuffer *> pending_;
+	size_t pending_ = 0;
 	ControlList metadata_;
 };
 
