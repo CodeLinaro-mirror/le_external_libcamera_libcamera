@@ -87,7 +87,7 @@ void V4L2Camera::requestComplete(Request *request)
 	/* We only have one stream at the moment. */
 	bufferLock_.lock();
 	FrameBuffer *buffer = request->buffers().begin()->second;
-	completedBuffers_.emplace_back(request->cookie(), buffer->metadata());
+	completedBuffers_.emplace_back(buffer->cookie(), buffer->metadata());
 	bufferLock_.unlock();
 
 	uint64_t data = 1;
@@ -171,6 +171,8 @@ int V4L2Camera::allocBuffers()
 			return -ENOMEM;
 		}
 		requestPool_.push_back(std::move(request));
+
+		buffers[i]->setCookie(i);
 	}
 
 	return buffers.size();
