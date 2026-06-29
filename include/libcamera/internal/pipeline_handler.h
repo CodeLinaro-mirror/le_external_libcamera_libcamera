@@ -70,7 +70,7 @@ public:
 		return request->_d()->completeBuffer(buffer);
 	}
 
-	void completeRequest(Request *request);
+	size_t completeRequest(Request *request);
 	void cancelRequest(Request *request);
 
 	void addBuffer(Camera *camera,

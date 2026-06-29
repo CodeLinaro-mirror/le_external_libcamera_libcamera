@@ -636,14 +636,18 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  * without any ordering constraint.
  *
  * \context This function shall be called from the CameraManager thread.
+ *
+ * \return The number of requests that were removed from the head of the queued
+ * requests queue.
  */
-void PipelineHandler::completeRequest(Request *request)
+size_t PipelineHandler::completeRequest(Request *request)
 {
 	Camera *camera = request->_d()->camera();
 
 	request->_d()->complete();
 
 	Camera::Private *data = camera->_d();
+	size_t consumed = 0;
 
 	while (!data->queuedRequests_.empty()) {
 		Request *req = data->queuedRequests_.front();
@@ -653,10 +657,13 @@ void PipelineHandler::completeRequest(Request *request)
 		ASSERT(!req->hasPendingBuffers());
 		data->queuedRequests_.pop_front();
 		camera->requestComplete(req);
+		consumed += 1;
 	}
 
 	/* Allow any waiting requests to be queued to the pipeline. */
 	doQueueRequests(camera);
+
+	return consumed;
 }
 
 /**
