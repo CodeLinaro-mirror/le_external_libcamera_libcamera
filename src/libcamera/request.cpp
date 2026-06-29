@@ -108,8 +108,6 @@ bool Request::Private::completeBuffer(FrameBuffer *buffer)
 	LIBCAMERA_TRACEPOINT(request_complete_buffer, this, buffer);
 
 	Request *request = LIBCAMERA_O_PTR();
-	camera_->bufferCompleted.emit(request, buffer);
-
 	auto it = request->bufferMap_.find(buffer->_d()->stream_);
 	ASSERT(it != request->bufferMap_.end());
 	ASSERT(it->second == buffer || !it->second);
@@ -123,6 +121,8 @@ bool Request::Private::completeBuffer(FrameBuffer *buffer)
 
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled)
 		cancelled_ = true;
+
+	camera_->bufferCompleted.emit(request, buffer);
 
 	return !hasPendingBuffers();
 }
