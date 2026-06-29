@@ -35,7 +35,7 @@ static const std::map<uint8_t, V4L2PixelFormat> bitDepthToFmt{
 
 LOG_DEFINE_CATEGORY(RZG2LCRU)
 
-FrameBuffer *RZG2LCRU::queueBuffer(Request *request)
+FrameBuffer *RZG2LCRU::queueBuffer()
 {
 	FrameBuffer *buffer;
 
@@ -53,7 +53,6 @@ FrameBuffer *RZG2LCRU::queueBuffer(Request *request)
 	}
 
 	availableBuffers_.pop_back();
-	buffer->_d()->setRequest(request);
 
 	return buffer;
 }

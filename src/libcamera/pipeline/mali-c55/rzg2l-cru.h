@@ -20,7 +20,6 @@ namespace libcamera {
 class CameraSensor;
 class FrameBuffer;
 class MediaDevice;
-class Request;
 class Size;
 
 class RZG2LCRU
@@ -45,7 +44,7 @@ public:
 	V4L2VideoDevice *output() { return output_.get(); }
 
 	int configure(V4L2SubdeviceFormat *subdevFormat, V4L2DeviceFormat *inputFormat);
-	FrameBuffer *queueBuffer(Request *request);
+	FrameBuffer *queueBuffer();
 	void returnBuffer(FrameBuffer *buffer);
 	int freeBuffers();
 

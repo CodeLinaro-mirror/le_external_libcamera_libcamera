@@ -1541,7 +1541,7 @@ void PipelineHandlerMaliC55::queueRequestToCru(MaliC55CameraData *data,
 	auto *mem = std::get_if<MaliC55CameraData::Memory>(&data->input_);
 	ASSERT(mem);
 
-	FrameBuffer *cruBuffer = mem->cru_->queueBuffer(request);
+	FrameBuffer *cruBuffer = mem->cru_->queueBuffer();
 	ASSERT(cruBuffer);
 
 	auto frameInfo = prepareFrameInfo(request);
