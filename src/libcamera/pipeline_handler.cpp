@@ -562,8 +562,6 @@ void PipelineHandler::doQueueRequests(Camera *camera)
  */
 bool PipelineHandler::completeBuffer(Request *request, FrameBuffer *buffer)
 {
-	Camera *camera = request->_d()->camera();
-	camera->bufferCompleted.emit(request, buffer);
 	return request->_d()->completeBuffer(buffer);
 }
 

@@ -104,6 +104,9 @@ bool Request::Private::completeBuffer(FrameBuffer *buffer)
 {
 	LIBCAMERA_TRACEPOINT(request_complete_buffer, this, buffer);
 
+	Request *request = LIBCAMERA_O_PTR();
+	camera_->bufferCompleted.emit(request, buffer);
+
 	int ret = pending_.erase(buffer);
 	ASSERT(ret == 1);
 
