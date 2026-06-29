@@ -48,7 +48,6 @@ struct RequestWrap {
 	RequestWrap(std::unique_ptr<Request> request);
 	~RequestWrap();
 
-	void attachBuffer(GstPad *srcpad, GstBuffer *buffer);
 	GstBuffer *detachBuffer(GstPad *srcpad);
 
 	std::unique_ptr<Request> request_;
@@ -68,21 +67,15 @@ RequestWrap::~RequestWrap()
 		return;
 
 	for (const auto &[stream, fb] : request_->buffers()) {
+		if (!fb)
+			continue;
+
 		auto *buffer = reinterpret_cast<GstBuffer *>(fb->cookie());
 		if (buffer)
 			gst_buffer_unref(buffer);
 
 		fb->setCookie(0);
 	}
-}
-
-void RequestWrap::attachBuffer(GstPad *srcpad, GstBuffer *buffer)
-{
-	FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
-	Stream *stream = gst_libcamera_pad_get_stream(srcpad);
-
-	request_->addBuffer(stream, fb);
-	fb->setCookie(reinterpret_cast<uint64_t>(buffer));
 }
 
 GstBuffer *RequestWrap::detachBuffer(GstPad *srcpad)
@@ -128,11 +121,80 @@ struct GstLibcameraSrcState {
 	ControlList initControls_;
 	guint group_id_;
 	GstCameraControls controls_;
+	size_t maxRequests_ = 0;
 
 	int queueRequest();
 	void requestCompleted(Request *request);
 	int processRequest();
 	void clearRequests();
+
+	void addBuffers(GstLibcameraPool *pool)
+	{
+		const Stream *stream = gst_libcamera_pool_get_stream(pool);
+
+		for (;;) {
+			GstBuffer *buffer = nullptr;
+			GstFlowReturn ret = gst_buffer_pool_acquire_buffer(GST_BUFFER_POOL(pool), &buffer, nullptr);
+			if (ret != GST_FLOW_OK)
+				break;
+
+			FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
+			fb->setCookie(reinterpret_cast<uint64_t>(buffer));
+
+			GST_TRACE_OBJECT(src_, "Adding buffer for stream:%p fb:%p buffer:%p",
+					 stream, fb, buffer);
+
+			if (cam_->addBuffer(stream, fb)) {
+				fb->setCookie(0);
+				gst_buffer_pool_release_buffer(GST_BUFFER_POOL(pool), buffer);
+				break;
+			}
+		}
+	}
+
+	void addAllBuffers()
+	{
+		for (auto *srcpad : srcpads_)
+			addBuffers(gst_libcamera_pad_get_pool(srcpad));
+	}
+
+	int start()
+	{
+		int ret = cam_->start(&initControls_);
+		if (ret)
+			return ret;
+
+		addAllBuffers();
+
+		return 0;
+	}
+
+	void stop()
+	{
+		cam_->bufferCompleted.connect(this, [&](Request *request, const Stream *stream, FrameBuffer *fb) {
+			if (request)
+				return;
+
+			// \todo no... just no...
+			for (auto *pad : srcpads_) {
+				if (gst_libcamera_pad_get_stream(pad) != stream)
+					continue;
+
+				auto *pool = gst_libcamera_pad_get_pool(pad);
+				auto *buffer = reinterpret_cast<GstBuffer *>(fb->cookie());
+				fb->setCookie(0);
+
+				gst_buffer_pool_release_buffer(GST_BUFFER_POOL(pool), buffer);
+
+				break;
+			}
+		});
+
+		cam_->stop();
+
+		cam_->bufferCompleted.disconnect(this);
+		clearRequests();
+	}
 };
 
 struct _GstLibcameraSrc {
@@ -182,6 +244,13 @@ GstStaticPadTemplate request_src_template = {
 /* Must be called with stream_lock held. */
 int GstLibcameraSrcState::queueRequest()
 {
+	{
+		GLibLocker locker(&lock_);
+
+		if (queuedRequests_.size() + completedRequests_.size() >= maxRequests_)
+			return -EAGAIN;
+	}
+
 	std::unique_ptr<Request> request = cam_->createRequest();
 	if (!request)
 		return -ENOMEM;
@@ -189,26 +258,11 @@ int GstLibcameraSrcState::queueRequest()
 	/* Apply controls */
 	controls_.applyControls(request);
 
+	for (auto *srcpad : srcpads_)
+		request->enableStream(gst_libcamera_pad_get_stream(srcpad), true);
+
 	std::unique_ptr<RequestWrap> wrap =
 		std::make_unique<RequestWrap>(std::move(request));
-
-	for (GstPad *srcpad : srcpads_) {
-		GstLibcameraPool *pool = gst_libcamera_pad_get_pool(srcpad);
-		GstBuffer *buffer;
-		GstFlowReturn ret;
-
-		ret = gst_buffer_pool_acquire_buffer(GST_BUFFER_POOL(pool),
-						     &buffer, nullptr);
-		if (ret != GST_FLOW_OK) {
-			/*
-			 * RequestWrap has ownership of the request, and we
-			 * won't be queueing this one due to lack of buffers.
-			 */
-			return -ENOBUFS;
-		}
-
-		wrap->attachBuffer(srcpad, buffer);
-	}
 
 	GST_TRACE_OBJECT(src_, "Requesting buffers");
 
@@ -362,6 +416,8 @@ int GstLibcameraSrcState::processRequest()
 		FrameBuffer *fb = gst_libcamera_buffer_get_frame_buffer(buffer);
 		const StreamConfiguration &stream_cfg = stream->configuration();
 		GstBufferPool *video_pool = gst_libcamera_pad_get_video_pool(srcpad);
+
+		GST_TRACE_OBJECT(src_, "Received fb:%p buffer:%p on stream:%p", fb, buffer, stream);
 
 		if (video_pool) {
 			/* Only set video pool when a copy is needed. */
@@ -702,6 +758,18 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		gst_pad_check_reconfigure(srcpad);
 	}
 
+	state->maxRequests_ = 0;
+
+	for (auto *srcpad : state->srcpads_) {
+		Stream *stream = gst_libcamera_pad_get_stream(srcpad);
+		size_t poolSize = gst_libcamera_allocator_get_pool_size(self->allocator, stream);
+
+		state->maxRequests_ = std::max(state->maxRequests_, poolSize);
+	}
+
+	if (state->maxRequests_ <= 0)
+		return false;
+
 	return true;
 }
 
@@ -748,16 +816,17 @@ gst_libcamera_src_task_run(gpointer user_data)
 	}
 
 	if (reconfigure) {
-		state->cam_->stop();
-		state->clearRequests();
+		state->stop();
 
 		if (!gst_libcamera_src_negotiate(self)) {
 			GST_ELEMENT_FLOW_ERROR(self, GST_FLOW_NOT_NEGOTIATED);
 			gst_task_stop(self->task);
 		}
 
-		state->cam_->start(&state->initControls_);
+		state->start();
 	}
+
+	state->addAllBuffers();
 
 	/*
 	 * Create and queue one request. If no buffers are available the
@@ -915,7 +984,7 @@ gst_libcamera_src_task_enter(GstTask *task, [[maybe_unused]] GThread *thread,
 		gst_pad_push_event(srcpad, gst_event_new_segment(&segment));
 	}
 
-	ret = state->cam_->start(&state->initControls_);
+	ret = state->start();
 	if (ret) {
 		GST_ELEMENT_ERROR(self, RESOURCE, SETTINGS,
 				  ("Failed to start the camera: %s", g_strerror(-ret)),
@@ -935,8 +1004,7 @@ gst_libcamera_src_task_leave([[maybe_unused]] GstTask *task,
 
 	GST_DEBUG_OBJECT(self, "Streaming thread is about to stop");
 
-	state->cam_->stop();
-	state->clearRequests();
+	state->stop();
 
 	{
 		GLibRecLocker locker(&self->stream_lock);
