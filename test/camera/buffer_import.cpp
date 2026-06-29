@@ -55,7 +55,12 @@ protected:
 
 		completeRequestsCount_++;
 
-		request->reuse(Request::ReuseBuffers);
+		for (const auto &[stream, buffer] : request->buffers())
+			camera_->addBuffer(stream, buffer);
+
+		request->reuse();
+		request->enableStream(config_->at(0).stream(), true);
+
 		camera_->queueRequest(request);
 
 		dispatcher_->interrupt();
@@ -98,17 +103,14 @@ protected:
 		if (ret != TestPass)
 			return ret;
 
-		for (const std::unique_ptr<FrameBuffer> &buffer : source.buffers()) {
+		for ([[maybe_unused]] const auto &buffer : source.buffers()) {
 			std::unique_ptr<Request> request = camera_->createRequest();
 			if (!request) {
 				std::cout << "Failed to create request" << std::endl;
 				return TestFail;
 			}
 
-			if (request->addBuffer(stream, buffer.get())) {
-				std::cout << "Failed to associating buffer with request" << std::endl;
-				return TestFail;
-			}
+			request->enableStream(stream, true);
 
 			requests_.push_back(std::move(request));
 		}
@@ -122,6 +124,13 @@ protected:
 		if (camera_->start()) {
 			std::cout << "Failed to start camera" << std::endl;
 			return TestFail;
+		}
+
+		for (const std::unique_ptr<FrameBuffer> &buffer : source.buffers()) {
+			if (camera_->addBuffer(stream, buffer.get())) {
+				std::cout << "Failed to add buffer" << std::endl;
+				return TestFail;
+			}
 		}
 
 		for (std::unique_ptr<Request> &request : requests_) {

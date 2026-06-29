@@ -46,8 +46,12 @@ private:
 		if (request->status() != Request::RequestComplete)
 			return;
 
-		/* Reuse the request and re-queue it with the same buffers. */
-		request->reuse(Request::ReuseBuffers);
+		for (const auto &[stream, buffer] : request->buffers())
+			camera_->addBuffer(stream, buffer);
+
+		request->reuse();
+		request->enableStream(config_->at(0).stream(), true);
+
 		camera_->queueRequest(request);
 	}
 
@@ -80,17 +84,14 @@ private:
 			allocated_ = true;
 		}
 
-		for (const unique_ptr<FrameBuffer> &buffer : allocator_->buffers(stream)) {
+		for ([[maybe_unused]] const auto &buffer : allocator_->buffers(stream)) {
 			unique_ptr<Request> request = camera_->createRequest();
 			if (!request) {
 				cerr << "Failed to create request" << endl;
 				return TestFail;
 			}
 
-			if (request->addBuffer(stream, buffer.get())) {
-				cerr << "Failed to associate buffer with request" << endl;
-				return TestFail;
-			}
+			request->enableStream(stream, true);
 
 			requests_.push_back(std::move(request));
 		}
@@ -100,6 +101,13 @@ private:
 		if (camera_->start()) {
 			cerr << "Failed to start camera" << endl;
 			return TestFail;
+		}
+
+		for (const unique_ptr<FrameBuffer> &buffer : allocator_->buffers(stream)) {
+			if (camera_->addBuffer(stream, buffer.get())) {
+				cerr << "Failed to add buffer" << endl;
+				return TestFail;
+			}
 		}
 
 		for (unique_ptr<Request> &request : requests_) {
