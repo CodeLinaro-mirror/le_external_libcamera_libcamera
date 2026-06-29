@@ -103,6 +103,8 @@ protected:
 	virtual bool acquireDevice(Camera *camera);
 	virtual void releaseDevice(Camera *camera);
 
+	virtual void buffersAddedDevice(Camera *camera);
+
 	CameraManager *manager_;
 
 private:

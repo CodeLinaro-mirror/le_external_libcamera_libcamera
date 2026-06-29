@@ -672,10 +672,32 @@ void PipelineHandler::cancelRequest(Request *request)
 	completeRequest(request);
 }
 
+/**
+ * \brief Notify about buffer addition
+ * \param[in] camera The camera
+ *
+ * Pipeline handlers may override this function in order to be notified
+ * after buffers have been added to the camera's buffer pool.
+ *
+ * \note This function is only called if the pipeline handler has opted into
+ * using the buffer pool at construction time.
+ *
+ * \context This function is called from the CameraManager thread.
+ *
+ * \todo more info?
+ *
+ * \sa Camera::addBuffer()
+ */
+void PipelineHandler::buffersAddedDevice([[maybe_unused]] Camera *camera)
+{
+}
+
 void PipelineHandler::buffersAdded(Camera *camera)
 {
 	if (!options_.usesBufferPool)
 		doQueueRequests(camera);
+	else
+		buffersAddedDevice(camera);
 }
 
 /**
