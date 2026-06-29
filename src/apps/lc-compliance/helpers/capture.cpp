@@ -88,6 +88,9 @@ int Capture::queueRequest(libcamera::Request *request)
 	if (queueLimit_ && queueCount_ >= *queueLimit_)
 		return 0;
 
+	for (const auto &cfg : *config_)
+		request->enableStream(cfg.stream(), true);
+
 	int ret = camera_->queueRequest(request);
 	if (ret < 0)
 		return ret;
@@ -107,7 +110,10 @@ void Capture::requestComplete(Request *request)
 	EXPECT_EQ(request->status(), Request::Status::RequestComplete)
 		<< "Request didn't complete successfully";
 
-	request->reuse(Request::ReuseBuffers);
+	for (const auto &[stream, buffer] : request->buffers())
+		camera_->addBuffer(stream, buffer);
+
+	request->reuse();
 	if (queueRequest(request))
 		loop_->exit(-EINVAL);
 }
@@ -141,11 +147,6 @@ void Capture::start()
 
 		const auto &buffers = allocator_.buffers(stream);
 		ASSERT_EQ(buffers.size(), bufferCount) << "Mismatching buffer count";
-
-		for (std::size_t i = 0; i < bufferCount; i++) {
-			ASSERT_EQ(requests_[i]->addBuffer(stream, buffers[i].get()), 0)
-				<< "Failed to add buffer to request";
-		}
 	}
 
 	ASSERT_TRUE(allocator_.allocated());
@@ -153,6 +154,16 @@ void Capture::start()
 	camera_->requestCompleted.connect(this, &Capture::requestComplete);
 
 	ASSERT_EQ(camera_->start(), 0) << "Failed to start camera";
+
+	for (const auto &cfg : *config_) {
+		Stream *stream = cfg.stream();
+		const auto &buffers = allocator_.buffers(stream);
+
+		for (std::size_t i = 0; i < bufferCount; i++) {
+			ASSERT_EQ(camera_->addBuffer(stream, buffers[i].get()), 0)
+				<< "Failed to add buffer";
+		}
+	}
 }
 
 void Capture::stop()
