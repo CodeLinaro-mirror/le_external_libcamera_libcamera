@@ -135,7 +135,6 @@ PYBIND11_MODULE(_libcamera, m)
 	auto pyControlInfo = py::class_<ControlInfo>(m, "ControlInfo");
 	auto pyRequest = py::class_<Request, std::unique_ptr<Request, RequestDeleter>>(m, "Request");
 	auto pyRequestStatus = py::enum_<Request::Status>(pyRequest, "Status");
-	auto pyRequestReuse = py::enum_<Request::ReuseFlag>(pyRequest, "Reuse");
 	auto pyFrameMetadata = py::class_<FrameMetadata>(m, "FrameMetadata");
 	auto pyFrameMetadataStatus = py::enum_<FrameMetadata::Status>(pyFrameMetadata, "Status");
 	auto pyFrameMetadataPlane = py::class_<FrameMetadata::Plane>(pyFrameMetadata, "Plane");

@@ -194,18 +194,6 @@ void Request::Private::reset()
  */
 
 /**
- * \enum Request::ReuseFlag
- * Flags to control the behavior of Request::reuse()
- * \var Request::Default
- * Don't reuse buffers
- * \var Request::ReuseBuffers
- * Reuse the buffers that were previously added by addBuffer()
- *
- * \note Fences associated with the buffers are not reused.
- *  This flag should not be used if fences are used.
- */
-
-/**
  * \typedef Request::BufferMap
  * \brief A map of Stream to FrameBuffer pointers
  */
@@ -245,20 +233,15 @@ Request::~Request()
 
 /**
  * \brief Reset the request for reuse
- * \param[in] flags Indicate whether or not to reuse the buffers
  *
  * Reset the status and controls associated with the request, to allow it to
  * be reused and requeued without destruction. This function shall be called
  * prior to queueing the request to the camera, in lieu of constructing a new
- * request. The application can reuse the buffers that were previously added
- * to the request via addBuffer() by setting \a flags to ReuseBuffers.
+ * request.
  */
-void Request::reuse(ReuseFlag flags)
+void Request::reuse()
 {
 	LIBCAMERA_TRACEPOINT(request_reuse, this);
-
-	if (flags)
-		LOG(Request, Fatal) << "NOT IMPLEMENTED";
 
 	_d()->reset();
 

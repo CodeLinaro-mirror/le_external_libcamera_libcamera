@@ -37,17 +37,12 @@ public:
 		RequestCancelled,
 	};
 
-	enum ReuseFlag {
-		Default = 0,
-		ReuseBuffers = (1 << 0),
-	};
-
 	using BufferMap = std::map<const Stream *, FrameBuffer *>;
 
 	Request(Camera *camera, uint64_t cookie = 0);
 	~Request();
 
-	void reuse(ReuseFlag flags = Default);
+	void reuse();
 
 	ControlList &controls() { return controls_; }
 	const ControlList &metadata() const;

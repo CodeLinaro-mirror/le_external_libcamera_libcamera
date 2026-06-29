@@ -477,15 +477,6 @@ libcamera repository.
 
 .. _FileSink class: https://git.libcamera.org/libcamera/libcamera.git/tree/src/apps/cam/file_sink.cpp
 
-With the handling of this request completed, it is possible to re-use the
-request and the associated buffers and re-queue it to the camera
-device:
-
-.. code:: cpp
-
-   request->reuse(Request::ReuseBuffers);
-   camera->queueRequest(request);
-
 Request queueing
 ----------------
 
