@@ -40,6 +40,7 @@
 #include "libcamera/internal/delayed_controls.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/formats.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
@@ -887,7 +888,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	if (buffer->metadata().status != FrameMetadata::FrameSuccess) {
 		if (!useConversion_ || rawStream_) {
 			/* No conversion, just complete the request. */
-			Request *request = buffer->request();
+			Request *request = buffer->_d()->request();
 			pipe->completeBuffer(request, buffer);
 			SimpleFrameInfo *info = frameInfo_.find(request->sequence());
 			if (info)
@@ -927,7 +928,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 	 * \todo The sensor timestamp should be better estimated by connecting
 	 * to the V4L2Device::frameStart signal if the platform provides it.
 	 */
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 
 	if (useConversion_ && !conversionQueue_.empty()) {
 		const std::map<const Stream *, FrameBuffer *> &outputs =
@@ -935,7 +936,7 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		if (!outputs.empty()) {
 			FrameBuffer *outputBuffer = outputs.begin()->second;
 			if (outputBuffer)
-				request = outputBuffer->request();
+				request = outputBuffer->_d()->request();
 		}
 	}
 
@@ -960,8 +961,8 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		else
 			/*
 			 * request->sequence() cannot be retrieved from `buffer' inside
-			 * queueBuffers because unique_ptr's make buffer->request() invalid
-			 * already here.
+			 * queueBuffers because unique_ptr's make buffer->_d()->request()
+			 * invalid already here.
 			 */
 			swIsp_->queueBuffers(request->sequence(), buffer,
 					     conversionQueue_.front().outputs);
@@ -1005,7 +1006,7 @@ void SimpleCameraData::conversionInputDone(FrameBuffer *buffer)
 {
 	if (rawStream_) {
 		/* Complete the input buffer as with raw-only processing. */
-		Request *request = buffer->request();
+		Request *request = buffer->_d()->request();
 		if (pipe()->completeBuffer(request, buffer))
 			tryCompleteRequest(request);
 	} else {
@@ -1019,7 +1020,7 @@ void SimpleCameraData::conversionOutputDone(FrameBuffer *buffer)
 	SimplePipelineHandler *pipe = SimpleCameraData::pipe();
 
 	/* Complete the buffer and the request. */
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 	if (pipe->completeBuffer(request, buffer))
 		tryCompleteRequest(request);
 }

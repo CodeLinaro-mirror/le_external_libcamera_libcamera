@@ -601,7 +601,7 @@ void VimcCameraData::imageBufferReady(FrameBuffer *buffer)
 {
 	PipelineHandlerVimc *pipe =
 		static_cast<PipelineHandlerVimc *>(this->pipe());
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 
 	/* If the buffer is cancelled force a complete of the whole request. */
 	if (buffer->metadata().status == FrameMetadata::FrameCancelled) {

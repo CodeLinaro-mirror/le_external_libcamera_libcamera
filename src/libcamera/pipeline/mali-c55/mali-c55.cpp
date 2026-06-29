@@ -1649,7 +1649,7 @@ void PipelineHandlerMaliC55::tryComplete(MaliC55FrameInfo *info, bool cancelled)
 
 void PipelineHandlerMaliC55::imageBufferReady(FrameBuffer *buffer)
 {
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 	MaliC55FrameInfo *info = findFrameInfo(request);
 	ASSERT(info);
 

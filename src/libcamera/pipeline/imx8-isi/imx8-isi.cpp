@@ -24,6 +24,7 @@
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/camera_sensor.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/media_pipeline.h"
 #include "libcamera/internal/pipeline_handler.h"
@@ -1123,7 +1124,7 @@ PipelineHandlerISI::Pipe *PipelineHandlerISI::pipeFromStream(Camera *camera,
 
 void PipelineHandlerISI::bufferReady(FrameBuffer *buffer)
 {
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 
 	/* Record the sensor's timestamp in the request metadata. */
 	ControlList &metadata = request->_d()->metadata();

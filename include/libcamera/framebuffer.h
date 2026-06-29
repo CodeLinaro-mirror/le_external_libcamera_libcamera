@@ -63,7 +63,6 @@ public:
 	virtual ~FrameBuffer() {}
 
 	Span<const Plane> planes() const;
-	Request *request() const;
 	const FrameMetadata &metadata() const;
 
 	uint64_t cookie() const;

@@ -1400,11 +1400,17 @@ code-base.
 
    void VividCameraData::bufferReady(FrameBuffer *buffer)
    {
-          Request *request = buffer->request();
+          Request *request = buffer->_d()->request();
 
           pipe_->completeBuffer(request, buffer);
           pipe_->completeRequest(request);
    }
+
+The following new include statements are needed for the above:
+
+.. code-block:: cpp
+
+   #include "libcamera/internal/framebuffer.h"
 
 Testing a pipeline handler
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

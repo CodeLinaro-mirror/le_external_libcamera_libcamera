@@ -452,7 +452,7 @@ bool PipelineHandlerVirtual::initFrameGenerator(Camera *camera)
 
 void PipelineHandlerVirtual::bufferCompleted(FrameBuffer *buffer)
 {
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 
 	if (completeBuffer(request, buffer))
 		completeRequest(request);

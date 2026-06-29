@@ -28,6 +28,7 @@
 
 #include "libcamera/internal/camera.h"
 #include "libcamera/internal/device_enumerator.h"
+#include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
@@ -892,7 +893,7 @@ void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
 
 void UVCCameraData::imageBufferReady(FrameBuffer *buffer)
 {
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 
 	/* \todo Use the UVC metadata to calculate a more precise timestamp */
 	request->_d()->metadata().set(controls::SensorTimestamp,

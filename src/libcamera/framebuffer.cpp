@@ -145,6 +145,21 @@ FrameBuffer::Private::~Private()
 }
 
 /**
+ * \fn FrameBuffer::Private::request()
+ * \brief Retrieve the request this buffer belongs to
+ *
+ * The intended callers of this function are buffer completion handlers that
+ * need to associate a buffer to the request it belongs to.
+ *
+ * A FrameBuffer is associated to a request by Request::addBuffer() and the
+ * association is valid until the buffer completes. The returned request
+ * pointer is valid only during that interval.
+ *
+ * \return The Request the FrameBuffer belongs to, or nullptr if the buffer is
+ * not associated with a request
+ */
+
+/**
  * \fn FrameBuffer::Private::setRequest()
  * \brief Set the request this buffer belongs to
  * \param[in] request Request to set
@@ -362,24 +377,6 @@ FrameBuffer::FrameBuffer(std::unique_ptr<Private> d)
 Span<const FrameBuffer::Plane> FrameBuffer::planes() const
 {
 	return _d()->planes_;
-}
-
-/**
- * \brief Retrieve the request this buffer belongs to
- *
- * The intended callers of this function are buffer completion handlers that
- * need to associate a buffer to the request it belongs to.
- *
- * A FrameBuffer is associated to a request by Request::addBuffer() and the
- * association is valid until the buffer completes. The returned request
- * pointer is valid only during that interval.
- *
- * \return The Request the FrameBuffer belongs to, or nullptr if the buffer is
- * not associated with a request
- */
-Request *FrameBuffer::request() const
-{
-	return _d()->request_;
 }
 
 /**

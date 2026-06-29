@@ -27,7 +27,9 @@ public:
 	Private(Span<const Plane> planes, uint64_t cookie = 0);
 	virtual ~Private();
 
+	Request *request() const { return request_; }
 	void setRequest(Request *request) { request_ = request; }
+
 	bool isContiguous() const { return isContiguous_; }
 
 	Fence *fence() const { return fence_.get(); }

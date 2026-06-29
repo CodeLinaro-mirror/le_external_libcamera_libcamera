@@ -1695,9 +1695,9 @@ void PipelineHandlerRkISP1::dewarpBufferReady(FrameBuffer *buffer)
 {
 	ASSERT(activeCamera_);
 	RkISP1CameraData *data = cameraData(activeCamera_);
-	Request *request = buffer->request();
+	Request *request = buffer->_d()->request();
 
-	RkISP1FrameInfo *info = data->frameInfo_.find(buffer->request());
+	RkISP1FrameInfo *info = data->frameInfo_.find(request);
 	if (!info)
 		return;
 
