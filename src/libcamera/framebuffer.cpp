@@ -191,9 +191,7 @@ FrameBuffer::Private::~Private()
  *
  * If buffer with a Fence completes with errors due to a failure in handling
  * the fence, applications are responsible for releasing the Fence before
- * calling Request::addBuffer() again.
- *
- * \sa Request::addBuffer()
+ * reusing the buffer.
  *
  * \return A const pointer to the Fence if any, nullptr otherwise
  */
@@ -203,14 +201,12 @@ FrameBuffer::Private::~Private()
  * \brief Move a \a fence in this buffer
  * \param[in] fence The Fence
  *
- * This function associates a Fence with this Framebuffer. The intended caller
- * is the Request::addBuffer() function.
+ * This function associates a Fence with this Framebuffer. It is only intended
+ * to be called by the libcamera core.
  *
  * Once a FrameBuffer is associated with a Fence, the FrameBuffer will only be
  * made available to the hardware device once the Fence has been correctly
  * signalled.
- *
- * \sa Request::prepare()
  *
  * If the FrameBuffer completes successfully the core releases the Fence and the
  * Buffer can be reused immediately. If handling of the Fence fails during the

@@ -28,8 +28,6 @@ namespace libcamera {
  * the Fence to be signalled before allowing the camera device to actually
  * access the memory area described by the FrameBuffer.
  *
- * \sa Request::addBuffer()
- *
  * By using a fence, applications can then synchronize between frame buffer
  * consumers and producers, as for example a display device and a camera, to
  * guarantee that a new data transfers only happen once the existing frames have
@@ -68,9 +66,6 @@ namespace libcamera {
  *
  * A failure in waiting for a Fence to complete will result in the Request to
  * complete in failed state.
- *
- * \sa Request::prepare()
- * \sa PipelineHandler::doQueueRequests()
  */
 
 /**

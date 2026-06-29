@@ -7,7 +7,6 @@
 
 #include "libcamera/internal/pipeline_handler.h"
 
-#include <chrono>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
@@ -444,25 +443,6 @@ bool PipelineHandler::hasPendingRequests(const Camera *camera) const
 }
 
 /**
- * \fn PipelineHandler::registerRequest()
- * \brief Register a request for use by the pipeline handler
- * \param[in] request The request to register
- *
- * This function is called when the request is created, and allows the pipeline
- * handler to perform any one-time initialization it requries for the request.
- */
-void PipelineHandler::registerRequest(Request *request)
-{
-	/*
-	 * Connect the request prepared signal to notify the pipeline handler
-	 * when a request is ready to be processed.
-	 */
-	request->_d()->prepared.connect(this, [this, request]() {
-		doQueueRequests(request->_d()->camera());
-	});
-}
-
-/**
  * \fn PipelineHandler::queueRequest()
  * \brief Queue a request
  * \param[in] request The request to queue
@@ -493,7 +473,7 @@ void PipelineHandler::queueRequest(Request *request)
 	Camera::Private *data = camera->_d();
 	data->waitingRequests_.push(request);
 
-	request->_d()->prepare(300ms);
+	doQueueRequests(camera);
 }
 
 /**
@@ -533,8 +513,6 @@ void PipelineHandler::doQueueRequests(Camera *camera)
 			break;
 
 		Request *request = data->waitingRequests_.front();
-		if (!request->_d()->prepared_)
-			break;
 
 		/*
 		 * Pop the request first, in case doQueueRequests() is called

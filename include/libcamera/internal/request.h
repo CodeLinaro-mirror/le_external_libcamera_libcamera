@@ -7,18 +7,12 @@
 
 #pragma once
 
-#include <chrono>
-#include <map>
-#include <memory>
 #include <stdint.h>
 #include <unordered_set>
 
 #include <libcamera/base/event_notifier.h>
-#include <libcamera/base/timer.h>
 
 #include <libcamera/request.h>
-
-using namespace std::chrono_literals;
 
 namespace libcamera {
 
@@ -43,26 +37,17 @@ public:
 	void cancel();
 	void reset();
 
-	void prepare(std::chrono::milliseconds timeout = 0ms);
-	Signal<> prepared;
-
 private:
 	friend class PipelineHandler;
 	friend std::ostream &operator<<(std::ostream &out, const Request &r);
 
 	void doCancelRequest();
-	void emitPrepareCompleted();
-	void notifierActivated(FrameBuffer *buffer);
-	void timeout();
 
 	Camera *camera_;
 	bool cancelled_;
 	uint32_t sequence_ = 0;
-	bool prepared_ = false;
 
 	std::unordered_set<FrameBuffer *> pending_;
-	std::map<FrameBuffer *, EventNotifier> notifiers_;
-	std::unique_ptr<Timer> timer_;
 	ControlList metadata_;
 };
 
