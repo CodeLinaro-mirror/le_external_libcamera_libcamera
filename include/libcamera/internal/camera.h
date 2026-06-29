@@ -8,9 +8,8 @@
 #pragma once
 
 #include <atomic>
-#include <list>
+#include <deque>
 #include <memory>
-#include <queue>
 #include <set>
 #include <stdint.h>
 #include <string>
@@ -40,8 +39,8 @@ public:
 	PipelineHandler *pipe() { return pipe_.get(); }
 	const PipelineHandler *pipe() const { return pipe_.get(); }
 
-	std::list<Request *> queuedRequests_;
-	std::queue<Request *> waitingRequests_;
+	std::deque<Request *> queuedRequests_;
+	std::deque<Request *> waitingRequests_;
 	ControlInfoMap controlInfo_;
 	ControlList properties_;
 
