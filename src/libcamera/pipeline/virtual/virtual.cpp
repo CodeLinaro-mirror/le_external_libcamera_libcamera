@@ -130,32 +130,38 @@ VirtualCameraData::VirtualCameraData(PipelineHandler *pipe,
 
 void VirtualCameraData::processRequest(Request *request)
 {
+	std::array<std::pair<StreamConfig *, FrameBuffer *>, kMaxStream> buffers;
+	size_t bufferCount = 0;
+
 	for (const auto &[stream, buffer] : request->buffers()) {
 		bool found = false;
-		/* map buffer and fill test patterns */
 		for (auto &streamConfig : streamConfigs_) {
 			if (stream == &streamConfig.stream) {
-				FrameMetadata &fmd = buffer->_d()->metadata();
-
-				fmd.status = FrameMetadata::Status::FrameSuccess;
-				fmd.sequence = streamConfig.seq++;
-				fmd.timestamp = currentTimestamp();
-
-				Span<const FrameBuffer::Plane> planes = buffer->planes();
-				for (const auto [i, p] : utils::enumerate(planes))
-					fmd.planes()[i].bytesused = p.length;
-
+				buffers[bufferCount++] = { &streamConfig, buffer };
 				found = true;
-
-				if (streamConfig.frameGenerator->generateFrame(
-					    stream->configuration().size, buffer))
-					fmd.status = FrameMetadata::Status::FrameError;
-
-				bufferCompleted.emit(buffer);
 				break;
 			}
 		}
 		ASSERT(found);
+	}
+
+	for (size_t i = 0; i < bufferCount; i++) {
+		const auto &[stream, buffer] = buffers[i];
+		FrameMetadata &fmd = buffer->_d()->metadata();
+
+		fmd.status = FrameMetadata::Status::FrameSuccess;
+		fmd.sequence = stream->seq++;
+		fmd.timestamp = currentTimestamp();
+
+		Span<const FrameBuffer::Plane> planes = buffer->planes();
+		for (const auto [j, p] : utils::enumerate(planes))
+			fmd.planes()[j].bytesused = p.length;
+
+		if (stream->frameGenerator->generateFrame(stream->stream.configuration().size,
+							  buffer))
+			fmd.status = FrameMetadata::Status::FrameError;
+
+		bufferCompleted.emit(buffer);
 	}
 }
 
