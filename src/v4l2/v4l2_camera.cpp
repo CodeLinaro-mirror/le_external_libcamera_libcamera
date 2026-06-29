@@ -242,6 +242,7 @@ int V4L2Camera::streamOff()
 	{
 		MutexLocker locker(bufferMutex_);
 		isRunning_ = false;
+		completedBuffers_.clear();
 	}
 	bufferCV_.notify_all();
 
