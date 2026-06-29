@@ -18,9 +18,9 @@
 #ifndef SYSTEM_MEDIA_INCLUDE_ANDROID_CAMERA_VENDOR_TAGS_H
 #define SYSTEM_MEDIA_INCLUDE_ANDROID_CAMERA_VENDOR_TAGS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include <sys/cdefs.h>
+
+__BEGIN_DECLS
 
 #define CAMERA_METADATA_VENDOR_TAG_BOUNDARY 0x80000000u
 #define CAMERA_METADATA_INVALID_VENDOR_ID UINT64_MAX
@@ -151,9 +151,7 @@ struct vendor_tag_cache_ops {
     void* reserved[8];
 };
 
-#ifdef __cplusplus
-} /* extern "C" */
-#endif
+__END_DECLS
 
 #endif /* SYSTEM_MEDIA_INCLUDE_ANDROID_CAMERA_VENDOR_TAGS_H */
 

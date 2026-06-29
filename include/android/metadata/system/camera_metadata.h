@@ -18,13 +18,13 @@
 #ifndef SYSTEM_MEDIA_INCLUDE_ANDROID_CAMERA_METADATA_H
 #define SYSTEM_MEDIA_INCLUDE_ANDROID_CAMERA_METADATA_H
 
+#include <sys/cdefs.h>
 #include <string.h>
 #include <stdint.h>
 #include <cutils/compiler.h>
+#include <system/camera_vendor_tags.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+__BEGIN_DECLS
 
 /**
  * Tag hierarchy and enum definitions for camera_metadata_entry
@@ -287,7 +287,7 @@ enum {
 };
 
 /**
- * Validate that a metadata is structurally sane. That is, its internal
+ * Validate that a metadata is structurally correct. That is, its internal
  * state is such that we won't get buffer overflows or run into other
  * 'impossible' issues when calling the other API functions.
  *
@@ -482,6 +482,12 @@ int get_local_camera_metadata_tag_type(uint32_t tag,
         const camera_metadata_t *meta);
 
 /**
+ * Retrieve all tags that need permission.
+ */
+ANDROID_API
+const int32_t *get_camera_metadata_permission_needed(uint32_t *tag_count);
+
+/**
  * Set up vendor-specific tag query methods. These are needed to properly add
  * entries with vendor-specified tags and to use the
  * get_camera_metadata_section_name, _tag_name, and _tag_type methods with
@@ -574,8 +580,29 @@ int camera_metadata_enum_snprint(uint32_t tag,
                                  char *dst,
                                  size_t size);
 
-#ifdef __cplusplus
-}
-#endif
+/**
+ * Retrieves back the binary value of a given tag enum entry name. Only works for enum tags.
+ * Returns 0 on success, -1 on failure.
+ */
+ANDROID_API
+int camera_metadata_enum_value(uint32_t tag /*in*/,
+                               const char* name /*in*/,
+                               size_t size /*in*/,
+                               uint32_t *value /*out*/);
+
+/**
+ * Set the global vendor tag operations object used to define vendor tag
+ * structure when parsing camera metadata with functions defined in
+ * system/media/camera/include/camera_metadata.h.
+ *
+ * Note: this is moved from system/media/private/camera/include/camera_metadata_hidden.h.
+ * Every process that needs to read or write vendor tags has to call this method before
+ * attempting to use them. The OS will handle standard app and system service processes,
+ * but OEMs may need to invoke this method in HALs that process camera data.
+ */
+ANDROID_API
+int set_camera_metadata_vendor_ops(const vendor_tag_ops_t *query_ops);
+
+__END_DECLS
 
 #endif

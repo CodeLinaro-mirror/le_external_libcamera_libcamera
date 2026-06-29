@@ -112,5 +112,8 @@ camera_module_t HAL_MODULE_INFO_SYM = {
 	.open_legacy = hal_open_legacy,
 	.set_torch_mode = hal_set_torch_mode,
 	.init = hal_init,
+	.get_physical_camera_info = nullptr,
+	.is_stream_combination_supported = nullptr,
+	.notify_device_state_change = nullptr,
 	.reserved = {},
 };

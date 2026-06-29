@@ -18,6 +18,9 @@
 #ifndef SYSTEM_MEDIA_PRIVATE_INCLUDE_CAMERA_METADATA_HIDDEN_H
 #define SYSTEM_MEDIA_PRIVATE_INCLUDE_CAMERA_METADATA_HIDDEN_H
 
+#include <stdint.h>
+#include <cutils/compiler.h>
+#include <system/camera_metadata.h>
 #include <system/camera_vendor_tags.h>
 
 /**
@@ -34,14 +37,6 @@
 extern "C" {
 #endif
 /** **These are private functions for use only by the camera framework.** **/
-
-/**
- * Set the global vendor tag operations object used to define vendor tag
- * structure when parsing camera metadata with functions defined in
- * system/media/camera/include/camera_metadata.h.
- */
-ANDROID_API
-int set_camera_metadata_vendor_ops(const vendor_tag_ops_t *query_ops);
 
 /**
  * Set the global vendor tag cache operations object used to define vendor tag

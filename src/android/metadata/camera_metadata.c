@@ -103,10 +103,10 @@ struct camera_metadata {
     uint32_t                 version;
     uint32_t                 flags;
     metadata_size_t          entry_count;
-    metadata_size_t          entry_capacity;
+    metadata_size_t          entry_capacity; // Number of entries that can be stored
     metadata_uptrdiff_t      entries_start; // Offset from camera_metadata
     metadata_size_t          data_count;
-    metadata_size_t          data_capacity;
+    metadata_size_t          data_capacity; // Number of data bytes that can be stored
     metadata_uptrdiff_t      data_start; // Offset from camera_metadata
     uint32_t                 padding;    // padding to 8 bytes boundary
     metadata_vendor_id_t     vendor_id;
@@ -241,7 +241,7 @@ camera_metadata_t *allocate_copy_camera_metadata_checked(
         return NULL;
     }
 
-    void *buffer = malloc(src_size);
+    void *buffer = calloc(1, src_size);
     memcpy(buffer, src, src_size);
 
     camera_metadata_t *metadata = (camera_metadata_t*) buffer;
@@ -258,7 +258,7 @@ camera_metadata_t *allocate_camera_metadata(size_t entry_capacity,
 
     size_t memory_needed = calculate_camera_metadata_size(entry_capacity,
                                                           data_capacity);
-    void *buffer = malloc(memory_needed);
+    void *buffer = calloc(1, memory_needed);
     camera_metadata_t *metadata = place_camera_metadata(
         buffer, memory_needed, entry_capacity, data_capacity);
     if (!metadata) {
@@ -278,7 +278,11 @@ camera_metadata_t *place_camera_metadata(void *dst,
 
     size_t memory_needed = calculate_camera_metadata_size(entry_capacity,
                                                           data_capacity);
-    if (memory_needed > dst_size) return NULL;
+    if (memory_needed > dst_size) {
+      ALOGE("%s: Memory needed to place camera metadata (%zu) > dst size (%zu)", __FUNCTION__,
+              memory_needed, dst_size);
+      return NULL;
+    }
 
     camera_metadata_t *metadata = (camera_metadata_t*)dst;
     metadata->version = CURRENT_METADATA_VERSION;
@@ -350,7 +354,11 @@ camera_metadata_t* copy_camera_metadata(void *dst, size_t dst_size,
     size_t memory_needed = get_camera_metadata_compact_size(src);
 
     if (dst == NULL) return NULL;
-    if (dst_size < memory_needed) return NULL;
+    if (dst_size < memory_needed) {
+        ALOGE("%s: Memory needed to place camera metadata (%zu) > dst size (%zu)", __FUNCTION__,
+                memory_needed, dst_size);
+      return NULL;
+    }
 
     camera_metadata_t *metadata =
         place_camera_metadata(dst, dst_size, src->entry_count, src->data_count);
@@ -433,14 +441,14 @@ int validate_camera_metadata_structure(const camera_metadata_t *metadata,
         };
 
         for (size_t i = 0; i < sizeof(alignments)/sizeof(alignments[0]); ++i) {
-            uintptr_t aligned_ptr = ALIGN_TO((uintptr_t) metadata + alignmentOffset,
+            uintptr_t aligned_ptr_section = ALIGN_TO((uintptr_t) metadata + alignmentOffset,
                     alignments[i].alignment);
 
-            if ((uintptr_t)metadata + alignmentOffset != aligned_ptr) {
+            if ((uintptr_t)metadata + alignmentOffset != aligned_ptr_section) {
                 ALOGE("%s: Metadata pointer is not aligned (actual %p, "
                       "expected %p, offset %" PRIuPTR ") to type %s",
                       __FUNCTION__, metadata,
-                      (void*)aligned_ptr, alignmentOffset, alignments[i].name);
+                      (void*)aligned_ptr_section, alignmentOffset, alignments[i].name);
                 return CAMERA_METADATA_VALIDATION_ERROR;
             }
         }
@@ -449,56 +457,86 @@ int validate_camera_metadata_structure(const camera_metadata_t *metadata,
     /**
      * Check that the metadata contents are correct
      */
-
-    if (expected_size != NULL && metadata->size > *expected_size) {
-        ALOGE("%s: Metadata size (%" PRIu32 ") should be <= expected size (%zu)",
-              __FUNCTION__, metadata->size, *expected_size);
+    if (expected_size != NULL && sizeof(camera_metadata_t) > *expected_size) {
+        ALOGE("%s: Metadata size (%zu) should be <= expected size (%zu)",
+                __FUNCTION__, sizeof(camera_metadata_t), *expected_size);
         return CAMERA_METADATA_VALIDATION_ERROR;
     }
 
-    if (metadata->entry_count > metadata->entry_capacity) {
+    // Create an aligned header
+    camera_metadata_t headerCopy;
+    const camera_metadata_t *header;
+    if (alignmentOffset != 0) {
+        memcpy(&headerCopy, metadata, sizeof(camera_metadata_t));
+        header = &headerCopy;
+    } else {
+        header = metadata;
+    }
+
+    if (expected_size != NULL && header->size > *expected_size) {
+        ALOGE("%s: Metadata size (%" PRIu32 ") should be <= expected size (%zu)",
+              __FUNCTION__, header->size, *expected_size);
+        return CAMERA_METADATA_VALIDATION_ERROR;
+    }
+
+    if (header->entry_count > header->entry_capacity) {
         ALOGE("%s: Entry count (%" PRIu32 ") should be <= entry capacity "
               "(%" PRIu32 ")",
-              __FUNCTION__, metadata->entry_count, metadata->entry_capacity);
+              __FUNCTION__, header->entry_count, header->entry_capacity);
         return CAMERA_METADATA_VALIDATION_ERROR;
     }
 
-    if (metadata->data_count > metadata->data_capacity) {
+    if (header->data_count > header->data_capacity) {
         ALOGE("%s: Data count (%" PRIu32 ") should be <= data capacity "
               "(%" PRIu32 ")",
-              __FUNCTION__, metadata->data_count, metadata->data_capacity);
+              __FUNCTION__, header->data_count, header->data_capacity);
         // android_errorWriteLog(SN_EVENT_LOG_ID, "30591838");
         return CAMERA_METADATA_VALIDATION_ERROR;
     }
 
-    const metadata_uptrdiff_t entries_end =
-        metadata->entries_start + metadata->entry_capacity;
-    if (entries_end < metadata->entries_start || // overflow check
-        entries_end > metadata->data_start) {
+    // Check for overflow when calculating entry capacity bytes.
+    // (metadata_size_t)~0 represents the maximum representable value of metadata_size_t.
+    if (header->entry_capacity > (metadata_size_t)~0 / sizeof(camera_metadata_buffer_entry_t)) {
+        ALOGE("%s: Entry capacity (%" PRIu32 ") is too large",
+              __FUNCTION__, header->entry_capacity);
+        return CAMERA_METADATA_VALIDATION_ERROR;
+    }
 
+    metadata_size_t entries_capacity_bytes =
+            sizeof(camera_metadata_buffer_entry_t) * header->entry_capacity;
+    const metadata_uptrdiff_t entries_end =
+        header->entries_start + entries_capacity_bytes;
+
+    if (entries_end < header->entries_start) {
+        ALOGE("%s: Entry start (%" PRIu32 ") + capacity bytes (%" PRIu32 ") "
+              "overflows", __FUNCTION__, header->entries_start, entries_capacity_bytes);
+        return CAMERA_METADATA_VALIDATION_ERROR;
+    }
+
+    if (entries_end > header->data_start) {
         ALOGE("%s: Entry start + capacity (%" PRIu32 ") should be <= data start "
               "(%" PRIu32 ")",
                __FUNCTION__,
-              (metadata->entries_start + metadata->entry_capacity),
-              metadata->data_start);
+              entries_end,
+              header->data_start);
         return CAMERA_METADATA_VALIDATION_ERROR;
     }
 
     const metadata_uptrdiff_t data_end =
-        metadata->data_start + metadata->data_capacity;
-    if (data_end < metadata->data_start || // overflow check
-        data_end > metadata->size) {
+        header->data_start + header->data_capacity;
+    if (data_end < header->data_start || // overflow check
+        data_end > header->size) {
 
         ALOGE("%s: Data start + capacity (%" PRIu32 ") should be <= total size "
               "(%" PRIu32 ")",
                __FUNCTION__,
-              (metadata->data_start + metadata->data_capacity),
-              metadata->size);
+              (header->data_start + header->data_capacity),
+              header->size);
         return CAMERA_METADATA_VALIDATION_ERROR;
     }
 
     // Validate each entry
-    const metadata_size_t entry_count = metadata->entry_count;
+    const metadata_size_t entry_count = header->entry_count;
     camera_metadata_buffer_entry_t *entries = get_entries(metadata);
 
     for (size_t i = 0; i < entry_count; ++i) {
@@ -511,7 +549,12 @@ int validate_camera_metadata_structure(const camera_metadata_t *metadata,
             return CAMERA_METADATA_VALIDATION_ERROR;
         }
 
-        camera_metadata_buffer_entry_t entry = entries[i];
+        camera_metadata_buffer_entry_t entry;
+        if (alignmentOffset != 0) {
+            memcpy(&entry, entries + i, sizeof(camera_metadata_buffer_entry_t));
+        } else {
+            entry = entries[i];
+        }
 
         if (entry.type >= NUM_TYPES) {
             ALOGE("%s: Entry index %zu had a bad type %d",
@@ -522,10 +565,10 @@ int validate_camera_metadata_structure(const camera_metadata_t *metadata,
         // TODO: fix vendor_tag_ops across processes so we don't need to special
         //       case vendor-specific tags
         uint32_t tag_section = entry.tag >> 16;
-        int tag_type = get_local_camera_metadata_tag_type(entry.tag, metadata);
+        int tag_type = get_local_camera_metadata_tag_type(entry.tag, header);
         if (tag_type != (int)entry.type && tag_section < VENDOR_SECTION) {
-            ALOGE("%s: Entry index %zu had tag type %d, but the type was %d",
-                  __FUNCTION__, i, tag_type, entry.type);
+            ALOGE("%s: Entry index %zu (0x%x) had tag type %d, but the type was %d",
+                  __FUNCTION__, i, entry.tag, tag_type, entry.type);
             return CAMERA_METADATA_VALIDATION_ERROR;
         }
 
@@ -1005,6 +1048,15 @@ int get_local_camera_metadata_tag_type(uint32_t tag,
     return get_local_camera_metadata_tag_type_vendor_id(tag, id);
 }
 
+const int32_t *get_camera_metadata_permission_needed(uint32_t *tag_count) {
+    if (NULL == tag_count) {
+        return NULL;
+    }
+
+    *tag_count = sizeof(tag_permission_needed) / sizeof(tag_permission_needed[0]);
+    return tag_permission_needed;
+}
+
 int set_camera_metadata_vendor_tag_ops(const vendor_tag_query_ops_t* ops) {
     // **DEPRECATED**
     (void) ops;
@@ -1046,8 +1098,7 @@ metadata_vendor_id_t get_camera_metadata_vendor_id(
 }
 
 static void print_data(int fd, const uint8_t *data_ptr, uint32_t tag, int type,
-        int count,
-        int indentation);
+        metadata_vendor_id_t vendor_id, int count, int indentation);
 
 void dump_camera_metadata(const camera_metadata_t *metadata,
         int fd,
@@ -1120,12 +1171,13 @@ void dump_indented_camera_metadata(const camera_metadata_t *metadata,
         int count = entry->count;
         if (verbosity < 2 && count > 16) count = 16;
 
-        print_data(fd, data_ptr, entry->tag, entry->type, count, indentation);
+        print_data(fd, data_ptr, entry->tag, entry->type, get_camera_metadata_vendor_id(metadata),
+                   count, indentation);
     }
 }
 
-static void print_data(int fd, const uint8_t *data_ptr, uint32_t tag,
-        int type, int count, int indentation) {
+static void print_data(int fd, const uint8_t *data_ptr, uint32_t tag, int type,
+        metadata_vendor_id_t vendor_id, int count, int indentation) {
     static int values_per_line[NUM_TYPES] = {
         [TYPE_BYTE]     = 16,
         [TYPE_INT32]    = 4,
@@ -1137,6 +1189,33 @@ static void print_data(int fd, const uint8_t *data_ptr, uint32_t tag,
     size_t type_size = camera_metadata_type_size[type];
     char value_string_tmp[CAMERA_METADATA_ENUM_STRING_MAX_SIZE];
     uint32_t value;
+    size_t value_offset;
+    size_t entry_size;
+    // It is possible that the tag value is only found at specific
+    // offset. The rest of the data must not be enumerated.
+    switch (tag) {
+        case ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS:
+        case ANDROID_SCALER_AVAILABLE_STREAM_CONFIGURATIONS_MAXIMUM_RESOLUTION:
+        case ANDROID_DEPTH_AVAILABLE_DEPTH_STREAM_CONFIGURATIONS:
+        case ANDROID_DEPTH_AVAILABLE_DEPTH_STREAM_CONFIGURATIONS_MAXIMUM_RESOLUTION:
+        case ANDROID_DEPTH_AVAILABLE_DYNAMIC_DEPTH_STREAM_CONFIGURATIONS:
+        case ANDROID_DEPTH_AVAILABLE_DYNAMIC_DEPTH_STREAM_CONFIGURATIONS_MAXIMUM_RESOLUTION:
+        case ANDROID_HEIC_AVAILABLE_HEIC_STREAM_CONFIGURATIONS:
+        case ANDROID_HEIC_AVAILABLE_HEIC_STREAM_CONFIGURATIONS_MAXIMUM_RESOLUTION:
+        case ANDROID_JPEGR_AVAILABLE_JPEG_R_STREAM_CONFIGURATIONS:
+        case ANDROID_JPEGR_AVAILABLE_JPEG_R_STREAM_CONFIGURATIONS_MAXIMUM_RESOLUTION:
+        case ANDROID_SCALER_PHYSICAL_CAMERA_MULTI_RESOLUTION_STREAM_CONFIGURATIONS:
+            value_offset = 3 * type_size;
+            entry_size = 4 * type_size;
+            break;
+        case ANDROID_SCALER_AVAILABLE_RECOMMENDED_STREAM_CONFIGURATIONS:
+            value_offset = 4 * type_size;
+            entry_size = 5 * type_size;
+            break;
+        default:
+            value_offset = 0;
+            entry_size = 0;
+    }
 
     int lines = count / values_per_line[type];
     if (count % values_per_line[type] != 0) lines++;
@@ -1158,14 +1237,24 @@ static void print_data(int fd, const uint8_t *data_ptr, uint32_t tag,
                                                      sizeof(value_string_tmp))
                         == OK) {
                         dprintf(fd, "%s ", value_string_tmp);
+                    } else if (tag == ANDROID_LOGICAL_MULTI_CAMERA_PHYSICAL_IDS) {
+                        if (value != 0) {
+                            dprintf(fd, "%c ",
+                                    *(data_ptr + index));
+                        }
                     } else {
                         dprintf(fd, "%hhu ",
                                 *(data_ptr + index));
                     }
                     break;
                 case TYPE_INT32:
-                    value =
-                            *(int32_t*)(data_ptr + index);
+                    value = *(int32_t*)(data_ptr + index);
+
+                    if ((entry_size > 0) && ((index % entry_size ) != value_offset)) {
+                        dprintf(fd, "%" PRId32 " ", value);
+                        break;
+                    }
+
                     if (camera_metadata_enum_snprint(tag,
                                                      value,
                                                      value_string_tmp,
@@ -1173,8 +1262,24 @@ static void print_data(int fd, const uint8_t *data_ptr, uint32_t tag,
                         == OK) {
                         dprintf(fd, "%s ", value_string_tmp);
                     } else {
-                        dprintf(fd, "%" PRId32 " ",
-                                *(int32_t*)(data_ptr + index));
+                        dprintf(fd, "%" PRId32 " ", value);
+                        if (tag == ANDROID_REQUEST_AVAILABLE_REQUEST_KEYS ||
+                            tag == ANDROID_REQUEST_AVAILABLE_RESULT_KEYS ||
+                            tag == ANDROID_REQUEST_AVAILABLE_SESSION_KEYS ||
+                            tag == ANDROID_REQUEST_AVAILABLE_CHARACTERISTICS_KEYS ||
+                            tag == ANDROID_REQUEST_AVAILABLE_PHYSICAL_CAMERA_REQUEST_KEYS) {
+                            const char *camera_metadata_tag_name =
+                                get_camera_metadata_tag_name(value);
+                            if (camera_metadata_tag_name != NULL) {
+                                dprintf(fd, "(%s) ", camera_metadata_tag_name);
+                            } else {
+                                const char *camera_metadata_tag_vendor_id =
+                                    get_local_camera_metadata_tag_name_vendor_id(value, vendor_id);
+                                if (camera_metadata_tag_vendor_id != NULL) {
+                                    dprintf(fd, "(%s) ", camera_metadata_tag_vendor_id);
+                                }
+                            }
+                        }
                     }
                     break;
                 case TYPE_FLOAT:
