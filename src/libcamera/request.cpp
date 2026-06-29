@@ -143,6 +143,7 @@ void Request::Private::doCancelRequest()
 	for (FrameBuffer *buffer : pending_) {
 		buffer->_d()->cancel();
 		camera_->bufferCompleted.emit(request, buffer);
+		buffer->_d()->setRequest(nullptr);
 	}
 
 	cancelled_ = true;
