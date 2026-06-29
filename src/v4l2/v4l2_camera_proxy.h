@@ -44,7 +44,6 @@ private:
 	void querycap(std::shared_ptr<libcamera::Camera> camera);
 	int tryFormat(struct v4l2_format *arg);
 	enum v4l2_priority maxPriority();
-	void updateBuffers();
 	void freeBuffers();
 
 	int vidioc_querycap(V4L2CameraFile *file, struct v4l2_capability *arg);
@@ -80,7 +79,6 @@ private:
 	unsigned int index_;
 
 	libcamera::StreamConfiguration streamConfig_;
-	unsigned int currentBuf_;
 	unsigned int sizeimage_;
 
 	struct v4l2_capability capabilities_;

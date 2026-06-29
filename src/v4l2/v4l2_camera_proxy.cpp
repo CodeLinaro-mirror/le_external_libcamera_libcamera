@@ -39,9 +39,37 @@ using namespace std::literals::chrono_literals;
 
 LOG_DECLARE_CATEGORY(V4L2Compat)
 
+namespace {
+
+void updateBuffer(v4l2_buffer &buf, const FrameMetadata &fmd)
+{
+	switch (fmd.status) {
+	case FrameMetadata::FrameSuccess:
+		buf.bytesused = std::accumulate(fmd.planes().begin(),
+						fmd.planes().end(), 0,
+						[](unsigned int total, const auto &plane) {
+							return total + plane.bytesused;
+						});
+		buf.field = V4L2_FIELD_NONE;
+		buf.timestamp.tv_sec = fmd.timestamp / 1000000000;
+		buf.timestamp.tv_usec = (fmd.timestamp / 1000) % 1000000;
+		buf.sequence = fmd.sequence;
+
+		buf.flags |= V4L2_BUF_FLAG_DONE;
+		break;
+	case FrameMetadata::FrameError:
+		buf.flags |= V4L2_BUF_FLAG_ERROR;
+		break;
+	default:
+		break;
+	}
+}
+
+} /* namespace */
+
 V4L2CameraProxy::V4L2CameraProxy(unsigned int index,
 				 std::shared_ptr<Camera> camera)
-	: refcount_(0), index_(index), currentBuf_(0),
+	: refcount_(0), index_(index),
 	  vcam_(std::make_unique<V4L2Camera>(camera)), owner_(nullptr)
 {
 	querycap(camera);
@@ -239,36 +267,6 @@ void V4L2CameraProxy::querycap(std::shared_ptr<Camera> camera)
 	capabilities_.capabilities = capabilities_.device_caps
 				   | V4L2_CAP_DEVICE_CAPS;
 	memset(capabilities_.reserved, 0, sizeof(capabilities_.reserved));
-}
-
-void V4L2CameraProxy::updateBuffers()
-{
-	std::vector<V4L2Camera::CompletedBuffer> completedBuffers = vcam_->completedBuffers();
-	for (const V4L2Camera::CompletedBuffer &buffer : completedBuffers) {
-		const FrameMetadata &fmd = buffer.data_;
-		struct v4l2_buffer &buf = buffers_[buffer.index_];
-
-		switch (fmd.status) {
-		case FrameMetadata::FrameSuccess:
-			buf.bytesused = std::accumulate(fmd.planes().begin(),
-							fmd.planes().end(), 0,
-							[](unsigned int total, const auto &plane) {
-								return total + plane.bytesused;
-							});
-			buf.field = V4L2_FIELD_NONE;
-			buf.timestamp.tv_sec = fmd.timestamp / 1000000000;
-			buf.timestamp.tv_usec = (fmd.timestamp / 1000) % 1000000;
-			buf.sequence = fmd.sequence;
-
-			buf.flags |= V4L2_BUF_FLAG_DONE;
-			break;
-		case FrameMetadata::FrameError:
-			buf.flags |= V4L2_BUF_FLAG_ERROR;
-			break;
-		default:
-			break;
-		}
-	}
 }
 
 int V4L2CameraProxy::vidioc_querycap(V4L2CameraFile *file, struct v4l2_capability *arg)
@@ -583,8 +581,6 @@ int V4L2CameraProxy::vidioc_querybuf(V4L2CameraFile *file, struct v4l2_buffer *a
 	if (!validateBufferType(arg->type))
 		return -EINVAL;
 
-	updateBuffers();
-
 	*arg = buffers_[arg->index];
 
 	return 0;
@@ -671,29 +667,33 @@ int V4L2CameraProxy::vidioc_dqbuf(V4L2CameraFile *file, struct v4l2_buffer *arg,
 	    !validateMemoryType(arg->memory))
 		return -EINVAL;
 
+	std::optional<V4L2Camera::CompletedBuffer> b;
+
 	if (!file->nonBlocking()) {
 		lock->unlock();
-		vcam_->waitForBufferAvailable();
+		b = vcam_->nextBuffer(true);
 		lock->lock();
-	} else if (!vcam_->isBufferAvailable())
-		return -EAGAIN;
+	} else {
+		b = vcam_->nextBuffer(false);
+	}
 
 	/*
 	 * We need to check here again in case stream was turned off while we
-	 * were blocked on waitForBufferAvailable().
+	 * were blocked in nextBuffer().
 	 */
 	if (!vcam_->isRunning())
 		return -EINVAL;
 
-	updateBuffers();
+	if (!b)
+		return -EAGAIN;
 
-	struct v4l2_buffer &buf = buffers_[currentBuf_];
+	struct v4l2_buffer &buf = buffers_[b->index_];
+
+	updateBuffer(buf, b->data_);
 
 	buf.flags &= ~(V4L2_BUF_FLAG_QUEUED | V4L2_BUF_FLAG_DONE | V4L2_BUF_FLAG_PREPARED);
 	buf.length = sizeimage_;
 	*arg = buf;
-
-	currentBuf_ = (currentBuf_ + 1) % buffers_.size();
 
 	uint64_t data;
 	int ret = ::read(file->efd(), &data, sizeof(data));
@@ -749,8 +749,6 @@ int V4L2CameraProxy::vidioc_streamon(V4L2CameraFile *file, int *arg)
 
 	if (vcam_->isRunning())
 		return 0;
-
-	currentBuf_ = 0;
 
 	return vcam_->streamOn();
 }

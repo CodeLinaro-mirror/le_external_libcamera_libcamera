@@ -9,6 +9,7 @@
 
 #include <deque>
 #include <memory>
+#include <optional>
 #include <vector>
 
 #include <libcamera/base/mutex.h>
@@ -41,8 +42,6 @@ public:
 	void bind(int efd);
 	void unbind();
 
-	std::vector<CompletedBuffer> completedBuffers() LIBCAMERA_TSA_EXCLUDES(bufferLock_);
-
 	int configure(libcamera::StreamConfiguration *streamConfigOut,
 		      const libcamera::Size &size,
 		      const libcamera::PixelFormat &pixelformat,
@@ -63,14 +62,12 @@ public:
 
 	int qbuf(unsigned int index);
 
-	void waitForBufferAvailable() LIBCAMERA_TSA_EXCLUDES(bufferMutex_);
-	bool isBufferAvailable() LIBCAMERA_TSA_EXCLUDES(bufferMutex_);
+	std::optional<CompletedBuffer> nextBuffer(bool wait) LIBCAMERA_TSA_EXCLUDES(bufferMutex_);
 
 	bool isRunning();
 
 private:
-	void requestComplete(libcamera::Request *request)
-		LIBCAMERA_TSA_EXCLUDES(bufferLock_);
+	void requestComplete(libcamera::Request *request);
 
 	std::shared_ptr<libcamera::Camera> camera_;
 	std::unique_ptr<libcamera::CameraConfiguration> config_;
@@ -79,18 +76,16 @@ private:
 
 	bool isRunning_;
 
-	libcamera::Mutex bufferLock_;
 	std::unique_ptr<libcamera::FrameBufferAllocator> bufferAllocator_;
 
 	std::vector<std::unique_ptr<libcamera::Request>> requestPool_;
 
 	std::deque<libcamera::Request *> pendingRequests_;
 	std::deque<CompletedBuffer> completedBuffers_
-		LIBCAMERA_TSA_GUARDED_BY(bufferLock_);
+		LIBCAMERA_TSA_GUARDED_BY(bufferMutex_);
 
 	int efd_;
 
 	libcamera::Mutex bufferMutex_;
 	libcamera::ConditionVariable bufferCV_;
-	unsigned int bufferAvailableCount_ LIBCAMERA_TSA_GUARDED_BY(bufferMutex_);
 };

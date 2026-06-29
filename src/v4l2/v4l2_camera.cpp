@@ -20,7 +20,7 @@ LOG_DECLARE_CATEGORY(V4L2Compat)
 
 V4L2Camera::V4L2Camera(std::shared_ptr<Camera> camera)
 	: camera_(camera), controls_(controls::controls), isRunning_(false),
-	  efd_(-1), bufferAvailableCount_(0)
+	  efd_(-1)
 {
 	camera_->requestCompleted.connect(this, &V4L2Camera::requestComplete);
 }
@@ -68,38 +68,25 @@ void V4L2Camera::unbind()
 	efd_ = -1;
 }
 
-std::vector<V4L2Camera::CompletedBuffer> V4L2Camera::completedBuffers()
-{
-	MutexLocker lock(bufferLock_);
-	std::vector v(std::move_iterator(completedBuffers_.begin()),
-		      std::move_iterator(completedBuffers_.end()));
-
-	completedBuffers_.clear();
-
-	return v;
-}
-
 void V4L2Camera::requestComplete(Request *request)
 {
 	if (request->status() == Request::RequestCancelled)
 		return;
 
 	/* We only have one stream at the moment. */
-	bufferLock_.lock();
-	FrameBuffer *buffer = request->buffers().begin()->second;
-	completedBuffers_.emplace_back(buffer->cookie(), buffer->metadata());
-	bufferLock_.unlock();
-
-	uint64_t data = 1;
-	int ret = ::write(efd_, &data, sizeof(data));
-	if (ret != sizeof(data))
-		LOG(V4L2Compat, Error) << "Failed to signal eventfd POLLIN";
-
-	request->reuse();
 	{
 		MutexLocker locker(bufferMutex_);
-		bufferAvailableCount_++;
+		FrameBuffer *buffer = request->buffers().begin()->second;
+		completedBuffers_.emplace_back(buffer->cookie(), buffer->metadata());
+
+		uint64_t data = 1;
+		int ret = ::write(efd_, &data, sizeof(data));
+		if (ret != sizeof(data))
+			LOG(V4L2Compat, Error) << "Failed to signal eventfd POLLIN";
+
+		request->reuse();
 	}
+
 	bufferCV_.notify_all();
 }
 
@@ -281,24 +268,23 @@ int V4L2Camera::qbuf(unsigned int index)
 	return 0;
 }
 
-void V4L2Camera::waitForBufferAvailable()
+std::optional<V4L2Camera::CompletedBuffer> V4L2Camera::nextBuffer(bool wait)
 {
 	MutexLocker locker(bufferMutex_);
-	bufferCV_.wait(locker, [&]() LIBCAMERA_TSA_REQUIRES(bufferMutex_) {
-			       return bufferAvailableCount_ >= 1 || !isRunning_;
-		       });
-	if (isRunning_)
-		bufferAvailableCount_--;
-}
 
-bool V4L2Camera::isBufferAvailable()
-{
-	MutexLocker locker(bufferMutex_);
-	if (bufferAvailableCount_ < 1)
-		return false;
+	if (wait) {
+		bufferCV_.wait(locker, [&]() LIBCAMERA_TSA_REQUIRES(bufferMutex_) {
+		       return !completedBuffers_.empty() || !isRunning_;
+		});
+	}
 
-	bufferAvailableCount_--;
-	return true;
+	if (!isRunning_)
+		return {};
+
+	auto buffer = std::move(completedBuffers_.front());
+	completedBuffers_.pop_front();
+
+	return buffer;
 }
 
 bool V4L2Camera::isRunning()
