@@ -1459,6 +1459,11 @@ int Camera::queueRequest(Request *request)
 			LOG(Camera, Error) << "Invalid request";
 			return -EINVAL;
 		}
+
+		if (buffer) {
+			LOG(Camera, Error) << "Request contains buffers";
+			return -EINVAL;
+		}
 	}
 
 	/* Pre-process AeEnable. */
