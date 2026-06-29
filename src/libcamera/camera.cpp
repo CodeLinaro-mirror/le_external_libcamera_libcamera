@@ -1449,7 +1449,7 @@ int Camera::queueRequest(Request *request)
 	 */
 
 	if (request->buffers().empty()) {
-		LOG(Camera, Error) << "Request contains no buffers";
+		LOG(Camera, Error) << "Request contains no enabled streams";
 		return -EINVAL;
 	}
 
