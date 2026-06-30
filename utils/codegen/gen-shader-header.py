@@ -19,15 +19,14 @@ def process_file(name, out):
     hex_data = [f'0x{c:02x}' for c in data]
     var_name = os.path.basename(name).replace('.', '_')
 
-    out.write(f'unsigned char const {var_name}[] = {{\n')
+    out.write(f'static constexpr std::array<unsigned char, {len(data)}> {var_name}{{\n')
 
     for i in range(math.ceil(len(data) / 16)):
         out.write('\t')
         out.write(', '.join(hex_data[16 * i:16 * (i + 1)]))
         out.write(',\n')
 
-    out.write('};\n\n')
-    out.write(f'const unsigned int {var_name}_len = {len(data)};\n')
+    out.write('};\n')
 
 
 def main(argv):
@@ -44,6 +43,8 @@ def main(argv):
 /* This file is auto-generated, do not edit! */
 
 #pragma once
+
+#include <array>
 
 /*
  * List the names of the shaders at the top of header for readability's sake.
