@@ -551,6 +551,20 @@ std::optional<int> CameraSensorRaw::init()
 			return ret;
 	}
 
+	/*
+	 * Ensure auto-exposure is disabled in the sensor as the IPAs ought to
+	 * handle that.
+	 */
+	const struct v4l2_query_ext_ctrl *exposureAuto = subdev_->controlInfo(V4L2_CID_EXPOSURE_AUTO);
+	if (exposureAuto && !(exposureAuto->flags & V4L2_CTRL_FLAG_READ_ONLY)) {
+		ControlList ctrl(subdev_->controls());
+
+		ctrl.set(V4L2_CID_EXPOSURE_AUTO, V4L2_EXPOSURE_MANUAL);
+		ret = subdev_->setControls(&ctrl);
+		if (ret)
+			return ret;
+	}
+
 	ret = applyTestPatternMode(controls::draft::TestPatternModeEnum::TestPatternModeOff);
 	if (ret)
 		return { ret };
