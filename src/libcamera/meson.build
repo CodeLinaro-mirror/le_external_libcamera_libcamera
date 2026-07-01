@@ -90,13 +90,24 @@ libyaml = dependency('yaml-0.1', default_options : [
 # Use one of gnutls or libcrypto (provided by OpenSSL), trying gnutls first.
 libcrypto = dependency('gnutls', required : false)
 if libcrypto.found()
+    r = run_command('../../utils/check-algo.sh', 'guntls', get_option('ipa-signature-algo'), check: false)
+    if r.returncode() != 0
+        error('Unsupported signature algorithm (', 'guntls,', get_option('ipa-signature-algo'), ')')
+    endif
     config_h.set('HAVE_GNUTLS', 1)
 else
     libcrypto = dependency('libcrypto', required : false)
     if libcrypto.found()
+            r = run_command('../../utils/check-algo.sh', 'openssl',  get_option('ipa-signature-algo'), check: false)
+            if r.returncode() != 0
+                error('Unsupported signature algorithm. (', 'libcrypto,', get_option('ipa-signature-algo'), ')')
+            endif
         config_h.set('HAVE_CRYPTO', 1)
     endif
 endif
+
+# comply with FIPS 204
+config_h.set('IPA_MODULE_DIR_SIGNATURE_ALGO', '"' + get_option('ipa-signature-algo') + '"')
 
 if not libcrypto.found()
     warning('Neither gnutls nor libcrypto found, all IPA modules will be isolated')
