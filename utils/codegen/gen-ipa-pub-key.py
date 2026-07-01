@@ -21,7 +21,7 @@ def main(argv):
     output = argv[3]
 
     try:
-        ret = subprocess.run(['openssl', 'rsa', '-pubout', '-in', priv_key,
+        ret = subprocess.run(['openssl', 'pkey', '-pubout', '-in', priv_key,
                               '-outform', 'DER'],
                              stdout=subprocess.PIPE)
     except FileNotFoundError:
