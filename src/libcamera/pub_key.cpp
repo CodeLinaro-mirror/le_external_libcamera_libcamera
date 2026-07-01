@@ -14,7 +14,12 @@
 #include <openssl/x509.h>
 #elif HAVE_GNUTLS
 #include <gnutls/abstract.h>
+#include <gnutls/gnutls.h>
 #endif
+
+#include <libcamera/base/utils.h>
+
+#include "libcamera/internal/pub_key.h"
 
 /**
  * \file pub_key.h
@@ -28,12 +33,17 @@ namespace libcamera {
  * \brief Public key wrapper for signature verification
  *
  * The PubKey class wraps a public key and implements signature verification. It
- * only supports RSA keys and the RSA-SHA256 signature algorithm.
+ * supports RSA keys with the RSA-SHA256 signature algorithm, or ML-DSA-65 keys
+ * as specified in NIST FIPS 204. The signature algorithm is determined at
+ * compile time.
  */
 
 /**
  * \brief Construct a PubKey from key data
  * \param[in] key Key data encoded in DER format
+ *
+ * Supported key types are RSA (verified with RSA-SHA256) and ML-DSA-65
+ * (verified as ML-DSA-65 according to FIPS 204).
  */
 PubKey::PubKey([[maybe_unused]] Span<const uint8_t> key)
 	: valid_(false)
@@ -83,7 +93,7 @@ PubKey::~PubKey()
  * \param[in] sig The signature
  *
  * Verify that the signature \a sig matches the signed \a data for the public
- * key. The signture algorithm is hardcoded to RSA-SHA256.
+ * key.
  *
  * \return True if the signature is valid, false otherwise
  */
@@ -94,30 +104,21 @@ bool PubKey::verify([[maybe_unused]] Span<const uint8_t> data,
 		return false;
 
 #if HAVE_CRYPTO
-	/*
-	 * Create and initialize a public key algorithm context for signature
-	 * verification.
-	 */
-	EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pubkey_, nullptr);
+	EVP_MD_CTX *ctx = EVP_MD_CTX_new();
 	if (!ctx)
 		return false;
 
-	if (EVP_PKEY_verify_init(ctx) <= 0 ||
-	    EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0 ||
-	    EVP_PKEY_CTX_set_signature_md(ctx, EVP_sha256()) <= 0) {
-		EVP_PKEY_CTX_free(ctx);
+	utils::scope_exit ctxGuard([&] { EVP_MD_CTX_free(ctx); });
+
+	if (EVP_DigestVerifyInit(ctx, nullptr, nullptr, nullptr,
+				 pubkey_) <= 0)
 		return false;
-	}
 
-	/* Calculate the SHA256 digest of the data. */
-	uint8_t digest[SHA256_DIGEST_LENGTH];
-	SHA256(data.data(), data.size(), digest);
+	int ret = EVP_DigestVerify(ctx, sig.data(), sig.size(),
+				   data.data(), data.size());
 
-	/* Decrypt the signature and verify it matches the digest. */
-	int ret = EVP_PKEY_verify(ctx, sig.data(), sig.size(), digest,
-				  SHA256_DIGEST_LENGTH);
-	EVP_PKEY_CTX_free(ctx);
 	return ret == 1;
+
 #elif HAVE_GNUTLS
 	const gnutls_datum_t gnuTlsData{
 		const_cast<unsigned char *>(data.data()),
@@ -129,8 +130,12 @@ bool PubKey::verify([[maybe_unused]] Span<const uint8_t> data,
 		static_cast<unsigned int>(sig.size())
 	};
 
-	int ret = gnutls_pubkey_verify_data2(pubkey_, GNUTLS_SIGN_RSA_SHA256, 0,
+	constexpr gnutls_sign_algorithm_t algo =
+		std::string(IPA_MODULE_DIR_SIGNATURE_ALGO) == std::string("ml-dsa-65") ? GNUTLS_SIGN_MLDSA65 : GNUTLS_SIGN_RSA_SHA256;
+
+	int ret = gnutls_pubkey_verify_data2(pubkey_, algo, 0,
 					     &gnuTlsData, &gnuTlsSig);
+
 	return ret >= 0;
 #else
 	return false;
