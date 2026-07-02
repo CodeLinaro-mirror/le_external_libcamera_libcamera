@@ -435,20 +435,54 @@ gst_libcamera_stream_configuration_to_caps(const StreamConfiguration &stream_cfg
 	return caps;
 }
 
-void gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
+/*
+ * We will want to distinguish between caps structures corresponding to
+ * raw and non-raw (processed) output images, as this will help inform
+ * our choice of preferred format.
+ *
+ * We identify Bayer as being the principle "raw" format here, but note
+ * that we are considering greyscale to be raw too (e.g. a raw
+ * monochrome sensor).
+ */
+static bool
+gst_libcamera_structure_is_raw_capture(const GstStructure *s)
+{
+	if (gst_structure_has_name(s, "video/x-bayer"))
+		return true;
+
+	if (gst_structure_has_name(s, "video/x-raw")) {
+		const gchar *format = gst_structure_get_string(s, "format");
+
+		if (format && (!strcmp(format, "GRAY8") || !strcmp(format, "GRAY16_LE") ||
+			       !strcmp(format, "GRAY10_LE16")))
+			return true;
+	}
+
+	return false;
+}
+
+bool gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
 					      GstCaps *caps, GstVideoTransferFunction *transfer)
 {
 	GstVideoFormat gst_format = pixel_format_to_gst_format(stream_cfg.pixelFormat);
 	guint i;
-	gint best_fixed = -1, best_in_range = -1;
 	GstStructure *s;
 
 	/*
-	 * These are delta weight computed from:
-	 *   ABS(width - stream_cfg.size.width) * ABS(height - stream_cfg.size.height)
+	 * Track the best size match (by delta weight, see below) separately
+	 * for raw sensor capture structures (Bayer/mono) and non-raw ones.
+	 * The previous logic that preferred fixed sizes over a range is
+	 * preserved within each of these "families".
 	 */
-	guint best_fixed_delta = G_MAXUINT;
-	guint best_in_range_delta = G_MAXUINT;
+	struct FormatMatch {
+		bool seen = false;
+		gint fixed = -1;
+		guint fixed_delta = G_MAXUINT;
+		gint in_range = -1;
+		guint in_range_delta = G_MAXUINT;
+
+		gint best() const { return fixed >= 0 ? fixed : in_range; }
+	} raw, non_raw;
 
 	/* First fixate the caps using default configuration value. */
 	g_assert(gst_caps_is_writable(caps));
@@ -458,38 +492,50 @@ void gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
 		s = gst_caps_get_structure(caps, i);
 		gint width, height;
 		guint delta;
+		bool is_fixed = gst_structure_has_field_typed(s, "width", G_TYPE_INT) &&
+				gst_structure_has_field_typed(s, "height", G_TYPE_INT);
 
-		if (gst_structure_has_field_typed(s, "width", G_TYPE_INT) &&
-		    gst_structure_has_field_typed(s, "height", G_TYPE_INT)) {
+		if (is_fixed) {
 			gst_structure_get_int(s, "width", &width);
 			gst_structure_get_int(s, "height", &height);
-
-			delta = ABS(width - (gint)stream_cfg.size.width) * ABS(height - (gint)stream_cfg.size.height);
-
-			if (delta < best_fixed_delta) {
-				best_fixed_delta = delta;
-				best_fixed = i;
-			}
 		} else {
 			gst_structure_fixate_field_nearest_int(s, "width", stream_cfg.size.width);
 			gst_structure_fixate_field_nearest_int(s, "height", stream_cfg.size.height);
 			gst_structure_get_int(s, "width", &width);
 			gst_structure_get_int(s, "height", &height);
+		}
 
-			delta = ABS(width - (gint)stream_cfg.size.width) * ABS(height - (gint)stream_cfg.size.height);
+		delta = ABS(width - (gint)stream_cfg.size.width) * ABS(height - (gint)stream_cfg.size.height);
 
-			if (delta < best_in_range_delta) {
-				best_in_range_delta = delta;
-				best_in_range = i;
+		FormatMatch &match = gst_libcamera_structure_is_raw_capture(s) ? raw : non_raw;
+		match.seen = true;
+		if (is_fixed) {
+			if (delta < match.fixed_delta) {
+				match.fixed_delta = delta;
+				match.fixed = i;
 			}
+		} else if (delta < match.in_range_delta) {
+			match.in_range_delta = delta;
+			match.in_range = i;
 		}
 	}
 
-	/* Prefer reliable fixed value over ranges */
-	if (best_fixed >= 0)
-		s = gst_caps_get_structure(caps, best_fixed);
-	else
-		s = gst_caps_get_structure(caps, best_in_range);
+	/*
+	 * Raw foramts are likely to be useful only to applications that
+	 * specifically ask for them. Other applications will typically be
+	 * unable to handle them and fail. Therefore return a non-raw match
+	 * if we have one, falling back to raw formats if that's all that
+	 * was requested. Note how both raw and non-raw variants preserve
+	 * the previous "prefer fixed" behaviour in their own right.
+	 */
+	gint best = non_raw.best() >= 0 ? non_raw.best() : raw.best();
+
+	if (best < 0) {
+		GST_WARNING("Failed to find a suitable caps structure to configure the stream");
+		return false;
+	}
+
+	s = gst_caps_get_structure(caps, best);
 
 	if (gst_structure_has_name(s, "video/x-raw")) {
 		const gchar *format = gst_video_format_to_string(gst_format);
@@ -529,6 +575,8 @@ void gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
 
 		stream_cfg.colorSpace = colorspace_from_colorimetry(colorimetry, transfer);
 	}
+
+	return true;
 }
 
 void gst_libcamera_get_framerate_from_caps(GstCaps *caps,
