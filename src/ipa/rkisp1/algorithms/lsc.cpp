@@ -532,12 +532,27 @@ void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
 	}
 
 	auto config = params->block<BlockType::Lsc>();
-	config.setEnabled(frameContext.lsc.enabled);
-
-	if (!frameContext.lsc.enabled)
-		return;
+	/*
+	 * ISP lockups were observed when toggling the LSC enable bit
+	 * repeatedly. There is no known kernel side fix. Workaround the issue
+	 * by leaving lsc enabled all the time and setting the gain values to
+	 * 1.0 in case lsc should be disabled.
+	 */
+	config.setEnabled(true);
 
 	setParameters(*config);
+
+	if (!frameContext.lsc.enabled) {
+		for (int i = 0; i < RKISP1_CIF_ISP_LSC_SAMPLES_MAX; i++) {
+			for (int j = 0; j < RKISP1_CIF_ISP_LSC_SAMPLES_MAX; j++) {
+				config->r_data_tbl[i][j] = 1024;
+				config->gr_data_tbl[i][j] = 1024;
+				config->gb_data_tbl[i][j] = 1024;
+				config->b_data_tbl[i][j] = 1024;
+			}
+		}
+		return;
+	}
 
 	const Components &set = sets_.getInterpolated(quantizedCt);
 	copyTable(*config, set);
