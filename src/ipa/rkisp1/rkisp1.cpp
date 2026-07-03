@@ -328,10 +328,10 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 		stats = reinterpret_cast<rkisp1_stat_buffer *>(
 			mappedBuffers_.at(bufferId).planes()[0].data());
 
-	frameContext.sensor.exposure =
-		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
-	frameContext.sensor.gain =
-		context_.camHelper->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>());
+	frameContext.sensor = {
+		.exposure = static_cast<uint32_t>(sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>()),
+		.gain = context_.camHelper->gain(sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>()),
+	};
 
 	ControlList metadata(controls::controls);
 

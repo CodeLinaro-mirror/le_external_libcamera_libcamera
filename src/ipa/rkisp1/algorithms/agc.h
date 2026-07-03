@@ -47,14 +47,8 @@ private:
 	uint8_t computeHistogramPredivider(const Size &size,
 					   enum rkisp1_cif_isp_histogram_mode mode);
 
-	void fillMetadata(IPAContext &context, IPAFrameContext &frameContext,
-			  ControlList &metadata);
-	void processFrameDuration(IPAContext &context,
-				  IPAFrameContext &frameContext,
-				  utils::Duration frameDuration);
-
 	std::map<int32_t, std::vector<uint8_t>> meteringModes_;
-	AgcMeanLuminance agc_;
+	AgcMeanLuminanceAlgorithm agc_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */
