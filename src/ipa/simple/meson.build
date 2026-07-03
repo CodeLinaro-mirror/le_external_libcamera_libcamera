@@ -6,6 +6,7 @@ subdir('data')
 ipa_name = 'ipa_soft_simple'
 
 soft_simple_sources = files([
+    'agc_simple.cpp',
     'ipa_context.cpp',
     'soft_simple.cpp',
 ])

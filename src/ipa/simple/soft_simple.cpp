@@ -5,7 +5,6 @@
  * Simple Software Image Processing Algorithm module
  */
 
-#include <chrono>
 #include <stdint.h>
 #include <sys/mman.h>
 
@@ -33,8 +32,6 @@
 
 namespace libcamera {
 LOG_DEFINE_CATEGORY(IPASoft)
-
-using namespace std::literals::chrono_literals;
 
 namespace ipa::soft {
 
@@ -76,8 +73,6 @@ private:
 
 	DebayerParams *params_;
 	SwIspStats *stats_;
-	std::unique_ptr<CameraSensorHelper> camHelper_;
-	ControlInfoMap sensorInfoMap_;
 
 	/* Local parameter storage */
 	struct IPAContext context_;
@@ -99,14 +94,15 @@ int IPASoftSimple::init(const IPASettings &settings,
 			ControlInfoMap *ipaControls,
 			bool *ccmEnabled)
 {
-	camHelper_ = CameraSensorHelperFactoryBase::create(settings.sensorModel);
-	if (!camHelper_) {
+	context_.camHelper = CameraSensorHelperFactoryBase::create(settings.sensorModel);
+	if (!context_.camHelper) {
 		LOG(IPASoft, Warning)
 			<< "Failed to create camera sensor helper for "
 			<< settings.sensorModel;
 	}
 
 	context_.sensorInfo = sensorInfo;
+	context_.sensorControls = sensorControls;
 
 	/* Load the tuning data file */
 	File file(settings.configurationFile);
@@ -201,38 +197,15 @@ int IPASoftSimple::init(const IPASettings &settings,
 
 int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 {
-	sensorInfoMap_ = configInfo.sensorControls;
-
-	const ControlInfo &exposureInfo = sensorInfoMap_.find(V4L2_CID_EXPOSURE)->second;
-	const ControlInfo &gainInfo = sensorInfoMap_.find(V4L2_CID_ANALOGUE_GAIN)->second;
+	context_.sensorControls = configInfo.sensorControls;
 
 	/* Clear the IPA context before the streaming session. */
 	context_.configuration = {};
 	context_.activeState = {};
 	context_.frameContexts.clear();
 
-	context_.configuration.agc.lineDuration =
-		context_.sensorInfo.minLineLength * 1.0s / context_.sensorInfo.pixelRate;
-	context_.configuration.agc.exposureMin = exposureInfo.min().get<int32_t>();
-	context_.configuration.agc.exposureMax = exposureInfo.max().get<int32_t>();
-	if (!context_.configuration.agc.exposureMin) {
-		LOG(IPASoft, Warning) << "Minimum exposure is zero, that can't be linear";
-		context_.configuration.agc.exposureMin = 1;
-	}
-
-	int32_t againMin = gainInfo.min().get<int32_t>();
-	int32_t againMax = gainInfo.max().get<int32_t>();
-	int32_t againDef = gainInfo.def().get<int32_t>();
-
-	if (camHelper_) {
-		context_.configuration.agc.againMin = camHelper_->gain(againMin);
-		context_.configuration.agc.againMax = camHelper_->gain(againMax);
-		context_.configuration.agc.again10 = std::max(context_.configuration.agc.againMin, 1.0);
-		context_.configuration.agc.againMinStep =
-			(context_.configuration.agc.againMax -
-			 context_.configuration.agc.againMin) /
-			100.0;
-		if (camHelper_->blackLevel().has_value()) {
+	if (context_.camHelper) {
+		if (context_.camHelper->blackLevel().has_value()) {
 			/*
 			 * The black level from camHelper_ is a 16 bit value, software ISP
 			 * works with 8 bit pixel values, both regardless of the actual
@@ -240,13 +213,8 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 			 * by dividing the value from the helper by 256.
 			 */
 			context_.configuration.black.level =
-				camHelper_->blackLevel().value() / 256;
+				context_.camHelper->blackLevel().value() / 256;
 		}
-	} else {
-		context_.configuration.agc.againMax = againMax;
-		context_.configuration.agc.again10 = againDef;
-		context_.configuration.agc.againMin = againMin;
-		context_.configuration.agc.againMinStep = 1.0;
 	}
 
 	for (const auto &algo : algorithms()) {
@@ -254,13 +222,6 @@ int IPASoftSimple::configure(const IPAConfigInfo &configInfo)
 		if (ret)
 			return ret;
 	}
-
-	LOG(IPASoft, Info)
-		<< "Exposure " << context_.configuration.agc.exposureMin << "-"
-		<< context_.configuration.agc.exposureMax
-		<< ", gain " << context_.configuration.agc.againMin << "-"
-		<< context_.configuration.agc.againMax
-		<< " (" << context_.configuration.agc.againMinStep << ")";
 
 	return 0;
 }
@@ -311,17 +272,17 @@ void IPASoftSimple::processStats(const uint32_t frame,
 	frameContext.sensor.exposure =
 		sensorControls.get(V4L2_CID_EXPOSURE).get<int32_t>();
 	int32_t again = sensorControls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
-	frameContext.sensor.gain = camHelper_ ? camHelper_->gain(again) : again;
+	frameContext.sensor.gain = context_.camHelper ? context_.camHelper->gain(again) : again;
 
 	ControlList metadata(controls::controls);
 	for (const auto &algo : algorithms())
 		algo->process(context_, frame, frameContext, stats_, metadata);
 	metadataReady.emit(frame, metadata);
 
-	ControlList ctrls(sensorInfoMap_);
+	ControlList ctrls(context_.sensorControls);
 
-	int32_t againNew = camHelper_
-		? camHelper_->gainCode(frameContext.agc.gain)
+	int32_t againNew = context_.camHelper
+		? context_.camHelper->gainCode(frameContext.agc.gain)
 		: static_cast<int32_t>(frameContext.agc.gain);
 	ctrls.set(V4L2_CID_EXPOSURE, frameContext.agc.exposure);
 	ctrls.set(V4L2_CID_ANALOGUE_GAIN, againNew);

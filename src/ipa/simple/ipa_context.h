@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <array>
 #include <optional>
 #include <stdint.h>
 
@@ -16,9 +15,12 @@
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
 
+#include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
 #include "core_ipa_interface.h"
+
+#include "agc_simple.h"
 
 namespace libcamera {
 
@@ -26,9 +28,8 @@ namespace ipa::soft {
 
 struct IPASessionConfiguration {
 	struct {
-		int32_t exposureMin, exposureMax;
-		double againMin, againMax, again10, againMinStep;
-		utils::Duration lineDuration;
+		AgcSimpleAlgorithm::Session simple;
+		double again10, againMinStep;
 	} agc;
 	struct {
 		std::optional<uint8_t> level;
@@ -37,9 +38,7 @@ struct IPASessionConfiguration {
 
 struct IPAActiveState {
 	struct {
-		int32_t exposure;
-		double again;
-		bool valid;
+		AgcSimpleAlgorithm::ActiveState simple;
 	} agc;
 
 	struct {
@@ -67,6 +66,7 @@ struct IPAFrameContext : public FrameContext {
 	Matrix<float, 3, 3> ccm;
 
 	struct {
+		AgcSimpleAlgorithm::FrameContext simple;
 		int32_t exposure;
 		double gain;
 	} agc;
@@ -90,10 +90,12 @@ struct IPAContext {
 	}
 
 	IPACameraSensorInfo sensorInfo;
+	ControlInfoMap sensorControls;
 	IPASessionConfiguration configuration;
 	IPAActiveState activeState;
 	FCQueue<IPAFrameContext> frameContexts;
 	ControlInfoMap::Map ctrlMap;
+	std::unique_ptr<CameraSensorHelper> camHelper;
 	bool ccmEnabled = false;
 };
 
