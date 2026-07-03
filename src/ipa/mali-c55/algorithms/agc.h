@@ -68,7 +68,7 @@ private:
 	void fillWeightsArrayBuffer(MaliC55Params *params, enum MaliC55Blocks type);
 
 	AgcStatistics statistics_;
-	AgcMeanLuminance agc_;
+	AgcMeanLuminanceAlgorithm agc_;
 };
 
 } /* namespace ipa::mali_c55::algorithms */
