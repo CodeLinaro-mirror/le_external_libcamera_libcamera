@@ -78,7 +78,7 @@ public:
 		return exposureModeHelpers_;
 	}
 
-	ControlInfoMap::Map controls()
+	const ControlInfoMap::Map &controls() const
 	{
 		return controls_;
 	}
