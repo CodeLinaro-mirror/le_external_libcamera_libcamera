@@ -57,6 +57,7 @@ headers="
 	linux/media/arm/mali-c55-config.h
 	linux/media/v4l2-isp.h
 	linux/rkisp1-config.h
+	linux/rkisp2-config.h
 	linux/stddef.h
 	linux/udmabuf.h
 	linux/v4l2-common.h
