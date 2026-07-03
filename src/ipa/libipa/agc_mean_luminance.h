@@ -9,12 +9,16 @@
 
 #include <map>
 #include <memory>
+#include <optional>
 #include <tuple>
 #include <vector>
 
 #include <libcamera/base/utils.h>
 
+#include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
+
+#include <libcamera/ipa/core_ipa_interface.h>
 
 #include "libcamera/internal/value_node.h"
 
@@ -113,6 +117,98 @@ private:
 	std::map<int32_t, std::vector<AgcConstraint>> constraintModes_;
 	std::map<int32_t, std::shared_ptr<ExposureModeHelper>> exposureModeHelpers_;
 	ControlInfoMap::Map controls_;
+};
+
+class AgcMeanLuminanceAlgorithm
+{
+public:
+	struct Session {
+		utils::Duration minExposureTime;
+		utils::Duration maxExposureTime;
+		double minAnalogueGain;
+		double maxAnalogueGain;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
+
+		utils::Duration lineDuration;
+
+		struct {
+			Size outputSize;
+		} sensor;
+
+		bool autoAllowed;
+	};
+
+	struct ActiveState {
+		struct {
+			uint32_t exposure;
+			double gain;
+		} manual;
+		struct {
+			uint32_t exposure;
+			double gain;
+			double quantizationGain;
+			double yTarget;
+		} automatic;
+
+		bool autoExposureEnabled;
+		bool autoGainEnabled;
+		double exposureValue;
+		controls::AeConstraintModeEnum constraintMode;
+		controls::AeExposureModeEnum exposureMode;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
+	};
+
+	struct FrameContext {
+		uint32_t exposure;
+		double gain;
+		double quantizationGain;
+		double exposureValue;
+		double yTarget;
+		uint32_t vblank;
+		bool autoExposureEnabled;
+		bool autoGainEnabled;
+		controls::AeConstraintModeEnum constraintMode;
+		controls::AeExposureModeEnum exposureMode;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
+		utils::Duration frameDuration;
+		bool autoExposureModeChange;
+		bool autoGainModeChange;
+	};
+
+	struct ConfigurationParams {
+		const CameraSensorHelper &sensor;
+		const IPACameraSensorInfo &sensorInfo;
+		const ControlInfoMap &sensorControls;
+		ControlInfoMap::Map &ctrlMap;
+		bool autoAllowed = true;
+	};
+
+	int init(const ValueNode &tuningData);
+
+	int configure(Session &session, ActiveState &state, const ConfigurationParams &config);
+
+	void queueRequest(const Session &session, ActiveState &state,
+			  FrameContext &frameContext, const ControlList &controls);
+
+	void prepare(ActiveState &state, FrameContext &frameContext);
+
+	struct ProcessParams {
+		const AgcMeanLuminance::Traits &traits;
+		const Histogram &hist;
+		uint32_t exposure;
+		double gain;
+		std::vector<AgcMeanLuminance::AgcConstraint> &&additionalConstraints = {};
+		unsigned int lux = 0;
+	};
+
+	void process(const Session &session, ActiveState &state, FrameContext &frameContext,
+		     std::optional<ProcessParams> &&params, ControlList &metadata);
+
+private:
+	AgcMeanLuminance impl_;
 };
 
 } /* namespace ipa */
