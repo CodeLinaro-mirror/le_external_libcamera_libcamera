@@ -7,6 +7,10 @@
 
 #pragma once
 
+#include <variant>
+
+#include <libipa/agc_mean_luminance.h>
+
 #include "algorithm.h"
 #include "agc_simple.h"
 
@@ -30,7 +34,10 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	AgcSimpleAlgorithm agc_;
+	std::variant<
+		AgcSimpleAlgorithm,
+		AgcMeanLuminanceAlgorithm
+	> agc_;
 };
 
 } /* namespace ipa::soft::algorithms */

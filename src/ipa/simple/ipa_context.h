@@ -15,6 +15,7 @@
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
 
+#include <libipa/agc_mean_luminance.h>
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
@@ -29,6 +30,7 @@ namespace ipa::soft {
 struct IPASessionConfiguration {
 	struct {
 		AgcSimpleAlgorithm::Session simple;
+		AgcMeanLuminanceAlgorithm::Session ml;
 		double again10, againMinStep;
 	} agc;
 	struct {
@@ -39,6 +41,7 @@ struct IPASessionConfiguration {
 struct IPAActiveState {
 	struct {
 		AgcSimpleAlgorithm::ActiveState simple;
+		AgcMeanLuminanceAlgorithm::ActiveState ml;
 	} agc;
 
 	struct {
@@ -67,6 +70,7 @@ struct IPAFrameContext : public FrameContext {
 
 	struct {
 		AgcSimpleAlgorithm::FrameContext simple;
+		AgcMeanLuminanceAlgorithm::FrameContext ml;
 		int32_t exposure;
 		double gain;
 	} agc;
