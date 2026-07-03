@@ -464,7 +464,7 @@ void WideDynamicRange::process(IPAContext &context, [[maybe_unused]] const uint3
 
 	/* Calculate the gain needed to reach the requested yTarget. */
 	double value = cumHist.interQuantileMean(0, 1.0) / cumHist.bins();
-	double gain = context.activeState.agc.automatic.yTarget / value;
+	double gain = context.activeState.agc.yTarget / value;
 	gain = std::max(gain, 1.0);
 
 	double speed = 0.2;

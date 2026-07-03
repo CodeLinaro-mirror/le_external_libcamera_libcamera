@@ -128,7 +128,7 @@ int Agc::init(IPAContext &context, const ValueNode &tuningData)
 		return ret;
 
 	ret = agc_.configure(context.configuration.agc, context.activeState.agc, {
-		.sensor = *context.camHelper,
+		.sensor = context.camHelper.get(),
 		.sensorInfo = context.sensorInfo,
 		.sensorControls = context.sensorControls,
 		.ctrlMap = context.ctrlMap,
@@ -148,7 +148,7 @@ int Agc::configure(IPAContext &context,
 		return ret;
 
 	ret = agc_.configure(context.configuration.agc, context.activeState.agc, {
-		.sensor = *context.camHelper,
+		.sensor = context.camHelper.get(),
 		.sensorInfo = context.sensorInfo,
 		.sensorControls = context.sensorControls,
 		.ctrlMap = context.ctrlMap,

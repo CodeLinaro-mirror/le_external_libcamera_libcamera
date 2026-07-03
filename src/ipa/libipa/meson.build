@@ -2,6 +2,7 @@
 
 libipa_headers = files([
     'agc_mean_luminance.h',
+    'agc.h',
     'algorithm.h',
     'awb_bayes.h',
     'awb_grey.h',
@@ -23,6 +24,7 @@ libipa_headers = files([
 
 libipa_sources = files([
     'agc_mean_luminance.cpp',
+    'agc.cpp',
     'algorithm.cpp',
     'awb_bayes.cpp',
     'awb_grey.cpp',

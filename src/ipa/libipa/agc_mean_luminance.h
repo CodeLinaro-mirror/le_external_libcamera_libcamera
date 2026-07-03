@@ -22,6 +22,7 @@
 
 #include "libcamera/internal/value_node.h"
 
+#include "agc.h"
 #include "exposure_mode_helper.h"
 #include "histogram.h"
 #include "pwl.h"
@@ -119,71 +120,23 @@ private:
 	ControlInfoMap::Map controls_;
 };
 
-class AgcMeanLuminanceAlgorithm
+class AgcMeanLuminanceAlgorithm : public AgcAlgorithm
 {
 public:
-	struct Session {
-		utils::Duration minExposureTime;
-		utils::Duration maxExposureTime;
-		double minAnalogueGain;
-		double maxAnalogueGain;
-		utils::Duration minFrameDuration;
-		utils::Duration maxFrameDuration;
-
-		utils::Duration lineDuration;
-
-		struct {
-			Size outputSize;
-		} sensor;
-
-		bool autoAllowed;
-	};
-
-	struct ActiveState {
-		struct {
-			uint32_t exposure;
-			double gain;
-		} manual;
-		struct {
-			uint32_t exposure;
-			double gain;
-			double quantizationGain;
-			double yTarget;
-		} automatic;
-
-		bool autoExposureEnabled;
-		bool autoGainEnabled;
-		double exposureValue;
-		controls::AeConstraintModeEnum constraintMode;
-		controls::AeExposureModeEnum exposureMode;
-		utils::Duration minFrameDuration;
-		utils::Duration maxFrameDuration;
-	};
-
-	struct FrameContext {
-		uint32_t exposure;
-		double gain;
+	struct ActiveState : AgcAlgorithm::ActiveState {
 		double quantizationGain;
-		double exposureValue;
 		double yTarget;
-		uint32_t vblank;
-		bool autoExposureEnabled;
-		bool autoGainEnabled;
+		double exposureValue;
 		controls::AeConstraintModeEnum constraintMode;
 		controls::AeExposureModeEnum exposureMode;
-		utils::Duration minFrameDuration;
-		utils::Duration maxFrameDuration;
-		utils::Duration frameDuration;
-		bool autoExposureModeChange;
-		bool autoGainModeChange;
 	};
 
-	struct ConfigurationParams {
-		const CameraSensorHelper &sensor;
-		const IPACameraSensorInfo &sensorInfo;
-		const ControlInfoMap &sensorControls;
-		ControlInfoMap::Map &ctrlMap;
-		bool autoAllowed = true;
+	struct FrameContext : AgcAlgorithm::FrameContext {
+		double quantizationGain;
+		double yTarget;
+		double exposureValue;
+		controls::AeConstraintModeEnum constraintMode;
+		controls::AeExposureModeEnum exposureMode;
 	};
 
 	int init(const ValueNode &tuningData);
