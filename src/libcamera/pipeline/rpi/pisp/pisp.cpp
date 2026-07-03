@@ -1766,6 +1766,8 @@ void PiSPCameraData::cfeBufferDequeue(FrameBuffer *buffer)
 
 		ctrl.set(controls::SensorTimestamp, sensorTimestamp);
 		ctrl.set(controls::FrameWallClock, wallClockTimestamp);
+		ctrl.set(controls::SensorSequence,
+			 static_cast<int64_t>(buffer->metadata().sequence));
 		job.sensorControls = std::move(ctrl);
 		job.delayContext = delayContext;
 	} else if (stream == &cfe_[Cfe::Config]) {

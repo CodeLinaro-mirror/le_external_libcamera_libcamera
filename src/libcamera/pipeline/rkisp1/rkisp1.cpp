@@ -1647,6 +1647,8 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		 */
 		request->_d()->metadata().set(controls::SensorTimestamp,
 					      metadata.timestamp);
+		request->_d()->metadata().set(controls::SensorSequence,
+					      static_cast<int64_t>(metadata.sequence));
 
 		if (isRaw_) {
 			const ControlList &ctrls =

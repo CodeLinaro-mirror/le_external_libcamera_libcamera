@@ -1704,6 +1704,8 @@ void PipelineHandlerMaliC55::cruBufferReady(FrameBuffer *buffer)
 	Request *request = info->request;
 	request->_d()->metadata().set(controls::SensorTimestamp,
 				      buffer->metadata().timestamp);
+	request->_d()->metadata().set(controls::SensorSequence,
+				      static_cast<int64_t>(buffer->metadata().sequence));
 
 	MaliC55CameraData *data = cameraData(request->_d()->camera());
 	data->ipa_->fillParams(request->sequence(), info->paramBuffer->cookie());

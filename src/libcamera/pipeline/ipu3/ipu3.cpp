@@ -1317,6 +1317,8 @@ void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 	 */
 	request->_d()->metadata().set(controls::SensorTimestamp,
 				      buffer->metadata().timestamp);
+	request->_d()->metadata().set(controls::SensorSequence,
+				      static_cast<int64_t>(buffer->metadata().sequence));
 
 	info->effectiveSensorControls = delayedCtrls_->get(buffer->metadata().sequence);
 
