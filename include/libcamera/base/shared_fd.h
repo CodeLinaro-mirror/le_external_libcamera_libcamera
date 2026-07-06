@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <functional>
 #include <memory>
 
 namespace libcamera {
@@ -57,3 +58,11 @@ static inline bool operator!=(const SharedFD &lhs, const SharedFD &rhs)
 }
 
 } /* namespace libcamera */
+
+template<>
+struct std::hash<libcamera::SharedFD> : private std::hash<int> {
+	auto operator()(const libcamera::SharedFD &x) const noexcept
+	{
+		return std::hash<int>::operator()(x.get());
+	}
+};
