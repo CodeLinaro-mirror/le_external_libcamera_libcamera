@@ -50,6 +50,13 @@ void interpolateVector(const std::vector<T> &a, const std::vector<T> &b,
 }
 
 template<>
+void Interpolator<lsc::Components<uint8_t>>::
+	interpolate(const lsc::Components<uint8_t> &a,
+		    const lsc::Components<uint8_t> &b,
+		    lsc::Components<uint8_t> &dest,
+		    double lambda);
+
+template<>
 void Interpolator<lsc::Components<uint16_t>>::
 	interpolate(const lsc::Components<uint16_t> &a,
 		    const lsc::Components<uint16_t> &b,
