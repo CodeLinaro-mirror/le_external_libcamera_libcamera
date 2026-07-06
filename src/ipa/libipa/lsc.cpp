@@ -269,7 +269,7 @@ void LscAlgorithmBase::process(lsc::FrameContext &context, ControlList &metadata
  * analogCrop on a grid specified by \a xPos and \a yPos. Re-sampling of
  * lsc data is currently supported by polynomial-based lsc tables.
  *
- * \sa LscImplementation::sampleForCrop
+ * \sa LscImplementation::resampleLscData
  *
  * \return 0 on success, a negative error code otherwise
  */

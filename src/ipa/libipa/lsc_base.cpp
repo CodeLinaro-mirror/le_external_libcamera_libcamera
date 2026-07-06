@@ -127,7 +127,7 @@ void Interpolator<lsc::Components<uint16_t>>::
  */
 
 /**
- * \fn LscImplementation::sampleForCrop
+ * \fn LscImplementation::resampleLscData
  * \brief Re-sample the lsc components for \a cropRectangle
  * \param[in] cropRectangle The sensor analogue crop rectangle
  * \param[in] xPos List of horizontal positions of the lsc grid nodes
