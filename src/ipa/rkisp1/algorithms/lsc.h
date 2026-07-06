@@ -42,7 +42,8 @@ public:
 		     ControlList &metadata) override;
 private:
 	void setParameters(rkisp1_cif_isp_lsc_config &config);
-	void copyTable(rkisp1_cif_isp_lsc_config &config, const lsc::Components &set0);
+	void copyTable(rkisp1_cif_isp_lsc_config &config,
+		       const lsc::Components<uint16_t> &set0);
 	std::vector<double> parseSizes(const ValueNode &tuningData,
 				       const char *prop);
 	std::vector<double> sizesListToPositions(Span<const double> sizes);

@@ -32,25 +32,28 @@ namespace ipa {
 namespace lsc {
 
 /**
- * \typedef Components
+ * \class Components
  * \brief Associate a colour components with a list of gains
+ * \tparam T The type used to store the gain values when loaded from tuning file
  *
  * Lsc tables are defined as a list of gain values associated to a colour
  * component.
  *
  * As different ISP support different colour components (usually 'r', 'gr',
  * 'gb', 'b' or just 'r', 'g', 'b') this class associates a string
- * identifier for the colour component to a list of gains.
+ * identifier for the colour component to a list of gains of type \a T.
  *
- * Each key name shall match an entry in the tuning file.
+ * Each key name shall match an entry in the tuning file and the type \a T
+ * shall match the size of the registers where gains are stored.
  *
  * The list of keys is provided to the LscAlgorithm class using \a
  * LscDescriptor::keys.
  */
 
 /**
- * \typedef ComponentsMap
+ * \class ComponentsMap
  * \brief Associate a colour temperature to a lsc table
+ * \tparam T The type used to store the gain values when loaded from tuning file
  *
  * An lsc table is generated during the tuning phase for a specific light
  * temperature, and a tuning file usually contains lsc tables generated for
@@ -61,10 +64,10 @@ namespace lsc {
 
 #ifndef __DOXYGEN__
 template<>
-void Interpolator<lsc::Components>::
-	interpolate(const lsc::Components &a,
-		    const lsc::Components &b,
-		    lsc::Components &dest,
+void Interpolator<lsc::Components<uint16_t>>::
+	interpolate(const lsc::Components<uint16_t> &a,
+		    const lsc::Components<uint16_t> &b,
+		    lsc::Components<uint16_t> &dest,
 		    double lambda)
 {
 	for (auto const &[k, v] : a)
