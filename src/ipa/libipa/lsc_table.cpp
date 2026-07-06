@@ -14,13 +14,10 @@ LOG_DEFINE_CATEGORY(LscTable)
 namespace ipa {
 
 /**
- * \class LscTable
- * \brief Table based lsc algorithm implementation
+ * \class LscTableBase
+ * \brief Base class for LscTable
  *
- * Table based lsc algorithm implementation. The LscTable class implements lsc
- * support using tabular lsc data.
- *
- * \sa LscImplementation
+ * Base class for LscTable for non-templated functions.
  */
 
 /**
@@ -32,8 +29,8 @@ namespace ipa {
  *
  * \return 0 on success or a negative error number otherwise
  */
-int LscTable::parseLscData(const ValueNode &sets,
-			   const LscDescriptor &descriptor)
+int LscTableBase::parseLscData(const ValueNode &sets,
+			       const LscDescriptor &descriptor)
 {
 	for (const auto &set : sets.asList()) {
 		uint32_t ct = set["ct"].get<uint32_t>(0);
@@ -51,8 +48,8 @@ int LscTable::parseLscData(const ValueNode &sets,
 	return 0;
 }
 
-int LscTable::parseLscComponent(const ValueNode &yamlSet,
-				unsigned int ct, const LscDescriptor &descriptor)
+int LscTableBase::parseLscComponent(const ValueNode &yamlSet,
+				    unsigned int ct, const LscDescriptor &descriptor)
 {
 	lsc::Components component;
 	for (auto &k : descriptor.keys) {
@@ -82,10 +79,10 @@ int LscTable::parseLscComponent(const ValueNode &yamlSet,
 	return 0;
 }
 
-std::vector<uint16_t> LscTable::parseTable(const ValueNode &tuningData,
-					   const char *prop,
-					   unsigned int numHCells,
-					   unsigned int numVCells)
+std::vector<uint16_t> LscTableBase::parseTable(const ValueNode &tuningData,
+					       const char *prop,
+					       unsigned int numHCells,
+					       unsigned int numVCells)
 {
 	unsigned int lscNumSamples = numHCells * numVCells;
 
@@ -101,6 +98,30 @@ std::vector<uint16_t> LscTable::parseTable(const ValueNode &tuningData,
 
 	return table;
 }
+
+/**
+ * \var LscTableBase::lscData_
+ * \brief The tabular lsc data
+ *
+ * Maps colour temperatures to per-colour channel vector of gains
+ */
+
+/**
+ * \class LscTable
+ * \brief Table based lsc algorithm implementation
+ * \tparam U The fixedpoint lsc engine register format
+ *
+ * Table based lsc algorithm implementation. The LscTable class implements lsc
+ * support using tabular lsc data.
+ *
+ * \sa LscImplementation
+ */
+
+/**
+ * \fn LscTable::parseLscData()
+ *
+ * \copydoc LscTableBase::parseLscData()
+ */
 
 } /* namespace ipa */
 

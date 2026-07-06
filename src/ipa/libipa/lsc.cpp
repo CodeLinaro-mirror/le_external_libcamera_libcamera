@@ -7,13 +7,6 @@
 
 #include "lsc.h"
 
-#include <libcamera/base/log.h>
-
-#include <libcamera/control_ids.h>
-
-#include "lsc_polynomial.h"
-#include "lsc_table.h"
-
 /**
  * \file lsc.h
  * \brief libipa lsc algorithm
@@ -49,8 +42,55 @@ namespace lsc {
 } /* namespace lsc */
 
 /**
+ * \class LscAlgorithmBase
+ * \brief Base class for LscAlgorithm
+ *
+ * Base class for LscAlgorithm for non-templated functions implementation
+ */
+
+/**
+ * \brief Queue a request to the lsc algorithm
+ * \param[in] state The lsc active state
+ * \param[in] context The lsc frame context
+ * \param[in] controls The list of controls associated with a Request
+ *
+ * Queue a new list of \a controls to the lsc algorithm.
+ * The only supported control is controls::LensShadingCorrectionEnable.
+ */
+void LscAlgorithmBase::queueRequest(lsc::ActiveState &state,
+				    lsc::FrameContext &context,
+				    const ControlList &controls)
+{
+	const auto &lscEnable = controls.get(controls::LensShadingCorrectionEnable);
+	if (lscEnable && *lscEnable != state.enabled) {
+		state.enabled = *lscEnable;
+
+		LOG(Lsc, Debug)
+			<< (state.enabled ? "Enabling" : "Disabling") << " Lsc";
+
+		context.update = true;
+	}
+
+	context.enabled = state.enabled;
+}
+
+/**
+ * \brief Populate the list of lsc metadata
+ * \param[in] context The lsc frame context
+ * \param[in] metadata The list of metadata
+ *
+ * Populates the list of \a metadata with controls handled by the LscAlgorithm
+ * class. The only supported metadata is controls::LensShadingCorrectionEnable.
+ */
+void LscAlgorithmBase::process(lsc::FrameContext &context, ControlList &metadata)
+{
+	metadata.set(controls::LensShadingCorrectionEnable, context.enabled);
+}
+
+/**
  * \class LscAlgorithm
  * \brief libIPA lsc algorithm implementation
+ * \tparam U The fixedpoint lsc engine register format
  *
  * Due to the optical characteristics of the lens, the light intensity received
  * by the sensor is not uniform. The Lens Shading Correction algorithm applies
@@ -200,6 +240,7 @@ namespace lsc {
  */
 
 /**
+ * \fn LscAlgorithm::init()
  * \param[in] tuningData The tuning data
  * \param[in] controls The IPA list of supported controls
  * \param[in] descriptor The lsc engine descriptor
@@ -209,42 +250,9 @@ namespace lsc {
  *
  * \return 0 on success, a negative error code otherwise
  */
-int LscAlgorithm::init(const ValueNode &tuningData, ControlInfoMap::Map &controls,
-		       const LscDescriptor &descriptor)
-{
-	polynomial_ = false;
-
-	std::string type = tuningData["type"].get<std::string>("table");
-	if (type == "table") {
-		impl_ = std::make_unique<LscTable>();
-		LOG(Lsc, Debug) << "Using table-based Lsc";
-	} else if (type == "polynomial") {
-		impl_ = std::make_unique<LscPolynomial>();
-		polynomial_ = true;
-		LOG(Lsc, Debug) << "Using polynomial Lsc";
-	} else {
-		LOG(Lsc, Error) << "Unsupported Lsc algorithm '"
-				<< type << "'";
-		return -EINVAL;
-	}
-
-	const ValueNode &yamlSets = tuningData["sets"];
-	if (!yamlSets.isList()) {
-		LOG(Lsc, Error) << "'sets' parameter not found in tuning file";
-		return -EINVAL;
-	}
-
-	int ret = impl_->parseLscData(yamlSets, descriptor);
-	if (ret)
-		return ret;
-
-	controls[&controls::LensShadingCorrectionEnable] =
-		ControlInfo(false, true, true);
-
-	return 0;
-}
 
 /**
+ * \fn LscAlgorithm::configure()
  * \param[in] state The lsc active state
  * \param[in] analogCrop The current sensor analog crop rectangle
  * \param[in] xPos List of horizontal positions of the LSC grid nodes
@@ -265,67 +273,6 @@ int LscAlgorithm::init(const ValueNode &tuningData, ControlInfoMap::Map &control
  *
  * \return 0 on success, a negative error code otherwise
  */
-int LscAlgorithm::configure(lsc::ActiveState &state, const Rectangle &analogCrop,
-			    const std::vector<double> &xPos,
-			    const std::vector<double> &yPos)
-{
-	LOG(Lsc, Debug) << "Sample Lsc data for " << analogCrop;
-	lsc::ComponentsMap lscData =
-		impl_->sampleForCrop(analogCrop, xPos, yPos);
-
-	/*
-	 * Retain a copy of the components table.
-	 *
-	 * We could avoid a copy here if getComponents() could
-	 * return sets_.data() but I wasn't able to work around the
-	 * compiler refusing it.
-	 */
-	lscData_ = lscData;
-
-	sets_.setData(std::move(lscData));
-	state.enabled = true;
-
-	return 0;
-}
-
-/**
- * \brief Queue a request to the lsc algorithm
- * \param[in] state The lsc active state
- * \param[in] context The lsc frame context
- * \param[in] controls The list of controls associated with a Request
- *
- * Queue a new list of \a controls to the lsc algorithm.
- * The only supported control is controls::LensShadingCorrectionEnable.
- */
-void LscAlgorithm::queueRequest(lsc::ActiveState &state,
-				lsc::FrameContext &context,
-				const ControlList &controls)
-{
-	const auto &lscEnable = controls.get(controls::LensShadingCorrectionEnable);
-	if (lscEnable && *lscEnable != state.enabled) {
-		state.enabled = *lscEnable;
-
-		LOG(Lsc, Debug)
-			<< (state.enabled ? "Enabling" : "Disabling") << " Lsc";
-
-		context.update = true;
-	}
-
-	context.enabled = state.enabled;
-}
-
-/**
- * \brief Populate the list of lsc metadata
- * \param[in] context The lsc frame context
- * \param[in] metadata The list of metadata
- *
- * Populates the list of \a metadata with controls handled by the LscAlgorithm
- * class. The only supported metadata is controls::LensShadingCorrectionEnable.
- */
-void LscAlgorithm::process(lsc::FrameContext &context, ControlList &metadata)
-{
-	metadata.set(controls::LensShadingCorrectionEnable, context.enabled);
-}
 
 /**
  * \fn LscAlgorithm::interpolateComponents
