@@ -10,6 +10,19 @@
 /**
  * \file lsc_base.h
  * \brief Base types and definitions for LscImplementation class hierarchy
+ *
+ * Split the common classes and types definitions to a dedicated file to avoid
+ * circular inclusions.
+ *
+ * Both LscTable and LscPolynomial inherit from LscImplementation and they are
+ * instantiated from lsc.h as the LscAlgorithm::init() function is there inlined.
+ *
+ * For this reason lsc.h needs to include lsc_table.h and lsc_polynomial.h which
+ * need the LscImplementation class definition themselves.
+ *
+ * Split the LscImplementation interface definition to this file so that it can
+ * be included by both lsc_table.h and lsc_polynomial.h, which are then included
+ * by lsc.h.
  */
 
 namespace libcamera {
@@ -88,7 +101,8 @@ void Interpolator<lsc::Components>::
  * \brief Pure virtual base class for lsc algorithm implementations
  * \tparam U The fixedpoint lsc engine register format
  *
- * Defines the interface for the lsc algorithm implementation.
+ * Defines the interface for the lsc algorithm implementation. Currently
+ * implemented by LscTable and LscPolynomial.
  */
 
 /**
