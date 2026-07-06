@@ -9,9 +9,11 @@
 
 #pragma once
 
+#include <deque>
 #include <memory>
 #include <stdint.h>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #define GL_GLEXT_PROTOTYPES
@@ -68,14 +70,21 @@ private:
 	void setShaderVariableValues(eGLImage &eGLImageIn, const DebayerParams &params);
 	int debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *mappedInputBuffer, std::optional<DmaSyncer> *inputBufferDmaSyncer);
 
+	eGLImage *getCachedInputFrameBuffer(FrameBuffer *input, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer);
+	eGLImage *getCachedOutputFrameBuffer(FrameBuffer *output);
+
 	/* Shader program identifiers */
 	GLuint vertexShaderId_ = 0;
 	GLuint fragmentShaderId_ = 0;
 	GLuint programId_ = 0;
 
 	/* Pointer to object representing input texture */
-	std::unique_ptr<eGLImage> eglImageBayerIn_;
-	std::unique_ptr<eGLImage> eglImageBayerOut_;
+	std::unordered_map<SharedFD, std::unique_ptr<eGLImage>> eglImageBayerIn_;
+	std::unordered_map<SharedFD, std::unique_ptr<eGLImage>> eglImageBayerOut_;
+	std::deque<SharedFD> inputRing_;
+	std::deque<SharedFD> outputRing_;
+	unsigned int inputBufferCount_;
+	unsigned int outputBufferCount_;
 
 	/* Shader parameters */
 	float firstRed_x_;

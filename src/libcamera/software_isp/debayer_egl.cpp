@@ -345,6 +345,9 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	 */
 	stats_->setWindow(Rectangle(window_.size()));
 
+	inputBufferCount_ = inputCfg.bufferCount;
+	outputBufferCount_ = outputCfg.bufferCount;
+
 	return 0;
 }
 
@@ -504,36 +507,95 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 	return;
 }
 
-int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer)
+eGLImage *DebayerEGL::getCachedInputFrameBuffer(FrameBuffer *input, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer)
 {
-	bool dmabuf_import_succeeded = false;
+	const SharedFD &fd = input->planes()[0].fd;
+	bool use_dmabuf = false;
 
-	/* eGL context switch */
-	egl_.makeCurrent();
+	auto [input_cache, cache_miss] = eglImageBayerIn_.try_emplace(fd);
+	if (cache_miss) {
+		if (eglImageBayerIn_.size() > inputBufferCount_) {
+			eglImageBayerIn_.erase(inputRing_.front());
+			inputRing_.pop_front();
+			LOG(Debayer, Error) << "Input cache " << inputBufferCount_ << " exceeded evicted entry";
+		}
+		input_cache->second = std::make_unique<eGLImage>(glFormat_, inputConfig_.stride / bytesPerPixel_,
+								 height_, inputConfig_.stride, GL_TEXTURE0, 0);
+		inputRing_.push_back(fd);
+	}
+	eGLImage *eglImageIn = input_cache->second.get();
 
-	/* Try to create texture for input buffer via dmabuf import */
-	if (!eglImageBayerIn_->dmabuf_import_failed_) {
-		if (egl_.createInputDMABufTexture2D(*eglImageBayerIn_, input->planes()[0].fd.get()) == 0)
-			dmabuf_import_succeeded = true;
-		else
-			LOG(Debayer, Info) << "Importing input buffer with DMABuf import failed, falling back to upload";
+	/* Try to create texture for input buffer via dmabuf import only on cache miss */
+	if (cache_miss) {
+		if (egl_.createInputDMABufTexture2D(*eglImageIn, input->planes()[0].fd.get()) == 0)
+			use_dmabuf = true;
+	} else if (!eglImageIn->dmabuf_import_failed_) {
+		use_dmabuf = true;
+		egl_.activateBindTexture(*eglImageIn);
 	}
 
-	/* Otherwise create texture for input buffer via upload from CPU */
-	if (!dmabuf_import_succeeded) {
+	if (!use_dmabuf) {
 		inDmaSyncer->emplace(input->planes()[0].fd, DmaSyncer::SyncType::Read);
 		inMapped->emplace(input, MappedFrameBuffer::MapFlag::Read);
 		if (!inMapped->value().isValid()) {
 			LOG(Debayer, Error) << "mmap-ing buffer(s) failed";
-			return -ENODEV;
+			if (cache_miss) {
+				eglImageBayerIn_.erase(input_cache);
+				inputRing_.pop_back();
+			}
+			return nullptr;
 		}
-		egl_.createTexture2D(*eglImageBayerIn_, inMapped->value().planes()[0].data());
+		if (cache_miss)
+			egl_.createTexture2D(*eglImageIn, inMapped->value().planes()[0].data());
+		else
+			egl_.updateTexture2D(*eglImageIn, inMapped->value().planes()[0].data());
 	}
 
-	/* Generate the output render framebuffer as render to texture */
-	egl_.createOutputDMABufTexture2D(*eglImageBayerOut_, output->planes()[0].fd.get());
+	return eglImageIn;
+}
 
-	setShaderVariableValues(*eglImageBayerIn_, params);
+eGLImage *DebayerEGL::getCachedOutputFrameBuffer(FrameBuffer *output)
+{
+	const SharedFD &fd = output->planes()[0].fd;
+
+	auto [output_cache, cache_miss] = eglImageBayerOut_.try_emplace(fd);
+	if (cache_miss) {
+		if (eglImageBayerOut_.size() > outputBufferCount_) {
+			eglImageBayerOut_.erase(outputRing_.front());
+			outputRing_.pop_front();
+			LOG(Debayer, Error) << "Output cache " << outputBufferCount_ << " exceeded evicted entry";
+		}
+		output_cache->second = std::make_unique<eGLImage>(GL_RGBA, outputSize_.width,
+								  outputSize_.height, outputConfig_.stride, GL_TEXTURE1, 1);
+		if (egl_.createOutputDMABufTexture2D(*output_cache->second, output->planes()[0].fd.get())) {
+			eglImageBayerOut_.erase(output_cache);
+			return nullptr;
+		}
+		outputRing_.push_back(fd);
+	}
+	eGLImage *eglImageOut = output_cache->second.get();
+
+	return eglImageOut;
+}
+
+int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer)
+{
+	eGLImage *eglImageIn;
+	eGLImage *eglImageOut;
+
+	/* eGL context switch */
+	egl_.makeCurrent();
+
+	eglImageIn = getCachedInputFrameBuffer(input, inMapped, inDmaSyncer);
+	if (!eglImageIn)
+		return -ENOMEM;
+	eglImageOut = getCachedOutputFrameBuffer(output);
+	if (!eglImageOut)
+		return -ENOMEM;
+
+	egl_.attachTextureToFBO(*eglImageOut);
+	setShaderVariableValues(*eglImageIn, params);
+
 	glViewport(0, 0, width_, height_);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, DEBAYER_OPENGL_COORDS);
@@ -615,19 +677,15 @@ int DebayerEGL::start()
 	if (initBayerShaders(inputPixelFormat_, outputPixelFormat_))
 		return -EINVAL;
 
-	/* Raw bayer input as texture */
-	eglImageBayerIn_ = std::make_unique<eGLImage>(glFormat_, inputConfig_.stride / bytesPerPixel_, height_, inputConfig_.stride, GL_TEXTURE0, 0);
-
-	/* Texture we will render to */
-	eglImageBayerOut_ = std::make_unique<eGLImage>(GL_RGBA, outputSize_.width, outputSize_.height, outputConfig_.stride, GL_TEXTURE1, 1);
-
 	return 0;
 }
 
 void DebayerEGL::stop()
 {
-	eglImageBayerOut_.reset();
-	eglImageBayerIn_.reset();
+	eglImageBayerOut_.clear();
+	eglImageBayerIn_.clear();
+	outputRing_.clear();
+	inputRing_.clear();
 
 	if (programId_)
 		glDeleteProgram(programId_);
