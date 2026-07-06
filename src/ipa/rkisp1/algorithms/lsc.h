@@ -41,9 +41,12 @@ private:
 	void copyTable(rkisp1_cif_isp_lsc_config &config, const lsc::Components &set0);
 	std::vector<double> parseSizes(const ValueNode &tuningData,
 				       const char *prop);
+	std::vector<double> sizesListToPositions(Span<const double> sizes);
 
 	std::vector<double> xSize_;
 	std::vector<double> ySize_;
+	std::vector<double> xPos_;
+	std::vector<double> yPos_;
 	uint16_t xGrad_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	uint16_t yGrad_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
 	uint16_t xSizes_[RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE];
