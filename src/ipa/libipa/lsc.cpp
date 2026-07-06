@@ -26,6 +26,17 @@ namespace lsc {
  * \brief Boolean flag for the LscAlgorithm enable status
  */
 
+/**
+ * \struct FrameContext
+ * \brief The lsc frame context
+ *
+ * \var FrameContext::enabled
+ * \brief Boolean flag for the LscAlgorithm enable status
+ *
+ * \var FrameContext::update
+ * \brief Boolean flag for the LscAlgorithm updated status
+ */
+
 } /* namespace lsc */
 
 } /* namespace ipa */
