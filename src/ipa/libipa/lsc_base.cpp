@@ -78,6 +78,9 @@ void Interpolator<lsc::Components>::
  * \var LscDescriptor::sensorSize
  * \brief The physical sensor size. This is the largest frame size used to
  * generate the lsc table. Only used by the polynomial lsc algorithm
+ *
+ * \todo: Most likely the reference frame should be native_size.
+ * Let's wait how the internal discussions progress.
  */
 
 /**
