@@ -23,34 +23,33 @@ LOG_DECLARE_CATEGORY(LscTable)
 
 namespace ipa {
 
-class LscTableBase
-{
-protected:
-	int parseLscData(const ValueNode &sets,
-			 const LscDescriptor &descriptor);
-
-private:
-	int parseLscComponent(const ValueNode &yamlSet,
-			      unsigned int ct, const LscDescriptor &descriptor);
-	std::vector<uint16_t> parseTable(const ValueNode &tuningData,
-					 const char *prop,
-					 unsigned int numHCells,
-					 unsigned int numVCells);
-protected:
-	lsc::ComponentsMap lscData_;
-};
-
 template<typename U>
-class LscTable : public LscTableBase, public LscImplementation<U>
+class LscTable : public LscImplementation<U>
 {
+private:
+	using T = typename U::QuantizedType;
+
 public:
 	int parseLscData(const ValueNode &sets,
 			 const LscDescriptor &descriptor) override
 	{
-		return LscTableBase::parseLscData(sets, descriptor);
+		for (const auto &set : sets.asList()) {
+			uint32_t ct = set["ct"].get<uint32_t>(0);
+
+			int ret = parseLscComponent(set, ct, descriptor);
+			if (ret)
+				return ret;
+		}
+
+		if (lscData_.empty()) {
+			LOG(LscTable, Error) << "Failed to load any sets";
+			return -EINVAL;
+		}
+
+		return 0;
 	}
 
-	lsc::ComponentsMap
+	lsc::ComponentsMap<T>
 	sampleForCrop([[maybe_unused]] const Rectangle &cropRectangle,
 		      [[maybe_unused]] std::vector<double> xPos,
 		      [[maybe_unused]] std::vector<double> yPos) override
@@ -59,6 +58,59 @@ public:
 			<< "Tabular LSC data doesn't support resampling";
 		return lscData_;
 	}
+
+private:
+	int parseLscComponent(const ValueNode &yamlSet,
+			      unsigned int ct, const LscDescriptor &descriptor)
+	{
+		lsc::Components<T> component;
+		for (auto &k : descriptor.keys) {
+			auto [it, inserted] = component.emplace(
+				std::piecewise_construct,
+				std::forward_as_tuple(k.c_str()),
+				std::forward_as_tuple(parseTable(yamlSet,
+								 k.c_str(),
+								 descriptor.numHCells,
+								 descriptor.numVCells)));
+			if (!inserted || it->second.empty()) {
+				LOG(LscTable, Error)
+					<< "Set " << k << " for color temperature "
+					<< ct << " is missing";
+				return -EINVAL;
+			}
+		}
+
+		auto [it, inserted] = lscData_.emplace(ct, component);
+		if (!inserted) {
+			LOG(LscTable, Error)
+				<< "Multiple sets found for color temperature "
+				<< ct;
+			return -EINVAL;
+		}
+
+		return 0;
+	}
+
+	std::vector<T> parseTable(const ValueNode &tuningData,
+				  const char *prop, unsigned int numHCells,
+				  unsigned int numVCells)
+	{
+		unsigned int kLscNumSamples = numHCells * numVCells;
+
+		std::vector<T> table =
+			tuningData[prop].get<std::vector<T>>().value_or(utils::defopt);
+		if (table.size() != kLscNumSamples) {
+			LOG(LscTable, Error)
+				<< "Invalid '" << prop << "' values: expected "
+				<< kLscNumSamples
+				<< " elements, got " << table.size();
+			return {};
+		}
+
+		return table;
+	}
+
+	lsc::ComponentsMap<T> lscData_;
 };
 
 } /* namespace ipa */
