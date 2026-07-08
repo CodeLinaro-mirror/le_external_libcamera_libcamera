@@ -57,6 +57,7 @@ struct LscDescriptor {
 	Size sensorSize;
 };
 
+template<typename U>
 class LscImplementation
 {
 public:
