@@ -11,6 +11,7 @@
 #include <iostream>
 #include <limits>
 #include <stdlib.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <tuple>
@@ -137,6 +138,10 @@ protected:
 			return ret;
 
 		ret = testPod();
+		if (ret != TestPass)
+			return ret;
+
+		ret = testFd();
 		if (ret != TestPass)
 			return ret;
 
@@ -427,6 +432,44 @@ private:
 			return TestFail;
 
 		if (testPodSerdes(strEmpty) != TestPass)
+			return TestFail;
+
+		return TestPass;
+	}
+
+	int testFd()
+	{
+		/* Test serdes of single fd */
+		int memfd = memfd_create("test", 0);
+		if (memfd < 0) {
+			cerr << "Failed to create memfd" << endl;
+			return TestFail;
+		}
+
+		SharedFD fd = SharedFD(std::move(memfd));
+		if (memfd != -1) {
+			cerr << "SharedFD move constructor failed" << endl;
+			return TestFail;
+		}
+
+		if (testPodSerdes(fd) != TestPass)
+			return TestFail;
+
+		/* Test serdes of vector of fds */
+		std::vector<SharedFD> vecFds;
+
+		for (unsigned int i = 0; i < 10; i++) {
+			std::string name = "test" + std::to_string(i);
+			int mfd = memfd_create(name.c_str(), 0);
+			if (mfd < 0)
+				return TestFail;
+
+			vecFds.push_back(SharedFD(std::move(mfd)));
+			if (mfd != -1)
+				return TestFail;
+		}
+
+		if (testVectorSerdes(vecFds) != TestPass)
 			return TestFail;
 
 		return TestPass;
