@@ -74,8 +74,8 @@ public:
 				 const LscDescriptor &descriptor) = 0;
 
 	virtual lsc::ComponentsMap<typename U::QuantizedType>
-	sampleForCrop(const Rectangle &cropRectangle,
-		      std::vector<double> xPos, std::vector<double> yPos);
+	resampleLscData(const Rectangle &cropRectangle,
+			std::vector<double> xPos, std::vector<double> yPos) = 0;
 };
 
 } /* namespace ipa */

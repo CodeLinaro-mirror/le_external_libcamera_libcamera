@@ -78,8 +78,8 @@ public:
 	}
 
 	lsc::ComponentsMap<T>
-	sampleForCrop(const Rectangle &cropRectangle,
-		      std::vector<double> xPos, std::vector<double> yPos) override
+	resampleLscData(const Rectangle &cropRectangle,
+			std::vector<double> xPos, std::vector<double> yPos) override
 	{
 		lsc::ComponentsMap<T> components;
 
