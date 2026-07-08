@@ -98,7 +98,7 @@ public:
 	{
 		LOG(Lsc, Debug) << "Sample Lsc data for " << analogCrop;
 		lsc::ComponentsMap<T> lscData =
-			impl_->sampleForCrop(analogCrop, xPos, yPos);
+			impl_->resampleLscData(analogCrop, xPos, yPos);
 
 		/*
 		 * Retain a copy of the components table.
