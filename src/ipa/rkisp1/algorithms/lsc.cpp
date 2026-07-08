@@ -34,36 +34,6 @@ namespace {
 
 constexpr int kColourTemperatureQuantization = 10;
 
-std::vector<double> parseSizes(const ValueNode &tuningData,
-			       const char *prop)
-{
-	std::vector<double> sizes =
-		tuningData[prop].get<std::vector<double>>().value_or(utils::defopt);
-	if (sizes.size() != RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE) {
-		LOG(RkISP1Lsc, Error)
-			<< "Invalid '" << prop << "' values: expected "
-			<< RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE
-			<< " elements, got " << sizes.size();
-		return {};
-	}
-
-	/*
-	 * The sum of all elements must be 0.5 to satisfy hardware constraints.
-	 * Validate it here, allowing a 1% tolerance as rounding errors may
-	 * prevent an exact match (further adjustments will be performed in
-	 * LensShadingCorrection::prepare()).
-	 */
-	double sum = std::accumulate(sizes.begin(), sizes.end(), 0.0);
-	if (sum < 0.495 || sum > 0.505) {
-		LOG(RkISP1Lsc, Error)
-			<< "Invalid '" << prop << "' values: sum of the elements"
-			<< " should be 0.5, got " << sum;
-		return {};
-	}
-
-	return sizes;
-}
-
 unsigned int quantize(unsigned int value, unsigned int step)
 {
 	return std::lround(value / static_cast<double>(step)) * step;
@@ -136,6 +106,36 @@ int LensShadingCorrection::init([[maybe_unused]] IPAContext &context,
 		ControlInfo(false, true, true);
 
 	return 0;
+}
+
+std::vector<double> LensShadingCorrection::parseSizes(const ValueNode &tuningData,
+						      const char *prop)
+{
+	std::vector<double> sizes =
+		tuningData[prop].get<std::vector<double>>().value_or(utils::defopt);
+	if (sizes.size() != RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE) {
+		LOG(RkISP1Lsc, Error)
+			<< "Invalid '" << prop << "' values: expected "
+			<< RKISP1_CIF_ISP_LSC_SECTORS_TBL_SIZE
+			<< " elements, got " << sizes.size();
+		return {};
+	}
+
+	/*
+	 * The sum of all elements must be 0.5 to satisfy hardware constraints.
+	 * Validate it here, allowing a 1% tolerance as rounding errors may
+	 * prevent an exact match (further adjustments will be performed in
+	 * LensShadingCorrection::prepare()).
+	 */
+	double sum = std::accumulate(sizes.begin(), sizes.end(), 0.0);
+	if (sum < 0.495 || sum > 0.505) {
+		LOG(RkISP1Lsc, Error)
+			<< "Invalid '" << prop << "' values: sum of the elements"
+			<< " should be 0.5, got " << sum;
+		return {};
+	}
+
+	return sizes;
 }
 
 /**
