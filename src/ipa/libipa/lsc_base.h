@@ -26,8 +26,15 @@ namespace ipa {
 
 namespace lsc {
 
-using Components = std::map<std::string, std::vector<uint16_t>>;
-using ComponentsMap = std::map<unsigned int, Components>;
+template<typename T>
+class Components : public std::map<std::string, std::vector<T>>
+{
+};
+
+template<typename T>
+class ComponentsMap : public std::map<unsigned int, Components<T>>
+{
+};
 
 } /* namespace lsc */
 
@@ -43,10 +50,10 @@ void interpolateVector(const std::vector<T> &a, const std::vector<T> &b,
 }
 
 template<>
-void Interpolator<lsc::Components>::
-	interpolate(const lsc::Components &a,
-		    const lsc::Components &b,
-		    lsc::Components &dest,
+void Interpolator<lsc::Components<uint16_t>>::
+	interpolate(const lsc::Components<uint16_t> &a,
+		    const lsc::Components<uint16_t> &b,
+		    lsc::Components<uint16_t> &dest,
 		    double lambda);
 #endif /* __DOXYGEN__ */
 
@@ -66,7 +73,7 @@ public:
 	virtual int parseLscData(const ValueNode &tuningData,
 				 const LscDescriptor &descriptor) = 0;
 
-	virtual lsc::ComponentsMap
+	virtual lsc::ComponentsMap<typename U::QuantizedType>
 	sampleForCrop(const Rectangle &cropRectangle,
 		      std::vector<double> xPos, std::vector<double> yPos);
 };

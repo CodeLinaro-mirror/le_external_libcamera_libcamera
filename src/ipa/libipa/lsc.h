@@ -53,6 +53,9 @@ public:
 template<typename U>
 class LscAlgorithm : public LscAlgorithmBase
 {
+private:
+	using T = typename U::QuantizedType;
+
 public:
 	int init(const ValueNode &tuningData, ControlInfoMap::Map &controls,
 		 const LscDescriptor &descriptor)
@@ -94,7 +97,7 @@ public:
 		      const std::vector<double> &yPos)
 	{
 		LOG(Lsc, Debug) << "Sample Lsc data for " << analogCrop;
-		lsc::ComponentsMap lscData =
+		lsc::ComponentsMap<T> lscData =
 			impl_->sampleForCrop(analogCrop, xPos, yPos);
 
 		/*
@@ -112,20 +115,20 @@ public:
 		return 0;
 	}
 
-	const lsc::Components interpolateComponents(unsigned int ct)
+	const lsc::Components<T> interpolateComponents(unsigned int ct)
 	{
 		return sets_.getInterpolated(ct);
 	}
 
-	const lsc::ComponentsMap getComponents()
+	const lsc::ComponentsMap<T> getComponents()
 	{
 		return lscData_;
 	}
 
 private:
 	std::unique_ptr<LscImplementation<U>> impl_;
-	Interpolator<lsc::Components> sets_;
-	lsc::ComponentsMap lscData_;
+	Interpolator<lsc::Components<T>> sets_;
+	lsc::ComponentsMap<T> lscData_;
 	bool polynomial_;
 };
 

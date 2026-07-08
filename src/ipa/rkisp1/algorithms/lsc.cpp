@@ -176,7 +176,7 @@ void LensShadingCorrection::setParameters(rkisp1_cif_isp_lsc_config &config)
 }
 
 void LensShadingCorrection::copyTable(rkisp1_cif_isp_lsc_config &config,
-				      const lsc::Components &set)
+				      const lsc::Components<uint16_t> &set)
 {
 	const auto &r = set.at("r");
 	std::copy(r.begin(), r.end(), &config.r_data_tbl[0][0]);
@@ -235,7 +235,7 @@ void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
 
 	setParameters(*config);
 
-	const lsc::Components &set = lscAlgo_.interpolateComponents(quantizedCt);
+	const lsc::Components<uint16_t> &set = lscAlgo_.interpolateComponents(quantizedCt);
 	copyTable(*config, set);
 
 	lastAppliedCt_ = ct;

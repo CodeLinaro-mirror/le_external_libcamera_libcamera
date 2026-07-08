@@ -14,99 +14,6 @@ LOG_DEFINE_CATEGORY(LscTable)
 namespace ipa {
 
 /**
- * \class LscTableBase
- * \brief Base class for LscTable
- *
- * Base class for LscTable for non-templated functions.
- */
-
-/**
- * \brief Parse tabular LSC data
- * \param[in] sets The tuning file content
- * \param[in] descriptor The LSC engine descriptor
- *
- * Parse the LSC data in tabular form from the \a sets tuning data.
- *
- * \return 0 on success or a negative error number otherwise
- */
-int LscTableBase::parseLscData(const ValueNode &sets,
-			       const LscDescriptor &descriptor)
-{
-	for (const auto &set : sets.asList()) {
-		uint32_t ct = set["ct"].get<uint32_t>(0);
-
-		int ret = parseLscComponent(set, ct, descriptor);
-		if (ret)
-			return ret;
-	}
-
-	if (lscData_.empty()) {
-		LOG(LscTable, Error) << "Failed to load any sets";
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-int LscTableBase::parseLscComponent(const ValueNode &yamlSet,
-				    unsigned int ct, const LscDescriptor &descriptor)
-{
-	lsc::Components component;
-	for (auto &k : descriptor.keys) {
-		auto [it, inserted] = component.emplace(
-			std::piecewise_construct,
-			std::forward_as_tuple(k.c_str()),
-			std::forward_as_tuple(parseTable(yamlSet,
-							 k.c_str(),
-							 descriptor.numHCells,
-							 descriptor.numVCells)));
-		if (!inserted || it->second.empty()) {
-			LOG(LscTable, Error)
-				<< "Set " << k << " for color temperature "
-				<< ct << " is missing";
-			return -EINVAL;
-		}
-	}
-
-	auto [it, inserted] = lscData_.emplace(ct, component);
-	if (!inserted) {
-		LOG(LscTable, Error)
-			<< "Multiple sets found for color temperature "
-			<< ct;
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-std::vector<uint16_t> LscTableBase::parseTable(const ValueNode &tuningData,
-					       const char *prop,
-					       unsigned int numHCells,
-					       unsigned int numVCells)
-{
-	unsigned int lscNumSamples = numHCells * numVCells;
-
-	std::vector<uint16_t> table =
-		tuningData[prop].get<std::vector<uint16_t>>().value_or(utils::defopt);
-	if (table.size() != lscNumSamples) {
-		LOG(LscTable, Error)
-			<< "Invalid '" << prop << "' values: expected "
-			<< lscNumSamples
-			<< " elements, got " << table.size();
-		return {};
-	}
-
-	return table;
-}
-
-/**
- * \var LscTableBase::lscData_
- * \brief The tabular LSC data
- *
- * Maps colour temperatures to per-colour channel vector of gains
- */
-
-/**
  * \class LscTable
  * \brief Table based LSC algorithm implementation
  * \tparam U The fixedpoint LSC engine register format
@@ -119,8 +26,13 @@ std::vector<uint16_t> LscTableBase::parseTable(const ValueNode &tuningData,
 
 /**
  * \fn LscTable::parseLscData()
+ * \brief Parse tabular LSC data
+ * \param[in] sets The tuning file content
+ * \param[in] descriptor The LSC engine descriptor
  *
- * \copydoc LscTableBase::parseLscData()
+ * Parse the LSC data in tabular form from the \a sets tuning data.
+ *
+ * \return 0 on success or a negative error number otherwise
  */
 
 } /* namespace ipa */

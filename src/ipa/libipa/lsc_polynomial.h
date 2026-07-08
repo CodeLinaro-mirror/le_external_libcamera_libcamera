@@ -67,6 +67,9 @@ protected:
 template<typename U>
 class LscPolynomial : public LscPolynomialBase, public LscImplementation<U>
 {
+private:
+	using T = typename U::QuantizedType;
+
 public:
 	int parseLscData(const ValueNode &yamlSets,
 			 const LscDescriptor &descriptor) override
@@ -74,14 +77,14 @@ public:
 		return LscPolynomialBase::parseLscData(yamlSets, descriptor);
 	}
 
-	lsc::ComponentsMap
+	lsc::ComponentsMap<T>
 	sampleForCrop(const Rectangle &cropRectangle,
 		      std::vector<double> xPos, std::vector<double> yPos) override
 	{
-		lsc::ComponentsMap components;
+		lsc::ComponentsMap<T> components;
 
 		for (const auto &[t, c] : lscData_) {
-			lsc::Components comp;
+			lsc::Components<T> comp;
 
 			for (const auto &[k, p] : c) {
 				comp.emplace(std::piecewise_construct,
@@ -97,17 +100,17 @@ public:
 	}
 
 private:
-	std::vector<uint16_t> samplePolynomial(const lsc::Polynomial &poly,
-					       Span<const double> xPositions,
-					       Span<const double> yPositions,
-					       const Rectangle &cropRectangle)
+	std::vector<T> samplePolynomial(const lsc::Polynomial &poly,
+					Span<const double> xPositions,
+					Span<const double> yPositions,
+					const Rectangle &cropRectangle)
 	{
 		double m = poly.getM();
 		double x0 = cropRectangle.x / m;
 		double y0 = cropRectangle.y / m;
 		double w = cropRectangle.width / m;
 		double h = cropRectangle.height / m;
-		std::vector<uint16_t> samples;
+		std::vector<T> samples;
 
 		samples.reserve(xPositions.size() * yPositions.size());
 
