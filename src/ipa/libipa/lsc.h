@@ -17,6 +17,11 @@ struct ActiveState {
 	bool enabled;
 };
 
+struct FrameContext {
+	bool enabled;
+	bool update;
+};
+
 } /* namespace lsc */
 
 } /* namespace ipa */
