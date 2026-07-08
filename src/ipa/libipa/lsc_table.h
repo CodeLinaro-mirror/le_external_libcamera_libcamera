@@ -23,11 +23,32 @@ LOG_DECLARE_CATEGORY(LscTable)
 
 namespace ipa {
 
-class LscTable : public LscImplementation
+class LscTableBase
+{
+protected:
+	int parseLscData(const ValueNode &sets,
+			 const LscDescriptor &descriptor);
+
+private:
+	int parseLscComponent(const ValueNode &yamlSet,
+			      unsigned int ct, const LscDescriptor &descriptor);
+	std::vector<uint16_t> parseTable(const ValueNode &tuningData,
+					 const char *prop,
+					 unsigned int numHCells,
+					 unsigned int numVCells);
+protected:
+	lsc::ComponentsMap lscData_;
+};
+
+template<typename U>
+class LscTable : public LscTableBase, public LscImplementation<U>
 {
 public:
 	int parseLscData(const ValueNode &sets,
-			 const LscDescriptor &descriptor) override;
+			 const LscDescriptor &descriptor) override
+	{
+		return LscTableBase::parseLscData(sets, descriptor);
+	}
 
 	lsc::ComponentsMap
 	sampleForCrop([[maybe_unused]] const Rectangle &cropRectangle,
@@ -38,16 +59,6 @@ public:
 			<< "Tabular LSC data doesn't support resampling";
 		return lscData_;
 	}
-
-private:
-	int parseLscComponent(const ValueNode &yamlSet,
-			      unsigned int ct, const LscDescriptor &descriptor);
-	std::vector<uint16_t> parseTable(const ValueNode &tuningData,
-					 const char *prop,
-					 unsigned int numHCells,
-					 unsigned int numVCells);
-
-	lsc::ComponentsMap lscData_;
 };
 
 } /* namespace ipa */

@@ -13,6 +13,7 @@
 
 #include "libcamera/internal/value_node.h"
 
+#include "libipa/fixedpoint.h"
 #include "libipa/lsc.h"
 
 #include "algorithm.h"
@@ -58,7 +59,7 @@ private:
 	unsigned int lastAppliedCt_;
 	unsigned int lastAppliedQuantizedCt_;
 
-	LscAlgorithm lscAlgo_;
+	LscAlgorithm<UQ<2, 10>> lscAlgo_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */

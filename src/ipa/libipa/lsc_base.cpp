@@ -86,6 +86,7 @@ void Interpolator<lsc::Components>::
 /**
  * \class LscImplementation
  * \brief Pure virtual base class for LSC algorithm implementations
+ * \tparam U The fixedpoint LSC engine register format
  *
  * Defines the interface for the LSC algorithm implementation.
  */
