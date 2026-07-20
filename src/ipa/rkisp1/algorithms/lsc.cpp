@@ -175,34 +175,16 @@ void LensShadingCorrection::setParameters(rkisp1_cif_isp_lsc_config &config)
 }
 
 void LensShadingCorrection::copyTable(rkisp1_cif_isp_lsc_config &config,
-				      const lsc::Components &set)
+				      const RkISP1Components &set)
 {
-	/*
-	 * The hardware uses 2.10 fixed point format and limits the legal values
-	 * to [1..3.999]. Scale and clamp the sampled values accordingly.
-	 */
-	std::vector<uint16_t> regs;
-	regs.reserve(RKISP1_CIF_ISP_LSC_SAMPLES_MAX *
-		     RKISP1_CIF_ISP_LSC_SAMPLES_MAX);
-
-	for (const float &f : set.at("r"))
-		regs.emplace_back(std::clamp(static_cast<int>(f * 1024), 1024, 4095));
-	std::copy(regs.begin(), regs.end(), &config.r_data_tbl[0][0]);
-
-	regs = {};
-	for (const float &f : set.at("gr"))
-		regs.emplace_back(std::clamp(static_cast<int>(f * 1024), 1024, 4095));
-	std::copy(regs.begin(), regs.end(), &config.gr_data_tbl[0][0]);
-
-	regs = {};
-	for (const float &f : set.at("gb"))
-		regs.emplace_back(std::clamp(static_cast<int>(f * 1024), 1024, 4095));
-	std::copy(regs.begin(), regs.end(), &config.gb_data_tbl[0][0]);
-
-	regs = {};
-	for (const float &f : set.at("b"))
-		regs.emplace_back(std::clamp(static_cast<int>(f * 1024), 1024, 4095));
-	std::copy(regs.begin(), regs.end(), &config.b_data_tbl[0][0]);
+	const auto &r = set.at("r");
+	std::copy(r.begin(), r.end(), &config.r_data_tbl[0][0]);
+	const auto &gr = set.at("gr");
+	std::copy(gr.begin(), gr.end(), &config.gr_data_tbl[0][0]);
+	const auto &gb = set.at("gb");
+	std::copy(gb.begin(), gb.end(), &config.gb_data_tbl[0][0]);
+	const auto &b = set.at("b");
+	std::copy(b.begin(), b.end(), &config.b_data_tbl[0][0]);
 }
 
 /**
@@ -252,8 +234,8 @@ void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
 
 	setParameters(*config);
 
-	const lsc::Components &set = lscAlgo_.interpolateComponents(quantizedCt);
-	copyTable(*config, set);
+	auto &lscData = lscAlgo_.getInterpolator();
+	copyTable(*config, lscData.getInterpolated(quantizedCt));
 
 	lastAppliedCt_ = ct;
 	lastAppliedQuantizedCt_ = quantizedCt;

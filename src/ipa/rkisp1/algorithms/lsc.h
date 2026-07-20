@@ -12,6 +12,7 @@
 #include <linux/rkisp1-config.h>
 
 #include "libcamera/internal/value_node.h"
+#include "libipa/fixedpoint.h"
 
 #include "libipa/lsc.h"
 
@@ -19,7 +20,13 @@
 
 namespace libcamera {
 
-namespace ipa::rkisp1::algorithms {
+namespace ipa {
+
+namespace rkisp1::algorithms {
+
+using RkISP1LscAlgorithm = LscAlgorithm<UQ<2, 10>>;
+using RkISP1Components = RkISP1LscAlgorithm::Components;
+using RkISP1ComponentsMap = RkISP1LscAlgorithm::ComponentsMap;
 
 class LensShadingCorrection : public Algorithm
 {
@@ -39,9 +46,11 @@ public:
 		     IPAFrameContext &frameContext,
 		     const rkisp1_stat_buffer *stats,
 		     ControlList &metadata) override;
+
 private:
 	void setParameters(rkisp1_cif_isp_lsc_config &config);
-	void copyTable(rkisp1_cif_isp_lsc_config &config, const lsc::Components &set0);
+	void copyTable(rkisp1_cif_isp_lsc_config &config,
+		       const RkISP1Components &set);
 
 	std::vector<double> xSize_;
 	std::vector<double> ySize_;
@@ -55,8 +64,35 @@ private:
 	unsigned int lastAppliedCt_;
 	unsigned int lastAppliedQuantizedCt_;
 
-	LscAlgorithm lscAlgo_;
+	RkISP1LscAlgorithm lscAlgo_;
 };
 
-} /* namespace ipa::rkisp1::algorithms */
+} /* namespace rkisp1::algorithms */
+
+#ifndef __DOXYGEN__
+template<typename T>
+void interpolateVector(const std::vector<T> &a,
+		       const std::vector<T> &b,
+		       std::vector<T> &dest, double lambda)
+{
+	ASSERT(a.size() == b.size());
+	dest.resize(a.size());
+	for (size_t i = 0; i < a.size(); i++)
+		dest[i] = a[i] * (1.0 - lambda) + b[i] * lambda;
+}
+
+template<>
+void Interpolator<rkisp1::algorithms::RkISP1Components>::
+	interpolate(const rkisp1::algorithms::RkISP1Components &a,
+		    const rkisp1::algorithms::RkISP1Components &b,
+		    rkisp1::algorithms::RkISP1Components &dest,
+		    double lambda)
+{
+	for (auto const &[k, v] : a)
+		interpolateVector(v, b.at(k), dest[k], lambda);
+}
+#endif /* __DOXYGEN__ */
+
+} /* namespace ipa */
+
 } /* namespace libcamera */

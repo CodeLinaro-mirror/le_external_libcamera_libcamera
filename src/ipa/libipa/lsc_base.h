@@ -31,25 +31,6 @@ using ComponentsMap = std::map<unsigned int, Components>;
 
 } /* namespace lsc */
 
-#ifndef __DOXYGEN__
-template<typename T>
-void interpolateVector(const std::vector<T> &a, const std::vector<T> &b,
-		       std::vector<T> &dest, double lambda)
-{
-	ASSERT(a.size() == b.size());
-	dest.resize(a.size());
-	for (size_t i = 0; i < a.size(); i++)
-		dest[i] = a[i] * (1.0 - lambda) + b[i] * lambda;
-}
-
-template<>
-void Interpolator<lsc::Components>::
-	interpolate(const lsc::Components &a,
-		    const lsc::Components &b,
-		    lsc::Components &dest,
-		    double lambda);
-#endif /* __DOXYGEN__ */
-
 struct LscDescriptor {
 	std::vector<std::string> keys;
 	unsigned int numHSamples;

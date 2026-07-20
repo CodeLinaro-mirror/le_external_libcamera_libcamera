@@ -46,19 +46,6 @@ namespace lsc {
 
 } /* namespace lsc */
 
-#ifndef __DOXYGEN__
-template<>
-void Interpolator<lsc::Components>::
-	interpolate(const lsc::Components &a,
-		    const lsc::Components &b,
-		    lsc::Components &dest,
-		    double lambda)
-{
-	for (auto const &[k, v] : a)
-		interpolateVector(v, b.at(k), dest[k], lambda);
-}
-#endif
-
 /**
  * \struct LscDescriptor
  * \brief Describe the ISP LSC engine
