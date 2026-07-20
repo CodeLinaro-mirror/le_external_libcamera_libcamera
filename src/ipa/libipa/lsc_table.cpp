@@ -82,15 +82,15 @@ int LscTable::parseLscComponent(const ValueNode &yamlSet,
 	return 0;
 }
 
-std::vector<uint16_t> LscTable::parseTable(const ValueNode &tuningData,
+std::vector<float> LscTable::parseTable(const ValueNode &tuningData,
 					   const char *prop,
 					   unsigned int numHSamples,
 					   unsigned int numVSamples)
 {
 	unsigned int lscNumSamples = numHSamples * numVSamples;
 
-	std::vector<uint16_t> table =
-		tuningData[prop].get<std::vector<uint16_t>>().value_or(utils::defopt);
+	std::vector<float> table =
+		tuningData[prop].get<std::vector<float>>().value_or(utils::defopt);
 	if (table.size() != lscNumSamples) {
 		LOG(LscTable, Error)
 			<< "Invalid '" << prop << "' values: expected "

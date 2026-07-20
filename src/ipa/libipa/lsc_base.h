@@ -26,7 +26,7 @@ namespace ipa {
 
 namespace lsc {
 
-using Components = std::map<std::string, std::vector<uint16_t>>;
+using Components = std::map<std::string, std::vector<float>>;
 using ComponentsMap = std::map<unsigned int, Components>;
 
 } /* namespace lsc */
