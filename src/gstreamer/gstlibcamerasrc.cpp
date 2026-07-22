@@ -598,8 +598,13 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 		StreamConfiguration &stream_cfg = state->config_->at(i);
 
 		/* Retrieve the supported caps. */
+		g_autoptr(GstCaps) peer_caps = gst_pad_peer_query_caps(srcpad, NULL);
+		if (!peer_caps || gst_caps_is_empty(peer_caps))
+			return false;
+
 		g_autoptr(GstCaps) filter = gst_libcamera_stream_formats_to_caps(stream_cfg.formats());
-		g_autoptr(GstCaps) caps = gst_pad_peer_query_caps(srcpad, filter);
+		/* Intersect with downstream's preferred format order first. */
+		g_autoptr(GstCaps) caps = gst_caps_intersect_full(peer_caps, filter, GST_CAPS_INTERSECT_FIRST);
 		if (gst_caps_is_empty(caps))
 			return false;
 
