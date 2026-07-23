@@ -49,6 +49,8 @@ prepareControls(ControlList &controls, const CameraSensorHelper *sensor,
 }
 
 struct Session {
+	uint32_t minExposure;
+	uint32_t maxExposure;
 	utils::Duration minExposureTime;
 	utils::Duration maxExposureTime;
 	double minAnalogueGain;

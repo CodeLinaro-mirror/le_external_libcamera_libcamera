@@ -38,6 +38,12 @@ LOG_DEFINE_CATEGORY(Agc)
  * \struct agc::Session
  * \brief Session configuration for AgcAlgorithm
  *
+ * \var agc::Session::minExposure
+ * \brief Minimum exposure (in lines) supported with the configured sensor
+ *
+ * \var agc::Session::maxExposure
+ * \brief Maximum exposure (in lines) supported with the configured sensor
+ *
  * \var agc::Session::minExposureTime
  * \brief Minimum exposure time supported with the configured sensor
  *
@@ -223,6 +229,19 @@ LOG_DEFINE_CATEGORY(Agc)
  * \brief Effective lux value of the frame
  */
 
+namespace {
+
+[[nodiscard]] uint32_t clampExposure(utils::Duration exposureTime, const agc::Session &session)
+{
+	return std::clamp<uint32_t>(
+		exposureTime / session.lineDuration,
+		session.minExposure,
+		session.maxExposure
+	);
+}
+
+} /* namespace */
+
 /**
  * \brief Load tuning data
  */
@@ -317,6 +336,8 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state, cons
 	 *
 	 * \todo take VBLANK into account for maximum exposure time
 	 */
+	session.minExposure = minExposure;
+	session.maxExposure = maxExposure;
 	session.minExposureTime = minExposure * session.lineDuration;
 	session.maxExposureTime = maxExposure * session.lineDuration;
 	session.minAnalogueGain = minGain;
@@ -331,7 +352,7 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state, cons
 	/* Configure the default exposure and gain. */
 	state = {};
 	state.automatic.gain = session.minAnalogueGain;
-	state.automatic.exposure = 10ms / session.lineDuration;
+	state.automatic.exposure = clampExposure(10ms, session);
 	state.automatic.quantizationGain = 1;
 	state.automatic.yTarget = impl_.effectiveYTarget(0, 1);
 	state.manual.gain = state.automatic.gain;
@@ -437,7 +458,7 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
 
 	const auto &exposure = controls.get(controls::ExposureTime);
 	if (exposure && !state.autoExposureEnabled) {
-		state.manual.exposure = *exposure * 1.0us / session.lineDuration;
+		state.manual.exposure = clampExposure(*exposure * 1us, session);
 
 		LOG(Agc, Debug)
 			<< "Set exposure to " << state.manual.exposure;
@@ -599,7 +620,7 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 			<< ", " << newEv.quantizationGain << " and " << newEv.digitalGain;
 
 		/* Update the estimated exposure and gain. */
-		state.automatic.exposure = newEv.exposureTime / lineDuration;
+		state.automatic.exposure = clampExposure(newEv.exposureTime, session);
 		state.automatic.gain = newEv.analogueGain;
 		state.automatic.quantizationGain = newEv.quantizationGain;
 		state.automatic.yTarget = newEv.yTarget;
