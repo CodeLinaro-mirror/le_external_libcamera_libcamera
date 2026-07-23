@@ -326,7 +326,7 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state, cons
 	config.ctrlMap[&controls::FrameDurationLimits] = ControlInfo{
 		frameDurations[0],
 		frameDurations[1],
-		Span<const int64_t, 2>{ { frameDurations[2], frameDurations[2] } },
+		Span<const int64_t, 2>{ { frameDurations[0], frameDurations[1] } },
 	};
 
 	session.minFrameDuration = std::chrono::microseconds(frameDurations[0]);
