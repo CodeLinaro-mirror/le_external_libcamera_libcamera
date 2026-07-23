@@ -26,7 +26,7 @@ namespace ipa::soft {
 
 struct IPASessionConfiguration {
 	struct {
-		int32_t exposureMin, exposureMax;
+		uint32_t exposureMin, exposureMax;
 		double againMin, againMax, again10, againMinStep;
 		utils::Duration lineDuration;
 	} agc;
@@ -37,14 +37,14 @@ struct IPASessionConfiguration {
 
 struct IPAActiveState {
 	struct {
-		int32_t exposure;
+		uint32_t exposure;
 		double again;
 		bool valid;
 	} agc;
 
 	struct {
 		uint8_t level;
-		int32_t lastExposure;
+		uint32_t lastExposure;
 		double lastGain;
 	} blc;
 
@@ -67,12 +67,12 @@ struct IPAFrameContext : public FrameContext {
 	Matrix<float, 3, 3> ccm;
 
 	struct {
-		int32_t exposure;
+		uint32_t exposure;
 		double gain;
 	} agc;
 
 	struct {
-		int32_t exposure;
+		uint32_t exposure;
 		double gain;
 	} sensor;
 
