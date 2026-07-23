@@ -332,10 +332,7 @@ int AgcMeanLuminance::parseExposureModes(const ValueNode &tuningData)
 				});
 			}
 
-			std::shared_ptr<ExposureModeHelper> helper =
-				std::make_shared<ExposureModeHelper>(stages);
-
-			exposureModeHelpers_.try_emplace(it->second, std::move(helper));
+			exposureModeHelpers_.try_emplace(it->second, stages);
 			availableExposureModes.push_back(it->second);
 		}
 	}
@@ -347,12 +344,8 @@ int AgcMeanLuminance::parseExposureModes(const ValueNode &tuningData)
 	 * possible before touching gain.
 	 */
 	if (availableExposureModes.empty()) {
-		std::vector<std::pair<utils::Duration, double>> stages = { };
-
-		std::shared_ptr<ExposureModeHelper> helper =
-			std::make_shared<ExposureModeHelper>(stages);
-
-		exposureModeHelpers_.try_emplace(controls::ExposureNormal, std::move(helper));
+		exposureModeHelpers_.try_emplace(controls::ExposureNormal,
+						 Span<std::pair<utils::Duration, double>>{});
 		availableExposureModes.push_back(controls::ExposureNormal);
 	}
 
@@ -373,7 +366,7 @@ void AgcMeanLuminance::configure(utils::Duration lineDuration,
 				 const CameraSensorHelper *sensorHelper)
 {
 	for (auto &[id, helper] : exposureModeHelpers_)
-		helper->configure(lineDuration, sensorHelper);
+		helper.configure(lineDuration, sensorHelper);
 
 	luxWarningEnabled_ = true;
 }
@@ -484,7 +477,7 @@ void AgcMeanLuminance::setLimits(utils::Duration minExposureTime,
 				 std::vector<AgcMeanLuminance::AgcConstraint> constraints)
 {
 	for (auto &[id, helper] : exposureModeHelpers_)
-		helper->setLimits(minExposureTime, maxExposureTime, minGain, maxGain);
+		helper.setLimits(minExposureTime, maxExposureTime, minGain, maxGain);
 
 	additionalConstraints_ = std::move(constraints);
 }
@@ -684,7 +677,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	 * The pipeline handler should validate that we have received an allowed
 	 * value for AeExposureMode.
 	 */
-	std::shared_ptr<ExposureModeHelper> exposureModeHelper =
+	ExposureModeHelper &exposureModeHelper =
 		exposureModeHelpers_.at(exposureModeIndex);
 
 	if (effectiveExposureValue == 0s) {
@@ -696,7 +689,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 		 * doesn't get stuck with 0 in case the sensor driver allows a
 		 * min exposure of 0.
 		 */
-		return exposureModeHelper->splitExposure(10ms);
+		return exposureModeHelper.splitExposure(10ms);
 	}
 
 	double gain = estimateInitialGain(traits);
@@ -718,7 +711,7 @@ AgcMeanLuminance::calculateNewEv(uint32_t constraintModeIndex,
 	newExposureValue = filterExposure(newExposureValue);
 
 	frameCount_++;
-	return exposureModeHelper->splitExposure(newExposureValue);
+	return exposureModeHelper.splitExposure(newExposureValue);
 }
 
 /**
