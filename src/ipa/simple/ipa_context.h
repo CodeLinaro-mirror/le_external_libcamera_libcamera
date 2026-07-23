@@ -8,6 +8,7 @@
 #pragma once
 
 #include <array>
+#include <memory>
 #include <optional>
 #include <stdint.h>
 
@@ -16,6 +17,7 @@
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
 
+#include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
 #include "core_ipa_interface.h"
@@ -90,6 +92,8 @@ struct IPAContext {
 	}
 
 	IPACameraSensorInfo sensorInfo;
+	ControlInfoMap sensorControls;
+	std::unique_ptr<CameraSensorHelper> camHelper;
 	IPASessionConfiguration configuration;
 	IPAActiveState activeState;
 	FCQueue<IPAFrameContext> frameContexts;
