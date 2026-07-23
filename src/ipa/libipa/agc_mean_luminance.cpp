@@ -539,7 +539,7 @@ double AgcMeanLuminance::estimateInitialGain(const Traits &traits) const
  */
 double AgcMeanLuminance::constraintClampGain(uint32_t constraintModeIndex,
 					     const Histogram &hist,
-					     double gain)
+					     double gain) const
 {
 	auto applyConstraint = [this, &gain, &hist](const AgcConstraint &constraint) {
 		double lux = lux_;
@@ -569,7 +569,7 @@ double AgcMeanLuminance::constraintClampGain(uint32_t constraintModeIndex,
 		}
 	};
 
-	std::vector<AgcConstraint> &constraints = constraintModes_[constraintModeIndex];
+	const std::vector<AgcConstraint> &constraints = constraintModes_.at(constraintModeIndex);
 	std::for_each(constraints.begin(), constraints.end(), applyConstraint);
 
 	std::for_each(additionalConstraints_.begin(), additionalConstraints_.end(), applyConstraint);
