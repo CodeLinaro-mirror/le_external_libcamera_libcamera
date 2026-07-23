@@ -368,6 +368,7 @@ void AgcMeanLuminance::configure(utils::Duration lineDuration,
 		helper.configure(lineDuration, sensorHelper);
 
 	luxWarningEnabled_ = true;
+	filteredExposure_ = 0s;
 }
 
 /**
