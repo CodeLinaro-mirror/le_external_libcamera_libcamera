@@ -502,9 +502,8 @@ void AgcMeanLuminance::setLimits(utils::Duration minExposureTime,
  * target
  * \return The calculated initial gain
  */
-double AgcMeanLuminance::estimateInitialGain(const Traits &traits) const
+double AgcMeanLuminance::estimateInitialGain(const Traits &traits, double yTarget) const
 {
-	double yTarget = effectiveYTarget();
 	double yGain = 1.0;
 
 	/*
@@ -671,6 +670,9 @@ utils::Duration AgcMeanLuminance::filterExposure(utils::Duration exposureValue)
 /**
  * \struct AgcMeanLuminance::Result
  * \brief Collection of results of the mean luminance AGC algorithm
+ *
+ * \var AgcMeanLuminance::Result::yTarget
+ * \brief The current y target including exposure compensation
  */
 
 /**
@@ -694,6 +696,7 @@ AgcMeanLuminance::calculateNewEv(const Params &params)
 	 */
 	ExposureModeHelper &exposureModeHelper =
 		exposureModeHelpers_.at(params.exposureModeIndex);
+	double yTarget = effectiveYTarget();
 
 	if (params.effectiveExposureValue == 0s) {
 		LOG(AgcMeanLuminance, Error)
@@ -704,10 +707,10 @@ AgcMeanLuminance::calculateNewEv(const Params &params)
 		 * doesn't get stuck with 0 in case the sensor driver allows a
 		 * min exposure of 0.
 		 */
-		return { exposureModeHelper.splitExposure(10ms) };
+		return { exposureModeHelper.splitExposure(10ms), yTarget };
 	}
 
-	double gain = estimateInitialGain(params.traits);
+	double gain = estimateInitialGain(params.traits, yTarget);
 	gain = constraintClampGain(params.constraintModeIndex, params.yHist, gain);
 
 	/*
@@ -726,7 +729,7 @@ AgcMeanLuminance::calculateNewEv(const Params &params)
 	newExposureValue = filterExposure(newExposureValue);
 
 	frameCount_++;
-	return { exposureModeHelper.splitExposure(newExposureValue) };
+	return { exposureModeHelper.splitExposure(newExposureValue), yTarget };
 }
 
 /**
