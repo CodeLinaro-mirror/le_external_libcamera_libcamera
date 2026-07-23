@@ -17,6 +17,7 @@
 #include "libcamera/internal/matrix.h"
 #include "libcamera/internal/vector.h"
 
+#include <libipa/agc.h>
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
@@ -27,10 +28,7 @@ namespace libcamera {
 namespace ipa::soft {
 
 struct IPASessionConfiguration {
-	struct {
-		uint32_t exposureMin, exposureMax;
-		double againMin, againMax, again10, againMinStep;
-		utils::Duration lineDuration;
+	struct Agc : agc::Session {
 	} agc;
 	struct {
 		std::optional<uint8_t> level;
@@ -38,10 +36,7 @@ struct IPASessionConfiguration {
 };
 
 struct IPAActiveState {
-	struct {
-		uint32_t exposure;
-		double again;
-		bool valid;
+	struct Agc : agc::ActiveState {
 	} agc;
 
 	struct {
@@ -68,9 +63,7 @@ struct IPAActiveState {
 struct IPAFrameContext : public FrameContext {
 	Matrix<float, 3, 3> ccm;
 
-	struct {
-		uint32_t exposure;
-		double gain;
+	struct Agc : agc::FrameContext {
 	} agc;
 
 	struct {
