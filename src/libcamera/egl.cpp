@@ -301,46 +301,49 @@ void eGL::createTexture2D(eGLImage &eglImage, void *data)
 
 EGLDisplay eGL::probeDisplay()
 {
-	EGLDisplay display;
+	static EGLDisplay cachedDisplay = EGL_NO_DISPLAY;
+	static bool probed = false;
+
+	if (probed)
+		return cachedDisplay;
+
+	probed = true;
 
 	if (!eglBindAPI(EGL_OPENGL_ES_API)) {
 		LOG(eGL, Info) << "API bind fail";
 		return EGL_NO_DISPLAY;
 	}
 
-	display = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
-					EGL_DEFAULT_DISPLAY,
-					nullptr);
+	cachedDisplay = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
+					      EGL_DEFAULT_DISPLAY,
+					      nullptr);
 
-	if (display == EGL_NO_DISPLAY) {
+	if (cachedDisplay == EGL_NO_DISPLAY) {
 		LOG(eGL, Info) << "Unable to get EGL display";
 		return EGL_NO_DISPLAY;
 	}
 
-	if (eglInitialize(display, nullptr, nullptr) != EGL_TRUE) {
+	if (eglInitialize(cachedDisplay, nullptr, nullptr) != EGL_TRUE) {
 		LOG(eGL, Error) << "eglInitialize fail";
+		cachedDisplay = EGL_NO_DISPLAY;
 		return EGL_NO_DISPLAY;
 	}
 
-	return display;
+	return cachedDisplay;
 }
 
 /**
  * \brief Probe whether EGL surfaceless rendering is available
  *
  * Checks if an EGL surfaceless display can be obtained and initialised.
- * The display is immediately terminated so that no resources are leaked.
+ * The result is cached so that a subsequent call to initEGLContext() reuses
+ * the already-initialised display without a redundant init/teardown cycle.
  *
  * \return True if EGL surfaceless rendering is available, false otherwise
  */
 bool eGL::isAvailable()
 {
-	EGLDisplay display = probeDisplay();
-	if (display == EGL_NO_DISPLAY)
-		return false;
-
-	eglTerminate(display);
-	return true;
+	return probeDisplay() != EGL_NO_DISPLAY;
 }
 
 /**
