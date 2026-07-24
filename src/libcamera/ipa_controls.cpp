@@ -234,14 +234,18 @@ static_assert(sizeof(ipa_control_list_entry) == 20,
  * \var ipa_control_info_entry::id
  * The numerical ID of the control
  * \var ipa_control_info_entry::type
- * The type of the control (defined by enum ControlType)
- * info data (shall be a multiple of 8 bytes)
+ * The type of the control (defined by enum ControlType).
+ * The info data shall be a multiple of 8 bytes.
  * \var ipa_control_info_entry::direction
  * The directions in which the control is allowed to be sent. This is a flags
  * value, where 0x1 signifies input (as controls), and 0x2 signifies output (as
  * metadata). \sa ControlId::Direction
  * \var ipa_control_info_entry::padding
  * Padding bytes (shall be set to 0)
+ * \var ipa_control_info_entry::name_len
+ * Length of the control name
+ * \var ipa_control_info_entry::name_offset
+ * Offset of the control name in the values section
  * \var ipa_control_info_entry::min
  * The description of the serialized ControlValue (min)
  * \var ipa_control_info_entry::max
@@ -250,7 +254,7 @@ static_assert(sizeof(ipa_control_list_entry) == 20,
  * The description of the serialized ControlValue (def)
  */
 
-static_assert(sizeof(ipa_control_info_entry) == 64,
+static_assert(sizeof(ipa_control_info_entry) == 68,
 	      "Invalid ABI size change for struct ipa_control_info_entry");
 
 } /* namespace libcamera */

@@ -15,7 +15,7 @@ namespace libcamera {
 extern "C" {
 #endif
 
-#define IPA_CONTROLS_FORMAT_VERSION	2
+#define IPA_CONTROLS_FORMAT_VERSION 3
 
 enum ipa_controls_id_map_type {
 	IPA_CONTROL_ID_MAP_CONTROLS,
@@ -50,7 +50,11 @@ struct ipa_control_info_entry {
 	uint32_t id;
 	uint32_t type;
 	uint8_t direction;
-	uint8_t padding[7];
+	uint8_t padding[3];
+	/* Length of the control name. */
+	uint32_t name_len;
+	/* Offset of the control name in the values section. */
+	uint32_t name_offset;
 	struct ipa_control_value_entry min;
 	struct ipa_control_value_entry max;
 	struct ipa_control_value_entry def;
