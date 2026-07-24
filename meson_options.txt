@@ -85,6 +85,7 @@ option('pipelines',
             'rpi/pisp',
             'rpi/vc4',
             'simple',
+            'tegra',
             'uvcvideo',
             'vimc',
             'virtual'

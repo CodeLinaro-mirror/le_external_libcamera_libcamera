@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: CC0-1.0
 
-softisp_enabled = pipelines.contains('simple')
+softisp_enabled = pipelines.contains('simple') or pipelines.contains('tegra')
 summary({'SoftISP support' : softisp_enabled},
         bool_yn : true,
         section : 'Configuration')
