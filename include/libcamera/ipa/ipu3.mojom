@@ -9,6 +9,8 @@ module ipa.ipu3;
 import "include/libcamera/ipa/core.mojom";
 
 struct IPAConfigInfo {
+	const string kInterfaceName = "ipu3";
+
 	libcamera.IPACameraSensorInfo sensorInfo;
 	libcamera.ControlInfoMap sensorControls;
 	libcamera.ControlInfoMap lensControls;
@@ -17,6 +19,8 @@ struct IPAConfigInfo {
 };
 
 interface IPAIPU3Interface {
+	const string kInterfaceName = "ipu3";
+
 	init(libcamera.IPASettings settings,
 	     libcamera.IPACameraSensorInfo sensorInfo,
 	     libcamera.ControlInfoMap sensorControls)
