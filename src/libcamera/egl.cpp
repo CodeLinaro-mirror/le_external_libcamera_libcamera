@@ -64,12 +64,15 @@ LOG_DEFINE_CATEGORY(eGL)
 
 /**
  * \brief Construct an EGL helper
+ * \param[in] display The EGL display to use
  *
  * Creates an eGL instance with uninitialised context. Call initEGLContext()
- * to set up the EGL display, context, and load extension functions.
+ * to set up the EGL context, and load extension functions.
  */
-eGL::eGL()
+eGL::eGL(EGLDisplay display)
+	: display_(display)
 {
+	ASSERT(display_ != EGL_NO_DISPLAY);
 }
 
 /**
@@ -299,6 +302,13 @@ void eGL::createTexture2D(eGLImage &eglImage, void *data)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 }
 
+/**
+ * \brief Try to create an EGL display for surfaceless rendering
+ *
+ * Tries to create an EGL display for surfaceless rendering.
+ *
+ * \return A EGL display handle if successful, otherwise \a EGL_NO_DISPLAY
+ */
 EGLDisplay eGL::probeDisplay()
 {
 	EGLDisplay display;
@@ -323,24 +333,6 @@ EGLDisplay eGL::probeDisplay()
 	}
 
 	return display;
-}
-
-/**
- * \brief Probe whether EGL surfaceless rendering is available
- *
- * Checks if an EGL surfaceless display can be obtained and initialised.
- * The display is immediately terminated so that no resources are leaked.
- *
- * \return True if EGL surfaceless rendering is available, false otherwise
- */
-bool eGL::isAvailable()
-{
-	EGLDisplay display = probeDisplay();
-	if (display == EGL_NO_DISPLAY)
-		return false;
-
-	eglTerminate(display);
-	return true;
 }
 
 /**
@@ -402,12 +394,6 @@ int eGL::initEGLContext()
 
 	EGLint numConfigs;
 	EGLConfig config;
-
-	display_ = probeDisplay();
-	if (display_ == EGL_NO_DISPLAY) {
-		LOG(eGL, Error) << "Unable to probe display";
-		goto fail;
-	}
 
 	LOG(eGL, Info) << "EGL: EGL_VERSION: " << eglQueryString(display_, EGL_VERSION);
 	LOG(eGL, Info) << "EGL: EGL_VENDOR: " << eglQueryString(display_, EGL_VENDOR);
