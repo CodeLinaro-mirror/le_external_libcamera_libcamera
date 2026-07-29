@@ -595,6 +595,7 @@ class CameraSensorHelperImx296 : public CameraSensorHelper
 public:
 	CameraSensorHelperImx296()
 	{
+		blackLevel_ = 3840;
 		gain_ = AnalogueGainExp{ 1.0, expGainDb(0.1) };
 	}
 };
@@ -634,6 +635,7 @@ class CameraSensorHelperImx415 : public CameraSensorHelper
 public:
 	CameraSensorHelperImx415()
 	{
+		blackLevel_ = 3840;
 		gain_ = AnalogueGainExp{ 1.0, expGainDb(0.3) };
 	}
 };
@@ -662,6 +664,7 @@ class CameraSensorHelperImx477 : public CameraSensorHelper
 public:
 	CameraSensorHelperImx477()
 	{
+		blackLevel_ = 4096;
 		gain_ = AnalogueGainLinear{ 0, 1024, -1, 1024 };
 	}
 };
@@ -792,6 +795,7 @@ class CameraSensorHelperOv5647 : public CameraSensorHelper
 public:
 	CameraSensorHelperOv5647()
 	{
+		blackLevel_ = 1024;
 		gain_ = AnalogueGainLinear{ 1, 0, 0, 16 };
 	}
 };
@@ -835,6 +839,7 @@ class CameraSensorHelperOv64a40 : public CameraSensorHelper
 public:
 	CameraSensorHelperOv64a40()
 	{
+		blackLevel_ = 4096;
 		gain_ = AnalogueGainLinear{ 1, 0, 0, 128 };
 	}
 };
