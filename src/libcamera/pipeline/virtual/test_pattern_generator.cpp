@@ -11,6 +11,7 @@
 
 #include <libcamera/base/log.h>
 
+#include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/mapped_framebuffer.h"
 
 #include <libyuv/convert_from_argb.h>
@@ -44,6 +45,8 @@ static const unsigned int kARGBSize = 4;
 int TestPatternGenerator::generateFrame(const Size &size,
 					const FrameBuffer *buffer)
 {
+	DmaSyncer outDmaSyncer(buffer->planes()[0].fd,
+			       DmaSyncer::SyncType::Write);
 	MappedFrameBuffer mappedFrameBuffer(buffer,
 					    MappedFrameBuffer::MapFlag::Write);
 
