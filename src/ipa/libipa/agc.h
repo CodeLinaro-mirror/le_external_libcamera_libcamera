@@ -29,27 +29,6 @@ namespace ipa {
 
 namespace agc {
 
-[[nodiscard]]
-inline std::pair<uint32_t, double>
-extractControls(const ControlList &controls, const CameraSensorHelper *sensor)
-{
-	auto exposure = controls.get(V4L2_CID_EXPOSURE).get<int32_t>();
-	auto gainCode = controls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
-
-	return {
-		uint32_t(exposure),
-		sensor ? sensor->gain(gainCode) : gainCode,
-	};
-}
-
-inline void
-prepareControls(ControlList &controls, const CameraSensorHelper *sensor,
-		int32_t exposure, double gain)
-{
-	controls.set(V4L2_CID_EXPOSURE, exposure);
-	controls.set(V4L2_CID_ANALOGUE_GAIN, int32_t(sensor ? sensor->gainCode(gain) : gain));
-}
-
 struct Session {
 	utils::Duration minExposureTime;
 	utils::Duration maxExposureTime;
@@ -107,6 +86,33 @@ struct FrameContext {
 	bool autoExposureModeChange;
 	bool autoGainModeChange;
 };
+
+
+[[nodiscard]]
+inline std::pair<uint32_t, double>
+extractControls(const ControlList &controls, const CameraSensorHelper *sensor)
+{
+	auto exposure = controls.get(V4L2_CID_EXPOSURE).get<int32_t>();
+	auto gainCode = controls.get(V4L2_CID_ANALOGUE_GAIN).get<int32_t>();
+
+	return {
+		uint32_t(exposure),
+		sensor ? sensor->gain(gainCode) : gainCode,
+	};
+}
+
+inline void
+prepareControls(ControlList &controls, const CameraSensorHelper *sensor,
+		const FrameContext &frameContext)
+{
+	uint32_t gain = sensor
+		? sensor->gainCode(frameContext.gain)
+		: uint32_t(frameContext.gain);
+
+	controls.set(V4L2_CID_EXPOSURE, int32_t(frameContext.exposure));
+	controls.set(V4L2_CID_ANALOGUE_GAIN, int32_t(gain));
+	controls.set(V4L2_CID_VBLANK, int32_t(frameContext.vblank));
+}
 
 } /* namespace agc */
 
