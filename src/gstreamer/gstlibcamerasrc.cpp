@@ -605,7 +605,8 @@ gst_libcamera_src_negotiate(GstLibcameraSrc *self)
 
 		/* Fixate caps and configure the stream. */
 		caps = gst_caps_make_writable(caps);
-		gst_libcamera_configure_stream_from_caps(stream_cfg, caps, &transfer[i]);
+		if (!gst_libcamera_configure_stream_from_caps(stream_cfg, caps, &transfer[i]))
+			return false;
 		gst_libcamera_get_framerate_from_caps(caps, element_caps);
 	}
 

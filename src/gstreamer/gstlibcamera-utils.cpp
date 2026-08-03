@@ -8,6 +8,7 @@
 
 #include "gstlibcamera-utils.h"
 
+#include <optional>
 #include <string>
 
 #include <libcamera/control_ids.h>
@@ -435,61 +436,111 @@ gst_libcamera_stream_configuration_to_caps(const StreamConfiguration &stream_cfg
 	return caps;
 }
 
-void gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
+/*
+ * We will want to distinguish between caps structures corresponding to
+ * raw and non-raw (processed) output images, as this will help inform
+ * our choice of preferred format.
+ *
+ * We identify Bayer as being the principle "raw" format here, but note
+ * that we are considering greyscale (images with one component) to be
+ * raw too (e.g. a raw monochrome sensor).
+ */
+static bool
+gst_libcamera_structure_is_raw_capture(const GstStructure *s)
+{
+	if (gst_structure_has_name(s, "video/x-bayer"))
+		return true;
+
+	if (gst_structure_has_name(s, "video/x-raw")) {
+		const gchar *format = gst_structure_get_string(s, "format");
+		if (!format)
+			return false;
+
+		const GstVideoFormatInfo *finfo =
+			gst_video_format_get_info(gst_video_format_from_string(format));
+
+		return finfo->n_components == 1;
+	}
+
+	return false;
+}
+
+/*
+ * Data recorded for each caps structure candidate, used to rank them
+ * against each other via operator<().
+ */
+struct CapsCandidate {
+	guint index;
+	bool is_raw;
+	bool is_fixed;
+	guint delta;
+
+	bool operator<(const CapsCandidate &other) const
+	{
+		/*
+		 * Raw formats are likely to be useful only to applications that
+		 * specifically ask for them. Other applications will typically be
+		 * unable to handle them and fail, so prefer non-raw candidates.
+		 */
+		if (is_raw != other.is_raw)
+			return !is_raw;
+
+		/* Prefer a reliable fixed value over a range. */
+		if (is_fixed != other.is_fixed)
+			return is_fixed;
+
+		/* Otherwise the closest size match wins. */
+		return delta < other.delta;
+	}
+};
+
+bool gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
 					      GstCaps *caps, GstVideoTransferFunction *transfer)
 {
 	GstVideoFormat gst_format = pixel_format_to_gst_format(stream_cfg.pixelFormat);
 	guint i;
-	gint best_fixed = -1, best_in_range = -1;
 	GstStructure *s;
-
-	/*
-	 * These are delta weight computed from:
-	 *   ABS(width - stream_cfg.size.width) * ABS(height - stream_cfg.size.height)
-	 */
-	guint best_fixed_delta = G_MAXUINT;
-	guint best_in_range_delta = G_MAXUINT;
 
 	/* First fixate the caps using default configuration value. */
 	g_assert(gst_caps_is_writable(caps));
 
-	/* Lookup the structure for a close match to the stream_cfg.size */
+	/*
+	 * Build a candidate for every available caps structure, and keep
+	 * track of the best one seen so far, as ranked by
+	 * CapsCandidate::operator<().
+	 */
+	std::optional<CapsCandidate> best;
+
 	for (i = 0; i < gst_caps_get_size(caps); i++) {
 		s = gst_caps_get_structure(caps, i);
 		gint width, height;
-		guint delta;
+		bool is_fixed = gst_structure_has_field_typed(s, "width", G_TYPE_INT) &&
+				gst_structure_has_field_typed(s, "height", G_TYPE_INT);
 
-		if (gst_structure_has_field_typed(s, "width", G_TYPE_INT) &&
-		    gst_structure_has_field_typed(s, "height", G_TYPE_INT)) {
+		if (is_fixed) {
 			gst_structure_get_int(s, "width", &width);
 			gst_structure_get_int(s, "height", &height);
-
-			delta = ABS(width - (gint)stream_cfg.size.width) * ABS(height - (gint)stream_cfg.size.height);
-
-			if (delta < best_fixed_delta) {
-				best_fixed_delta = delta;
-				best_fixed = i;
-			}
 		} else {
 			gst_structure_fixate_field_nearest_int(s, "width", stream_cfg.size.width);
 			gst_structure_fixate_field_nearest_int(s, "height", stream_cfg.size.height);
 			gst_structure_get_int(s, "width", &width);
 			gst_structure_get_int(s, "height", &height);
-
-			delta = ABS(width - (gint)stream_cfg.size.width) * ABS(height - (gint)stream_cfg.size.height);
-
-			if (delta < best_in_range_delta) {
-				best_in_range_delta = delta;
-				best_in_range = i;
-			}
 		}
+
+		guint delta = ABS(width - (gint)stream_cfg.size.width) * ABS(height - (gint)stream_cfg.size.height);
+
+		CapsCandidate candidate{ i, gst_libcamera_structure_is_raw_capture(s), is_fixed, delta };
+
+		if (!best || candidate < *best)
+			best = candidate;
 	}
 
-	/* Prefer reliable fixed value over ranges */
-	if (best_fixed >= 0)
-		s = gst_caps_get_structure(caps, best_fixed);
-	else
-		s = gst_caps_get_structure(caps, best_in_range);
+	if (!best) {
+		GST_WARNING("Failed to find a suitable caps structure to configure the stream");
+		return false;
+	}
+
+	s = gst_caps_get_structure(caps, best->index);
 
 	if (gst_structure_has_name(s, "video/x-raw")) {
 		const gchar *format = gst_video_format_to_string(gst_format);
@@ -529,6 +580,8 @@ void gst_libcamera_configure_stream_from_caps(StreamConfiguration &stream_cfg,
 
 		stream_cfg.colorSpace = colorspace_from_colorimetry(colorimetry, transfer);
 	}
+
+	return true;
 }
 
 void gst_libcamera_get_framerate_from_caps(GstCaps *caps,
