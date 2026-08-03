@@ -24,6 +24,7 @@ libipa_headers = files([
 ])
 
 libipa_sources = files([
+    'agc.cpp',
     'agc_mean_luminance.cpp',
     'algorithm.cpp',
     'awb_bayes.cpp',
