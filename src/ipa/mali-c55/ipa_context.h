@@ -41,12 +41,10 @@ struct IPAActiveState {
 		struct {
 			uint32_t exposure;
 			double sensorGain;
-			UQ<5, 8> ispGain;
 		} automatic;
 		struct {
 			uint32_t exposure;
 			double sensorGain;
-			UQ<5, 8> ispGain;
 		} manual;
 		bool autoEnabled;
 		uint32_t constraintMode;
@@ -64,7 +62,6 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		uint32_t exposure;
 		double sensorGain;
-		UQ<5, 8> ispGain;
 	} agc;
 
 	struct {
