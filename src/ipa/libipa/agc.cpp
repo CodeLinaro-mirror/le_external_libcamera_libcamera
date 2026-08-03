@@ -707,14 +707,12 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 	metadata.set(controls::ExposureTime,
 		     utils::Duration(lineDuration * frameContext.exposure).get<std::micro>());
 	metadata.set(controls::FrameDuration, frameContext.frameDuration.get<std::micro>());
-	metadata.set(controls::ExposureTimeMode,
-		     frameContext.autoExposureEnabled
-		     ? controls::ExposureTimeModeAuto
-		     : controls::ExposureTimeModeManual);
-	metadata.set(controls::AnalogueGainMode,
-		     frameContext.autoGainEnabled
-		     ? controls::AnalogueGainModeAuto
-		     : controls::AnalogueGainModeManual);
+	metadata.set(controls::ExposureTimeMode, frameContext.autoExposureEnabled
+						 ? controls::ExposureTimeModeAuto
+						 : controls::ExposureTimeModeManual);
+	metadata.set(controls::AnalogueGainMode, frameContext.autoGainEnabled
+						 ? controls::AnalogueGainModeAuto
+						 : controls::AnalogueGainModeManual);
 
 	metadata.set(controls::AeExposureMode, frameContext.exposureMode);
 	metadata.set(controls::AeConstraintMode, frameContext.constraintMode);
