@@ -9,6 +9,7 @@
 
 #include <optional>
 #include <utility>
+#include <variant>
 
 #include <linux/v4l2-controls.h>
 
@@ -18,6 +19,7 @@
 #include <libcamera/ipa/core_ipa_interface.h>
 
 #include "agc_mean_luminance.h"
+#include "agc_msv.h"
 #include "camera_sensor_helper.h"
 #include "histogram.h"
 
@@ -53,6 +55,7 @@ struct Session {
 	utils::Duration maxExposureTime;
 	double minAnalogueGain;
 	double maxAnalogueGain;
+	double defAnalogueGain;
 	utils::Duration minFrameDuration;
 	utils::Duration maxFrameDuration;
 
@@ -111,14 +114,13 @@ class AgcAlgorithm
 {
 public:
 	struct ConfigurationParams {
-		const CameraSensorHelper *sensor;
 		const IPACameraSensorInfo &sensorInfo;
 		const ControlInfoMap &sensorControls;
 		ControlInfoMap::Map &ctrlMap;
 		bool autoAllowed = true;
 	};
 
-	int init(const ValueNode &tuningData);
+	int init(const ValueNode &tuningData, CameraSensorHelper *sensor);
 
 	int configure(agc::Session &session, agc::ActiveState &state,
 		      const ConfigurationParams &config);
@@ -143,7 +145,8 @@ public:
 		     ControlList &metadata);
 
 private:
-	AgcMeanLuminance impl_;
+	std::variant<AgcMSV, AgcMeanLuminance> impl_;
+	CameraSensorHelper *sensor_ = nullptr;
 };
 
 } /* namespace ipa */
