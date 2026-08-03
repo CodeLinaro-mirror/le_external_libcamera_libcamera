@@ -252,6 +252,8 @@ struct IPAContext {
 
 	ControlInfoMap::Map ctrlMap;
 
+	ControlInfoMap sensorControls;
+
 	DebugMetadata debugMetadata;
 
 	/* Interface to the Camera Helper */
