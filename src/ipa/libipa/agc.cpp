@@ -382,13 +382,25 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 	if (session.autoAllowed) {
 		config.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
 
-		for (const auto &[id, info] : impl_.controls())
-			config.ctrlMap[id] = info;
+		{
+			std::vector<ControlValue> options;
+			for (const auto &[id, _] : impl_.constraintModes())
+				options.emplace_back(id);
+
+			config.ctrlMap[&controls::AeConstraintMode] = ControlInfo(options);
+		}
+
+		{
+			std::vector<ControlValue> options;
+			for (const auto &[id, _] : impl_.exposureModeHelpers())
+				options.emplace_back(id);
+
+			config.ctrlMap[&controls::AeExposureMode] = ControlInfo(options);
+		}
 	} else {
 		config.ctrlMap.erase(&controls::ExposureValue);
-
-		for (const auto &[id, info] : impl_.controls())
-			config.ctrlMap.erase(id);
+		config.ctrlMap.erase(&controls::AeConstraintMode);
+		config.ctrlMap.erase(&controls::AeExposureMode);
 	}
 
 	return 0;
