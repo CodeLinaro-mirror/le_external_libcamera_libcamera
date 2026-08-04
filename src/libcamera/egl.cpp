@@ -359,7 +359,7 @@ void eGL::createOutputTexture2D(eGLImage &eglImage)
  * - eglCreateImageKHR / eglDestroyImageKHR
  * - glEGLImageTargetTexture2DOES
  *
- * \return 0 on success, or -ENODEV on failure
+ * \return 0 on success, or negative error code on failure
  */
 int eGL::initEGLContext()
 {
@@ -381,6 +381,9 @@ int eGL::initEGLContext()
 	VTable vtable = {};
 	EGLint numConfigs;
 	EGLConfig config;
+
+	if (context_ != EGL_NO_CONTEXT)
+		return -EEXIST;
 
 	if (!eglBindAPI(EGL_OPENGL_ES_API)) {
 		LOG(eGL, Error) << "API bind fail";
