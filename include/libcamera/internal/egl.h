@@ -103,6 +103,7 @@ public:
 	~eGL();
 
 	int initEGLContext();
+	void resetEGLContext();
 	static EGLDisplay probeDisplay();
 
 	int createInputDMABufTexture2D(eGLImage &eglImage, int fd);

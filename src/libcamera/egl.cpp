@@ -71,14 +71,13 @@ eGL::eGL(EGLDisplay display)
 }
 
 /**
- * \brief Destroy the EGL helper
+ * \brief Release all EGL resources
  *
- * Destroys the EGL context and surface if they were successfully created.
+ * Equivalent to calling resetEGLContext().
  */
 eGL::~eGL()
 {
-	if (context_ != EGL_NO_CONTEXT)
-		eglDestroyContext(display_, context_);
+	resetEGLContext();
 }
 
 /**
@@ -434,6 +433,20 @@ int eGL::initEGLContext()
 fail:
 
 	return -ENODEV;
+}
+
+/**
+ * \brief Destroy the EGL context
+ *
+ * This function destroys the EGL context created by initEGLContext().
+ */
+void eGL::resetEGLContext()
+{
+	if (context_ != EGL_NO_CONTEXT)
+		eglDestroyContext(display_, std::exchange(context_, EGL_NO_CONTEXT));
+
+	tid_ = -1;
+	vtable_ = {};
 }
 
 /**
