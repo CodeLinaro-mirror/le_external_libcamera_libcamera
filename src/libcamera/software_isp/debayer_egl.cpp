@@ -578,9 +578,6 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 	eGLImage *eglImageIn;
 	eGLImage *eglImageOut;
 
-	/* eGL context switch */
-	egl_.makeCurrent();
-
 	eglImageIn = getCachedInputFrameBuffer(input, inMapped, inDmaSyncer);
 	if (!eglImageIn)
 		return -ENOMEM;
