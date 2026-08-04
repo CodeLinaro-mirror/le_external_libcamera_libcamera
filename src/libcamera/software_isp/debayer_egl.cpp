@@ -680,6 +680,7 @@ void DebayerEGL::stop()
 	if (programId_)
 		glDeleteProgram(programId_);
 
+	egl_.makeCurrent(false);
 	egl_.resetEGLContext();
 }
 
