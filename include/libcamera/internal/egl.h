@@ -116,7 +116,7 @@ public:
 	void activateBindTexture(eGLImage &eglImage);
 
 	void pushEnv(std::vector<std::string> &shaderEnv, const char *str);
-	void makeCurrent();
+	void makeCurrent(bool make);
 
 	int compileVertexShader(GLuint &shaderId, Span<const unsigned char> shaderData,
 				Span<const std::string> shaderEnv);

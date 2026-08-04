@@ -427,7 +427,7 @@ int eGL::initEGLContext()
 	tid_ = Thread::currentId();
 	vtable_ = vtable;
 
-	makeCurrent();
+	makeCurrent(true);
 
 	LOG(eGL, Info) << "EGL: GL_RENDERER: " << glGetString(GL_RENDERER);
 	LOG(eGL, Info) << "EGL: GL_VERSION: " << glGetString(GL_VERSION);
@@ -454,16 +454,17 @@ void eGL::resetEGLContext()
 
 /**
  * \brief Make the EGL context current for the calling thread
+ * \param[in] make Whether to make/unmake the EGL context
  *
  * Binds the EGL context to the current thread, allowing OpenGL ES
  * operations to be performed. Must be called from the thread that
  * will perform rendering operations.
  */
-void eGL::makeCurrent()
+void eGL::makeCurrent(bool make)
 {
 	ASSERT(tid_ == Thread::currentId());
 
-	if (eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, context_) != EGL_TRUE) {
+	if (eglMakeCurrent(display_, EGL_NO_SURFACE, EGL_NO_SURFACE, make ? context_ : EGL_NO_CONTEXT) != EGL_TRUE) {
 		LOG(eGL, Error) << "eglMakeCurrent fail";
 	}
 }
