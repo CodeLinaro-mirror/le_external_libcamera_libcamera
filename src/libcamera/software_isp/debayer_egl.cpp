@@ -115,6 +115,8 @@ int DebayerEGL::getShaderVariableLocations(void)
 	textureUniformBayerFirstRed_ = glGetUniformLocation(programId_, "tex_bayer_first_red");
 	textureUniformProjMatrix_ = glGetUniformLocation(programId_, "proj_matrix");
 
+	textureUniformLsc_ = glGetUniformLocation(programId_, "lsc_tex");
+
 	LOG(Debayer, Debug) << "vertexIn " << attributeVertex_ << " textureIn " << attributeTexture_
 			    << " tex_y " << textureUniformBayerDataIn_
 			    << " awb " << awbUniformDataIn_
@@ -126,7 +128,8 @@ int DebayerEGL::getShaderVariableLocations(void)
 			    << " tex_size " << textureUniformSize_
 			    << " stride_factor " << textureUniformStrideFactor_
 			    << " tex_bayer_first_red " << textureUniformBayerFirstRed_
-			    << " proj_matrix " << textureUniformProjMatrix_;
+			    << " proj_matrix " << textureUniformProjMatrix_
+			    << " tex_lsc " << textureUniformLsc_;
 	return 0;
 }
 
@@ -142,6 +145,9 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 
 	/* Specify GL_OES_EGL_image_external */
 	egl_.pushEnv(shaderEnv, "#extension GL_OES_EGL_image_external: enable");
+
+	if (lscEnabled_)
+		egl_.pushEnv(shaderEnv, "#define APPLY_LSC");
 
 	/*
 	 * Tell shaders how to re-order output taking account of how the pixels
@@ -338,6 +344,18 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	inputBufferCount_ = inputCfg.bufferCount;
 	outputBufferCount_ = outputCfg.bufferCount;
 
+	if (lscEnabled_) {
+		constexpr unsigned int gridSize = DebayerParams::kLscGridSize;
+		const unsigned int stride = gridSize * DebayerParams::kLscBytesPerCell;
+		eglImageLscLookup_ =
+			std::make_unique<eGLImage>(GL_RGBA,
+						   gridSize,
+						   gridSize,
+						   stride,
+						   GL_TEXTURE2,
+						   2);
+	}
+
 	return 0;
 }
 
@@ -467,6 +485,21 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 	glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_TRUE, params.combinedMatrix.data().data());
 	LOG(Debayer, Debug) << " ccmUniformDataIn_ " << ccmUniformDataIn_ << " data " << params.combinedMatrix;
 
+	if (lscEnabled_) {
+		glUniform1i(textureUniformLsc_, eglImageLscLookup_->texture_unit_uniform_id_);
+		if (params.lscLutVersion != lscLutVersion_) {
+			if (lscTextureCreated_) {
+				egl_.updateTexture2D(*eglImageLscLookup_, params.lscLut.data());
+			} else {
+				egl_.createTexture2D(*eglImageLscLookup_, eglImageLscLookup_->format_, GL_UNSIGNED_BYTE,
+						     params.lscLut.data(), GL_LINEAR);
+				lscTextureCreated_ = true;
+			}
+
+			lscLutVersion_ = params.lscLutVersion;
+		}
+	}
+
 	/*
 	 * 0 = Red, 1 = Green, 2 = Blue
 	 */
@@ -536,7 +569,11 @@ eGLImage *DebayerEGL::getCachedInputFrameBuffer(FrameBuffer *input, std::optiona
 		return nullptr;
 	}
 	if (cache_miss)
-		egl_.createTexture2D(*eglImageIn, inMapped->value().planes()[0].data(), GL_NEAREST);
+		egl_.createTexture2D(*eglImageIn,
+				     eglImageIn->format_,
+				     GL_UNSIGNED_BYTE,
+				     inMapped->value().planes()[0].data(),
+				     GL_NEAREST);
 	else
 		egl_.updateTexture2D(*eglImageIn, inMapped->value().planes()[0].data());
 
@@ -682,6 +719,7 @@ void DebayerEGL::stop()
 {
 	eglImageOutCache_.clear();
 	eglImageInCache_.clear();
+	lscTextureCreated_ = false;
 
 	if (programId_)
 		glDeleteProgram(programId_);
