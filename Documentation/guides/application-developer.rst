@@ -486,6 +486,24 @@ device:
    request->reuse(Request::ReuseBuffers);
    camera->queueRequest(request);
 
+Request metadata
+~~~~~~~~~~~~~~~~
+
+Completed requests also expose metadata as a :doxy-pub:`ControlList` through
+:doxy-pub:`Request::metadata()`. Only controls where
+:doxy-pub:`ControlId::direction()` signals
+:doxy-pub:`ControlId::Direction::Out` are returned as metadata.
+
+Common entries include :doxy-pub:`controls::SensorTimestamp`,
+:doxy-pub:`controls::FrameWallClock`, and :doxy-pub:`controls::SensorSequence`.
+See the documentation of each control for details.
+
+.. code:: cpp
+
+   const ControlList &metadata = request->metadata();
+   if (auto seq = metadata.get(controls::SensorSequence))
+      std::cout << " sensor sequence: " << *seq << std::endl;
+
 Request queueing
 ----------------
 
