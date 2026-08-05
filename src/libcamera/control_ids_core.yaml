@@ -792,6 +792,35 @@ controls:
         \todo Define how the sensor timestamp has to be used in the reprocessing
         use case.
 
+  - SensorSequence:
+      type: int64_t
+      direction: out
+      description: |
+        The monotonic sequence number from the sensor capture device.
+
+        Pipeline handlers populate this metadata control with the sequence
+        number reported by the sensor-facing capture device (for example the
+        CSI-2 receiver or V4L2 video node) for the frame associated with the
+        request.
+
+        While per-buffer FrameMetadata::sequence identifies frames in each
+        completed stream, SensorSequence reflects the sensor-side capture path.
+        If the value increases by more than one between consecutive completed
+        requests, frames were not captured before the earlier request finished.
+        This complements sequence numbers derived from request delivery and is
+        intended for diagnosing frame continuity.
+
+        After Camera::stop() followed by Camera::start(), SensorSequence restarts
+        from 0 for the new streaming session. The first returned frame has
+        SensorSequence == 0 when the first capture buffer of the session is
+        completed to that request. Applications must not assume continuity of
+        SensorSequence values across camera session stop/start boundaries.
+
+        On successful frames where SensorTimestamp is populated,
+        SensorSequence will also be populated.
+
+        The SensorSequence control can only be returned in metadata.
+
   - AfMode:
       type: int32_t
       direction: inout
