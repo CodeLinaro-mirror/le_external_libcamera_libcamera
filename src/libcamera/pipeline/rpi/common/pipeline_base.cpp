@@ -1514,6 +1514,8 @@ void CameraData::fillRequestMetadata(const ControlList &bufferControls, Request 
 {
 	if (auto x = bufferControls.get(controls::SensorTimestamp))
 		request->_d()->metadata().set(controls::SensorTimestamp, *x);
+	if (auto x = bufferControls.get(controls::SensorSequence))
+		request->_d()->metadata().set(controls::SensorSequence, *x);
 	if (auto x = bufferControls.get(controls::FrameWallClock))
 		request->_d()->metadata().set(controls::FrameWallClock, *x);
 

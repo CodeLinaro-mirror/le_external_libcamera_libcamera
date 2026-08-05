@@ -1130,6 +1130,9 @@ void PipelineHandlerISI::bufferReady(FrameBuffer *buffer)
 	if (!metadata.contains(controls::SensorTimestamp.id()))
 		metadata.set(controls::SensorTimestamp,
 			     buffer->metadata().timestamp);
+	if (!metadata.contains(controls::SensorSequence.id()))
+		metadata.set(controls::SensorSequence,
+			     static_cast<int64_t>(buffer->metadata().sequence));
 
 	if (completeBuffer(request, buffer))
 		completeRequest(request);

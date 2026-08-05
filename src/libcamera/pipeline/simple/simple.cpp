@@ -939,9 +939,12 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 		}
 	}
 
-	if (request)
+	if (request) {
 		request->_d()->metadata().set(controls::SensorTimestamp,
 					      buffer->metadata().timestamp);
+		request->_d()->metadata().set(controls::SensorSequence,
+					      static_cast<int64_t>(buffer->metadata().sequence));
+	}
 
 	/*
 	 * Queue the captured and the request buffer to the converter or Software

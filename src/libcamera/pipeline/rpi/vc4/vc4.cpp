@@ -787,6 +787,8 @@ void Vc4CameraData::unicamBufferDequeue(FrameBuffer *buffer)
 
 		ctrl.set(controls::SensorTimestamp, sensorTimestamp);
 		ctrl.set(controls::FrameWallClock, wallClockTimestamp);
+		ctrl.set(controls::SensorSequence,
+			 static_cast<int64_t>(buffer->metadata().sequence));
 		bayerQueue_.push({ buffer, std::move(ctrl), delayContext });
 	} else {
 		embeddedQueue_.push(buffer);
