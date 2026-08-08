@@ -158,6 +158,7 @@ if sphinx.found()
         'design/ae.rst',
         'feature_requirements.rst',
         'guides/application-developer.rst',
+        'guides/camera-sensor-helper.rst',
         'guides/ipa.rst',
         'guides/pipeline-handler.rst',
         'guides/tracing.rst',
