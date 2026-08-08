@@ -11,3 +11,10 @@ install_data(
     'libcamera-bug-report',
     install_dir: get_option('bindir'),
 )
+
+## Sensor analogue gain / black level measurement helper
+install_data(
+    'measure-analogue-gain.py',
+    install_dir: get_option('bindir'),
+    rename: 'libcamera-measure-analogue-gain',
+)
