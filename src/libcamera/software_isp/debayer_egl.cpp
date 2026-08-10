@@ -536,7 +536,11 @@ eGLImage *DebayerEGL::getCachedInputFrameBuffer(FrameBuffer *input, std::optiona
 		return nullptr;
 	}
 	if (cache_miss)
-		egl_.createTexture2D(*eglImageIn, inMapped->value().planes()[0].data(), GL_NEAREST);
+		egl_.createTexture2D(*eglImageIn,
+				     eglImageIn->format_,
+				     GL_UNSIGNED_BYTE,
+				     inMapped->value().planes()[0].data(),
+				     GL_NEAREST);
 	else
 		egl_.updateTexture2D(*eglImageIn, inMapped->value().planes()[0].data());
 
