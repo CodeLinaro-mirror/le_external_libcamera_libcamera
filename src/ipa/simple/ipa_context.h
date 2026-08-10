@@ -19,6 +19,7 @@
 #include <libipa/awb.h>
 #include <libipa/ccm.h>
 #include <libipa/fc_queue.h>
+#include "libipa/lsc.h"
 
 #include "core_ipa_interface.h"
 
@@ -61,6 +62,8 @@ struct IPAActiveState {
 		std::optional<float> contrast;
 		std::optional<float> saturation;
 	} knobs;
+
+	ipa::lsc::ActiveState lsc;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -75,6 +78,7 @@ struct IPAFrameContext : public FrameContext {
 	float gamma;
 	std::optional<float> contrast;
 	std::optional<float> saturation;
+	ipa::lsc::FrameContext lsc;
 };
 
 struct IPAContext {
@@ -89,6 +93,7 @@ struct IPAContext {
 	FCQueue<IPAFrameContext> frameContexts;
 	ControlInfoMap::Map ctrlMap;
 	bool ccmEnabled = false;
+	ipa::lsc::ActiveState lsc;
 };
 
 } /* namespace ipa::soft */

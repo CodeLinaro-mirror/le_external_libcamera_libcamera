@@ -35,7 +35,12 @@ struct DebayerParams {
 	static constexpr unsigned int kLscValuesPerCell = 4;
 	using LscLookupTable =
 		std::array<uint8_t, kLscGridSize * kLscGridSize * kLscValuesPerCell>;
-	LscLookupTable lscLut{};
+	static constexpr auto identityLscLut = [] {
+		LscLookupTable lut = {};
+		lut.fill(64); /* == UQ<2, 6>(1.0f).quantized() */
+		return lut;
+	}();
+	LscLookupTable lscLut = identityLscLut;
 	uint64_t lscLutVersion = 0;
 };
 
