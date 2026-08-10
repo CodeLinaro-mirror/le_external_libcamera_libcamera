@@ -77,6 +77,7 @@ struct ActiveState {
 		uint32_t exposure;
 		double gain;
 		double quantizationGain;
+		double digitalGain;
 		double yTarget;
 	} automatic;
 
