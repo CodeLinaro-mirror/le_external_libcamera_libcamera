@@ -623,22 +623,22 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 		double minAnalogueGain;
 		double maxAnalogueGain;
 
-		if (frameContext.autoExposureEnabled) {
+		if (state.autoExposureEnabled) {
 			minExposureTime = session.minExposureTime;
-			maxExposureTime = std::clamp(frameContext.maxFrameDuration,
+			maxExposureTime = std::clamp(state.maxFrameDuration,
 						     session.minExposureTime,
 						     session.maxExposureTime);
 		} else {
-			minExposureTime = lineDuration * frameContext.exposure;
+			minExposureTime = lineDuration * state.manual.exposure;
 			maxExposureTime = minExposureTime;
 		}
 
-		if (frameContext.autoGainEnabled) {
+		if (state.autoGainEnabled) {
 			minAnalogueGain = session.minAnalogueGain;
 			maxAnalogueGain = session.maxAnalogueGain;
 		} else {
-			minAnalogueGain = frameContext.gain;
-			maxAnalogueGain = frameContext.gain;
+			minAnalogueGain = state.manual.gain;
+			maxAnalogueGain = state.manual.gain;
 		}
 
 		std::visit(utils::overloaded{
@@ -683,10 +683,10 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 					.traits = params->traits,
 					.yHist = params->yHist,
 					.effectiveExposureValue = effectiveExposureValue,
-					.constraintModeIndex = frameContext.constraintMode,
-					.exposureModeIndex = frameContext.exposureMode,
+					.constraintModeIndex = state.constraintMode,
+					.exposureModeIndex = state.exposureMode,
 					.lux = params->lux,
-					.exposureCompensation = pow(2.0, frameContext.exposureValue),
+					.exposureCompensation = pow(2.0, state.exposureValue),
 				});
 
 				/* Update the estimated exposure and gain. */
