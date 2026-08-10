@@ -278,6 +278,8 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
 /**
  * \brief Create a 2D texture from a memory buffer
  * \param[in,out] eglImage EGL image to associate with the texture
+ * \param[in] internalFormat OpenGL internal storage format (e.g., GL_RGB8, GL_RGBA8)
+ * \param[in] type OpenGL pixel data type (e.g., GL_UNSIGNED_BYTE, GL_FLOAT)
  * \param[in] data Pointer to pixel data, or nullptr for uninitialised texture
  * \param[in] filter GL texture filter setting
  *
@@ -286,14 +288,18 @@ int eGL::createOutputDMABufTexture2D(eGLImage &eglImage, int fd)
  * is useful for uploading static data like lookup tables or uniform color
  * matrices to the GPU.
  */
-void eGL::createTexture2D(eGLImage &eglImage, void *data, GLint filter)
+void eGL::createTexture2D(eGLImage &eglImage,
+			  GLint internalFormat,
+			  GLenum type,
+			  const void *data,
+			  GLint filter)
 {
 	assertThread();
 
 	activateBindTexture(eglImage);
 
 	// Generate texture, bind, associate image to texture, configure, unbind
-	glTexImage2D(GL_TEXTURE_2D, 0, eglImage.format_, eglImage.width_, eglImage.height_, 0, eglImage.format_, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, eglImage.width_, eglImage.height_, 0, eglImage.format_, type, data);
 
 	// Nearest filtering
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
@@ -339,7 +345,7 @@ EGLDisplay eGL::probeDisplay()
  *
  * Updates a 2D texture in VRAM.
  */
-void eGL::updateTexture2D(eGLImage &eglImage, void *data)
+void eGL::updateTexture2D(eGLImage &eglImage, const void *data)
 {
 	assertThread();
 
@@ -358,7 +364,7 @@ void eGL::updateTexture2D(eGLImage &eglImage, void *data)
  */
 void eGL::createOutputTexture2D(eGLImage &eglImage)
 {
-	createTexture2D(eglImage, NULL, GL_NEAREST);
+	createTexture2D(eglImage, eglImage.format_, GL_UNSIGNED_BYTE, NULL, GL_NEAREST);
 	attachTextureToFBO(eglImage);
 }
 
