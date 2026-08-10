@@ -129,7 +129,8 @@ public:
 	void queueRequest(const agc::Session &session, agc::ActiveState &state,
 			  agc::FrameContext &frameContext, const ControlList &controls);
 
-	void prepare(agc::ActiveState &state, agc::FrameContext &frameContext);
+	void prepare(const agc::Session &session, agc::ActiveState &state,
+		     agc::FrameContext &frameContext);
 
 	struct ProcessParams {
 		const AgcMeanLuminance::Traits &traits;

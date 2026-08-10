@@ -504,7 +504,7 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
 /**
  * \brief Handle a \a prepare operation
  */
-void AgcAlgorithm::prepare(agc::ActiveState &state, agc::FrameContext &frameContext)
+void AgcAlgorithm::prepare(const agc::Session &session, agc::ActiveState &state, agc::FrameContext &frameContext)
 {
 	uint32_t activeAutoExposure = state.automatic.exposure;
 	double activeAutoGain = state.automatic.gain;
@@ -535,6 +535,19 @@ void AgcAlgorithm::prepare(agc::ActiveState &state, agc::FrameContext &frameCont
 	}
 
 	frameContext.yTarget = state.automatic.yTarget;
+
+	/*
+	 * Expand the target frame duration so that we do not run faster than
+	 * the minimum frame duration when we have short exposures.
+	 */
+	const auto frameDuration = std::max<uint32_t>(
+		frameContext.minFrameDuration / session.lineDuration,
+		frameContext.exposure);
+	frameContext.vblank = frameDuration - session.sensor.outputSize.height;
+
+	/* Update frame duration accounting for line length quantization. */
+	frameContext.frameDuration =
+		(session.sensor.outputSize.height + frameContext.vblank) * session.lineDuration;
 }
 
 /**
@@ -545,7 +558,6 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 			   ControlList &metadata)
 {
 	const utils::Duration &lineDuration = session.lineDuration;
-	utils::Duration newExposureTime = {};
 
 	if (params) {
 		ASSERT(session.autoAllowed);
@@ -605,25 +617,12 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 		state.automatic.digitalGain = newEv.digitalGain;
 		state.automatic.yTarget = newEv.yTarget;
 
-		newExposureTime = newEv.exposureTime;
-
 		LOG(Agc, Debug)
 			<< "exposure-time:" << utils::Duration(state.automatic.exposure * lineDuration)
 			<< " analogue-gain:" << state.automatic.gain
 			<< " quantization-gain:" << state.automatic.quantizationGain
 			<< " digital-gain:" << state.automatic.digitalGain;
 	}
-
-	/*
-	 * Expand the target frame duration so that we do not run faster than
-	 * the minimum frame duration when we have short exposures.
-	 */
-	const auto frameDuration = std::max(frameContext.minFrameDuration, newExposureTime);
-	frameContext.vblank = (frameDuration / lineDuration) - session.sensor.outputSize.height;
-
-	/* Update frame duration accounting for line length quantization. */
-	frameContext.frameDuration =
-		(session.sensor.outputSize.height + frameContext.vblank) * lineDuration;
 
 	metadata.set(controls::AnalogueGain, frameContext.gain);
 	metadata.set(controls::ExposureTime,
