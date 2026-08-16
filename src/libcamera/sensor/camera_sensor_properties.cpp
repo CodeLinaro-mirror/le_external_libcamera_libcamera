@@ -510,6 +510,25 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 				.hblankDelay = 2
 			},
 		} },
+		{ "ov08x40", {
+			.unitCellSize = { 700, 700 },
+			.testPatternModes = {
+				{ controls::draft::TestPatternModeOff, 0 },
+				{ controls::draft::TestPatternModeColorBars, 1 },
+				/*
+				 * No corresponding test pattern mode for:
+				 * 2: "Vertical Color Bar Type 2"
+				 * 3: "Vertical Color Bar Type 3"
+				 * 4: "Vertical Color Bar Type 4"
+				 */
+			},
+			.sensorDelays = {
+				.exposureDelay = 2,
+				.gainDelay = 2,
+				.vblankDelay = 2,
+				.hblankDelay = 2
+			},
+		} },
 		{ "ov8858", {
 			.unitCellSize = { 1120, 1120 },
 			.testPatternModes = {
