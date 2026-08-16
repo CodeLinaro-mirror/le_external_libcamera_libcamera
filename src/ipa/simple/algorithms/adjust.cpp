@@ -24,24 +24,38 @@ constexpr float kDefaultSaturation = 1.0f;
 
 LOG_DEFINE_CATEGORY(IPASoftAdjust)
 
-int Adjust::init(IPAContext &context, [[maybe_unused]] const ValueNode &tuningData)
+int Adjust::init(IPAContext &context, const ValueNode &tuningData)
 {
+	auto gamma = tuningData["gamma"].get<float>();
+	if (gamma.has_value())
+		defaultGamma_ = std::clamp(gamma.value(), 0.1f, 10.0f);
+
+	auto contrast = tuningData["contrast"].get<float>();
+	if (contrast.has_value())
+		defaultContrast_ = std::clamp(contrast.value(), 0.0f, 2.0f);
+
+	auto saturation = tuningData["saturation"].get<float>();
+	if (saturation.has_value())
+		defaultSaturation_ = std::clamp(saturation.value(), 0.0f, 2.0f);
+
 	context.ctrlMap[&controls::Gamma] =
-		ControlInfo(0.1f, 10.0f, kDefaultGamma);
+		ControlInfo(0.1f, 10.0f, defaultGamma_);
 	context.ctrlMap[&controls::Contrast] =
-		ControlInfo(0.0f, 2.0f, kDefaultContrast);
+		ControlInfo(0.0f, 2.0f, defaultContrast_);
 	if (context.ccmEnabled)
 		context.ctrlMap[&controls::Saturation] =
-			ControlInfo(0.0f, 2.0f, kDefaultSaturation);
+			ControlInfo(0.0f, 2.0f, defaultSaturation_);
 	return 0;
 }
 
 int Adjust::configure(IPAContext &context,
 		      [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	context.activeState.knobs.gamma = kDefaultGamma;
-	context.activeState.knobs.contrast = std::optional<float>();
+	context.activeState.knobs.gamma = defaultGamma_;
+	context.activeState.knobs.contrast = defaultContrast_;
 	context.activeState.knobs.saturation = std::optional<float>();
+	if (context.ccmEnabled)
+		context.activeState.knobs.saturation = defaultSaturation_;
 
 	return 0;
 }

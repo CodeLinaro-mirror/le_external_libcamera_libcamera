@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "libcamera/internal/matrix.h"
 
 #include <libipa/interpolator.h>
@@ -43,6 +45,10 @@ public:
 
 private:
 	void applySaturation(Matrix<float, 3, 3> &ccm, float saturation);
+
+	float defaultGamma_ = kDefaultGamma;
+	float defaultContrast_ = 1.0f;
+	float defaultSaturation_ = 1.0f;
 };
 
 } /* namespace ipa::soft::algorithms */
