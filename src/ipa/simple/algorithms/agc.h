@@ -7,6 +7,8 @@
 
 #pragma once
 
+#include <optional>
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -19,6 +21,9 @@ public:
 	Agc();
 	~Agc() = default;
 
+	int init(IPAContext &context, const ValueNode &tuningData) override;
+	int configure(IPAContext &context,
+		      const IPAConfigInfo &configInfo) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const SwIspStats *stats,
@@ -26,6 +31,10 @@ public:
 
 private:
 	void updateExposure(IPAContext &context, IPAFrameContext &frameContext, double exposureMSV);
+
+	double exposureOptimal_;
+	std::optional<double> maxAnalogueGain_;
+	std::optional<double> maxExposureTimeMs_;
 };
 
 } /* namespace ipa::soft::algorithms */

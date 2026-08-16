@@ -8,12 +8,15 @@
 #include "agc.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <stdint.h>
 
 #include <libcamera/base/log.h>
 
 #include "control_ids.h"
+
+using namespace std::literals::chrono_literals;
 
 namespace libcamera {
 
@@ -62,7 +65,46 @@ static constexpr float kExpProportionalGain = 0.04;
 static constexpr float kExpMaxStep = 0.15;
 
 Agc::Agc()
+	: exposureOptimal_(kExposureOptimal)
 {
+}
+
+int Agc::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
+{
+	auto target = tuningData["target"].get<double>();
+	if (target.has_value())
+		exposureOptimal_ = std::clamp(target.value(), 1.0, 5.0);
+
+	auto maxAnalogueGain = tuningData["maxAnalogueGain"].get<double>();
+	if (maxAnalogueGain.has_value())
+		maxAnalogueGain_ = std::max(1.0, maxAnalogueGain.value());
+
+	auto maxExposureTimeMs = tuningData["maxExposureTimeMs"].get<double>();
+	if (maxExposureTimeMs.has_value())
+		maxExposureTimeMs_ = std::max(1.0, maxExposureTimeMs.value());
+
+	return 0;
+}
+
+int Agc::configure(IPAContext &context,
+		   [[maybe_unused]] const IPAConfigInfo &configInfo)
+{
+	if (maxAnalogueGain_.has_value())
+		context.configuration.agc.againMax =
+			std::clamp(maxAnalogueGain_.value(),
+				   context.configuration.agc.againMin,
+				   context.configuration.agc.againMax);
+
+	if (maxExposureTimeMs_.has_value()) {
+		utils::Duration maxExposure = maxExposureTimeMs_.value() * 1.0ms;
+		int32_t maxExposureLines =
+			std::max<int32_t>(context.configuration.agc.exposureMin,
+					  maxExposure / context.configuration.agc.lineDuration);
+		context.configuration.agc.exposureMax =
+			std::min(context.configuration.agc.exposureMax, maxExposureLines);
+	}
+
+	return 0;
 }
 
 void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, double exposureMSV)
@@ -70,7 +112,7 @@ void Agc::updateExposure(IPAContext &context, IPAFrameContext &frameContext, dou
 	int32_t &exposure = frameContext.sensor.exposure;
 	double &again = frameContext.sensor.gain;
 
-	double error = kExposureOptimal - exposureMSV;
+	double error = exposureOptimal_ - exposureMSV;
 
 	if (std::abs(error) <= kExposureSatisfactory)
 		return;
