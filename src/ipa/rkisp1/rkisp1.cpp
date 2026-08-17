@@ -6,8 +6,6 @@
  */
 
 #include <algorithm>
-#include <array>
-#include <chrono>
 #include <stdint.h>
 #include <string.h>
 
@@ -39,8 +37,6 @@
 namespace libcamera {
 
 LOG_DEFINE_CATEGORY(IPARkISP1)
-
-using namespace std::literals::chrono_literals;
 
 namespace ipa::rkisp1 {
 
