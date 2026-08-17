@@ -451,7 +451,6 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 
 			ASSERT(sensor_);
 			impl.configure(session.lineDuration, sensor_);
-			impl.resetFrameCount();
 
 			if (session.autoAllowed) {
 				config.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
