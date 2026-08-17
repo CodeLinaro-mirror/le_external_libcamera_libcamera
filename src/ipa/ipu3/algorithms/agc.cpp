@@ -68,12 +68,11 @@ int Agc::init(IPAContext &context, const ValueNode &tuningData)
 {
 	int ret;
 
-	ret = agc_.init(tuningData);
+	ret = agc_.init(tuningData, context.camHelper.get());
 	if (ret)
 		return ret;
 
 	ret = agc_.configure(context.configuration.agc, context.activeState.agc, {
-		.sensor = context.camHelper.get(),
 		.sensorInfo = context.sensorInfo,
 		.sensorControls = context.sensorControls,
 		.ctrlMap = context.ctrlMap,
@@ -98,7 +97,6 @@ int Agc::configure(IPAContext &context,
 	bdsGrid_ = context.configuration.grid.bdsGrid;
 
 	return agc_.configure(context.configuration.agc, context.activeState.agc, {
-		.sensor = context.camHelper.get(),
 		.sensorInfo = context.sensorInfo,
 		.sensorControls = context.sensorControls,
 		.ctrlMap = context.ctrlMap,
