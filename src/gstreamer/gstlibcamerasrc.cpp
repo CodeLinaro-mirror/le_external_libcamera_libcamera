@@ -744,6 +744,18 @@ gst_libcamera_src_task_run(gpointer user_data)
 				reconfigure = true;
 				break;
 			}
+
+			/*
+			 * Caps may gain extra fields after the initial negotiation (e.g.
+			 * colorimetry added by a downstream element). Detect such changes
+			 * and trigger reconfiguration.
+			 */
+			const GstStructure *CapsStruct = gst_caps_get_structure(caps, 0);
+			const GstStructure *peerCapsStruct = gst_caps_get_structure(peercaps, 0);
+			if (!gst_structure_is_equal(CapsStruct, peerCapsStruct)) {
+				reconfigure = true;
+				break;
+			}
 		}
 	}
 
