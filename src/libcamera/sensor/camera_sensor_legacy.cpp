@@ -131,6 +131,7 @@ private:
 	controls::draft::TestPatternModeEnum testPatternMode_;
 
 	Size pixelArraySize_;
+	Rectangle readableArea_;
 	Rectangle activeArea_;
 	const BayerFormat *bayerFormat_;
 	bool supportHFlips_;
@@ -396,7 +397,7 @@ int CameraSensorLegacy::validateSensorDriver()
 	 * test platforms have been updated.
 	 */
 	Rectangle rect;
-	int ret = subdev_->getSelection(pad_, V4L2_SEL_TGT_CROP_BOUNDS, &rect);
+	int ret = subdev_->getSelection(pad_, V4L2_SEL_TGT_NATIVE_SIZE, &rect);
 	if (ret) {
 		/*
 		 * Default the pixel array size to the largest size supported
@@ -413,9 +414,18 @@ int CameraSensorLegacy::validateSensorDriver()
 		pixelArraySize_ = rect.size();
 	}
 
+	ret = subdev_->getSelection(pad_, V4L2_SEL_TGT_CROP_BOUNDS, &readableArea_);
+	if (ret) {
+		readableArea_ = Rectangle(pixelArraySize_);
+		LOG(CameraSensor, Warning)
+			<< "The PixelArrayReadableArea property has been defaulted to "
+			<< readableArea_;
+		err = -EINVAL;
+	}
+
 	ret = subdev_->getSelection(pad_, V4L2_SEL_TGT_CROP_DEFAULT, &activeArea_);
 	if (ret) {
-		activeArea_ = Rectangle(pixelArraySize_);
+		activeArea_ = readableArea_;
 		LOG(CameraSensor, Warning)
 			<< "The PixelArrayActiveAreas property has been defaulted to "
 			<< activeArea_;
@@ -627,6 +637,7 @@ int CameraSensorLegacy::initProperties()
 	}
 
 	properties_.set(properties::PixelArraySize, pixelArraySize_);
+	properties_.set(properties::PixelArrayReadableArea, readableArea_);
 	properties_.set(properties::PixelArrayActiveAreas, { activeArea_ });
 
 	/* Color filter array pattern, register only for RAW sensors. */
