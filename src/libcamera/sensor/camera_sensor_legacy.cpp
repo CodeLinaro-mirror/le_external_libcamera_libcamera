@@ -881,6 +881,7 @@ int CameraSensorLegacy::sensorInfo(IPACameraSensorInfo *info) const
 		return -EINVAL;
 
 	info->model = model();
+	info->pixelArraySize = pixelArraySize_;
 
 	/*
 	 * The active area is a static property, while the crop rectangle needs
