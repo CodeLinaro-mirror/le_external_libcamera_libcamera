@@ -370,8 +370,8 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 
 	/* The IPA control maps keep their states, so the removal is necessary. */
 	config.ctrlMap.erase(&controls::ExposureValue);
-	for (const auto &[id, _] : impl_.controls())
-		config.ctrlMap.erase(id);
+	config.ctrlMap.erase(&controls::AeConstraintMode);
+	config.ctrlMap.erase(&controls::AeExposureMode);
 
 	/* \todo Move this to the `Camera` class. */
 	config.ctrlMap[&controls::AeEnable] = ControlInfo{
@@ -417,7 +417,22 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 
 	if (session.autoAllowed) {
 		config.ctrlMap[&controls::ExposureValue] = ControlInfo(-8.0f, 8.0f, 0.0f);
-		config.ctrlMap.merge(impl_.controls());
+
+		{
+			std::vector<ControlValue> options;
+			for (const auto &[id, _] : impl_.constraintModes())
+				options.emplace_back(id);
+
+			config.ctrlMap[&controls::AeConstraintMode] = ControlInfo(options);
+		}
+
+		{
+			std::vector<ControlValue> options;
+			for (const auto &[id, _] : impl_.exposureModeHelpers())
+				options.emplace_back(id);
+
+			config.ctrlMap[&controls::AeExposureMode] = ControlInfo(options);
+		}
 	}
 
 	return 0;
