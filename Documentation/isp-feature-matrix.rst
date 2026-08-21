@@ -67,7 +67,6 @@ different platforms in libcamera.
 
    * Intel 11th-14th Gen (IPU6)
    * Intel 15th Gen (IPU7)
-   * NXP i.MX7 and i.MX8 series (imx7-csi)
    * Texas Instruments J7x/AM6x
    * Qualcomm Snapdragon (CamSS)
 
