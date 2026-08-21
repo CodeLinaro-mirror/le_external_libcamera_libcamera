@@ -468,7 +468,6 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 			state.automatic.yTarget = impl.effectiveYTarget(0, 1);
 
 			impl.configure(session.lineDuration, sensor_);
-			impl.resetFrameCount();
 
 			if (!session.autoAllowed)
 				return;
