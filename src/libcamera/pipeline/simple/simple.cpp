@@ -1427,6 +1427,11 @@ SimplePipelineHandler::generateConfiguration(Camera *camera, Span<const StreamRo
 			}
 			rawRequested = true;
 		} else {
+			if (swIspEnabled_ && processedRequested) {
+				LOG(SimplePipeline, Error)
+					<< "Software ISP can't capture multiple processed streams";
+				return nullptr;
+			}
 			processedRequested = true;
 		}
 
