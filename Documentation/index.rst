@@ -22,6 +22,7 @@
    Architecture <libcamera_architecture>
    Pipeline Handler Writer's Guide <guides/pipeline-handler>
    IPA Writer's guide <guides/ipa>
+   Camera Sensor Helper Guide <guides/camera-sensor-helper>
    Tracing guide <guides/tracing>
    Camera Sensor Model <camera-sensor-model>
    SoftwareISP Benchmarking <software-isp-benchmarking>
