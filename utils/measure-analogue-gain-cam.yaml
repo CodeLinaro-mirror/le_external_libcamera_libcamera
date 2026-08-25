@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: CC0-1.0
+#
+# Example cam --script for verifying a CameraSensorHelper after it exists.
+# AnalogueGain is the *linear* factor libcamera applies (not a V4L2 code).
+# These values are G = 1024/(1024-code) for codes 0, 200, 400, 800
+# (AnalogueGainLinear { m0=0, c0=1024, m1=-1, c1=1024 }).
+#
+# Bring-up of a *new* helper still uses v4l2-ctl codes:
+#   ./utils/measure-analogue-gain.py --sensor-name imx471 ...
+#
+# Replay / verify with cam once the helper is loaded:
+#   cam --camera 1 --stream role=raw,width=1928,height=1088 \
+#       --script utils/measure-analogue-gain-cam.yaml \
+#       --capture=12 --file=/tmp/gain-#.bin
+#
+# Generate a tailored copy:
+#   ./utils/measure-analogue-gain.py --emit-cam-script /tmp/cam.yaml \
+#       --gains 0,200,400,800 --model-k 1024 --exposure-us 10000
+
+frames:
+  - 0:
+      AnalogueGain: 1.000000
+  - 3:
+      AnalogueGain: 1.242718
+  - 6:
+      AnalogueGain: 1.641026
+  - 9:
+      AnalogueGain: 4.571429
