@@ -9,6 +9,7 @@
  * Include first to ensure the header is self-contained, as there's no span.cpp
  * in libcamera.
  */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 #include <libcamera/base/span.h>
 
 #include <array>

@@ -86,7 +86,7 @@ struct tuple_size<Span<T, dynamic_extent>>;
 } /* namespace utils */
 
 template<typename T, std::size_t Extent>
-class Span
+class [[deprecated("Use `std::span` instead")]] Span
 {
 public:
 	using element_type = T;
@@ -256,7 +256,7 @@ private:
 };
 
 template<typename T>
-class Span<T, dynamic_extent>
+class [[deprecated("Use `std::span` instead")]] Span<T, dynamic_extent>
 {
 public:
 	using element_type = T;
