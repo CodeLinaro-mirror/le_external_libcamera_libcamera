@@ -420,7 +420,7 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 	 */
 	hstConfig->mode = RKISP1_CIF_ISP_HISTOGRAM_MODE_RGB_COMBINED;
 
-	Span<uint8_t> weights{
+	std::span<uint8_t> weights{
 		hstConfig->hist_weight,
 		context.hw.numHistogramWeights
 	};

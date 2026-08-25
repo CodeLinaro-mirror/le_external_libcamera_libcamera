@@ -7,6 +7,7 @@
 
 #include <array>
 #include <map>
+#include <span>
 #include <string.h>
 #include <vector>
 
@@ -15,7 +16,6 @@
 
 #include <libcamera/base/file.h>
 #include <libcamera/base/log.h>
-#include <libcamera/base/span.h>
 
 #include <libcamera/control_ids.h>
 #include <libcamera/ipa/ipa_interface.h>
@@ -241,7 +241,7 @@ void IPAMaliC55::updateControls(const IPACameraSensorInfo &sensorInfo,
 
 	ctrlMap[&controls::FrameDurationLimits] = ControlInfo(frameDurations[0],
 							      frameDurations[1],
-							      Span<const int64_t, 2>{ { frameDurations[2], frameDurations[2] } });
+							      std::span<const int64_t, 2>{ { frameDurations[2], frameDurations[2] } });
 
 	/*
 	 * Compute exposure time limits from the V4L2_CID_EXPOSURE control

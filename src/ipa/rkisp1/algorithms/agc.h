@@ -7,9 +7,10 @@
 
 #pragma once
 
+#include <span>
+
 #include <linux/rkisp1-config.h>
 
-#include <libcamera/base/span.h>
 #include <libcamera/base/utils.h>
 
 #include <libcamera/geometry.h>
@@ -54,8 +55,8 @@ private:
 				  IPAFrameContext &frameContext,
 				  utils::Duration frameDuration);
 
-	Span<const uint8_t> expMeans_;
-	Span<const uint8_t> weights_;
+	std::span<const uint8_t> expMeans_;
+	std::span<const uint8_t> weights_;
 
 	std::map<int32_t, std::vector<uint8_t>> meteringModes_;
 };

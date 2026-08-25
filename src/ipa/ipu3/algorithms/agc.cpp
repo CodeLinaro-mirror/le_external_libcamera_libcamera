@@ -153,7 +153,7 @@ Histogram Agc::parseStatistics(const ipu3_uapi_stats_3a *stats,
 		}
 	}
 
-	return Histogram(Span<uint32_t>(hist));
+	return Histogram(std::span<uint32_t>(hist));
 }
 
 /**

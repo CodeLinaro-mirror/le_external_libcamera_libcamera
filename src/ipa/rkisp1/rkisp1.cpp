@@ -440,7 +440,7 @@ void IPARkISP1::updateControls(const IPACameraSensorInfo &sensorInfo,
 	/* \todo Move this (and other agc-related controls) to agc */
 	context_.ctrlMap[&controls::FrameDurationLimits] =
 		ControlInfo(frameDurations[0], frameDurations[1],
-			    ControlValue(Span<const int64_t, 2>{ { frameDurations[2], frameDurations[2] } }));
+			    ControlValue(std::span<const int64_t, 2>{ { frameDurations[2], frameDurations[2] } }));
 
 	ctrlMap.insert(context_.ctrlMap.begin(), context_.ctrlMap.end());
 	*ipaControls = ControlInfoMap(std::move(ctrlMap), controls::controls);
