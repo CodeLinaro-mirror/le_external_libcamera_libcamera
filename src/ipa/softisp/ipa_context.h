@@ -63,7 +63,7 @@ struct IPAActiveState {
 	} knobs;
 };
 
-struct IPAFrameContext : public FrameContext {
+struct IPAFrameContext {
 	ipa::awb::FrameContext awb;
 	ipa::ccm::FrameContext ccm;
 

@@ -7,8 +7,11 @@
 
 #pragma once
 
+#include <algorithm>
+#include <memory>
+#include <optional>
 #include <stdint.h>
-#include <vector>
+#include <type_traits>
 
 #include <libcamera/base/log.h>
 
@@ -18,118 +21,129 @@ LOG_DECLARE_CATEGORY(FCQueue)
 
 namespace ipa {
 
-template<typename FrameContext>
-class FCQueue;
-
-struct FrameContext {
-private:
-	template<typename T> friend class FCQueue;
-	uint32_t frame;
-	bool initialised = false;
-};
-
-template<typename FrameContext>
+template<typename T>
 class FCQueue
 {
+	static_assert(std::is_default_constructible_v<T>);
+
 public:
-	FCQueue(unsigned int size)
-		: contexts_(size)
+	FCQueue(std::size_t capacity)
+		: entries_(std::make_unique<std::optional<Entry>[]>(capacity)),
+		  capacity_(capacity)
 	{
+		ASSERT(capacity > 0);
 	}
 
 	void clear()
 	{
-		for (FrameContext &ctx : contexts_) {
-			ctx.initialised = false;
-			ctx.frame = 0;
-		}
+		next_ = 0;
+		lastFrame_.reset();
+
+		for (size_t i = 0; i < capacity_; i++)
+			entries_[i].reset();
 	}
 
-	FrameContext &alloc(const uint32_t frame)
+	T &get(uint32_t frame)
 	{
-		FrameContext &frameContext = contexts_[frame % contexts_.size()];
+		LOG(FCQueue, Debug) << "get(" << frame << ")";
 
-		/*
-		 * Do not re-initialise if a get() call has already fetched this
-		 * frame context to preseve the context.
-		 *
-		 * \todo If the the sequence number of the context to initialise
-		 * is smaller than the sequence number of the queue slot to use,
-		 * it means that we had a serious request underrun and more
-		 * frames than the queue size has been produced since the last
-		 * time the application has queued a request. Does this deserve
-		 * an error condition ?
-		 */
-		if (frame != 0 && frame <= frameContext.frame)
-			LOG(FCQueue, Warning)
-				<< "Frame " << frame << " already initialised";
-		else
-			init(frameContext, frame);
+		if (auto *d = find(frame))
+			return *d;
 
-		return frameContext;
-	}
-
-	FrameContext &get(uint32_t frame)
-	{
-		FrameContext &frameContext = contexts_[frame % contexts_.size()];
-
-		/*
-		 * If the IPA algorithms try to access a frame context slot which
-		 * has been already overwritten by a newer context, it means the
-		 * frame context queue has overflowed and the desired context
-		 * has been forever lost. The pipeline handler shall avoid
-		 * queueing more requests to the IPA than the frame context
-		 * queue size.
-		 */
-		if (frame < frameContext.frame)
-			LOG(FCQueue, Fatal) << "Frame context for " << frame
-					    << " has been overwritten by "
-					    << frameContext.frame;
-
-		if (frame == 0 && !frameContext.initialised) {
-			/*
-			 * If the IPA calls get() at start() time it will get an
-			 * un-intialized FrameContext as the below "frame ==
-			 * frameContext.frame" check will return success because
-			 * FrameContexts are zeroed at creation time.
-			 *
-			 * Make sure the FrameContext gets initialised if get()
-			 * is called before alloc() by the IPA for frame#0.
-			 */
-			init(frameContext, frame);
-
-			return frameContext;
-		}
-
-		if (frame == frameContext.frame)
-			return frameContext;
-
-		/*
-		 * The frame context has been retrieved before it was
-		 * initialised through the initialise() call. This indicates an
-		 * algorithm attempted to access a Frame context before it was
-		 * queued to the IPA. Controls applied for this request may be
-		 * left unhandled.
-		 *
-		 * \todo Set an error flag for per-frame control errors.
-		 */
 		LOG(FCQueue, Warning)
-			<< "Obtained an uninitialised FrameContext for " << frame;
+			<< "Frame " << frame << " not found, trying to allocate";
 
-		init(frameContext, frame);
+		return allocNext(frame);
+	}
 
-		return frameContext;
+	T &alloc(uint32_t frame)
+	{
+		LOG(FCQueue, Debug) << "alloc(" << frame << ")";
+
+		if (frame <= lastFrame_) {
+			if (auto *d = find(frame)) {
+				LOG(FCQueue, Warning)
+					<< "Frame " << frame << " already initialised";
+				return *d;
+			}
+		}
+
+		return allocNext(frame);
 	}
 
 private:
-	void init(FrameContext &frameContext, const uint32_t frame)
+	LIBCAMERA_DISABLE_COPY_AND_MOVE(FCQueue)
+
+	struct Entry {
+		uint32_t frame;
+		T data;
+
+		Entry(uint32_t f)
+			: frame(f), data()
+		{
+		}
+	};
+
+	T *find(uint32_t frame)
 	{
-		frameContext = {};
-		frameContext.frame = frame;
-		frameContext.initialised = true;
+		const auto findInRange = [&](auto first, auto last) -> T * {
+			auto it = std::partition_point(first, last, [&](const auto &e) {
+				ASSERT(e);
+				return e->frame < frame;
+			});
+			if (it != last && (*it)->frame == frame)
+				return &(*it)->data;
+
+			return nullptr;
+		};
+
+		const auto first = entries_.get();
+		const auto mid = first + next_;
+		const auto last = first + capacity_;
+
+		/*
+		 * Search the more recent half: [0; next),
+		 * the optionals in this range must always be non-empty.
+		 */
+		if (auto *d = findInRange(first, mid))
+			return d;
+
+		/* Search the less recent half: [next_; capacity_) */
+		if (mid != last && mid->has_value()) {
+			/*
+			 * If `next_` has wrapped around at least once, then all the optionals
+			 * in [next_; capacity_) are non-empty. So if `*mid` is not empty,
+			 * then all of them should be non-empty.
+			 */
+			if (auto *d = findInRange(mid, last))
+				return d;
+		}
+
+		return nullptr;
 	}
 
-	std::vector<FrameContext> contexts_;
+	T &allocNext(uint32_t frame)
+	{
+		if (!(lastFrame_ < frame)) {
+			LOG(FCQueue, Fatal)
+				<< "Tried to allocate frame context for frame " << frame
+				<< " after having already allocated one for a later frame "
+				<< *lastFrame_;
+		}
+
+		auto &e = entries_[next_].emplace(frame);
+		LOG(FCQueue, Debug) << "frame " << frame << " slot " << next_;
+
+		next_ = (next_ + 1) % capacity_;
+		lastFrame_ = frame;
+
+		return e.data;
+	}
+
+	std::unique_ptr<std::optional<Entry>[]> entries_;
+	std::size_t capacity_;
+	std::size_t next_ = 0;
+	std::optional<uint32_t> lastFrame_;
 };
 
 } /* namespace ipa */

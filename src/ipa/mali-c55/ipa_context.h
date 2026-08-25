@@ -64,7 +64,7 @@ struct IPAActiveState {
 	ipa::lsc::ActiveState lsc;
 };
 
-struct IPAFrameContext : public FrameContext {
+struct IPAFrameContext {
 	struct {
 		uint32_t exposure;
 		double sensorGain;
