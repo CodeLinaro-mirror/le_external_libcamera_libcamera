@@ -9,6 +9,7 @@
 
 #pragma once
 
+#include <array>
 #include <deque>
 #include <memory>
 #include <stdint.h>
@@ -40,7 +41,8 @@ class CameraManager;
 class DebayerEGL : public Debayer
 {
 public:
-	DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm, EGLDisplay display);
+	DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm,
+		   EGLDisplay display, bool quadBayer = false);
 	~DebayerEGL();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -92,6 +94,7 @@ private:
 	GLint textureUniformStrideFactor_;
 	GLint textureUniformBayerFirstRed_;
 	GLint textureUniformProjMatrix_;
+	std::array<GLfloat, 8> textureCoordinates_;
 
 	GLint textureUniformBayerDataIn_;
 

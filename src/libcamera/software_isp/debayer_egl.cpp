@@ -24,6 +24,7 @@
 
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/framebuffer.h"
+#include "libcamera/internal/software_isp/quad_bayer.h"
 
 #include "../shaders/glsl_shaders.h"
 
@@ -41,9 +42,11 @@ namespace libcamera {
  * \param[in] stats Statistics processing object
  * \param[in] cm The camera manager
  * \param[in] display The EGL display to use
+ * \param[in] quadBayer Whether the sensor uses 2x2 same-colour cells
  */
-DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm, EGLDisplay display)
-	: Debayer(cm), stats_(std::move(stats)), egl_(display)
+DebayerEGL::DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm,
+		       EGLDisplay display, bool quadBayer)
+	: Debayer(cm, quadBayer), stats_(std::move(stats)), egl_(display)
 {
 }
 
@@ -139,6 +142,8 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 
 	/* Target gles 100 glsl requires "#version x" as first directive in shader */
 	egl_.pushEnv(shaderEnv, "#version 100");
+	if (quadBayer_)
+		egl_.pushEnv(shaderEnv, "#define QUAD_BAYER");
 
 	/* Specify GL_OES_EGL_image_external */
 	egl_.pushEnv(shaderEnv, "#extension GL_OES_EGL_image_external: enable");
@@ -277,6 +282,8 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 {
 	if (getInputConfig(inputCfg.pixelFormat, inputConfig_) != 0)
 		return -EINVAL;
+	if (quadBayer_)
+		inputConfig_.patternSize = { 4, 4 };
 
 	if (stats_->configure(inputCfg) != 0)
 		return -EINVAL;
@@ -319,18 +326,22 @@ int DebayerEGL::configure(const StreamConfiguration &inputCfg,
 	outputSize_ = outputCfg.size;
 	nativeOutputSize_ = outSizeRange.max;
 
-	window_.x = ((inputCfg.size.width - outputCfg.size.width) / 2) &
-		    ~(inputConfig_.patternSize.width - 1);
-	window_.y = ((inputCfg.size.height - outputCfg.size.height) / 2) &
-		    ~(inputConfig_.patternSize.height - 1);
-	window_.width = outputCfg.size.width;
-	window_.height = outputCfg.size.height;
+	if (quadBayer_) {
+		window_ = quadBayerStatsWindow(inputCfg.size, outputCfg.size);
+	} else {
+		window_.x = ((inputCfg.size.width - outputCfg.size.width) / 2) &
+			    ~(inputConfig_.patternSize.width - 1);
+		window_.y = ((inputCfg.size.height - outputCfg.size.height) / 2) &
+			    ~(inputConfig_.patternSize.height - 1);
+		window_.width = outputCfg.size.width;
+		window_.height = outputCfg.size.height;
+	}
 
 	/*
 	 * Don't pass x,y from window_ since process() already adjusts for it.
 	 * But crop the window to 2/3 of its width and height for speedup.
 	 */
-	stats_->setWindow(Rectangle(window_.size()));
+	stats_->setWindow(quadBayer_ ? window_ : Rectangle(window_.size()));
 
 	inputBufferCount_ = inputCfg.bufferCount;
 	outputBufferCount_ = outputCfg.bufferCount;
@@ -350,6 +361,9 @@ Size DebayerEGL::patternSize(PixelFormat inputFormat)
 
 std::vector<PixelFormat> DebayerEGL::formats(PixelFormat inputFormat)
 {
+	if (quadBayer_ && !isQuadBayerInputFormatSupported(inputFormat))
+		return {};
+
 	DebayerEGL::DebayerInputConfig config;
 
 	if (getInputConfig(inputFormat, config) != 0)
@@ -390,8 +404,10 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 	 * the input size. Keep the aspect ratio and prefer cropping over black
 	 * bars.
 	 */
-	GLfloat scale = std::max((GLfloat)outputSize_.width / nativeOutputSize_.width,
-				 (GLfloat)outputSize_.height / nativeOutputSize_.height);
+	GLfloat scale = quadBayer_
+				? 1.0f
+				: std::max((GLfloat)outputSize_.width / nativeOutputSize_.width,
+					   (GLfloat)outputSize_.height / nativeOutputSize_.height);
 	GLfloat trans = -(1.0f - scale);
 	GLfloat projMatrix[] = {
 		scale, 0, 0, 0,
@@ -406,12 +422,8 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 		{ +1.0f, +1.0f },
 		{ +1.0f, -1.0f },
 	};
-	static const GLfloat tcoordinates[4][2] = {
-		{ 0.0f, 0.0f },
-		{ 0.0f, 1.0f },
-		{ 1.0f, 1.0f },
-		{ 1.0f, 0.0f },
-	};
+	textureCoordinates_ = softwareIspTextureCoordinates({ width_, height_ }, window_,
+							    quadBayer_);
 
 	/* vertexIn - bayer_8.vert */
 	glEnableVertexAttribArray(attributeVertex_);
@@ -421,7 +433,7 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 	/* textureIn - bayer_8.vert */
 	glEnableVertexAttribArray(attributeTexture_);
 	glVertexAttribPointer(attributeTexture_, 2, GL_FLOAT, GL_TRUE,
-			      2 * sizeof(GLfloat), tcoordinates);
+			      2 * sizeof(GLfloat), textureCoordinates_.data());
 
 	/*
 	 * Set the sampler2D to the respective texture unit for each texutre
@@ -588,7 +600,9 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 	egl_.attachTextureToFBO(*eglImageOut);
 	setShaderVariableValues(*eglImageIn, params);
 
-	glViewport(0, 0, width_, height_);
+	const Rectangle viewport = softwareIspViewport({ width_, height_ }, outputSize_,
+						       quadBayer_);
+	glViewport(viewport.x, viewport.y, viewport.width, viewport.height);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, DEBAYER_OPENGL_COORDS);
 
@@ -686,6 +700,15 @@ void DebayerEGL::stop()
 
 SizeRange DebayerEGL::sizes(PixelFormat inputFormat, const Size &inputSize)
 {
+	if (quadBayer_) {
+		if (!isQuadBayerInputFormatSupported(inputFormat) ||
+		    !isQuadBayerInputSizeSupported(inputSize))
+			return {};
+
+		Size logicalSize = quadBayerLogicalSize(inputSize);
+		return SizeRange(Size(2, 2), logicalSize, 2, 2);
+	}
+
 	Size patternSize = this->patternSize(inputFormat);
 	unsigned int borderHeight = patternSize.height;
 
