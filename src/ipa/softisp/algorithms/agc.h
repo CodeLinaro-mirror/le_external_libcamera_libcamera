@@ -24,6 +24,9 @@ public:
 	void queueRequest(IPAContext &context, const uint32_t frame,
 			  IPAFrameContext &frameContext,
 			  const ControlList &controls) override;
+	void prepare(IPAContext &context, const uint32_t frame,
+		     IPAFrameContext &frameContext,
+		     DebayerParams *params) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const SwIspStats *stats,
@@ -34,6 +37,8 @@ private:
 	void vblankRange(const IPAContext &context, const IPAFrameContext &frameContext,
 			 int32_t &vblankLo, int32_t &vblankHi) const;
 	int32_t exposureMaxForVblank(const IPAContext &context, int32_t vblank) const;
+
+	double maxDigitalGain_;
 };
 
 } /* namespace ipa::softisp::algorithms */
