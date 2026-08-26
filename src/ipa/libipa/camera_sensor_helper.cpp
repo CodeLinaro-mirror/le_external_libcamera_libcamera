@@ -763,6 +763,23 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("ov2740", CameraSensorHelperOv2740)
 
+class CameraSensorHelperOv32c4 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperOv32c4()
+	{
+		/*
+		 * Measured on the sensor: the black level is 0x40 at 10 bits,
+		 * and the gain is linear in the register value with unity at
+		 * 0x100, not at 0x80 as on other OmniVision sensors sharing
+		 * the same gain register.
+		 */
+		blackLevel_ = 4096;
+		gain_ = AnalogueGainLinear{ 1, 0, 0, 256 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("ov32c4", CameraSensorHelperOv32c4)
+
 class CameraSensorHelperOv4689 : public CameraSensorHelper
 {
 public:
