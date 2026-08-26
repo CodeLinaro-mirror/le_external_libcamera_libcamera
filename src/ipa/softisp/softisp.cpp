@@ -61,7 +61,7 @@ public:
 		 bool *ccmEnabled) override;
 	int configure(const IPAConfigInfo &configInfo) override;
 
-	int start() override;
+	int start(const ControlList &controls) override;
 	void stop() override;
 
 	void queueRequest(const uint32_t frame, const ControlList &controls) override;
@@ -301,8 +301,17 @@ int IPASoftIsp::configure(const IPAConfigInfo &configInfo)
 	return 0;
 }
 
-int IPASoftIsp::start()
+int IPASoftIsp::start(const ControlList &controls)
 {
+	/*
+	 * Apply the startup controls through the algorithms, as if they had
+	 * been queued with a request. The frame context is a throwaway, the
+	 * algorithms record what matters in the active state.
+	 */
+	IPAFrameContext frameContext{};
+	for (const auto &algo : algorithms())
+		algo->queueRequest(context_, 0, frameContext, controls);
+
 	return 0;
 }
 

@@ -1647,7 +1647,7 @@ int SimplePipelineHandler::exportFrameBuffers(Camera *camera, Stream *stream,
 		return data->video_->exportBuffers(count, buffers);
 }
 
-int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlList *controls)
+int SimplePipelineHandler::start(Camera *camera, const ControlList *controls)
 {
 	SimpleCameraData *data = cameraData(camera);
 	V4L2VideoDevice *video = data->video_;
@@ -1705,7 +1705,7 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		if (data->converter_)
 			ret = data->converter_->start();
 		else if (data->swIsp_)
-			ret = data->swIsp_->start();
+			ret = data->swIsp_->start(controls ? *controls : ControlList());
 		else
 			ret = 0;
 
