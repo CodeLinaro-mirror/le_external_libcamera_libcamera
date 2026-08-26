@@ -7,6 +7,10 @@
 
 #pragma once
 
+#include <optional>
+
+#include <libcamera/base/utils.h>
+
 #include "algorithm.h"
 
 namespace libcamera {
@@ -39,6 +43,7 @@ private:
 	int32_t exposureMaxForVblank(const IPAContext &context, int32_t vblank) const;
 
 	double maxDigitalGain_;
+	std::optional<utils::Duration> defaultMaxFrameDuration_;
 };
 
 } /* namespace ipa::softisp::algorithms */

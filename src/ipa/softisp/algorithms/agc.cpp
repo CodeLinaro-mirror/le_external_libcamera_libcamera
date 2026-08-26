@@ -84,6 +84,15 @@ static constexpr float kExpMaxJump = 2.0;
  */
 static constexpr double kDefaultMaxDigitalGain = 1.0;
 
+/*
+ * Applications that don't set FrameDurationLimits get the full range the
+ * sensor supports, which lets the AGC slow the frame rate down to whatever
+ * the sensor allows in low light. That is rarely what an application which
+ * didn't ask for it expects, so the tuning file can bound the default
+ * maximum frame duration with maxFrameDuration (in microseconds); explicit
+ * FrameDurationLimits still allow the full sensor range.
+ */
+
 Agc::Agc()
 {
 }
@@ -91,6 +100,17 @@ Agc::Agc()
 int Agc::init(IPAContext &context, const ValueNode &tuningData)
 {
 	maxDigitalGain_ = tuningData["maxDigitalGain"].get<double>(kDefaultMaxDigitalGain);
+
+	const auto tuningMaxFrameDuration = tuningData["maxFrameDuration"].get<uint32_t>();
+	if (tuningMaxFrameDuration) {
+		if (*tuningMaxFrameDuration == 0) {
+			LOG(IPASoftIspExposure, Warning)
+				<< "maxFrameDuration must be positive, ignored";
+		} else {
+			defaultMaxFrameDuration_ =
+				std::chrono::microseconds(*tuningMaxFrameDuration);
+		}
+	}
 	if (maxDigitalGain_ < 1.0) {
 		LOG(IPASoftIspExposure, Warning)
 			<< "maxDigitalGain " << maxDigitalGain_ << " below 1.0, ignored";
@@ -136,6 +156,10 @@ int Agc::configure(IPAContext &context, [[maybe_unused]] const IPAConfigInfo &co
 	if (it != context.ctrlMap.end() && cfg.vblankSupported) {
 		agc.minFrameDuration = std::chrono::microseconds(it->second.min().get<int64_t>());
 		agc.maxFrameDuration = std::chrono::microseconds(it->second.max().get<int64_t>());
+		if (defaultMaxFrameDuration_)
+			agc.maxFrameDuration = std::clamp(*defaultMaxFrameDuration_,
+							  agc.minFrameDuration,
+							  agc.maxFrameDuration);
 	} else {
 		agc.minFrameDuration = cfg.lineDuration * (cfg.frameHeight + cfg.vblankDef);
 		agc.maxFrameDuration = agc.minFrameDuration;
