@@ -238,6 +238,23 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 		break;
 	};
 
+	/*
+	 * The temporal noise reduction pass writes the filtered raw frame to
+	 * an RGBA8 texture laid out like the raw input, which the debayer
+	 * shader then samples instead of the raw input with the same decoding.
+	 * It is only implemented for the unpacked formats handled by the
+	 * bayer_unpacked shader.
+	 */
+	temporalSupported_ = false;
+	if (fragmentShaderData.data() == bayer_unpacked_frag.data()) {
+		if (initTemporalShaders(shaderEnv) == 0) {
+			temporalSupported_ = true;
+		} else {
+			LOG(Debayer, Warning)
+				<< "Temporal noise reduction unavailable";
+		}
+	}
+
 	if (egl_.compileVertexShader(vertexShaderId_, vertexShaderData,
 				     shaderEnv)) {
 		LOG(Debayer, Error) << "Compile vertex shader fail";
@@ -488,6 +505,144 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 	return;
 }
 
+int DebayerEGL::initTemporalShaders(const std::vector<std::string> &shaderEnv)
+{
+	GLuint vertexShaderId = 0;
+	GLuint fragmentShaderId = 0;
+
+	if (egl_.compileVertexShader(vertexShaderId, identity_vert, shaderEnv)) {
+		LOG(Debayer, Error) << "Compile temporal vertex shader fail";
+		return -ENODEV;
+	}
+	utils::scope_exit vShaderGuard([&] { glDeleteShader(vertexShaderId); });
+
+	if (egl_.compileFragmentShader(fragmentShaderId, temporal_frag, shaderEnv)) {
+		LOG(Debayer, Error) << "Compile temporal fragment shader fail";
+		return -ENODEV;
+	}
+	utils::scope_exit fShaderGuard([&] { glDeleteShader(fragmentShaderId); });
+
+	if (egl_.linkProgram(temporalProgramId_, vertexShaderId, fragmentShaderId)) {
+		LOG(Debayer, Error) << "Linking temporal program fail";
+		return -ENODEV;
+	}
+
+	temporalAttributeVertex_ = glGetAttribLocation(temporalProgramId_, "vertexIn");
+	temporalAttributeTexture_ = glGetAttribLocation(temporalProgramId_, "textureIn");
+	temporalUniformProjMatrix_ = glGetUniformLocation(temporalProgramId_, "proj_matrix");
+	temporalUniformStrideFactor_ = glGetUniformLocation(temporalProgramId_, "stride_factor");
+	temporalUniformDataIn_ = glGetUniformLocation(temporalProgramId_, "tex_y");
+	temporalUniformHist_ = glGetUniformLocation(temporalProgramId_, "tex_hist");
+	temporalUniformAlpha_ = glGetUniformLocation(temporalProgramId_, "alpha");
+	temporalUniformNoiseA_ = glGetUniformLocation(temporalProgramId_, "noise_a");
+	temporalUniformNoiseB_ = glGetUniformLocation(temporalProgramId_, "noise_b");
+	temporalUniformMotionK_ = glGetUniformLocation(temporalProgramId_, "motion_k");
+	temporalUniformBlack_ = glGetUniformLocation(temporalProgramId_, "black");
+	temporalUniformHistValid_ = glGetUniformLocation(temporalProgramId_, "hist_valid");
+	temporalUniformStep_ = glGetUniformLocation(temporalProgramId_, "tex_step");
+
+	/*
+	 * Two history textures, the same size as the input texture so that
+	 * the debayer shader can sample the filtered frame with the
+	 * coordinates it computes for the raw input.
+	 */
+	const uint32_t histWidth = inputConfig_.stride / bytesPerPixel_;
+	for (unsigned int i = 0; i < 2; i++) {
+		temporalHistory_[i] = std::make_unique<eGLImage>(GL_RGBA, histWidth, height_,
+								 histWidth * 4,
+								 GL_TEXTURE2 + i, 2 + i);
+		egl_.createOutputTexture2D(*temporalHistory_[i]);
+	}
+
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR) {
+		LOG(Debayer, Error) << "Temporal history textures error " << err;
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
+/*
+ * Blend the raw input with the previous filtered frame into the other
+ * history texture, and return 0 with the debayer input redirected to it.
+ * With alpha at 1.0 the filter is disabled and the history reset, so that
+ * re-enabling it doesn't blend with a stale frame.
+ */
+int DebayerEGL::temporalPass(eGLImage &eglImageIn, const DebayerParams &params)
+{
+	if (params.temporalDenoise.alpha >= 1.0f) {
+		temporalHistoryValid_ = false;
+		temporalActive_ = false;
+		return 0;
+	}
+
+	eGLImage &prev = *temporalHistory_[temporalIndex_];
+	eGLImage &next = *temporalHistory_[temporalIndex_ ^ 1];
+
+	glUseProgram(temporalProgramId_);
+
+	static const GLfloat identityMatrix[] = {
+		1, 0, 0, 0,
+		0, 1, 0, 0,
+		0, 0, 1, 0,
+		0, 0, 0, 1
+	};
+	static const GLfloat vcoordinates[4][2] = {
+		{ -1.0f, -1.0f },
+		{ -1.0f, +1.0f },
+		{ +1.0f, +1.0f },
+		{ +1.0f, -1.0f },
+	};
+	static const GLfloat tcoordinates[4][2] = {
+		{ 0.0f, 0.0f },
+		{ 0.0f, 1.0f },
+		{ 1.0f, 1.0f },
+		{ 1.0f, 0.0f },
+	};
+
+	glEnableVertexAttribArray(temporalAttributeVertex_);
+	glVertexAttribPointer(temporalAttributeVertex_, 2, GL_FLOAT, GL_TRUE,
+			      2 * sizeof(GLfloat), vcoordinates);
+	glEnableVertexAttribArray(temporalAttributeTexture_);
+	glVertexAttribPointer(temporalAttributeTexture_, 2, GL_FLOAT, GL_TRUE,
+			      2 * sizeof(GLfloat), tcoordinates);
+
+	egl_.activateBindTexture(eglImageIn);
+	egl_.activateBindTexture(prev);
+	glUniform1i(temporalUniformDataIn_, eglImageIn.texture_unit_uniform_id_);
+	glUniform1i(temporalUniformHist_, prev.texture_unit_uniform_id_);
+	glUniformMatrix4fv(temporalUniformProjMatrix_, 1, GL_FALSE, identityMatrix);
+	glUniform1f(temporalUniformStrideFactor_, 1.0f);
+	glUniform1f(temporalUniformAlpha_, params.temporalDenoise.alpha);
+	glUniform1f(temporalUniformNoiseA_, params.temporalDenoise.noiseSlope);
+	glUniform1f(temporalUniformNoiseB_, params.temporalDenoise.noiseFloor);
+	glUniform1f(temporalUniformMotionK_, params.temporalDenoise.motionSigma);
+	glUniform1f(temporalUniformBlack_, static_cast<float>(params.blackLevel.g()));
+	glUniform1f(temporalUniformHistValid_, temporalHistoryValid_ ? 1.0f : 0.0f);
+	glUniform2f(temporalUniformStep_, 1.0f / prev.width_, 1.0f / prev.height_);
+
+	if (egl_.attachTextureToFBO(next))
+		return -ENODEV;
+
+	glViewport(0, 0, next.width_, next.height_);
+	glDrawArrays(GL_TRIANGLE_FAN, 0, DEBAYER_OPENGL_COORDS);
+
+	GLenum err = glGetError();
+	if (err != GL_NO_ERROR) {
+		LOG(eGL, Error) << "Temporal pass fail " << err;
+		return -ENODEV;
+	}
+
+	temporalIndex_ ^= 1;
+	temporalHistoryValid_ = true;
+	temporalActive_ = true;
+
+	glUseProgram(programId_);
+
+	return 0;
+}
+
 eGLImage *DebayerEGL::getCachedInputFrameBuffer(FrameBuffer *input, std::optional<MappedFrameBuffer> *inMapped, std::optional<DmaSyncer> *inDmaSyncer)
 {
 	const SharedFD &fd = input->planes()[0].fd;
@@ -585,8 +740,16 @@ int DebayerEGL::debayerGPU(FrameBuffer *input, FrameBuffer *output, const Debaye
 	if (!eglImageOut)
 		return -ENOMEM;
 
+	if (temporalSupported_ && temporalPass(*eglImageIn, params))
+		return -ENODEV;
+
 	egl_.attachTextureToFBO(*eglImageOut);
 	setShaderVariableValues(*eglImageIn, params);
+	if (temporalActive_) {
+		eGLImage &filtered = *temporalHistory_[temporalIndex_];
+		egl_.activateBindTexture(filtered);
+		glUniform1i(textureUniformBayerDataIn_, filtered.texture_unit_uniform_id_);
+	}
 
 	glViewport(0, 0, width_, height_);
 	glClear(GL_COLOR_BUFFER_BIT);
@@ -677,6 +840,15 @@ void DebayerEGL::stop()
 {
 	eglImageOutCache_.clear();
 	eglImageInCache_.clear();
+	temporalHistory_[0].reset();
+	temporalHistory_[1].reset();
+	temporalHistoryValid_ = false;
+	temporalActive_ = false;
+
+	if (temporalProgramId_) {
+		glDeleteProgram(temporalProgramId_);
+		temporalProgramId_ = 0;
+	}
 
 	if (programId_)
 		glDeleteProgram(programId_);

@@ -64,6 +64,8 @@ public:
 private:
 	static int getInputConfig(PixelFormat inputFormat, DebayerInputConfig &config);
 	int initBayerShaders(PixelFormat inputFormat, PixelFormat outputFormat);
+	int initTemporalShaders(const std::vector<std::string> &shaderEnv);
+	int temporalPass(eGLImage &eglImageIn, const DebayerParams &params);
 	int getShaderVariableLocations();
 	void setShaderVariableValues(eGLImage &eGLImageIn, const DebayerParams &params);
 	int debayerGPU(FrameBuffer *input, FrameBuffer *output, const DebayerParams &params, std::optional<MappedFrameBuffer> *mappedInputBuffer, std::optional<DmaSyncer> *inputBufferDmaSyncer);
@@ -75,6 +77,27 @@ private:
 	GLuint vertexShaderId_ = 0;
 	GLuint fragmentShaderId_ = 0;
 	GLuint programId_ = 0;
+
+	/* Temporal noise reduction pass */
+	bool temporalSupported_ = false;
+	GLuint temporalProgramId_ = 0;
+	GLint temporalAttributeVertex_ = -1;
+	GLint temporalAttributeTexture_ = -1;
+	GLint temporalUniformProjMatrix_ = -1;
+	GLint temporalUniformStrideFactor_ = -1;
+	GLint temporalUniformDataIn_ = -1;
+	GLint temporalUniformHist_ = -1;
+	GLint temporalUniformAlpha_ = -1;
+	GLint temporalUniformNoiseA_ = -1;
+	GLint temporalUniformNoiseB_ = -1;
+	GLint temporalUniformMotionK_ = -1;
+	GLint temporalUniformBlack_ = -1;
+	GLint temporalUniformHistValid_ = -1;
+	GLint temporalUniformStep_ = -1;
+	std::unique_ptr<eGLImage> temporalHistory_[2];
+	unsigned int temporalIndex_ = 0;
+	bool temporalHistoryValid_ = false;
+	bool temporalActive_ = false;
 
 	/* Pointer to object representing input texture */
 	std::deque<std::pair<SharedFD, std::unique_ptr<eGLImage>>> eglImageInCache_;

@@ -44,6 +44,19 @@ namespace libcamera {
  */
 
 /**
+ * \var DebayerParams::temporalDenoise
+ * \brief Temporal noise reduction parameters
+ *
+ * The raw frame is blended with the filtered history before debayering.
+ * alpha is the weight of the current frame (1.0 disables the filter).
+ * Motion is detected where the frame differs from the history by more than
+ * motionSigma times the expected noise standard deviation, whose variance
+ * in normalised raw units is noiseSlope * signal + noiseFloor, the signal
+ * being measured above the black level and scaled for the current analogue
+ * gain.
+ */
+
+/**
  * \class Debayer
  * \brief Base debayering class
  *
