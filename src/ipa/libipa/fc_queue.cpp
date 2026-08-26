@@ -102,6 +102,19 @@ namespace ipa {
  */
 
 /**
+ * \typedef FCQueue::InitCallback
+ * \brief The init callback type
+ */
+
+/**
+ * \fn FCQueue::setInitCallback()
+ * \brief Set the init callback
+ *
+ * The init callback is called when a frame context is allocated and needs to be
+ * initialized.
+ */
+
+/**
  * \fn FCQueue::clear()
  * \brief Clear the contexts queue
  *
@@ -113,30 +126,20 @@ namespace ipa {
  */
 
 /**
- * \fn FCQueue::alloc(uint32_t frame)
- * \brief Allocate and return a FrameContext for the \a frame
+ * \fn FCQueue::getOrInitContext(uint32_t frame, const ControlList &controls)
+ * \brief Get or allocate and return a FrameContext for the \a frame
  * \param[in] frame The frame context sequence number
+ * \param[in] controls Controls to pass to the init function
  *
- * The first call to obtain a FrameContext from the FCQueue should be handled
- * through this function. The FrameContext will be initialised, if not
- * initialised already, and returned to the caller.
+ * If a FrameContext for frame \a frame is not yet initialized, it will be
+ * initialized and \a controls is passed to the initialization function.
  *
- * If the FrameContext was already initialized for this \a frame, a warning will
- * be reported and the previously initialized FrameContext is returned.
+ * If a FrameContext is already initialized, it is returned to the caller. The
+ * passed controls are stored and used for the next initialization of a
+ * FrameContext (the control lists will be merged in order).
  *
  * Frame contexts are expected to be initialised when a Request is first passed
  * to the IPA module in IPAModule::queueRequest().
- *
- * \return A reference to the FrameContext for sequence \a frame
- */
-
-/**
- * \fn FCQueue::get(uint32_t frame)
- * \brief Obtain the FrameContext for the \a frame
- * \param[in] frame The frame context sequence number
- *
- * If the FrameContext is not correctly initialised for the \a frame, it will be
- * initialised.
  *
  * \return A reference to the FrameContext for sequence \a frame
  */
