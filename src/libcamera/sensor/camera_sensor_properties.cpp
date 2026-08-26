@@ -412,6 +412,11 @@ const CameraSensorProperties *CameraSensorProperties::get(const std::string &sen
 			},
 			.sensorDelays = { },
 		} },
+		{ "ov32c4", {
+			.unitCellSize = { 702, 702 },
+			.testPatternModes = {},
+			.sensorDelays = { },
+		} },
 		{ "ov4689", {
 			.unitCellSize = { 2000, 2000 },
 			.testPatternModes = {
