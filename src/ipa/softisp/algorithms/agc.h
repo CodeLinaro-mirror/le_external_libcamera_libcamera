@@ -19,6 +19,11 @@ public:
 	Agc();
 	~Agc() = default;
 
+	int init(IPAContext &context, const ValueNode &tuningData) override;
+	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
+	void queueRequest(IPAContext &context, const uint32_t frame,
+			  IPAFrameContext &frameContext,
+			  const ControlList &controls) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const SwIspStats *stats,
@@ -26,6 +31,9 @@ public:
 
 private:
 	void updateExposure(IPAContext &context, IPAFrameContext &frameContext, double exposureMSV);
+	void vblankRange(const IPAContext &context, const IPAFrameContext &frameContext,
+			 int32_t &vblankLo, int32_t &vblankHi) const;
+	int32_t exposureMaxForVblank(const IPAContext &context, int32_t vblank) const;
 };
 
 } /* namespace ipa::softisp::algorithms */

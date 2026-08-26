@@ -31,6 +31,17 @@ struct IPASessionConfiguration {
 		int32_t exposureMin, exposureMax;
 		double againMin, againMax, again10, againMinStep;
 		utils::Duration lineDuration;
+		/*
+		 * Frame duration control through V4L2_CID_VBLANK. When the
+		 * sensor doesn't expose the control, vblankSupported is false
+		 * and the frame duration stays at whatever the sensor was
+		 * configured with.
+		 */
+		bool vblankSupported;
+		int32_t vblankMin, vblankMax, vblankDef;
+		/* Lines the sensor keeps between max exposure and frame length */
+		int32_t exposureMargin;
+		uint32_t frameHeight;
 	} agc;
 	struct {
 		std::optional<uint8_t> level;
@@ -44,7 +55,10 @@ struct IPAActiveState {
 	struct {
 		int32_t exposure;
 		double again;
+		int32_t vblank;
 		bool valid;
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
 	} agc;
 
 	struct {
@@ -70,7 +84,14 @@ struct IPAFrameContext : public FrameContext {
 	struct {
 		int32_t exposure;
 		double gain;
+		int32_t vblank;
 	} sensor;
+
+	struct {
+		utils::Duration minFrameDuration;
+		utils::Duration maxFrameDuration;
+		utils::Duration frameDuration;
+	} agc;
 
 	float gamma;
 	std::optional<float> contrast;

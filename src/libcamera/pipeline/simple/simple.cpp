@@ -570,6 +570,14 @@ SimpleCameraData::SimpleCameraData(SimplePipelineHandler *pipe,
 		{ V4L2_CID_ANALOGUE_GAIN, { delays.gainDelay, false } },
 		{ V4L2_CID_EXPOSURE, { delays.exposureDelay, false } },
 	};
+	/*
+	 * The software ISP IPA controls the frame duration through vertical
+	 * blanking when the sensor supports it. Write it with priority, so
+	 * that the driver has updated the exposure limits before the exposure
+	 * of the same frame is applied.
+	 */
+	if (sensor_->controls().count(V4L2_CID_VBLANK))
+		params[V4L2_CID_VBLANK] = { delays.vblankDelay, true };
 	delayedCtrls_ = std::make_unique<DelayedControls>(sensor_->device(), params);
 
 	LOG(SimplePipeline, Debug)
@@ -1054,6 +1062,18 @@ void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
 	 */
 	if (!frameStartEmitter_) {
 		ControlList ctrls(sensorControls);
+
+		/*
+		 * Apply the vertical blanking on its own first, as the
+		 * exposure limits depend on it and a single request with
+		 * an exposure outside the current limits would be rejected.
+		 */
+		if (ctrls.contains(V4L2_CID_VBLANK)) {
+			ControlList vblank(sensor_->controls());
+			vblank.set(V4L2_CID_VBLANK, ctrls.get(V4L2_CID_VBLANK));
+			sensor_->setControls(&vblank);
+		}
+
 		sensor_->setControls(&ctrls);
 	}
 }
