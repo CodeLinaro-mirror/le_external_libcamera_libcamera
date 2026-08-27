@@ -146,16 +146,14 @@ public:
 	void queueRequest(const agc::Session &session, agc::ActiveState &state,
 			  agc::FrameContext &frameContext, const ControlList &controls);
 
-	void prepare(agc::ActiveState &state, agc::FrameContext &frameContext);
+	void prepare(const agc::Session& session, agc::ActiveState &state,
+		     agc::FrameContext &frameContext);
 
 	void process(const agc::Session &session, agc::ActiveState &state,
 		     agc::FrameContext &frameContext, std::optional<ProcessParams> &&params,
 		     ControlList &metadata);
 
 private:
-	void processFrameDuration(const agc::Session &session,
-				  agc::FrameContext &frameContext,
-				  utils::Duration frameDuration);
 	void fillMetadata(const agc::Session &session,
 			  const agc::FrameContext &frameContext,
 			  ControlList &metadata);
