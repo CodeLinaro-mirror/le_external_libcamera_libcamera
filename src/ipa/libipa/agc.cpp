@@ -396,17 +396,13 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 	 */
 
 	const ControlInfo &v4l2VBlank = config.sensorControls.find(V4L2_CID_VBLANK)->second;
-	std::array<uint32_t, 3> frameHeights{
-		v4l2VBlank.min().get<int32_t>() + config.sensorInfo.outputSize.height,
-		v4l2VBlank.max().get<int32_t>() + config.sensorInfo.outputSize.height,
-		v4l2VBlank.def().get<int32_t>() + config.sensorInfo.outputSize.height,
+	const struct {
+		uint32_t min;
+		uint32_t max;
+	} frameHeights = {
+		.min = v4l2VBlank.min().get<int32_t>() + config.sensorInfo.outputSize.height,
+		.max = v4l2VBlank.max().get<int32_t>() + config.sensorInfo.outputSize.height,
 	};
-
-	std::array<int64_t, 3> frameDurations;
-	for (unsigned int i = 0; i < frameHeights.size(); ++i) {
-		uint64_t frameSize = static_cast<uint64_t>(lineLength) * frameHeights[i];
-		frameDurations[i] = frameSize * 1000000U / config.sensorInfo.pixelRate;
-	}
 
 	/*
 	 * When the AGC computes the new exposure values for a frame, it needs
@@ -420,8 +416,8 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 	session.minAnalogueGain = minGain;
 	session.maxAnalogueGain = maxGain;
 	session.defAnalogueGain = defGain;
-	session.minFrameDuration = std::chrono::microseconds(frameDurations[0]);
-	session.maxFrameDuration = std::chrono::microseconds(frameDurations[1]);
+	session.minFrameDuration = frameHeights.min * session.lineDuration;
+	session.maxFrameDuration = frameHeights.max * session.lineDuration;
 
 	/* Configure the default exposure and gain. */
 	state = {};
@@ -460,8 +456,12 @@ int AgcAlgorithm::configure(agc::Session &session, agc::ActiveState &state,
 		static_cast<int32_t>(defExposure * lineDurationUs),
 	};
 	config.ctrlMap[&controls::FrameDurationLimits] = ControlInfo{
-		frameDurations[0], frameDurations[1],
-		Span<const int64_t, 2>{ { frameDurations[0], frameDurations[1] } },
+		static_cast<int64_t>(session.minFrameDuration.get<std::micro>()),
+		static_cast<int64_t>(session.maxFrameDuration.get<std::micro>()),
+		Span<const int64_t, 2>{{
+			static_cast<int64_t>(state.minFrameDuration.get<std::micro>()),
+			static_cast<int64_t>(state.maxFrameDuration.get<std::micro>()),
+		}},
 	};
 
 	const auto add = [&](const ControlId &cid, const auto &automatic, const auto &manual) {
