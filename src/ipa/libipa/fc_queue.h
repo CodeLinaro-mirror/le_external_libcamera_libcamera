@@ -54,7 +54,7 @@ public:
 		initialized_ = false;
 	}
 
-	FC &getOrInitContext(unsigned int frame, const ControlList &controls = {})
+	FC *getOrInitContext(unsigned int frame, const ControlList &controls = {})
 	{
 		FC &fc = contexts_[frame % contexts_.size()];
 		FrameContext &frameContext = fc;
@@ -64,23 +64,10 @@ public:
 			frameContext.frame_ = frame;
 			initCallback_(fc, controls);
 			initialized_ = true;
-			return fc;
+			return &fc;
 		}
 
-		/*
-		 * If the IPA algorithms try to access a frame context slot which
-		 * has been already overwritten by a newer context, it means the
-		 * frame context queue has overflowed and the desired context
-		 * has been forever lost. The pipeline handler shall avoid
-		 * queueing more requests to the IPA than the frame context
-		 * queue size.
-		 */
-		if (frame < frameContext.frame_)
-			LOG(FCQueue, Fatal) << "Frame context for " << frame
-					    << " has been overwritten by "
-					    << frameContext.frame_;
-
-		if (frame == frameContext.frame_) {
+		if (frame <= frameContext.frame_) {
 			if (!controls.empty()) {
 				/* Too late to apply the controls. Store them for later. */
 				LOG(FCQueue, Warning)
@@ -89,8 +76,17 @@ public:
 				controlsToApply_.merge(controls,
 						       ControlList::MergePolicy::OverwriteExisting);
 			}
+
+			if (frame < frameContext.frame_) {
+				LOG(FCQueue, Warning)
+					<< "Frame context for " << frame
+					<< " is already overwritten by "
+					<< frameContext.frame_;
+				return nullptr;
+			}
+
 			LOG(FCQueue, Debug) << "Got " << frame;
-			return fc;
+			return &fc;
 		}
 
 		const ControlList *controls2 = &controls;
@@ -107,7 +103,7 @@ public:
 		initCallback_(fc, *controls2);
 		controlsToApply_.clear();
 
-		return fc;
+		return &fc;
 	}
 
 private:

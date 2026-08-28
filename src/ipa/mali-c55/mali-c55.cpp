@@ -243,11 +243,13 @@ void IPAMaliC55::initializeFrameContext(IPAFrameContext &frameContext,
 void IPAMaliC55::fillParams(unsigned int request,
 			    [[maybe_unused]] uint32_t bufferId)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(request);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(request);
 	MaliC55Params params(buffers_.at(bufferId).planes()[0]);
 
+	ASSERT(frameContext);
+
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, request, frameContext, &params);
+		algo->prepare(context_, request, *frameContext, &params);
 
 	paramsComputed.emit(request, params.bytesused());
 }
@@ -255,13 +257,15 @@ void IPAMaliC55::fillParams(unsigned int request,
 void IPAMaliC55::processStats(unsigned int request, unsigned int bufferId,
 			      const ControlList &sensorControls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(request);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(request);
 	const mali_c55_stats_buffer *stats = nullptr;
+
+	ASSERT(frameContext);
 
 	stats = reinterpret_cast<mali_c55_stats_buffer *>(
 		buffers_.at(bufferId).planes()[0].data());
 
-	std::tie(frameContext.sensor.exposure, frameContext.sensor.gain) =
+	std::tie(frameContext->sensor.exposure, frameContext->sensor.gain) =
 		agc::extractControls(sensorControls, context_.camHelper.get());
 
 	ControlList metadata(controls::controls);
@@ -269,10 +273,10 @@ void IPAMaliC55::processStats(unsigned int request, unsigned int bufferId,
 	for (const auto &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 
-		algo->process(context_, request, frameContext, stats, metadata);
+		algo->process(context_, request, *frameContext, stats, metadata);
 	}
 
-	setControls(frameContext);
+	setControls(*frameContext);
 
 	statsProcessed.emit(request, metadata);
 }

@@ -237,9 +237,11 @@ void IPASoftIsp::computeParams(const uint32_t frame)
 {
 	context_.activeState.combinedMatrix = Matrix<float, 3, 3>::identity();
 
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
+
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, frame, frameContext, params_);
+		algo->prepare(context_, frame, *frameContext, params_);
 	params_->combinedMatrix = context_.activeState.combinedMatrix;
 
 	paramsComputed.emit(frame);
@@ -249,19 +251,20 @@ void IPASoftIsp::processStats(const uint32_t frame,
 			      [[maybe_unused]] const uint32_t bufferId,
 			      const ControlList &sensorControls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
 
-	std::tie(frameContext.sensor.exposure, frameContext.sensor.gain) =
+	std::tie(frameContext->sensor.exposure, frameContext->sensor.gain) =
 		agc::extractControls(sensorControls, context_.camHelper.get());
 
 	ControlList metadata(controls::controls);
 	for (const auto &algo : algorithms())
-		algo->process(context_, frame, frameContext, stats_, metadata);
+		algo->process(context_, frame, *frameContext, stats_, metadata);
 	metadataReady.emit(frame, metadata);
 
 	ControlList ctrls(context_.sensorControls);
 	agc::prepareControls(ctrls, context_.camHelper.get(),
-			     frameContext.agc.exposure, frameContext.agc.gain);
+			     frameContext->agc.exposure, frameContext->agc.gain);
 	setSensorControls.emit(ctrls);
 }
 
