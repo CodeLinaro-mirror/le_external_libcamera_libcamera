@@ -20,6 +20,7 @@
 #include <libipa/awb.h>
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
+#include <libipa/lux.h>
 
 namespace libcamera {
 
@@ -42,6 +43,8 @@ struct IPAActiveState {
 	} agc;
 
 	ipa::awb::ActiveState awb;
+
+	ipa::lux::ActiveState lux;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -56,6 +59,8 @@ struct IPAFrameContext : public FrameContext {
 	} agc;
 
 	ipa::awb::FrameContext awb;
+
+	ipa::lux::FrameContext lux;
 };
 
 struct IPAContext {
