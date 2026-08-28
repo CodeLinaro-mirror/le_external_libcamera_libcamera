@@ -18,6 +18,7 @@
 
 #include <libipa/agc.h>
 #include <libipa/awb.h>
+#include <libipa/ccm.h>
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 #include <libipa/lux.h>
@@ -44,6 +45,8 @@ struct IPAActiveState {
 
 	ipa::awb::ActiveState awb;
 
+	ipa::ccm::ActiveState ccm;
+
 	ipa::lux::ActiveState lux;
 };
 
@@ -59,6 +62,8 @@ struct IPAFrameContext : public FrameContext {
 	} agc;
 
 	ipa::awb::FrameContext awb;
+
+	ipa::ccm::FrameContext ccm;
 
 	ipa::lux::FrameContext lux;
 };
