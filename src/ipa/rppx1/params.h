@@ -16,6 +16,7 @@ namespace libcamera {
 namespace ipa::rppx1 {
 
 enum class BlockType : uint16_t {
+	BlsPre1,
 };
 
 namespace details {
@@ -31,6 +32,8 @@ struct block_type {
 		static constexpr rppx1_params_block_type blockType =	\
 			RPPX1_PARAMS_BLOCK_TYPE_##id;			\
 	};
+
+RPPX1_DEFINE_BLOCK_TYPE(BlsPre1, bls, BLS_PRE1)
 
 struct params_traits {
 	using id_type = BlockType;
