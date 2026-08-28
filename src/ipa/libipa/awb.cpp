@@ -526,6 +526,10 @@ int AwbAlgorithmBase::parseModeConfigs(const ValueNode &tuningData,
  * Minimum gain value used to clamp the AWB algorithm calculation results in the
  * range supported by the platform AWB engine.
  *
+ * The minimum defaults to 1.0, as most ISPs cannot attenuate a colour channel.
+ * On platforms that can, the "gainMin" tuning file property may lower the
+ * limit, within the range supported by the platform AWB engine.
+ *
  * The min and max gain values are initialized by AwbAlgorithm::init().
  */
 
