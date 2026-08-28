@@ -27,7 +27,8 @@ public:
 			  const ControlList &controls) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     RkISP1Params *params) override;
+		     RkISP1Params *params,
+		     bool initialize) override;
 };
 
 } /* namespace ipa::rkisp1::algorithms */

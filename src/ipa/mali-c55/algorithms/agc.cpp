@@ -204,12 +204,13 @@ void Agc::fillWeightsArrayBuffer(MaliC55Params *params, const enum MaliC55Blocks
 	std::fill(weights.begin(), weights.end(), 1);
 }
 
-void Agc::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, MaliC55Params *params)
+void Agc::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext, MaliC55Params *params,
+		  bool initialize)
 {
 	agc_.prepare(context.configuration.agc, context.activeState.agc, frameContext.agc);
 
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	fillParamsBuffer(params, MaliC55Blocks::AexpHist);

@@ -26,7 +26,8 @@ public:
 			  IPAFrameContext &frameContext, const ControlList &controls) override;
 
 	void prepare(IPAContext &context, const uint32_t frame,
-		     IPAFrameContext &frameContext, DebayerParams *params) override;
+		     IPAFrameContext &frameContext, DebayerParams *params,
+		     bool initialize) override;
 
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,

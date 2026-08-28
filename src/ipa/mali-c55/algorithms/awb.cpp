@@ -151,8 +151,9 @@ void Awb::fillConfigParamBlock(MaliC55Params *params)
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Awb::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, MaliC55Params *params)
+void Awb::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext, MaliC55Params *params,
+		  bool initialize)
 {
 	awbAlgo_.prepare(context.activeState.awb, frameContext.awb);
 
@@ -176,7 +177,7 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	block->gain11 = UQ<4, 8>(static_cast<float>(frameContext.awb.gains.b()))
 				.quantized();
 
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	fillConfigParamBlock(params);

@@ -230,11 +230,12 @@ int DefectPixelClusterCorrection::init([[maybe_unused]] IPAContext &context,
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void DefectPixelClusterCorrection::prepare([[maybe_unused]] IPAContext &context,
-					   const uint32_t frame,
+					   [[maybe_unused]] const uint32_t frame,
 					   [[maybe_unused]] IPAFrameContext &frameContext,
-					   RkISP1Params *params)
+					   RkISP1Params *params,
+					   bool initialize)
 {
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	auto config = params->block<BlockType::Dpcc>();

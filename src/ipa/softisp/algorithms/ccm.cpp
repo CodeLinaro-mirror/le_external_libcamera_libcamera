@@ -53,7 +53,9 @@ void Ccm::queueRequest(IPAContext &context,
 }
 
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, [[maybe_unused]] DebayerParams *params)
+		  IPAFrameContext &frameContext,
+		  [[maybe_unused]] DebayerParams *params,
+		  [[maybe_unused]] bool initialize)
 {
 	if (frameContext.awb.autoEnabled)
 		ccmAlgo_.prepare(context.activeState.ccm, frameContext.ccm,

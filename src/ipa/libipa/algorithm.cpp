@@ -99,6 +99,7 @@ namespace ipa {
  * \param[in] frame The frame context sequence number
  * \param[in] frameContext The FrameContext for this frame
  * \param[out] params The ISP specific parameters
+ * \param[in] initialize True if the ISP module should be reinitialzed
  *
  * This function is called for every frame when the camera is running before it
  * is processed by the ISP to prepare the ISP processing parameters and the
@@ -111,6 +112,11 @@ namespace ipa {
  * Additionally \a frameContext shall be updated with the most up to date values
  * necessary to configure the sensor. After prepare() the \a frameContext for
  * this frame shall be treated read only.
+ *
+ * The \a initialize parameter indicates if the ISP module should be fully
+ * initialized. This is always set on the first frame and in rare cases when
+ * frame contexts were overwritten and the ISP module has to be reinitialized to
+ * guarantee a defined state.
  *
  * \todo: For offline ISPs there might be use cases where it is beneficial to
  * separate the calculation of sensor parameters from the calculation of ISP

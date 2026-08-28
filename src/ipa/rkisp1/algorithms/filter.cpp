@@ -115,10 +115,11 @@ void Filter::queueRequest(IPAContext &context,
  */
 void Filter::prepare([[maybe_unused]] IPAContext &context,
 		     [[maybe_unused]] const uint32_t frame,
-		     IPAFrameContext &frameContext, RkISP1Params *params)
+		     IPAFrameContext &frameContext, RkISP1Params *params,
+		     bool initialize)
 {
 	/* Check if the algorithm configuration has been updated. */
-	if (!frameContext.filter.update)
+	if (!frameContext.filter.update && !initialize)
 		return;
 
 	static constexpr uint16_t filt_fac_sh0[] = {

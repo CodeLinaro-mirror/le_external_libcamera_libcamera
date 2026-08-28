@@ -20,7 +20,8 @@ public:
 
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     ipu3_uapi_params *params) override;
+		     ipu3_uapi_params *params,
+		     bool initialize) override;
 };
 
 } /* namespace ipa::ipu3::algorithms */

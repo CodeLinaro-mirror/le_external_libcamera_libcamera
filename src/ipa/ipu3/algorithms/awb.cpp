@@ -249,7 +249,8 @@ constexpr uint16_t Awb::gainValue(double gain)
 void Awb::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  [[maybe_unused]] IPAFrameContext &frameContext,
-		  ipu3_uapi_params *params)
+		  ipu3_uapi_params *params,
+		  [[maybe_unused]] bool initialize)
 {
 	/*
 	 * Green saturation thresholds are reduced because we are using the

@@ -24,7 +24,8 @@ public:
 		      const IPACameraSensorInfo &configInfo) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     RkISP1Params *params) override;
+		     RkISP1Params *params,
+		     bool initialize) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const rkisp1_stat_buffer *stats,

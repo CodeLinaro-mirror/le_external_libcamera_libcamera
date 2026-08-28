@@ -394,7 +394,8 @@ void WideDynamicRange::queueRequest([[maybe_unused]] IPAContext &context,
 void WideDynamicRange::prepare(IPAContext &context,
 			       [[maybe_unused]] const uint32_t frame,
 			       IPAFrameContext &frameContext,
-			       RkISP1Params *params)
+			       RkISP1Params *params,
+			       [[maybe_unused]] bool initialize)
 {
 	if (!params) {
 		LOG(RkISP1Wdr, Warning) << "Params is null";

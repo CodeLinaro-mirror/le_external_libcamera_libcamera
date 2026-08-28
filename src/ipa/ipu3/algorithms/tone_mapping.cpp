@@ -53,6 +53,7 @@ int ToneMapping::configure(IPAContext &context,
  * \param[in] frame The frame context sequence number
  * \param[in] frameContext The FrameContext for this frame
  * \param[out] params The IPU3 parameters
+ * \param[in] initialize True if the ISP module should be reinitialzed
  *
  * Populate the IPU3 parameter structure with our tone mapping look up table and
  * enable the gamma control module in the processing blocks.
@@ -60,7 +61,8 @@ int ToneMapping::configure(IPAContext &context,
 void ToneMapping::prepare([[maybe_unused]] IPAContext &context,
 			  [[maybe_unused]] const uint32_t frame,
 			  [[maybe_unused]] IPAFrameContext &frameContext,
-			  ipu3_uapi_params *params)
+			  ipu3_uapi_params *params,
+			  [[maybe_unused]] bool initialize)
 {
 	/* Copy the calculated LUT into the parameters buffer. */
 	memcpy(params->acc_param.gamma.gc_lut.lut,

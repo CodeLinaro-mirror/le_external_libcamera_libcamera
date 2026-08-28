@@ -109,7 +109,8 @@ void Agc::queueRequest(IPAContext &context, [[maybe_unused]] const uint32_t fram
  */
 void Agc::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext,
-		  [[maybe_unused]] ipu3_uapi_params *params)
+		  [[maybe_unused]] ipu3_uapi_params *params,
+		  [[maybe_unused]] bool initialize)
 {
 	agc_.prepare(context.configuration.agc, context.activeState.agc, frameContext.agc);
 }

@@ -206,13 +206,14 @@ void LensShadingCorrection::queueRequest(IPAContext &context,
 void LensShadingCorrection::prepare([[maybe_unused]] IPAContext &context,
 				    [[maybe_unused]] const uint32_t frame,
 				    IPAFrameContext &frameContext,
-				    RkISP1Params *params)
+				    RkISP1Params *params,
+				    bool initialize)
 {
 	uint32_t ct = frameContext.awb.colourTemperature;
 	unsigned int quantizedCt = quantize(ct, kColourTemperatureQuantization);
 
 	/* Check if we can skip the update. */
-	if (!frameContext.lsc.update) {
+	if (!frameContext.lsc.update && !initialize) {
 		if (!frameContext.lsc.enabled)
 			return;
 

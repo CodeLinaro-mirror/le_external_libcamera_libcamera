@@ -40,7 +40,8 @@ public:
 	void prepare(IPAContext &context,
 		     const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     DebayerParams *params) override;
+		     DebayerParams *params,
+		     bool initialize) override;
 	void process(IPAContext &context,
 		     const uint32_t frame,
 		     IPAFrameContext &frameContext,

@@ -329,8 +329,10 @@ uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const u
 	RkISP1Params params(context_.configuration.paramFormat,
 			    mappedBuffers_.at(bufferId).planes()[0]);
 
+	unsigned int frame = frameContext.frame();
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, frameContext.frame(), frameContext, &params);
+		algo->prepare(context_, frame, frameContext,
+			      &params, frame == 0);
 
 	return params.bytesused();
 }

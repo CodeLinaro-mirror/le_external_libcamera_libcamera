@@ -99,12 +99,13 @@ void GammaOutCorrection::queueRequest(IPAContext &context, const uint32_t frame,
 void GammaOutCorrection::prepare(IPAContext &context,
 				 [[maybe_unused]] const uint32_t frame,
 				 IPAFrameContext &frameContext,
-				 RkISP1Params *params)
+				 RkISP1Params *params,
+				 bool initialize)
 {
 	ASSERT(context.hw.numGammaOutSamples ==
 	       RKISP1_CIF_ISP_GAMMA_OUT_MAX_SAMPLES_V10);
 
-	if (!frameContext.goc.update)
+	if (!frameContext.goc.update && !initialize)
 		return;
 
 	/*

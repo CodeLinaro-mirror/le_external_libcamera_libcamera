@@ -249,7 +249,8 @@ void IPAMaliC55::fillParams(unsigned int request,
 	ASSERT(frameContext);
 
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, request, *frameContext, &params);
+		algo->prepare(context_, request, *frameContext, &params,
+			      frameContext->frame() == 0);
 
 	paramsComputed.emit(request, params.bytesused());
 }

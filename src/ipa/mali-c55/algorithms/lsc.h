@@ -36,7 +36,8 @@ public:
 			  const ControlList &controls) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     MaliC55Params *params) override;
+		     MaliC55Params *params,
+		     bool initialize) override;
 	void process(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
 		     const mali_c55_stats_buffer *stats,
