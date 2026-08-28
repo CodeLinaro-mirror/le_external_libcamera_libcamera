@@ -18,6 +18,7 @@ namespace ipa::rppx1 {
 enum class StatsType : uint16_t {
 	ExmPre1,
 	HistPost,
+	WbMeasPost,
 };
 
 namespace details {
@@ -36,6 +37,7 @@ struct stats_type {
 
 RPPX1_DEFINE_STATS_TYPE(ExmPre1, exm, EXM_PRE1)
 RPPX1_DEFINE_STATS_TYPE(HistPost, hist, HIST_POST)
+RPPX1_DEFINE_STATS_TYPE(WbMeasPost, wbmeas, WBMEAS_POST)
 
 struct stats_traits {
 	using id_type = StatsType;
