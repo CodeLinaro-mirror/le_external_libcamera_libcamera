@@ -461,7 +461,18 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 			    << " textureUniformStrideFactor_ " << Stride
 			    << " textureUniformProjMatrix_ " << textureUniformProjMatrix_;
 
-	glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_TRUE, params.combinedMatrix.data().data());
+	GLfloat ccm[9] = {
+		params.combinedMatrix[0][0],
+		params.combinedMatrix[0][1],
+		params.combinedMatrix[0][2],
+		params.combinedMatrix[1][0],
+		params.combinedMatrix[1][1],
+		params.combinedMatrix[1][2],
+		params.combinedMatrix[2][0],
+		params.combinedMatrix[2][1],
+		params.combinedMatrix[2][2],
+	};
+	glUniformMatrix3fv(ccmUniformDataIn_, 1, GL_FALSE, ccm);
 	LOG(Debayer, Debug) << " ccmUniformDataIn_ " << ccmUniformDataIn_ << " data " << params.combinedMatrix;
 
 	/*
