@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <array>
 #include <map>
 #include <optional>
@@ -117,7 +118,20 @@ public:
 	{
 		AwbAlgorithmBase::init(tuningData);
 
-		gainMin_ = std::max(Q::TraitsType::min, 1.0f);
+		/*
+		 * Gains are not allowed to go below 1.0 by default: attenuating
+		 * a colour channel discards part of its dynamic range, so
+		 * balancing by amplifying the other channels is normally
+		 * preferable. Some camera modules are however calibrated with
+		 * a white point that requires attenuating a channel, which
+		 * platforms whose AWB gains can go below 1.0 (such as the
+		 * software ISP) are able to apply. Let the tuning file lower
+		 * the limit with the "gainMin" property, within the platform's
+		 * gain range.
+		 */
+		float gainMin = tuningData["gainMin"].get<float>(1.0f);
+		gainMin_ = std::clamp(gainMin, Q::TraitsType::min,
+				      Q::TraitsType::max);
 		gainMax_ = Q::TraitsType::max;
 
 		controls_[&controls::ColourGains] =
