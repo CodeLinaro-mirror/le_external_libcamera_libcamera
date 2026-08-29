@@ -470,8 +470,8 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 		return 0;
 	}
 
-	LOG(Debayer, Info)
-		<< "Unsupported input format " << inputFormat.toString();
+	LOG(Debayer, Debug)
+		<< "Unsupported input format " << inputFormat;
 	return -EINVAL;
 }
 
