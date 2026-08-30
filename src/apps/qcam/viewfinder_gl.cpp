@@ -546,6 +546,9 @@ void ViewFinderGL::doRender()
 	/* Stride of the first plane, in pixels. */
 	unsigned int stridePixels;
 
+	/* Whether the raw Bayer format is unpacked. */
+	bool unpacked = false;
+
 	/* Identity CCM */
 	float ccm[] = { 1.0f, 0.0f, 0.0f,
 			0.0f, 1.0f, 0.0f,
@@ -763,6 +766,8 @@ void ViewFinderGL::doRender()
 	case libcamera::formats::SGBRG8:
 	case libcamera::formats::SGRBG8:
 	case libcamera::formats::SRGGB8:
+		unpacked = true;
+		[[fallthrough]];
 	case libcamera::formats::SBGGR10_CSI2P:
 	case libcamera::formats::SGBRG10_CSI2P:
 	case libcamera::formats::SGRBG10_CSI2P:
@@ -798,10 +803,10 @@ void ViewFinderGL::doRender()
 					       1.0f / (size_.height() - 1));
 
 		/*
-		 * The stride is already taken into account in the shaders, set
-		 * the generic stride factor to 1.0.
+		 * The packed shaders handle the stride themselves through
+		 * tex_step; only the unpacked shaders need the stride factor.
 		 */
-		stridePixels = size_.width();
+		stridePixels = unpacked ? stride_ : size_.width();
 
 		/* Colour Correction Matrix */
 		shaderProgram_.setUniformValue(ccmUniformDataIn_, qCcmMat);
