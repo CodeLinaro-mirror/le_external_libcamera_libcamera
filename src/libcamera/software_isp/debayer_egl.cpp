@@ -432,11 +432,11 @@ void DebayerEGL::setShaderVariableValues(eGLImage &eglImageIn, const DebayerPara
 
 	/*
 	 * These values are:
-	 * firstRed = tex_bayer_first_red - bayer_8.vert
-	 * imgSize = tex_size - bayer_8.vert
-	 * step = tex_step - bayer_8.vert
-	 * Stride = stride_factor identity.vert
-	 * textureUniformProjMatri = No scaling
+	 * firstRed = tex_bayer_first_red - bayer_unpacked.frag, bayer_1x_packed.frag
+	 * imgSize = tex_size - bayer_unpacked.vert, bayer_unpacked.frag, bayer_1x_packed.frag
+	 * step = tex_step - bayer_1x_packed.frag
+	 * Stride = stride_factor - identity.vert, bayer_unpacked.frag
+	 * projMatrix = proj_matrix - identity.vert, bayer_unpacked.vert
 	 */
 	glUniform2fv(textureUniformBayerFirstRed_, 1, firstRed);
 	glUniform2fv(textureUniformSize_, 1, imgSize);

@@ -21,9 +21,10 @@ precision highp float;
 
 /** Monochrome RGBA or GL_LUMINANCE Bayer encoded texture.*/
 uniform sampler2D       tex_y;
-varying vec4            center;
-varying vec4            yCoord;
-varying vec4            xCoord;
+uniform vec2            tex_size;
+uniform float           stride_factor;
+uniform vec2            tex_bayer_first_red;
+varying vec2            pixelPos;
 uniform vec3            awb;
 uniform mat3            ccm;
 uniform vec3            blacklevel;
@@ -52,11 +53,23 @@ void main(void) {
     #define fetch(x, y) texture2D(tex_y, vec2(x, y)).r
     #endif
 
+    /*
+     * Derive the parity and every fetch coordinate from one floor() of the
+     * pixel position, snapped to texel centres. Computed separately they
+     * can round to different texels when downscaling lands a sample on a
+     * texel boundary.
+     */
+    vec2 texStep = vec2(stride_factor / tex_size.x, 1.0 / tex_size.y);
+    vec2 pix = floor(pixelPos);
+    vec2 center = (pix + 0.5) * texStep;
+    vec4 xCoord = center.x + vec4(-2.0, -1.0, 1.0, 2.0) * texStep.x;
+    vec4 yCoord = center.y + vec4(-2.0, -1.0, 1.0, 2.0) * texStep.y;
+
     float C = fetch(center.x, center.y); // ( 0, 0)
     const vec4 kC = vec4( 4.0,  6.0,  5.0,  5.0) / 8.0;
 
     // Determine which of four types of pixels we are on.
-    vec2 alternate = mod(floor(center.zw), 2.0);
+    vec2 alternate = mod(pix + tex_bayer_first_red, 2.0);
 
     vec4 Dvec = vec4(
         fetch(xCoord[1], yCoord[1]),  // (-1,-1)
