@@ -22,6 +22,7 @@ enum class BlockType : uint16_t {
 	ExmPre1,
 	GaHv,
 	HistPost,
+	LinPre1,
 	WbMeasPost,
 };
 
@@ -45,6 +46,7 @@ RPPX1_DEFINE_BLOCK_TYPE(CcorPost, ccor, CCOR_POST)
 RPPX1_DEFINE_BLOCK_TYPE(ExmPre1, exm, EXM_PRE1)
 RPPX1_DEFINE_BLOCK_TYPE(GaHv, ga, GA_HV)
 RPPX1_DEFINE_BLOCK_TYPE(HistPost, hist, HIST_POST)
+RPPX1_DEFINE_BLOCK_TYPE(LinPre1, lin, LIN_PRE1)
 RPPX1_DEFINE_BLOCK_TYPE(WbMeasPost, wbmeas, WBMEAS_POST)
 
 struct params_traits {

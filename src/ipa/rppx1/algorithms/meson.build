@@ -6,5 +6,6 @@ rppx1_ipa_algorithms = files([
     'blc.cpp',
     'ccm.cpp',
     'gamma.cpp',
+    'gsl.cpp',
     'lux.cpp',
 ])
