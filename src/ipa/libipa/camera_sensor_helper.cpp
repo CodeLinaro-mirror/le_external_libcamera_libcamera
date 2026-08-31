@@ -691,6 +691,18 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx678", CameraSensorHelperImx678)
 
+class CameraSensorHelperImx681 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperImx681()
+	{
+		/* Measured on the sensor: 64 at 10bits. */
+		blackLevel_ = 4096;
+		gain_ = AnalogueGainLinear{ 0, 1024, -1, 1024 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx681", CameraSensorHelperImx681)
+
 class CameraSensorHelperImx708 : public CameraSensorHelper
 {
 public:
