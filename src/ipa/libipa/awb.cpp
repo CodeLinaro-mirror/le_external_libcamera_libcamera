@@ -76,7 +76,7 @@ namespace awb {
  */
 
 /**
- * AwbStat::~AwbStat
+ * \fn AwbStats::~AwbStats()
  * \brief Virtual class destructor
  */
 
