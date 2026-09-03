@@ -575,6 +575,8 @@ class TrailersChecker(CommitChecker):
         'Signed-off-by': email_regex,
         'Suggested-by': email_regex,
         'Tested-by': email_regex,
+        'ABI': None,
+        'API': None,
     }
 
     trailer_regex = re.compile(r'([A-Z][a-zA-Z-]*)\s*:\s*(.*)')
@@ -593,9 +595,12 @@ class TrailersChecker(CommitChecker):
 
             key, value = match.groups()
 
-            validator = TrailersChecker.known_trailers.get(key)
-            if not validator:
+            if key not in TrailersChecker.known_trailers:
                 issues.append(CommitIssue(f"Invalid commit trailer key '{key}'"))
+                continue
+
+            validator = TrailersChecker.known_trailers[key]
+            if validator is None:
                 continue
 
             if isinstance(validator, re.Pattern):
