@@ -38,6 +38,8 @@ class SensorConfiguration
 public:
 	unsigned int bitDepth = 0;
 
+	unsigned int BigBreakingABIChange = 1;
+
 	Rectangle analogCrop;
 
 	struct {
