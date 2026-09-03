@@ -71,6 +71,27 @@ Freedesktop also provides our CI and `testing pipeline`_.
 
 .. _testing pipeline: https://gitlab.freedesktop.org/camera/libcamera/-/pipelines
 
+ABI and API Stability
+---------------------
+
+We provide a script `./utils/abi-compat.sh` which can be run to detect and
+report any ABI or API breakage in the public interfaces.
+
+Contributions which knowingly break the ABI or API should specify this in the
+commit message with one of the following trailer examples.
+
+The CI testing suite may choose to reject contributions which cause an ABI or
+API breakage but do not specify the effect in the commit log.
+
+::
+
+  ABI: struct IPAModuleInfo:
+       Field pipelineName has been removed from the middle position of this
+       structural type.
+
+  API: struct IPAModuleInfo:
+       Field pipelineName has been removed from this type.
+
 Issue Tracker
 -------------
 
