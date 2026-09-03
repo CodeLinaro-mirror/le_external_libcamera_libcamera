@@ -324,7 +324,7 @@ void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 		for (const auto &algo : algorithms())
 			algo->prepare(context_, frame, frameContext, &params);
 
-		paramsComputed.emit(frame, params.bytesused());
+		paramsComputed.emit(frame, bufferId, params.bytesused());
 	}
 
 	ControlList ctrls = getSensorControls(frameContext);
@@ -358,7 +358,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 	}
 
 	context_.debugMetadata.moveEntries(metadata);
-	metadataReady.emit(frame, metadata);
+	metadataReady.emit(frame, bufferId, metadata);
 }
 
 void IPARkISP1::updateControls(ControlInfoMap *ipaControls)

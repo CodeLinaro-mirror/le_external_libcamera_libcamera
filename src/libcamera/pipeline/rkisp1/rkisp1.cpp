@@ -130,11 +130,11 @@ public:
 	bool usesDewarper_;
 
 private:
-	void paramsComputed(unsigned int frame, unsigned int bytesused);
+	void paramsComputed(unsigned int frame, unsigned int bufferId, unsigned int bytesused);
 	void setSensorControls(unsigned int frame,
 			       const ControlList &sensorControls);
 
-	void metadataReady(unsigned int frame, const ControlList &metadata);
+	void metadataReady(unsigned int frame, unsigned int bufferId, const ControlList &metadata);
 	int loadTuningFile(const std::string &file);
 };
 
@@ -475,7 +475,9 @@ int RkISP1CameraData::loadTuningFile(const std::string &path)
 	return 0;
 }
 
-void RkISP1CameraData::paramsComputed(unsigned int frame, unsigned int bytesused)
+void RkISP1CameraData::paramsComputed(unsigned int frame,
+				      [[maybe_unused]] unsigned int bufferId,
+				      unsigned int bytesused)
 {
 	PipelineHandlerRkISP1 *pipe = RkISP1CameraData::pipe();
 	RkISP1FrameInfo *info = frameInfo_.find(frame);
@@ -506,7 +508,9 @@ void RkISP1CameraData::setSensorControls(unsigned int frame,
 	delayedCtrls_->push(frame, sensorControls);
 }
 
-void RkISP1CameraData::metadataReady(unsigned int frame, const ControlList &metadata)
+void RkISP1CameraData::metadataReady(unsigned int frame,
+				     [[maybe_unused]] unsigned int bufferId,
+				     const ControlList &metadata)
 {
 	RkISP1FrameInfo *info = frameInfo_.find(frame);
 	if (!info)
