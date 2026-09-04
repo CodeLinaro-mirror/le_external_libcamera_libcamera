@@ -7,6 +7,10 @@
 
 #include "blc.h"
 
+#include <libcamera/base/log.h>
+
+#include "libcamera/internal/value_node.h"
+
 /**
  * \file blc.h
  * \brief IPU3 Black Level Correction control
@@ -30,8 +34,38 @@ namespace ipa::ipu3::algorithms {
  * isn't currently supported.
  */
 
+LOG_DEFINE_CATEGORY(IPU3Blc)
+
+/*
+ * Default optical black level. This matches the OV5670 sensor black level
+ * when interpreted as the ImgU obgrid unit (see init()).
+ */
+static constexpr int16_t kDefaultBlackLevel = 64;
+
 BlackLevelCorrection::BlackLevelCorrection()
+	: blackLevel_(kDefaultBlackLevel)
 {
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::init
+ *
+ * The optional \a blackLevel tuning parameter sets the optical black level
+ * subtracted by the ImgU for the four Bayer channels. The ImgU obgrid unit
+ * has been measured to be half a 10-bit LSB: with a value of 64 an OV5670
+ * (black level 64 in 10-bit) keeps a residual pedestal of ~9/255 in the
+ * AWB statistics and in the image, which the colour gains then amplify;
+ * with 128 the pedestal disappears. The default is kept at 64 for
+ * compatibility with existing tuning files.
+ */
+int BlackLevelCorrection::init([[maybe_unused]] IPAContext &context,
+			       const ValueNode &tuningData)
+{
+	blackLevel_ = tuningData["blackLevel"].get<int16_t>().value_or(kDefaultBlackLevel);
+
+	LOG(IPU3Blc, Debug) << "Black level " << blackLevel_;
+
+	return 0;
 }
 
 /**
@@ -54,10 +88,10 @@ void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
 	 * \todo The correction values should come from sensor specific
 	 * tuning processes. This is a first rough approximation.
 	 */
-	params->obgrid_param.gr = 64;
-	params->obgrid_param.r = 64;
-	params->obgrid_param.b = 64;
-	params->obgrid_param.gb = 64;
+	params->obgrid_param.gr = blackLevel_;
+	params->obgrid_param.r = blackLevel_;
+	params->obgrid_param.b = blackLevel_;
+	params->obgrid_param.gb = blackLevel_;
 
 	/* Enable the custom black level correction processing */
 	params->use.obgrid = 1;
