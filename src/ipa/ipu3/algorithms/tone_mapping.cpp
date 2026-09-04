@@ -7,8 +7,13 @@
 
 #include "tone_mapping.h"
 
+#include <algorithm>
 #include <cmath>
 #include <string.h>
+
+#include <libcamera/base/log.h>
+
+#include "libcamera/internal/value_node.h"
 
 /**
  * \file tone_mapping.h
@@ -26,9 +31,39 @@ namespace ipa::ipu3::algorithms {
  * generated based on a gamma parameter.
  */
 
+LOG_DEFINE_CATEGORY(IPU3ToneMapping)
+
+/* Historical default, kept for existing tuning files. */
+static constexpr double kDefaultGamma = 1.1;
+
 ToneMapping::ToneMapping()
-	: gamma_(1.0)
+	: gamma_(1.0), tunedGamma_(kDefaultGamma)
 {
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::init
+ *
+ * The optional \a gamma tuning parameter sets the exponent of the encoding
+ * curve programmed in the ImgU gamma correction LUT, output = input^(1/gamma).
+ * The default is 1.1.
+ *
+ * Note that on the IPU3 firmware currently distributed for Linux
+ * (irci_irci_ecr-master_20161208_0213_20170112_1500) the video pipe applies
+ * a fixed curve when the gamma block is programmed and ignores the LUT
+ * contents: values of 0.5, 1.1 and 3.0 produce identical output, while not
+ * programming the block yields a linear ramp. The parameter is still useful
+ * to document the intent and for firmware that honours the LUT.
+ */
+int ToneMapping::init([[maybe_unused]] IPAContext &context,
+		      const ValueNode &tuningData)
+{
+	tunedGamma_ = std::clamp(tuningData["gamma"].get<double>().value_or(kDefaultGamma),
+				 0.5, 4.0);
+
+	LOG(IPU3ToneMapping, Debug) << "Gamma " << tunedGamma_;
+
+	return 0;
 }
 
 /**

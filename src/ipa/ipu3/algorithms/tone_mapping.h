@@ -18,6 +18,8 @@ class ToneMapping : public Algorithm
 public:
 	ToneMapping();
 
+	int init(IPAContext &context, const ValueNode &tuningData) override;
+
 	int configure(IPAContext &context, const IPAConfigInfo &configInfo) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext, ipu3_uapi_params *params) override;
@@ -28,6 +30,7 @@ public:
 
 private:
 	double gamma_;
+	double tunedGamma_;
 };
 
 } /* namespace ipa::ipu3::algorithms */
