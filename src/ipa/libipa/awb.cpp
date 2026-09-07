@@ -372,6 +372,12 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 			       const AwbStats &stats, unsigned int lux,
 			       ControlList &metadata)
 {
+	/* Populate metadata. */
+	metadata.set(controls::AwbEnable, frameContext.autoEnabled);
+	metadata.set(controls::ColourGains, { static_cast<float>(frameContext.gains.r()),
+					      static_cast<float>(frameContext.gains.b()) });
+	metadata.set(controls::ColourTemperature, frameContext.colourTemperature);
+
 	if (!stats.valid())
 		return;
 
@@ -392,12 +398,6 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 	state.automatic.colourTemperature = awbResult.colourTemperature;
 	state.automatic.gains = awbResult.gains * speed +
 				state.automatic.gains * (1 - speed);
-
-	/* Populate metadata. */
-	metadata.set(controls::AwbEnable, frameContext.autoEnabled);
-	metadata.set(controls::ColourGains, { static_cast<float>(frameContext.gains.r()),
-					      static_cast<float>(frameContext.gains.b()) });
-	metadata.set(controls::ColourTemperature, frameContext.colourTemperature);
 
 	LOG(Awb, Debug) << std::showpoint << "Means " << stats.rgbMeans()
 			<< ", gains " << state.automatic.gains
