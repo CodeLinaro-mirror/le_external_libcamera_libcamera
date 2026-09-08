@@ -57,7 +57,7 @@ int Lsc::init(IPAContext &context, const ValueNode &tuningData)
 				.keys = { "r", "g", "b" },
 				.numHSamples = kMeshSize,
 				.numVSamples = kMeshSize,
-				.sensorSize = context.sensorInfo.activeAreaSize
+				.sensorSize = context.sensorInfo.activeArea.size()
 			     });
 }
 
