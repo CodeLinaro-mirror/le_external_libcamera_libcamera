@@ -629,6 +629,18 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("imx355", CameraSensorHelperImx355)
 
+class CameraSensorHelperImx363 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperImx363()
+	{
+		/* From datasheet: 0x40 at 10bits. */
+		blackLevel_ = 4096;
+		gain_ = AnalogueGainLinear{ 0, 512, -1, 512 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("imx363", CameraSensorHelperImx363)
+
 class CameraSensorHelperImx415 : public CameraSensorHelper
 {
 public:
