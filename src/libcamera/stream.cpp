@@ -407,8 +407,9 @@ std::string StreamConfiguration::toString() const
  */
 std::ostream &operator<<(std::ostream &out, const StreamConfiguration &cfg)
 {
-	out << cfg.size << "-" << cfg.pixelFormat << "/"
-	    << ColorSpace::toString(cfg.colorSpace);
+	out << cfg.size << '-' << cfg.pixelFormat
+	    << '[' << cfg.frameSize << '/' << cfg.stride << ']'
+	    << '/' << ColorSpace::toString(cfg.colorSpace);
 	return out;
 }
 
