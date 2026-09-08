@@ -427,13 +427,31 @@ controls:
   - PixelArraySize:
       type: Size
       description: |
-        The camera sensor pixel array readable area vertical and horizontal
-        sizes, in pixels.
+        The camera sensor pixel array vertical and horizontal sizes, in pixels.
 
-        The PixelArraySize property defines the size in pixel units of the
-        readable part of full pixel array matrix, including optical black
+        The PixelArraySize property defines the size in pixel units of the full
+        pixel array matrix including readable and non-readable pixels. For the
+        largest readable area \see PixelArrayReadableArea.
+
+        This property defines the horizontal and vertical sizes of a rectangle
+        whose top-left corner is placed in position (0, 0). All the other
+        properties that describe portions of the pixel array such as
+        PixelArrayActiveAreas, PixelArrayReadableArea and
+        PixelArrayOpticalBlackRectangles are defined relative to this rectangle.
+
+        \todo Rename this property to Size once we will have property
+              categories (i.e. Properties::PixelArray::Size)
+
+  - PixelArrayReadableArea:
+      type: Rectangle
+      description: |
+        The camera sensor pixel array readable area.
+
+        The PixelArrayReadableArea property defines the rectangle in pixel units
+        of the readable part of full pixel array matrix, including optical black
         pixels used for calibration, pixels which are not considered valid for
-        capture and active pixels containing valid image data.
+        capture and active pixels containing valid image data. It is defined
+        relative to the PixelArraySize rectangle.
 
         The property describes the maximum size of the raw data captured by the
         camera, which might not correspond to the physical size of the sensor
@@ -442,23 +460,25 @@ controls:
 
         For example, let's consider a pixel array matrix assembled as follows
 
-             +--------------------------------------------------+
-             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
-             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
+                          PixelArraySize.width
+             /--------------------------------------------------/
+             +--------------------------------------------------+ /
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx| |
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| | PixelArraySize.height
              ...          ...           ...      ...          ...
 
              ...          ...           ...      ...          ...
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx|
-             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
-             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
-             +--------------------------------------------------+
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx| |
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx| |
+             +--------------------------------------------------+ /
 
         starting with two lines of non-readable pixels (x), followed by N lines
         of readable data (D) surrounded by two columns of non-readable pixels on
@@ -467,34 +487,31 @@ controls:
         sizes of the largest possible buffer of raw data that can be presented
         to applications.
 
-                             PixelArraySize.width
-               /----------------------------------------------/
-               +----------------------------------------------+ /
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| | PixelArraySize.height
-               ...        ...           ...      ...        ...
-               ...        ...           ...      ...        ...
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               |DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD| |
-               +----------------------------------------------+ /
+                          PixelArrayReadableArea.width
+                /--------------------------------------------/
+                PixelArrayReadableArea.x
+             +--o-----------------------------------------------+
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
+             oxxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| / PixelArrayReadableArea.y
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| | PixelArrayReadableArea.height
+             ...          ...           ...      ...          ...
 
-        This defines a rectangle whose top-left corner is placed in position (0,
-        0) and whose vertical and horizontal sizes are defined by this property.
-        All other rectangles that describe portions of the pixel array, such as
-        the optical black pixels rectangles and active pixel areas, are defined
-        relatively to this rectangle.
+             ...          ...           ...      ...          ...
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| |
+             |xxDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDxx| /
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
+             |xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx|
+             +--------------------------------------------------+
 
         All the coordinates are expressed relative to the default sensor readout
         direction, without any transformation (such as horizontal and vertical
         flipping) applied. When mapping them to the raw pixel buffer,
         applications shall take any configured transformation into account.
-
-        \todo Rename this property to Size once we will have property
-              categories (i.e. Properties::PixelArray::Size)
 
   - PixelArrayOpticalBlackRectangles:
       type: Rectangle
@@ -505,7 +522,8 @@ controls:
 
         This property describes the position and size of optical black pixel
         regions in the raw data buffer as stored in memory, which might differ
-        from their actual physical location in the pixel array matrix.
+        from their actual physical location in the pixel array matrix. It is
+        defined relative to the PixelArraySize rectangle.
 
         It is important to note, in fact, that camera sensors might
         automatically reorder or skip portions of their pixels array matrix when
@@ -519,7 +537,7 @@ controls:
         they could be positioned too close to the chip margins or to the optical
         black shielding placed on top of optical black pixels.
 
-                             PixelArraySize.width
+                             PixelArrayReadableArea.width
                /----------------------------------------------/
                   x1                                       x2
                +--o---------------------------------------o---+ /
@@ -532,7 +550,7 @@ controls:
                |IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII| |
                |IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII| |
             y3 |IIOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOII| |
-               |IIOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOII| | PixelArraySize.height
+               |IIOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOII| | PixelArrayReadableArea.height
                |IIOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOOII| |
                ...          ...           ...     ...       ...
                ...          ...           ...     ...       ...
@@ -560,7 +578,7 @@ controls:
         skips the invalid lines and columns, producing the following data
         buffer, when captured to memory
 
-                             PixelArraySize.width
+                             PixelArrayReadableArea.width
                /----------------------------------------------/
                                                            x1
                +--------------------------------------------o-+ /
@@ -570,7 +588,7 @@ controls:
                |OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO| |
             y1 oOOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
                |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
-               |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| | PixelArraySize.height
+               |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| | PixelArrayReadableArea.height
                ...       ...          ...       ...         ... |
                ...       ...          ...       ...         ... |
                |OOPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPOO| |
@@ -578,14 +596,17 @@ controls:
                +----------------------------------------------+ /
 
         then the invalid lines and columns should not be reported as part of the
-        PixelArraySize property in first place.
+        PixelArrayReadableArea property in first place. As the coordinates of
+        PixelArrayReadableArea are relative to the physical pixel array, care
+        must be taken to report it in a way that the valid pixel data maps to
+        the correct physical position.
 
         In this case, the position of the black pixel rectangles will be
 
             PixelArrayOpticalBlackRectangles = {
-               { 0, 0, y1 + 1, PixelArraySize[0] },
-               { 0, y1, 2, PixelArraySize[1] - y1 + 1 },
-               { x1, y1, 2, PixelArraySize[1] - y1 + 1 },
+               { 0, 0, PixelArrayReadableArea.width, y1 + 1 },
+               { 0, y1, 2, PixelArrayReadableArea.height - y1 + 1 },
+               { x1, y1, 2, PixelArrayReadableArea.height - y1 + 1 },
             };
 
         \todo Rename this property to Size once we will have property
@@ -602,7 +623,7 @@ controls:
         This property describes an arbitrary number of overlapping rectangles,
         with each rectangle representing the maximum image size that the camera
         sensor can produce for a particular aspect ratio. They are defined
-        relatively to the PixelArraySize rectangle.
+        relative to the PixelArraySize rectangle.
 
         When multiple rectangles are reported, they shall be ordered from the
         tallest to the shortest.
