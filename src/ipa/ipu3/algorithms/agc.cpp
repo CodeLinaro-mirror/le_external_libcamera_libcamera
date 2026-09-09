@@ -67,11 +67,13 @@ Agc::Agc()
  */
 int Agc::init(IPAContext &context, const ValueNode &tuningData)
 {
-	return agc_.init(tuningData, context.camHelper.get(), {
-		.sensorInfo = context.sensorInfo,
-		.sensorControls = context.sensorControls,
-		.ctrlMap = context.ctrlMap,
-	});
+	return agc_.init(
+		tuningData, context.camHelper.get(),
+		{
+			.sensorInfo = context.sensorInfo,
+			.sensorControls = context.sensorControls,
+			.ctrlMap = context.ctrlMap,
+		});
 }
 
 /**
@@ -84,14 +86,16 @@ int Agc::init(IPAContext &context, const ValueNode &tuningData)
 int Agc::configure(IPAContext &context,
 		   [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
-	stride_ =  context.configuration.grid.stride;
+	stride_ = context.configuration.grid.stride;
 	bdsGrid_ = context.configuration.grid.bdsGrid;
 
-	return agc_.configure(context.configuration.agc, context.activeState.agc, {
-		.sensorInfo = context.sensorInfo,
-		.sensorControls = context.sensorControls,
-		.ctrlMap = context.ctrlMap,
-	});
+	return agc_.configure(
+		context.configuration.agc, context.activeState.agc,
+		{
+			.sensorInfo = context.sensorInfo,
+			.sensorControls = context.sensorControls,
+			.ctrlMap = context.ctrlMap,
+		});
 }
 
 /**
@@ -129,11 +133,10 @@ Histogram Agc::parseStatistics(const ipu3_uapi_stats_3a *stats,
 				reinterpret_cast<const ipu3_uapi_awb_set_item *>(
 					&stats->awb_raw_buffer.meta_data[cellPosition]);
 
-			rgbTriples_.push_back({
-				cell->R_avg,
-				(cell->Gr_avg + cell->Gb_avg) / 2,
-				cell->B_avg
-			});
+			rgbTriples_.push_back(
+				{ cell->R_avg,
+				  (cell->Gr_avg + cell->Gb_avg) / 2,
+				  cell->B_avg });
 
 			/*
 			 * Store the average green value to estimate the
@@ -219,20 +222,24 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 {
 	Histogram hist = parseStatistics(stats, context.configuration.grid.bdsGrid);
 
-	agc_.process(context.configuration.agc, context.activeState.agc, frameContext.agc, {{
-		.traits = AgcTraits{
-			rgbTriples_,
-			{{
-				context.activeState.awb.gains.red,
-				context.activeState.awb.gains.blue,
-				context.activeState.awb.gains.green,
-			}},
-			bdsGrid_,
-		},
-		.yHist = hist,
-		.exposure = frameContext.sensor.exposure,
-		.gain = frameContext.sensor.gain,
-	}}, metadata);
+	agc_.process(
+		context.configuration.agc, context.activeState.agc,
+		frameContext.agc,
+		{ {
+			.traits = AgcTraits{
+				rgbTriples_,
+				{ {
+					context.activeState.awb.gains.red,
+					context.activeState.awb.gains.blue,
+					context.activeState.awb.gains.green,
+				} },
+				bdsGrid_,
+			},
+			.yHist = hist,
+			.exposure = frameContext.sensor.exposure,
+			.gain = frameContext.sensor.gain,
+		} },
+		metadata);
 }
 
 REGISTER_IPA_ALGORITHM(Agc, "Agc")

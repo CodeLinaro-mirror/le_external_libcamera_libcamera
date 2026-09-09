@@ -162,12 +162,14 @@ int Agc::init(IPAContext &context, const ValueNode &tuningData)
  */
 int Agc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
 {
-	int ret = agc_.configure(context.configuration.agc, context.activeState.agc, {
-		.sensorInfo = context.sensorInfo,
-		.sensorControls = context.sensorControls,
-		.ctrlMap = context.ctrlMap,
-		.autoAllowed = !context.configuration.raw,
-	});
+	int ret = agc_.configure(
+		context.configuration.agc, context.activeState.agc,
+		{
+			.sensorInfo = context.sensorInfo,
+			.sensorControls = context.sensorControls,
+			.ctrlMap = context.ctrlMap,
+			.autoAllowed = !context.configuration.raw,
+		});
 	if (ret)
 		return ret;
 
@@ -266,9 +268,9 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 
 	struct rkisp1_cif_isp_window window = hstConfig->meas_window;
 	Size windowSize = { window.h_size, window.v_size };
-	hstConfig->histogram_predivider =
-		computeHistogramPredivider(windowSize,
-					   static_cast<rkisp1_cif_isp_histogram_mode>(hstConfig->mode));
+	hstConfig->histogram_predivider = computeHistogramPredivider(
+		windowSize,
+		static_cast<rkisp1_cif_isp_histogram_mode>(hstConfig->mode));
 }
 
 namespace {
@@ -285,19 +287,22 @@ public:
 	 * \brief Estimate the relative luminance of the frame with a given gain
 	 * \param[in] gain The gain to apply to the frame
 	 *
-	 * This function estimates the average relative luminance of the frame that
-	 * would be output by the sensor if an additional \a gain was applied.
+	 * This function estimates the average relative luminance of the frame
+	 * that would be output by the sensor if an additional \a gain was
+	 * applied.
 	 *
 	 * The estimation is based on the AE statistics for the current frame. Y
-	 * averages for all cells are first multiplied by the gain, and then saturated
-	 * to approximate the sensor behaviour at high brightness values. The
-	 * approximation is quite rough, as it doesn't take into account non-linearities
-	 * when approaching saturation. In this case, saturating after the conversion to
-	 * YUV doesn't take into account the fact that the R, G and B components
-	 * contribute differently to the relative luminance.
+	 * averages for all cells are first multiplied by the gain, and then
+	 * saturated to approximate the sensor behaviour at high brightness
+	 * values. The approximation is quite rough, as it doesn't take into
+	 * account non-linearities when approaching saturation. In this case,
+	 * saturating after the conversion to YUV doesn't take into account the
+	 * fact that the R, G and B components contribute differently to the
+	 * relative luminance.
 	 *
-	 * The values are normalized to the [0.0, 1.0] range, where 1.0 corresponds to a
-	 * theoretical perfect reflector of 100% reference white.
+	 * The values are normalized to the [0.0, 1.0] range, where 1.0
+	 * corresponds to a theoretical perfect reflector of 100% reference
+	 * white.
 	 *
 	 * More detailed information can be found in:
 	 * https://en.wikipedia.org/wiki/Relative_luminance
@@ -358,40 +363,48 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		if (stats->meas_type & RKISP1_CIF_ISP_STAT_AUTOEXP)
 			params = &stats->params;
 		else
-			LOG(RkISP1Agc, Error) << "AUTOEXP data is missing in statistics";
-	}
-
-	if (params) {
-		std::vector<AgcMeanLuminance::AgcConstraint> additionalConstraints;
-		if (context.activeState.wdr.mode != controls::WdrOff)
-			additionalConstraints.push_back(context.activeState.wdr.constraint);
-
-		agc_.process(context.configuration.agc, context.activeState.agc, frameContext.agc, {{
-			.traits = AgcTraits{
-				{ params->ae.exp_mean, context.hw.numAeCells },
-				meteringModes_.at(frameContext.agc.meteringMode),
-			},
-			.yHist = {
-				/* The lower 4 bits are fractional and meant to be discarded. */
-				{ params->hist.hist_bins, context.hw.numHistogramBins },
-				[](uint32_t x) { return x >> 4; },
-			},
-			.exposure = frameContext.sensor.exposure,
-			/*
-			 * Include the quantization gain if it was applied. Do not use
-			 * compress.gain because it will include gains that shall not be
-			 * reported to the user when HDR is implemented.
-			 */
-			.gain = frameContext.sensor.gain
-			        * (frameContext.compress.enable ? frameContext.agc.quantizationGain : 1),
-			.additionalConstraints = std::move(additionalConstraints),
-			.lux = frameContext.lux.lux,
-		}}, metadata);
-	} else {
-		agc_.process(context.configuration.agc, context.activeState.agc, frameContext.agc, {}, metadata);
+			LOG(RkISP1Agc, Error)
+				<< "AUTOEXP data is missing in statistics";
 	}
 
 	metadata.set(controls::AeMeteringMode, frameContext.agc.meteringMode);
+
+	if (!params) {
+		agc_.process(context.configuration.agc, context.activeState.agc,
+			     frameContext.agc, {}, metadata);
+		return;
+	}
+
+	std::vector<AgcMeanLuminance::AgcConstraint> additionalConstraints;
+	if (context.activeState.wdr.mode != controls::WdrOff)
+		additionalConstraints.push_back(context.activeState.wdr.constraint);
+
+	double qgain = (frameContext.compress.enable ? frameContext.agc.quantizationGain : 1);
+	std::optional<AgcAlgorithm::ProcessParams> processParams{ {
+		.traits = AgcTraits{
+			{ params->ae.exp_mean, context.hw.numAeCells },
+			meteringModes_.at(frameContext.agc.meteringMode),
+		},
+		.yHist = {
+			/*
+			 * The lower 4 bits are fractional and meant to be
+			 * discarded.
+			 */
+			{ params->hist.hist_bins, context.hw.numHistogramBins },
+			[](uint32_t x) { return x >> 4; },
+		},
+		.exposure = frameContext.sensor.exposure,
+		/*
+		 * Include the quantization gain if it was applied. Do not use
+		 * compress.gain because it will include gains that shall not be
+		 * reported to the user when HDR is implemented.
+		 */
+		.gain = frameContext.sensor.gain * qgain,
+		.additionalConstraints = std::move(additionalConstraints),
+		.lux = frameContext.lux.lux,
+	} };
+	agc_.process(context.configuration.agc, context.activeState.agc,
+		     frameContext.agc, std::move(processParams), metadata);
 }
 
 REGISTER_IPA_ALGORITHM(Agc, "Agc")

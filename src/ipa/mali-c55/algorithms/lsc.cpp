@@ -53,12 +53,14 @@ int Lsc::init(IPAContext &context, const ValueNode &tuningData)
 {
 	gridPos_ = segmentsToPosition();
 
-	return lscAlgo_.init(tuningData, context.ctrlMap, {
-				.keys = { "r", "g", "b" },
-				.numHSamples = kMeshSize,
-				.numVSamples = kMeshSize,
-				.sensorSize = context.sensorInfo.activeAreaSize
-			     });
+	return lscAlgo_.init(
+		tuningData, context.ctrlMap,
+		{
+			.keys = { "r", "g", "b" },
+			.numHSamples = kMeshSize,
+			.numVSamples = kMeshSize,
+			.sensorSize = context.sensorInfo.activeAreaSize,
+		});
 }
 
 int Lsc::configure(IPAContext &context, const IPACameraSensorInfo &configInfo)
