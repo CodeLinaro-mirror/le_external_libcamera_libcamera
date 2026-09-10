@@ -1374,6 +1374,8 @@ int V4L2Subdevice::getFormat(const Stream &stream, V4L2SubdeviceFormat *format,
 	format->code = subdevFmt.format.code;
 	format->colorSpace = toColorSpace(subdevFmt.format);
 
+	LOG(V4L2, Debug) << "returned format on " << stream << ": " << *format;
+
 	return 0;
 }
 
@@ -1419,6 +1421,8 @@ int V4L2Subdevice::setFormat(const Stream &stream, V4L2SubdeviceFormat *format,
 			subdevFmt.format.flags |= V4L2_MBUS_FRAMEFMT_SET_CSC;
 	}
 
+	LOG(V4L2, Debug) << "setting format on " << stream << ": " << *format;
+
 	int ret = ioctl(VIDIOC_SUBDEV_S_FMT, &subdevFmt);
 	if (ret) {
 		LOG(V4L2, Error)
@@ -1431,6 +1435,8 @@ int V4L2Subdevice::setFormat(const Stream &stream, V4L2SubdeviceFormat *format,
 	format->size.height = subdevFmt.format.height;
 	format->code = subdevFmt.format.code;
 	format->colorSpace = toColorSpace(subdevFmt.format);
+
+	LOG(V4L2, Debug) << "returned format on " << stream << ": " << *format;
 
 	return 0;
 }

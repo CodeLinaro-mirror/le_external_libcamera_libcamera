@@ -814,19 +814,32 @@ std::string V4L2VideoDevice::logPrefix() const
  */
 int V4L2VideoDevice::getFormat(V4L2DeviceFormat *format)
 {
+	int ret;
+
 	switch (bufferType_) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		return getFormatSingleplane(format);
+		ret = getFormatSingleplane(format);
+		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		return getFormatMultiplane(format);
+		ret = getFormatMultiplane(format);
+		break;
 	case V4L2_BUF_TYPE_META_CAPTURE:
 	case V4L2_BUF_TYPE_META_OUTPUT:
-		return getFormatMeta(format);
+		ret = getFormatMeta(format);
+		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+	if (ret)
+		return ret;
+
+	LOG(V4L2, Debug) << "returned format: " << *format;
+
+	return 0;
 }
 
 /**
@@ -841,19 +854,34 @@ int V4L2VideoDevice::getFormat(V4L2DeviceFormat *format)
  */
 int V4L2VideoDevice::tryFormat(V4L2DeviceFormat *format)
 {
+	int ret;
+
+	LOG(V4L2, Debug) << "trying format: " << *format;
+
 	switch (bufferType_) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT:
-		return trySetFormatSingleplane(format, false);
+		ret = trySetFormatSingleplane(format, false);
+		break;
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE:
 	case V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE:
-		return trySetFormatMultiplane(format, false);
+		ret = trySetFormatMultiplane(format, false);
+		break;
 	case V4L2_BUF_TYPE_META_CAPTURE:
 	case V4L2_BUF_TYPE_META_OUTPUT:
-		return trySetFormatMeta(format, false);
+		ret = trySetFormatMeta(format, false);
+		break;
 	default:
-		return -EINVAL;
+		ret = -EINVAL;
+		break;
 	}
+
+	if (ret)
+		return ret;
+
+	LOG(V4L2, Debug) << "returned format: " << *format;
+
+	return 0;
 }
 
 /**
@@ -868,6 +896,8 @@ int V4L2VideoDevice::tryFormat(V4L2DeviceFormat *format)
 int V4L2VideoDevice::setFormat(V4L2DeviceFormat *format)
 {
 	int ret;
+
+	LOG(V4L2, Debug) << "setting format: " << *format;
 
 	switch (bufferType_) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -893,6 +923,8 @@ int V4L2VideoDevice::setFormat(V4L2DeviceFormat *format)
 
 	format_ = *format;
 	formatInfo_ = &PixelFormatInfo::info(format_.fourcc);
+
+	LOG(V4L2, Debug) << "returned format: " << *format;
 
 	return 0;
 }
