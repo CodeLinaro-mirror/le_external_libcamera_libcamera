@@ -1823,7 +1823,7 @@ int V4L2VideoDevice::queueBuffer(FrameBuffer *buffer, const V4L2Request *request
 		buf.timestamp.tv_usec = (metadata.timestamp / 1000) % 1000000;
 	}
 
-	LOG(V4L2, Debug) << "Queueing buffer " << buf.index;
+	LOG(V4L2, Debug) << "Queueing buffer " << buf.index << ' ' << buffer;
 
 	ret = ioctl(VIDIOC_QBUF, &buf);
 	if (ret < 0) {
@@ -1895,8 +1895,6 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 		return nullptr;
 	}
 
-	LOG(V4L2, Debug) << "Dequeuing buffer " << buf.index;
-
 	/*
 	 * If the video node fails to stream-on successfully (which can occur
 	 * when queuing a buffer), a vb2 kernel bug can lead to the buffer which
@@ -1909,8 +1907,14 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 	 * safely ignore buffers which are unexpected to prevent crashes on
 	 * older kernels.
 	 */
-	auto it = queuedBuffers_.find(buf.index);
-	if (it == queuedBuffers_.end()) {
+
+	FrameBuffer *buffer = nullptr;
+	if (auto nh = queuedBuffers_.extract(buf.index))
+		buffer = nh.mapped();
+
+	LOG(V4L2, Debug) << "Dequeuing buffer " << buf.index << ' ' << buffer;
+
+	if (!buffer) {
 		LOG(V4L2, Error)
 			<< "Dequeued unexpected buffer index " << buf.index;
 
@@ -1918,9 +1922,6 @@ FrameBuffer *V4L2VideoDevice::dequeueBuffer()
 	}
 
 	cache_->put(buf.index);
-
-	FrameBuffer *buffer = it->second;
-	queuedBuffers_.erase(it);
 
 	if (queuedBuffers_.empty()) {
 		fdBufferNotifier_->setEnabled(false);
@@ -2084,6 +2085,8 @@ int V4L2VideoDevice::streamOff()
 
 	/* Send back all queued buffers. */
 	for (const auto &[id, buffer] : queuedBuffers_) {
+		LOG(V4L2, Debug) << "Cancelling buffer " << id << ' ' << buffer;
+
 		cache_->put(id);
 		buffer->_d()->cancel();
 		bufferReady.emit(buffer);
