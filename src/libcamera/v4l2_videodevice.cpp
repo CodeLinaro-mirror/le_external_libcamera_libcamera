@@ -447,8 +447,19 @@ std::string V4L2DeviceFormat::toString() const
  */
 std::ostream &operator<<(std::ostream &out, const V4L2DeviceFormat &f)
 {
-	out << f.size << "-" << f.fourcc << "/"
-	    << ColorSpace::toString(f.colorSpace);
+	out << f.size << '-' << f.fourcc << '[';
+
+	for (size_t i = 0; i < f.planesCount; i++) {
+		const auto &p = f.planes[i];
+
+		out << p.size << '/' << p.bpl;
+
+		if (i + 1 < f.planesCount)
+			out << ':';
+	}
+
+	out << "]/" << ColorSpace::toString(f.colorSpace);
+
 	return out;
 }
 
