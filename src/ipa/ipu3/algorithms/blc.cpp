@@ -7,6 +7,10 @@
 
 #include "blc.h"
 
+#include <libcamera/base/log.h>
+
+#include "libipa/camera_sensor_helper.h"
+
 /**
  * \file blc.h
  * \brief IPU3 Black Level Correction control
@@ -30,8 +34,43 @@ namespace ipa::ipu3::algorithms {
  * isn't currently supported.
  */
 
+LOG_DEFINE_CATEGORY(IPU3Blc)
+
+/* Historical value, used when the camera sensor helper has no black level. */
+static constexpr uint16_t kDefaultBlackLevel = 64;
+
 BlackLevelCorrection::BlackLevelCorrection()
+	: blackLevel_(kDefaultBlackLevel)
 {
+}
+
+/**
+ * \copydoc libcamera::ipa::Algorithm::init
+ */
+int BlackLevelCorrection::init(IPAContext &context,
+			       [[maybe_unused]] const ValueNode &tuningData)
+{
+	std::optional<int16_t> blackLevel = context.camHelper->blackLevel();
+	if (!blackLevel) {
+		LOG(IPU3Blc, Warning)
+			<< "No black level provided by camera sensor helper"
+			<< ", please fix";
+		blackLevel_ = kDefaultBlackLevel;
+	} else {
+		/*
+		 * CameraSensorHelper reports the black level as a 16-bit
+		 * value, while experimentation has shown that the ImgU OB grid
+		 * expects it in units of half a 10-bit pixel value: to cancel a
+		 * data pedestal of 16 the ISP has to be configured with 32, and
+		 * to cancel a pedestal of 64 with 128. The 16-bit value is
+		 * therefore shifted right by 5.
+		 */
+		blackLevel_ = *blackLevel >> 5;
+	}
+
+	LOG(IPU3Blc, Debug) << "Black level " << blackLevel_;
+
+	return 0;
 }
 
 /**
@@ -49,15 +88,11 @@ void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
 				   [[maybe_unused]] IPAFrameContext &frameContext,
 				   ipu3_uapi_params *params)
 {
-	/*
-	 * The Optical Black Level correction values
-	 * \todo The correction values should come from sensor specific
-	 * tuning processes. This is a first rough approximation.
-	 */
-	params->obgrid_param.gr = 64;
-	params->obgrid_param.r = 64;
-	params->obgrid_param.b = 64;
-	params->obgrid_param.gb = 64;
+	/* The Optical Black Level correction values */
+	params->obgrid_param.gr = blackLevel_;
+	params->obgrid_param.r = blackLevel_;
+	params->obgrid_param.b = blackLevel_;
+	params->obgrid_param.gb = blackLevel_;
 
 	/* Enable the custom black level correction processing */
 	params->use.obgrid = 1;
