@@ -29,7 +29,7 @@ algorithms:
             qLo: 0.98
             qHi: 1.0
             yTarget: 0.8
-      relativeLuminanceTarget: 0.5
+      relativeLuminanceTarget: 0.2
   - Lux:
       referenceY: 0.1767075076869632
       referenceExposureTime: 29980
