@@ -24,6 +24,9 @@ LOG_DECLARE_CATEGORY(Matrix)
 template<typename T>
 bool matrixInvert(std::span<const T> dataIn, std::span<T> dataOut, unsigned int dim,
 		  std::span<T> scratchBuffer, std::span<unsigned int> swapBuffer);
+template<typename T>
+void matrixTranspose(std::span<const T> dataIn, std::span<T> dataOut,
+		     unsigned int rows, unsigned int cols);
 #endif /* __DOXYGEN__ */
 
 template<typename T, unsigned int Rows, unsigned int Cols>
@@ -113,6 +116,15 @@ public:
 		if (ok)
 			*ok = res;
 		return inverse;
+	}
+
+	Matrix<T, Cols, Rows> transpose() const
+	{
+		Matrix<T, Cols, Rows> transposed;
+		matrixTranspose(std::span<const T>(data_),
+				std::span<T>(transposed.data_),
+				Rows, Cols);
+		return transposed;
 	}
 
 private:

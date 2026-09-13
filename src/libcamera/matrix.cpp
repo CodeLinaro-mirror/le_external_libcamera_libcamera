@@ -108,6 +108,16 @@ LOG_DEFINE_CATEGORY(Matrix)
  */
 
 /**
+ * \fn Matrix::transpose() const
+ * \brief Compute the transpose of the matrix
+ *
+ * This function computes the transpose of the matrix. It is only implemented
+ * for matrices of float and double types.
+ *
+ * \return The transpose of the matrix
+ */
+
+/**
  * \fn Matrix::operator[](size_t i)
  * \copydoc Matrix::operator[](size_t i) const
  */
@@ -308,6 +318,23 @@ template bool matrixInvert<float>(std::span<const float> dataIn, std::span<float
 template bool matrixInvert<double>(std::span<const double> data, std::span<double> dataOut,
 				   unsigned int dim, std::span<double> scratchBuffer,
 				   std::span<unsigned int> swapBuffer);
+
+template<typename T>
+void matrixTranspose(std::span<const T> dataIn, std::span<T> dataOut,
+		     unsigned int rows, unsigned int cols)
+{
+	for (unsigned int row = 0; row < rows; ++row) {
+		for (unsigned int col = 0; col < cols; ++col)
+			dataOut[col * rows + row] = dataIn[row * cols + col];
+	}
+}
+
+template void matrixTranspose(std::span<const float> dataIn,
+			      std::span<float> dataOut,
+			      unsigned int rows, unsigned int cols);
+template void matrixTranspose(std::span<const double> dataIn,
+			      std::span<double> dataOut,
+			      unsigned int rows, unsigned int cols);
 
 /*
  * The value node shall be a list of numerical values. Its size shall be equal
