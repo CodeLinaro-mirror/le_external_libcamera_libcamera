@@ -304,6 +304,8 @@ void AwbAlgorithmBase::queueRequest(awb::ActiveState &state,
 	}
 
 	frameContext.autoEnabled = state.autoEnabled;
+	frameContext.gains = state.automatic.gains;
+	frameContext.colourTemperature = state.automatic.colourTemperature;
 
 	if (frameContext.autoEnabled)
 		return;
