@@ -46,6 +46,15 @@ protected:
 		ASSERT_EQ(m5[1][0], 0.0);
 		ASSERT_EQ(m5[1][1], 1.0);
 
+		Matrix<float, 2, 3> m6({ 1.0, 2.0, 3.0, 4.0, 5.0, 6.0 });
+		Matrix<float, 3, 2> m7 = m6.transpose();
+		ASSERT_EQ(m7[0][0], 1.0);
+		ASSERT_EQ(m7[0][1], 4.0);
+		ASSERT_EQ(m7[1][0], 2.0);
+		ASSERT_EQ(m7[1][1], 5.0);
+		ASSERT_EQ(m7[2][0], 3.0);
+		ASSERT_EQ(m7[2][1], 6.0);
+
 		return TestPass;
 	}
 };
