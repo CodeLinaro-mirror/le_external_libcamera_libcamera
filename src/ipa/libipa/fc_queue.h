@@ -59,6 +59,14 @@ public:
 		FC &fc = contexts_[frame % contexts_.size()];
 		FrameContext &frameContext = fc;
 
+		if (!initialized_) {
+			fc = {};
+			frameContext.frame_ = frame;
+			initCallback_(fc, controls);
+			initialized_ = true;
+			return fc;
+		}
+
 		/*
 		 * If the IPA algorithms try to access a frame context slot which
 		 * has been already overwritten by a newer context, it means the
@@ -72,7 +80,7 @@ public:
 					    << " has been overwritten by "
 					    << frameContext.frame_;
 
-		if (initialized_ && frame == frameContext.frame_) {
+		if (frame == frameContext.frame_) {
 			if (!controls.empty()) {
 				/* Too late to apply the controls. Store them for later. */
 				LOG(FCQueue, Warning)
@@ -97,7 +105,6 @@ public:
 		fc = {};
 		frameContext.frame_ = frame;
 		initCallback_(fc, *controls2);
-		initialized_ = true;
 		controlsToApply_.clear();
 
 		return fc;
