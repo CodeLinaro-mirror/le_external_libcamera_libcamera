@@ -54,7 +54,8 @@ public:
 		 const IPACameraSensorInfo &sensorInfo,
 		 const ControlInfoMap &sensorControls,
 		 ControlInfoMap *ipaControls) override;
-	void start(const ControlList &controls, StartResult *result) override;
+	void start(const ControlList &controls, const uint32_t paramBufferId,
+		   StartResult *result) override;
 	void stop() override;
 
 	int configure(const IPAConfigInfo &ipaConfig,
@@ -74,6 +75,8 @@ protected:
 	std::string logPrefix() const override;
 
 private:
+	uint32_t computeParamsInternal(IPAFrameContext &frameContext, const uint32_t bufferId);
+
 	void updateControls(ControlInfoMap *ipaControls);
 	ControlList getSensorControls(const IPAFrameContext &context);
 
@@ -210,9 +213,17 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 	return 0;
 }
 
-void IPARkISP1::start(const ControlList &controls, StartResult *result)
+void IPARkISP1::start(const ControlList &controls, const uint32_t paramBufferId,
+		      StartResult *result)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(0, controls);
+
+	if (paramBufferId != 0)
+		result->paramBufferBytesUsed = computeParamsInternal(frameContext,
+								     paramBufferId);
+	else
+		result->paramBufferBytesUsed = 0;
+
 	result->controls = getSensorControls(frameContext);
 	result->code = 0;
 }
@@ -312,18 +323,24 @@ void IPARkISP1::initializeFrameContext(IPAFrameContext &fc, const ControlList &c
 	}
 }
 
+uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const uint32_t bufferId)
+{
+	RkISP1Params params(context_.configuration.paramFormat,
+			    mappedBuffers_.at(bufferId).planes()[0]);
+
+	for (const auto &algo : algorithms())
+		algo->prepare(context_, frameContext.frame(), frameContext, &params);
+
+	return params.bytesused();
+}
+
 void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 {
 	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
 
 	if (bufferId != 0) {
-		RkISP1Params params(context_.configuration.paramFormat,
-				    mappedBuffers_.at(bufferId).planes()[0]);
-
-		for (const auto &algo : algorithms())
-			algo->prepare(context_, frame, frameContext, &params);
-
-		paramsComputed.emit(frame, bufferId, params.bytesused());
+		uint32_t size = computeParamsInternal(frameContext, bufferId);
+		paramsComputed.emit(frame, bufferId, size);
 	}
 
 	ControlList ctrls = getSensorControls(frameContext);
