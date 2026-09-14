@@ -84,23 +84,20 @@ protected:
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
-
 		/* Test control without delay are set at once. */
 		for (unsigned int i = 1; i < 100; i++) {
 			int32_t value = 100 + i;
 
 			ctrls.set(V4L2_CID_BRIGHTNESS, value);
-			delayed->push(ctrls);
+			delayed->push(i, ctrls);
 
 			delayed->applyControls(i);
 
-			ControlList result = delayed->get(i);
+			ControlList result = delayed->get(i - delayed->maxDelay());
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			if (brightness != value) {
 				cerr << "Failed single control without delay"
-				     << " frame " << i
+				     << " frame " << i - delayed->maxDelay()
 				     << " expected " << value
 				     << " got " << brightness
 				     << endl;
@@ -126,23 +123,19 @@ protected:
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
-
 		/* Test single control with delay. */
 		for (unsigned int i = 1; i < 100; i++) {
 			int32_t value = 10 + i;
 
 			ctrls.set(V4L2_CID_BRIGHTNESS, value);
-			delayed->push(ctrls);
-
+			delayed->push(i, ctrls);
 			delayed->applyControls(i);
 
-			ControlList result = delayed->get(i);
+			ControlList result = delayed->get(i - delayed->maxDelay());
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			if (brightness != expected) {
 				cerr << "Failed single control with delay"
-				     << " frame " << i
+				     << " frame " << i - delayed->maxDelay()
 				     << " expected " << expected
 				     << " got " << brightness
 				     << endl;
@@ -167,15 +160,18 @@ protected:
 			std::make_unique<DelayedControls>(dev_.get(), delays);
 		ControlList ctrls;
 
-		/* Reset control to value that will be first two frames in test. */
+		/*
+		 * Reset control to value that will be first two frames in test.
+		 * We expect the following values:
+		 * Frame        0    1    2   3   4   5  ...
+		 * Brightness 200   11   12  13  14  15
+		 * Contrast   201   12   13  14  15  16
+		*/
 		int32_t expected = 200;
 		ctrls.set(V4L2_CID_BRIGHTNESS, expected);
 		ctrls.set(V4L2_CID_CONTRAST, expected + 1);
 		dev_->setControls(&ctrls);
 		delayed->reset();
-
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
 
 		/* Test dual control with delay. */
 		for (unsigned int i = 1; i < 100; i++) {
@@ -183,16 +179,19 @@ protected:
 
 			ctrls.set(V4L2_CID_BRIGHTNESS, value);
 			ctrls.set(V4L2_CID_CONTRAST, value + 1);
-			delayed->push(ctrls);
+			delayed->push(i, ctrls);
 
 			delayed->applyControls(i);
 
-			ControlList result = delayed->get(i);
+			if (i < maxDelay)
+				continue;
+
+			ControlList result = delayed->get(i - delayed->maxDelay());
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			int32_t contrast = result.get(V4L2_CID_CONTRAST).get<int32_t>();
 			if (brightness != expected || contrast != expected + 1) {
 				cerr << "Failed dual controls"
-				     << " frame " << i
+				     << " frame " << i - delayed->maxDelay()
 				     << " brightness " << brightness
 				     << " contrast " << contrast
 				     << " expected " << expected
@@ -225,35 +224,35 @@ protected:
 		dev_->setControls(&ctrls);
 		delayed->reset();
 
-		/* Trigger the first frame start event */
-		delayed->applyControls(0);
-
 		/*
 		 * Queue all controls before any fake frame start. Note we
 		 * can't queue up more then the delayed controls history size
 		 * which is 16. Where one spot is used by the reset control.
 		 */
-		for (unsigned int i = 0; i < 15; i++) {
+		for (unsigned int i = 1; i < 15; i++) {
 			int32_t value = 10 + i;
 
 			ctrls.set(V4L2_CID_BRIGHTNESS, value);
 			ctrls.set(V4L2_CID_CONTRAST, value);
-			delayed->push(ctrls);
+			delayed->push(i, ctrls);
 		}
 
 		/* Process all queued controls. */
-		for (unsigned int i = 1; i < 16; i++) {
-			int32_t value = 10 + i - 1;
+		for (unsigned int i = 1; i < 15; i++) {
+			int32_t value = 10 + i;
 
 			delayed->applyControls(i);
 
-			ControlList result = delayed->get(i);
+			if (i < maxDelay)
+				continue;
+
+			ControlList result = delayed->get(i - maxDelay);
 
 			int32_t brightness = result.get(V4L2_CID_BRIGHTNESS).get<int32_t>();
 			int32_t contrast = result.get(V4L2_CID_CONTRAST).get<int32_t>();
 			if (brightness != expected || contrast != expected) {
 				cerr << "Failed multi queue"
-				     << " frame " << i
+				     << " frame " << i - maxDelay
 				     << " brightness " << brightness
 				     << " contrast " << contrast
 				     << " expected " << expected

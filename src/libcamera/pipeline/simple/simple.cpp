@@ -361,6 +361,8 @@ public:
 	std::unique_ptr<SoftwareIsp> swIsp_;
 	SimpleFrames frameInfo_;
 
+	void frameStart(uint32_t sequence);
+
 private:
 	void tryPipeline(unsigned int code, const Size &size);
 	static std::vector<const MediaPad *> routedSourcePads(MediaPad *sink);
@@ -1058,6 +1060,11 @@ void SimpleCameraData::setSensorControls(const ControlList &sensorControls)
 	}
 }
 
+void SimpleCameraData::frameStart(uint32_t sequence)
+{
+	delayedCtrls_->applyControls(sequence + delayedCtrls_->maxDelay());
+}
+
 /* Retrieve all source pads connected to a sink pad through active routes. */
 std::vector<const MediaPad *> SimpleCameraData::routedSourcePads(MediaPad *sink)
 {
@@ -1671,8 +1678,8 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 			stop(camera);
 			return ret;
 		}
-		frameStartEmitter->frameStart.connect(data->delayedCtrls_.get(),
-						      &DelayedControls::applyControls);
+		frameStartEmitter->frameStart.connect(data,
+						      &SimpleCameraData::frameStart);
 	}
 
 	ret = video->streamOn();
@@ -1711,8 +1718,8 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 
 	if (frameStartEmitter) {
 		frameStartEmitter->setFrameStartEnabled(false);
-		frameStartEmitter->frameStart.disconnect(data->delayedCtrls_.get(),
-							 &DelayedControls::applyControls);
+		frameStartEmitter->frameStart.disconnect(data,
+							 &SimpleCameraData::frameStart);
 	}
 
 	if (data->useConversion_) {
