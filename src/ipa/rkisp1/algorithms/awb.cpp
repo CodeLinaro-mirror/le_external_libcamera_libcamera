@@ -195,7 +195,10 @@ void Awb::process(IPAContext &context,
 		  ControlList &metadata)
 {
 	if (!stats || !(stats->meas_type & RKISP1_CIF_ISP_STAT_AWB)) {
-		LOG(RkISP1Awb, Error) << "AWB data is missing in statistics";
+		if (stats)
+			LOG(RkISP1Awb, Error) << "AWB data is missing in statistics";
+		awbAlgo_.process(context.activeState.awb, frameContext.awb, RkISP1AwbStats({}),
+				 frameContext.lux.lux, metadata);
 		return;
 	}
 
