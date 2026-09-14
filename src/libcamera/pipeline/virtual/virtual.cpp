@@ -32,6 +32,7 @@
 #include <libcamera/property_ids.h>
 
 #include "libcamera/internal/camera.h"
+#include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/dma_buf_allocator.h"
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/framebuffer.h"
@@ -239,8 +240,9 @@ bool PipelineHandlerVirtual::created_ = false;
 PipelineHandlerVirtual::PipelineHandlerVirtual(CameraManager *manager)
 	: PipelineHandler(manager),
 	  dmaBufAllocator_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
-			   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
-			   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
+				   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
+				   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf,
+			   manager->_d()->configuration().listOption({ "dma_buf_allocator", "provider_priority" }).value_or(utils::defopt))
 {
 }
 

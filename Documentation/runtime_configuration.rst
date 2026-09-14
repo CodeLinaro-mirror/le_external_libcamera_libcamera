@@ -33,6 +33,9 @@ file structure:
 ::
 
   configuration:
+    dma_buf_allocator:
+      provider_priority:
+        - ... # dma-buf provider name: cma, system, or udmabuf
     ipa:
       force_isolation: # true/false
       config_paths:
@@ -62,6 +65,11 @@ Configuration file example
    ---
    version: 1
    configuration:
+     dma_buf_allocator:
+       provider_priority:
+         - udmabuf
+         - cma
+         - system
      ipa:
        config_paths:
          - /home/user/.libcamera/share/ipa
@@ -149,6 +157,28 @@ LIBCAMERA_SOFTISP_MODE, software_isp.mode
    the software ISP will automatically fall back to the CPU.
 
    Example value: ``gpu``
+
+dma_buf_allocator.provider_priority
+   Define an ordered list of dma-buf providers to try when libcamera
+   allocates buffers internally (for example for the software ISP). The
+   first requested provider that is available on the system is used. Valid
+   provider names are ``cma`` (CMA dma-heap), ``system`` (system dma-heap)
+   and ``udmabuf`` (memfd + /dev/udmabuf). Providers accepted by a component
+   but not listed here are tried after the listed ones, in libcamera's
+   built-in order.
+
+   This is useful on platforms with a small CMA region, where preferring
+   ``udmabuf`` avoids exhausting the CMA heap.
+
+   Example value:
+
+   ::
+
+      dma_buf_allocator:
+        provider_priority:
+          - udmabuf
+          - cma
+          - system
 
 pipelines.simple.supported_devices.driver, pipelines.simple.supported_devices.software_isp
    Override whether software ISP is enabled for the given driver.

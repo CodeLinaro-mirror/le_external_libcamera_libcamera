@@ -31,7 +31,8 @@ public:
 
 	using DmaBufAllocatorFlags = Flags<DmaBufAllocatorFlag>;
 
-	DmaBufAllocator(DmaBufAllocatorFlags flags = DmaBufAllocatorFlag::CmaHeap);
+	DmaBufAllocator(DmaBufAllocatorFlags flags = DmaBufAllocatorFlag::CmaHeap,
+			const std::vector<std::string> &providerPriority = {});
 	~DmaBufAllocator();
 	bool isValid() const { return providerHandle_.isValid(); }
 	UniqueFD alloc(const char *name, std::size_t size);

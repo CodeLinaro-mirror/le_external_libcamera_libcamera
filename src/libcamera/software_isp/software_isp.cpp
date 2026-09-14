@@ -24,6 +24,7 @@
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/bayer_format.h"
+#include "libcamera/internal/camera_manager.h"
 #include "libcamera/internal/framebuffer.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
 
@@ -82,8 +83,9 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 			 ControlInfoMap *ipaControls)
 	: ispWorkerThread_("SWIspWorker"),
 	  dmaHeap_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
-		   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
-		   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
+			   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
+			   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf,
+		   pipe->cameraManager()->_d()->configuration().listOption({ "dma_buf_allocator", "provider_priority" }).value_or(utils::defopt))
 {
 	if (!dmaHeap_.isValid()) {
 		LOG(SoftwareIsp, Error) << "Failed to create DmaBufAllocator object";
