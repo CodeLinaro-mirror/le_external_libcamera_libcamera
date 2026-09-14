@@ -650,6 +650,7 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
 
 /**
  * \brief Prepare a frame
+ * \param[in] session The agc session configuration
  * \param[in] state The agc active state
  * \param[in] frameContext The agc frame context
  *
@@ -663,7 +664,8 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
  *
  * \sa Algorithm::prepare()
  */
-void AgcAlgorithm::prepare(agc::ActiveState &state, agc::FrameContext &frameContext)
+void AgcAlgorithm::prepare([[maybe_unused]] const agc::Session &session, agc::ActiveState &state,
+			   agc::FrameContext &frameContext)
 {
 	uint32_t activeAutoExposure = state.automatic.exposure;
 	double activeAutoGain = state.automatic.gain;
