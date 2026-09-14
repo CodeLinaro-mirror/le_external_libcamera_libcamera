@@ -198,10 +198,11 @@ void ColorProcessing::queueRequest(IPAContext &context,
 void ColorProcessing::prepare([[maybe_unused]] IPAContext &context,
 			      [[maybe_unused]] const uint32_t frame,
 			      IPAFrameContext &frameContext,
-			      RkISP1Params *params)
+			      RkISP1Params *params,
+			      bool initialize)
 {
 	/* Check if the algorithm configuration has been updated. */
-	if (!frameContext.cproc.update)
+	if (!frameContext.cproc.update && !initialize)
 		return;
 
 	auto config = params->block<BlockType::Cproc>();

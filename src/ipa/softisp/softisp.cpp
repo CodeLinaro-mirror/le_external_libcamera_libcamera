@@ -241,7 +241,7 @@ void IPASoftIsp::computeParams(const uint32_t frame)
 	ASSERT(frameContext);
 
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, frame, *frameContext, params_);
+		algo->prepare(context_, frame, *frameContext, params_, frame == 0);
 	params_->combinedMatrix = context_.activeState.combinedMatrix;
 
 	paramsComputed.emit(frame);

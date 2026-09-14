@@ -92,7 +92,8 @@ void Ccm::setParameters(RkISP1Params *params, IPAFrameContext &context)
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, RkISP1Params *params)
+		  IPAFrameContext &frameContext, RkISP1Params *params,
+		  [[maybe_unused]] bool initialize)
 {
 	if (frameContext.awb.autoEnabled)
 		ccmAlgo_.prepare(context.activeState.ccm, frameContext.ccm,

@@ -105,7 +105,8 @@ void Awb::queueRequest(IPAContext &context, const uint32_t frame,
 void Awb::prepare(IPAContext &context,
 		  [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext,
-		  DebayerParams *params)
+		  DebayerParams *params,
+		  [[maybe_unused]] bool initialize)
 {
 	awbAlgo_.prepare(context.activeState.awb, frameContext.awb);
 

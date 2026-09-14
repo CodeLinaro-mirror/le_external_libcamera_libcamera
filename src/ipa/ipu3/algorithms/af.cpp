@@ -184,7 +184,8 @@ int Af::configure(IPAContext &context, const IPAConfigInfo &configInfo)
 void Af::prepare(IPAContext &context,
 		 [[maybe_unused]] const uint32_t frame,
 		 [[maybe_unused]] IPAFrameContext &frameContext,
-		 ipu3_uapi_params *params)
+		 ipu3_uapi_params *params,
+		 [[maybe_unused]] bool initialize)
 {
 	const struct ipu3_uapi_grid_config &grid = context.configuration.af.afGrid;
 	params->acc_param.af.grid_cfg = grid;

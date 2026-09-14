@@ -67,7 +67,8 @@ int Compress::configure(IPAContext &context,
 void Compress::prepare([[maybe_unused]] IPAContext &context,
 		       [[maybe_unused]] const uint32_t frame,
 		       IPAFrameContext &frameContext,
-		       RkISP1Params *params)
+		       RkISP1Params *params,
+		       [[maybe_unused]] bool initialize)
 {
 	if (!context.configuration.compress.supported)
 		return;

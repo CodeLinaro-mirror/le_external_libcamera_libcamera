@@ -206,8 +206,9 @@ void Agc::queueRequest(IPAContext &context,
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Agc::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, RkISP1Params *params)
+void Agc::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext, RkISP1Params *params,
+		  bool initialize)
 {
 	agc_.prepare(context.configuration.agc, context.activeState.agc, frameContext.agc);
 
@@ -216,7 +217,7 @@ void Agc::prepare(IPAContext &context, const uint32_t frame,
 		frameContext.compress.gain = frameContext.agc.quantizationGain;
 	}
 
-	if (frame > 0 && !frameContext.agc.updateMetering)
+	if (!initialize && !frameContext.agc.updateMetering)
 		return;
 
 	/*

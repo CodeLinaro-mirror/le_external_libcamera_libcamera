@@ -83,11 +83,11 @@ int BlackLevelCorrection::configure(IPAContext &context,
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
-				   const uint32_t frame,
+				   [[maybe_unused]] const uint32_t frame,
 				   [[maybe_unused]] IPAFrameContext &frameContext,
-				   MaliC55Params *params)
+				   MaliC55Params *params, bool initialize)
 {
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	if (!tuningParameters_)

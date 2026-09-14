@@ -95,7 +95,8 @@ void Adjust::applySaturation(Matrix<float, 3, 3> &matrix, float saturation)
 void Adjust::prepare(IPAContext &context,
 		     [[maybe_unused]] const uint32_t frame,
 		     IPAFrameContext &frameContext,
-		     DebayerParams *params)
+		     DebayerParams *params,
+		     [[maybe_unused]] bool initialize)
 {
 	frameContext.gamma = context.activeState.knobs.gamma;
 	frameContext.contrast = context.activeState.knobs.contrast;

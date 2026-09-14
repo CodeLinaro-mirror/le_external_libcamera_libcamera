@@ -127,14 +127,15 @@ int BlackLevelCorrection::configure(IPAContext &context,
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void BlackLevelCorrection::prepare(IPAContext &context,
-				   const uint32_t frame,
+				   [[maybe_unused]] const uint32_t frame,
 				   [[maybe_unused]] IPAFrameContext &frameContext,
-				   RkISP1Params *params)
+				   RkISP1Params *params,
+				   bool initialize)
 {
 	if (context.configuration.raw)
 		return;
 
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	if (!supported_)

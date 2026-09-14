@@ -477,7 +477,7 @@ void IPAIPU3::computeParams(const uint32_t frame, const uint32_t bufferId)
 	ASSERT(frameContext);
 
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, frame, *frameContext, params);
+		algo->prepare(context_, frame, *frameContext, params, frame == 0);
 
 	paramsComputed.emit(frame);
 }

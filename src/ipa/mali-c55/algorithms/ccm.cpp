@@ -128,7 +128,8 @@ void Ccm::setParameters(MaliC55Params *params, const IPAFrameContext &frameConte
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
 void Ccm::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, MaliC55Params *params)
+		  IPAFrameContext &frameContext, MaliC55Params *params,
+		  bool initialize)
 {
 	if (!frameContext.awb.autoEnabled) {
 		setParameters(params, frameContext);
@@ -141,7 +142,7 @@ void Ccm::prepare(IPAContext &context, const uint32_t frame,
 	 * changes of a certain amount.
 	 */
 	float ct = frameContext.awb.colourTemperature * 1.0f;
-	if (frame > 0 && (ct < lastCt_ * 1.2 && ct > lastCt_ * 0.8)) {
+	if (!initialize && (ct < lastCt_ * 1.2 && ct > lastCt_ * 0.8)) {
 		frameContext.ccm.ccm = context.activeState.ccm.automatic.ccm;
 		frameContext.ccm.offsets = context.activeState.ccm.automatic.offsets;
 		lastCt_ = ct;

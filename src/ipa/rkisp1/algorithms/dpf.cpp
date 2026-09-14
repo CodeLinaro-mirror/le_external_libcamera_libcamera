@@ -217,10 +217,11 @@ void Dpf::queueRequest(IPAContext &context,
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Dpf::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, RkISP1Params *params)
+void Dpf::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext, RkISP1Params *params,
+		  bool initialize)
 {
-	if (!frameContext.dpf.update && frame > 0)
+	if (!frameContext.dpf.update && !initialize)
 		return;
 
 	auto config = params->block<BlockType::Dpf>();

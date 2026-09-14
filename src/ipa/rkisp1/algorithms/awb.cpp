@@ -122,8 +122,9 @@ void Awb::queueRequest(IPAContext &context, const uint32_t frame,
 /**
  * \copydoc libcamera::ipa::Algorithm::prepare
  */
-void Awb::prepare(IPAContext &context, const uint32_t frame,
-		  IPAFrameContext &frameContext, RkISP1Params *params)
+void Awb::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
+		  IPAFrameContext &frameContext, RkISP1Params *params,
+		  bool initialize)
 {
 	awbAlgo_.prepare(context.activeState.awb, frameContext.awb);
 
@@ -136,7 +137,7 @@ void Awb::prepare(IPAContext &context, const uint32_t frame,
 	gainConfig->gain_green_r = std::clamp<int>(256 * frameContext.awb.gains.g(), 0, 0x3ff);
 
 	/* If we have already set the AWB measurement parameters, return. */
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	auto awbConfig = params->block<BlockType::Awb>();

@@ -51,7 +51,8 @@ int Lux::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
  */
 void Lux::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext,
-		  [[maybe_unused]] RkISP1Params *params)
+		  [[maybe_unused]] RkISP1Params *params,
+		  [[maybe_unused]] bool initialize)
 {
 	frameContext.lux.lux = context.activeState.lux.lux;
 }

@@ -40,6 +40,7 @@ BlackLevelCorrection::BlackLevelCorrection()
  * \param[in] frame The frame context sequence number
  * \param[in] frameContext The FrameContext for this frame
  * \param[out] params The IPU3 parameters
+ * \param[in] initialize True if the ISP module should be reinitialzed
  *
  * Populate the IPU3 parameter structure with the correction values for each
  * channel and enable the corresponding ImgU block processing.
@@ -47,7 +48,8 @@ BlackLevelCorrection::BlackLevelCorrection()
 void BlackLevelCorrection::prepare([[maybe_unused]] IPAContext &context,
 				   [[maybe_unused]] const uint32_t frame,
 				   [[maybe_unused]] IPAFrameContext &frameContext,
-				   ipu3_uapi_params *params)
+				   ipu3_uapi_params *params,
+				   [[maybe_unused]] bool initialize)
 {
 	/*
 	 * The Optical Black Level correction values

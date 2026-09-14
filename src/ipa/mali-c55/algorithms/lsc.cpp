@@ -183,7 +183,7 @@ std::tuple<uint8_t, uint8_t> Lsc::findBankAndAlpha(uint32_t ct) const
 
 void Lsc::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  [[maybe_unused]] IPAFrameContext &frameContext,
-		  MaliC55Params *params)
+		  MaliC55Params *params, bool initialize)
 {
 	/*
 	 * For each frame we assess the colour temperature of the **last** frame
@@ -208,7 +208,7 @@ void Lsc::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 
 	fillSelectionParamsBlock(params, bank, alpha);
 
-	if (frame > 0)
+	if (!initialize)
 		return;
 
 	/*
