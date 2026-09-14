@@ -85,6 +85,7 @@ private:
 
 	/* Local parameter storage */
 	struct IPAContext context_;
+	bool initializeParams_;
 };
 
 namespace {
@@ -218,6 +219,7 @@ void IPARkISP1::start(const ControlList &controls, const uint32_t paramBufferId,
 {
 	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(0, controls);
 	ASSERT(frameContext);
+	initializeParams_ = true;
 
 	if (paramBufferId != 0)
 		result->paramBufferBytesUsed = computeParamsInternal(*frameContext,
@@ -332,7 +334,9 @@ uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const u
 	unsigned int frame = frameContext.frame();
 	for (const auto &algo : algorithms())
 		algo->prepare(context_, frame, frameContext,
-			      &params, frame == 0);
+			      &params, initializeParams_);
+
+	initializeParams_ = false;
 
 	return params.bytesused();
 }
@@ -340,7 +344,15 @@ uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const u
 void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 {
 	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
-	ASSERT(frameContext);
+
+	if (!frameContext) {
+		LOG(IPARkISP1, Error) << "Failed to compute params for frame: "
+				      << frame;
+		initializeParams_ = true;
+		if (bufferId != 0)
+			paramsComputed.emit(frame, bufferId, 0);
+		return;
+	}
 
 	if (bufferId != 0) {
 		uint32_t size = computeParamsInternal(*frameContext, bufferId);
@@ -355,7 +367,14 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 			     const ControlList &sensorControls)
 {
 	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
-	ASSERT(frameContext);
+	ControlList metadata(controls::controls);
+
+	if (!frameContext) {
+		LOG(IPARkISP1, Error) << "Failed to process stats for frame: "
+				      << frame;
+		metadataReady.emit(frame, bufferId, metadata);
+		return;
+	}
 
 	/*
 	 * In raw capture mode, the ISP is bypassed and no statistics buffer is
@@ -368,8 +387,6 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 
 	std::tie(frameContext->sensor.exposure, frameContext->sensor.gain) =
 		agc::extractControls(sensorControls, context_.camHelper.get());
-
-	ControlList metadata(controls::controls);
 
 	for (const auto &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
