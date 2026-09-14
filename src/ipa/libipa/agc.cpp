@@ -646,6 +646,9 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
 	}
 	frameContext.minFrameDuration = state.minFrameDuration;
 	frameContext.maxFrameDuration = state.maxFrameDuration;
+
+	/* V-blank needs to be valid for the start controls handling. Update it. */
+	processFrameDuration(session, frameContext);
 }
 
 /**
@@ -664,7 +667,7 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
  *
  * \sa Algorithm::prepare()
  */
-void AgcAlgorithm::prepare([[maybe_unused]] const agc::Session &session, agc::ActiveState &state,
+void AgcAlgorithm::prepare(const agc::Session &session, agc::ActiveState &state,
 			   agc::FrameContext &frameContext)
 {
 	uint32_t activeAutoExposure = state.automatic.exposure;
@@ -696,6 +699,12 @@ void AgcAlgorithm::prepare([[maybe_unused]] const agc::Session &session, agc::Ac
 	}
 
 	frameContext.yTarget = state.automatic.yTarget;
+
+	/*
+	 * Expand the target frame duration so that we do not run faster than
+	 * the minimum frame duration when we have short exposures.
+	 */
+	processFrameDuration(session, frameContext);
 }
 
 /**
@@ -726,7 +735,6 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 			   ControlList &metadata)
 {
 	if (!params) {
-		processFrameDuration(session, frameContext, frameContext.minFrameDuration);
 		fillMetadata(session, frameContext, metadata);
 		return;
 	}
@@ -830,13 +838,6 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 		<< "quantization-gain: " << state.automatic.quantizationGain << ", "
 		<< "digital-gain: " << state.automatic.digitalGain;
 
-	/*
-	 * Expand the target frame duration so that we do not run faster than
-	 * the minimum frame duration when we have short exposures.
-	 */
-	processFrameDuration(session, frameContext,
-			     std::max(frameContext.minFrameDuration, newExposureTime));
-
 	fillMetadata(session, frameContext, metadata);
 }
 
@@ -849,10 +850,12 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
  * Compute and populate vblank from the target frame duration.
  */
 void AgcAlgorithm::processFrameDuration(const agc::Session &session,
-					agc::FrameContext &frameContext,
-					utils::Duration frameDuration)
+					agc::FrameContext &frameContext)
 {
 	const utils::Duration &lineDuration = session.lineDuration;
+	utils::Duration frameDuration = frameContext.exposure * lineDuration;
+
+	frameDuration = std::max(frameDuration, frameContext.minFrameDuration);
 
 	frameContext.vblank =
 		(frameDuration / lineDuration) - session.sensor.outputSize.height;
