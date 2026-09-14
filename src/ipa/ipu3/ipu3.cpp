@@ -473,10 +473,11 @@ void IPAIPU3::computeParams(const uint32_t frame, const uint32_t bufferId)
 	 */
 	params->use = {};
 
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
 
 	for (const auto &algo : algorithms())
-		algo->prepare(context_, frame, frameContext, params);
+		algo->prepare(context_, frame, *frameContext, params);
 
 	paramsComputed.emit(frame);
 }
@@ -506,15 +507,16 @@ void IPAIPU3::processStats(const uint32_t frame,
 	const ipu3_uapi_stats_3a *stats =
 		reinterpret_cast<ipu3_uapi_stats_3a *>(mem.data());
 
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
 
-	std::tie(frameContext.sensor.exposure, frameContext.sensor.gain) =
+	std::tie(frameContext->sensor.exposure, frameContext->sensor.gain) =
 		agc::extractControls(sensorControls, context_.camHelper.get());
 
 	ControlList metadata(controls::controls);
 
 	for (const auto &algo : algorithms())
-		algo->process(context_, frame, frameContext, stats, metadata);
+		algo->process(context_, frame, *frameContext, stats, metadata);
 
 	setControls(frame);
 
@@ -558,11 +560,12 @@ void IPAIPU3::initializeFrameContext(IPAFrameContext &frameContext,
  */
 void IPAIPU3::setControls(unsigned int frame)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
 
 	ControlList ctrls(context_.sensorControls);
 	agc::prepareControls(ctrls, context_.camHelper.get(),
-			     frameContext.agc.exposure, frameContext.agc.gain);
+			     frameContext->agc.exposure, frameContext->agc.gain);
 
 	ControlList lensCtrls(lensCtrls_);
 	lensCtrls.set(V4L2_CID_FOCUS_ABSOLUTE,

@@ -216,15 +216,16 @@ int IPARkISP1::init(const IPASettings &settings, unsigned int hwRevision,
 void IPARkISP1::start(const ControlList &controls, const uint32_t paramBufferId,
 		      StartResult *result)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(0, controls);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(0, controls);
+	ASSERT(frameContext);
 
 	if (paramBufferId != 0)
-		result->paramBufferBytesUsed = computeParamsInternal(frameContext,
+		result->paramBufferBytesUsed = computeParamsInternal(*frameContext,
 								     paramBufferId);
 	else
 		result->paramBufferBytesUsed = 0;
 
-	result->controls = getSensorControls(frameContext);
+	result->controls = getSensorControls(*frameContext);
 	result->code = 0;
 }
 
@@ -336,21 +337,23 @@ uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const u
 
 void IPARkISP1::computeParams(const uint32_t frame, const uint32_t bufferId)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
 
 	if (bufferId != 0) {
-		uint32_t size = computeParamsInternal(frameContext, bufferId);
+		uint32_t size = computeParamsInternal(*frameContext, bufferId);
 		paramsComputed.emit(frame, bufferId, size);
 	}
 
-	ControlList ctrls = getSensorControls(frameContext);
+	ControlList ctrls = getSensorControls(*frameContext);
 	setSensorControls.emit(frame, ctrls);
 }
 
 void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 			     const ControlList &sensorControls)
 {
-	IPAFrameContext &frameContext = context_.frameContexts.getOrInitContext(frame);
+	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(frame);
+	ASSERT(frameContext);
 
 	/*
 	 * In raw capture mode, the ISP is bypassed and no statistics buffer is
@@ -361,7 +364,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 		stats = reinterpret_cast<rkisp1_stat_buffer *>(
 			mappedBuffers_.at(bufferId).planes()[0].data());
 
-	std::tie(frameContext.sensor.exposure, frameContext.sensor.gain) =
+	std::tie(frameContext->sensor.exposure, frameContext->sensor.gain) =
 		agc::extractControls(sensorControls, context_.camHelper.get());
 
 	ControlList metadata(controls::controls);
@@ -370,7 +373,7 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 		if (algo->disabled_)
 			continue;
-		algo->process(context_, frame, frameContext, stats, metadata);
+		algo->process(context_, frame, *frameContext, stats, metadata);
 	}
 
 	context_.debugMetadata.moveEntries(metadata);
