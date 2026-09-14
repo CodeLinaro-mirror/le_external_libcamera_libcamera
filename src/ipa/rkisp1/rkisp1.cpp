@@ -86,6 +86,7 @@ private:
 	/* Local parameter storage */
 	struct IPAContext context_;
 	bool initializeParams_;
+	uint32_t lastParamsComputed_;
 };
 
 namespace {
@@ -220,6 +221,7 @@ void IPARkISP1::start(const ControlList &controls, const uint32_t paramBufferId,
 	IPAFrameContext *frameContext = context_.frameContexts.getOrInitContext(0, controls);
 	ASSERT(frameContext);
 	initializeParams_ = true;
+	lastParamsComputed_ = 0;
 
 	if (paramBufferId != 0)
 		result->paramBufferBytesUsed = computeParamsInternal(*frameContext,
@@ -332,10 +334,37 @@ uint32_t IPARkISP1::computeParamsInternal(IPAFrameContext &frameContext, const u
 			    mappedBuffers_.at(bufferId).planes()[0]);
 
 	unsigned int frame = frameContext.frame();
+
+	/*
+	 * In the corner case that the previous params buffer was not computed
+	 * (due to resynchronization), there is a risk that a change was missed
+	 * and not sent to the kernel. This can have quite negative side
+	 * effects, if e.g. a lsc table was not written. To mitigate that, run
+	 * over all missed frames and apply them in turn or do a full reinit if
+	 * too many frames were missed.
+	 */
+	while (!initializeParams_ && lastParamsComputed_ + 1 < frame) {
+		lastParamsComputed_++;
+		IPAFrameContext *fc = context_.frameContexts.getOrInitContext(lastParamsComputed_);
+		if (!fc || frame - lastParamsComputed_ > 3) {
+			LOG(IPARkISP1, Warning)
+				<< "Collect missed params with full reinit";
+			initializeParams_ = true;
+			break;
+		}
+
+		LOG(IPARkISP1, Warning) << "Collect missed params for frame: "
+					<< lastParamsComputed_;
+		for (const auto &algo : algorithms())
+			algo->prepare(context_, lastParamsComputed_, *fc,
+				      &params, false);
+	}
+
 	for (const auto &algo : algorithms())
 		algo->prepare(context_, frame, frameContext,
 			      &params, initializeParams_);
 
+	lastParamsComputed_ = std::max(frame, lastParamsComputed_);
 	initializeParams_ = false;
 
 	return params.bytesused();
@@ -374,6 +403,11 @@ void IPARkISP1::processStats(const uint32_t frame, const uint32_t bufferId,
 				      << frame;
 		metadataReady.emit(frame, bufferId, metadata);
 		return;
+	}
+
+	if (frame > lastParamsComputed_) {
+		LOG(IPARkISP1, Debug) << "Process stats on frame " << frame
+				      << " without prior compute params";
 	}
 
 	/*
