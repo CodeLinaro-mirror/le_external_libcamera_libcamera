@@ -270,6 +270,13 @@ void DelayedControls::applyControls(uint32_t sequence)
 {
 	LOG(DelayedControls, Debug) << "frame " << sequence << " started";
 
+	while (queueCount_ - 1 < sequence) {
+		LOG(DelayedControls, Warning)
+			<< "Queue is empty, auto queue no-op for sequence "
+			<< queueCount_;
+		push(queueCount_, {});
+	}
+
 	/*
 	 * Create control list peeking ahead in the value queue to ensure
 	 * values are set in time to satisfy the sensor delay.
@@ -278,7 +285,7 @@ void DelayedControls::applyControls(uint32_t sequence)
 	for (auto &ctrl : values_) {
 		const ControlId *id = ctrl.first;
 		unsigned int delayDiff = maxDelay_ - controlParams_[id].delay;
-		unsigned int index = std::max<int>(0, writeCount_ - delayDiff);
+		unsigned int index = std::max<int>(0, sequence - delayDiff);
 		Info &info = ctrl.second[index];
 
 		if (info.updated) {
@@ -308,15 +315,8 @@ void DelayedControls::applyControls(uint32_t sequence)
 		}
 	}
 
-	writeCount_ = sequence + 1;
-
-	while (writeCount_ > queueCount_) {
-		LOG(DelayedControls, Warning)
-			<< "Queue is empty, auto queue no-op.";
-		push(queueCount_, {});
-	}
-
 	device_->setControls(&out);
+	writeCount_ = sequence;
 }
 
 } /* namespace libcamera */
