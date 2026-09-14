@@ -126,6 +126,8 @@ public:
 		const ControlInfoMap &sensorControls;
 		ControlInfoMap::Map &ctrlMap;
 		bool autoAllowed = true;
+		std::optional<uint32_t> numStartupFrames = std::nullopt;
+		std::optional<double> regulationSpeed = std::nullopt;
 	};
 
 	struct ProcessParams {
