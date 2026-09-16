@@ -37,6 +37,7 @@ private:
 
 public:
 	using QuantizedType = UT;
+	using FloatingType = float;
 
 	static constexpr UT qMin = std::is_signed_v<T>
 				 ? -(UT{ 1 } << (bits - 1))
@@ -49,7 +50,7 @@ public:
 	static constexpr float toFloat(QuantizedType q)
 	{
 		if constexpr (std::is_unsigned_v<T>)
-			return static_cast<float>(q) / static_cast<float>(UT{ 1 } << F);
+			return static_cast<FloatingType>(q) / static_cast<FloatingType>(UT{ 1 } << F);
 
 		/*
 		 * Recreate the upper bits in case of a negative number by
@@ -60,16 +61,16 @@ public:
 		 */
 		unsigned int remaining_bits = sizeof(UT) * 8 - (I + F);
 		T t = static_cast<T>(static_cast<UT>(q) << remaining_bits) >> remaining_bits;
-		return static_cast<float>(t) / static_cast<float>(UT{ 1 } << F);
+		return static_cast<FloatingType>(t) / static_cast<FloatingType>(UT{ 1 } << F);
 	}
 
-	static constexpr float min = toFloat(qMin);
-	static constexpr float max = toFloat(qMax);
+	static constexpr FloatingType min = toFloat(qMin);
+	static constexpr FloatingType max = toFloat(qMax);
 
 	static_assert(min < max, "FixedPointQTraits: Minimum must be less than maximum");
 
 	/* Conversion functions required by Quantized<Traits> */
-	static QuantizedType fromFloat(float v)
+	static QuantizedType fromFloat(FloatingType v)
 	{
 		v = std::clamp(v, min, max);
 

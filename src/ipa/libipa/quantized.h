@@ -21,13 +21,17 @@ template<typename Traits>
 struct Quantized {
 	using TraitsType = Traits;
 	using QuantizedType = typename Traits::QuantizedType;
-	static_assert(std::is_arithmetic_v<QuantizedType>,
-		      "Quantized: QuantizedType must be arithmetic");
+	using FloatingType = typename Traits::FloatingType;
+
+	static_assert(std::is_integral_v<QuantizedType>,
+		      "Quantized: QuantizedType must be integral");
+	static_assert(std::is_floating_point_v<FloatingType>,
+		      "Quantized: FloatingType must be floating");
 
 	constexpr Quantized()
-		: Quantized(0.0f) {}
+		: Quantized(FloatingType{}) {}
 
-	constexpr Quantized(float x)
+	constexpr Quantized(FloatingType x)
 		: Quantized(Traits::fromFloat(x))
 	{
 	}
@@ -73,7 +77,7 @@ struct Quantized {
 
 private:
 	QuantizedType quantized_;
-	float value_;
+	FloatingType value_;
 };
 
 } /* namespace ipa */
