@@ -18,6 +18,7 @@ namespace libcamera {
 namespace ipa::softisp::algorithms {
 
 constexpr float kDefaultGamma = 2.2f;
+constexpr float kDefaultContrast = 1.0f;
 
 class Adjust : public Algorithm
 {
@@ -43,6 +44,8 @@ public:
 
 private:
 	void applySaturation(Matrix<float, 3, 3> &ccm, float saturation);
+
+	float defaultContrast_ = kDefaultContrast;
 };
 
 } /* namespace ipa::softisp::algorithms */

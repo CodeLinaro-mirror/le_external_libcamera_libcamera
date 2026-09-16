@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 subdir('libipa')
+subdir('softisp')
 
 ipa_test = [
     {'name': 'ipa_module_test', 'sources': ['ipa_module_test.cpp']},

@@ -8,6 +8,8 @@
 
 #include "adjust.h"
 
+#include <errno.h>
+
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
@@ -19,17 +21,34 @@ namespace libcamera {
 
 namespace ipa::softisp::algorithms {
 
-constexpr float kDefaultContrast = 1.0f;
 constexpr float kDefaultSaturation = 1.0f;
+
+constexpr float kMinContrast = 0.0f;
+constexpr float kMaxContrast = 2.0f;
 
 LOG_DEFINE_CATEGORY(IPASoftIspAdjust)
 
-int Adjust::init(IPAContext &context, [[maybe_unused]] const ValueNode &tuningData)
+int Adjust::init(IPAContext &context, const ValueNode &tuningData)
 {
+	const ValueNode &contrastNode = tuningData["contrast"];
+	const std::optional<float> contrast = contrastNode.get<float>();
+	if (contrastNode && !contrast) {
+		LOG(IPASoftIspAdjust, Error) << "Failed to parse contrast";
+		return -EINVAL;
+	}
+
+	defaultContrast_ = contrast.value_or(kDefaultContrast);
+	if (defaultContrast_ < kMinContrast || defaultContrast_ > kMaxContrast) {
+		LOG(IPASoftIspAdjust, Error)
+			<< "Contrast must be in the range [" << kMinContrast
+			<< ", " << kMaxContrast << "]";
+		return -EINVAL;
+	}
+
 	context.ctrlMap[&controls::Gamma] =
 		ControlInfo(0.1f, 10.0f, kDefaultGamma);
 	context.ctrlMap[&controls::Contrast] =
-		ControlInfo(0.0f, 2.0f, kDefaultContrast);
+		ControlInfo(kMinContrast, kMaxContrast, defaultContrast_);
 	if (context.ccmEnabled)
 		context.ctrlMap[&controls::Saturation] =
 			ControlInfo(0.0f, 2.0f, kDefaultSaturation);
@@ -40,7 +59,7 @@ int Adjust::configure(IPAContext &context,
 		      [[maybe_unused]] const IPAConfigInfo &configInfo)
 {
 	context.activeState.knobs.gamma = kDefaultGamma;
-	context.activeState.knobs.contrast = std::optional<float>();
+	context.activeState.knobs.contrast = defaultContrast_;
 	context.activeState.knobs.saturation = std::optional<float>();
 
 	return 0;
