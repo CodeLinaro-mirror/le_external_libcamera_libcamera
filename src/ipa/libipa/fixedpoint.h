@@ -25,19 +25,20 @@ private:
 	static constexpr unsigned int bits = I + F;
 	static_assert(bits <= sizeof(UT) * 8, "FixedPointQTraits: too many bits for type UT");
 
-	/*
-	 * If fixed point storage is required with more than 24 bits, consider
-	 * updating this implementation to use double-precision floating point.
-	 */
-	static_assert(bits <= 24, "Floating point precision may be insufficient for more than 24 bits");
+	/* IEEE754 binary64 can faithfully represent integers up to 2^53 */
+	static_assert(bits <= 53, "Floating point precision may be insufficient");
 
 	static constexpr UT bitMask = bits < sizeof(UT) * 8
 				    ? (UT{ 1 } << bits) - 1
 				    : ~UT{ 0 };
 
 public:
+	/* IEEE754 binary32 can faithfully represent integers up to 2^24 */
 	using QuantizedType = UT;
-	using FloatingType = float;
+	using FloatingType = std::conditional_t<bits <= 24, float, double>;
+
+	static_assert(std::numeric_limits<FloatingType>::is_iec559,
+		      "requires IEEE754 floating point");
 
 	static constexpr UT qMin = std::is_signed_v<T>
 				 ? -(UT{ 1 } << (bits - 1))
@@ -88,7 +89,7 @@ namespace details {
 template<unsigned int Bits>
 constexpr auto qtype()
 {
-	static_assert(Bits <= 32,
+	static_assert(Bits <= 64,
 		      "Unsupported number of bits for quantized type");
 
 	if constexpr (Bits <= 8)
@@ -97,6 +98,8 @@ constexpr auto qtype()
 		return int16_t();
 	else if constexpr (Bits <= 32)
 		return int32_t();
+	else if constexpr (Bits <= 64)
+		return int64_t();
 }
 
 } /* namespace details */
