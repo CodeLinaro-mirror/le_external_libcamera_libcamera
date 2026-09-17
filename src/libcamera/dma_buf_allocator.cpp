@@ -8,13 +8,16 @@
 
 #include "libcamera/internal/dma_buf_allocator.h"
 
+#include <algorithm>
 #include <array>
 #include <fcntl.h>
+#include <optional>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <vector>
 
 #include <linux/dma-buf.h>
 #include <linux/dma-heap.h>
@@ -25,6 +28,8 @@
 #include <libcamera/base/shared_fd.h>
 
 #include <libcamera/framebuffer.h>
+
+#include "libcamera/internal/camera_manager.h"
 
 /**
  * \file dma_buf_allocator.cpp
@@ -50,6 +55,26 @@ static constexpr std::array<DmaBufAllocatorInfo, 4> providerInfos = { {
 	{ DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap, "/dev/dma_heap/system" },
 	{ DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf, "/dev/udmabuf" },
 } };
+
+/* Built-in provider priority, used when no other order is specified. */
+static constexpr std::array<DmaBufAllocator::DmaBufAllocatorFlag, 3>
+	defaultProviderPriority = { {
+		DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap,
+		DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap,
+		DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf,
+	} };
+
+static std::optional<DmaBufAllocator::DmaBufAllocatorFlag>
+providerFromName(const std::string &name)
+{
+	if (name == "cma")
+		return DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap;
+	if (name == "system")
+		return DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap;
+	if (name == "udmabuf")
+		return DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf;
+	return {};
+}
 
 LOG_DEFINE_CATEGORY(DmaBufAllocator)
 
@@ -83,6 +108,7 @@ LOG_DEFINE_CATEGORY(DmaBufAllocator)
 
 /**
  * \brief Construct a DmaBufAllocator of a given type
+ * \param[in] cm The camera manager, used to access the global configuration
  * \param[in] type The type(s) of the dma-buf providers to allocate from
  *
  * The dma-buf provider type is selected with the \a type parameter, which
@@ -90,29 +116,67 @@ LOG_DEFINE_CATEGORY(DmaBufAllocator)
  * the constructed DmaBufAllocator instance is invalid as indicated by
  * the isValid() function.
  *
- * Multiple types can be selected by combining type flags, in which case
- * the constructed DmaBufAllocator will match one of the types. If multiple
- * requested types can work on the system, which provider is used is undefined.
+ * Multiple types can be selected by combining type flags. In that case the
+ * provider to use is chosen by priority: the providers listed in the
+ * `dma_buf_allocator.provider_priority` global configuration option (valid
+ * names are "cma", "system" and "udmabuf") take precedence, followed by
+ * libcamera's built-in order (CMA heap, system heap, then udmabuf). The first
+ * provider that is both requested and accessible is used.
  */
-DmaBufAllocator::DmaBufAllocator(DmaBufAllocatorFlags type)
+DmaBufAllocator::DmaBufAllocator(const CameraManager &cm, DmaBufAllocatorFlags type)
 {
-	for (const auto &info : providerInfos) {
-		if (!(type & info.type))
+	std::vector<DmaBufAllocatorFlag> priority;
+
+	/*
+	 * The global configuration can override the provider priority;
+	 * providers not listed are appended in the built-in order, so no
+	 * acceptable provider is ever dropped.
+	 */
+	const GlobalConfiguration &configuration = cm._d()->configuration();
+	const std::vector<std::string> providerPriority =
+		configuration.listOption({ "dma_buf_allocator", "provider_priority" })
+			.value_or(std::vector<std::string>{});
+
+	for (const std::string &name : providerPriority) {
+		auto flag = providerFromName(name);
+		if (flag)
+			priority.push_back(*flag);
+		else
+			LOG(DmaBufAllocator, Warning)
+				<< "Ignoring unknown dma-buf provider \""
+				<< name << "\"";
+	}
+
+	for (DmaBufAllocatorFlag flag : defaultProviderPriority) {
+		if (std::find(priority.begin(), priority.end(), flag) == priority.end())
+			priority.push_back(flag);
+	}
+
+	for (DmaBufAllocatorFlag flag : priority) {
+		if (!(type & flag))
 			continue;
 
-		int ret = ::open(info.deviceNodeName, O_RDONLY | O_CLOEXEC, 0);
-		if (ret < 0) {
-			ret = errno;
-			LOG(DmaBufAllocator, Debug)
-				<< "Failed to open " << info.deviceNodeName << ": "
-				<< strerror(ret);
-			continue;
+		for (const auto &info : providerInfos) {
+			if (info.type != flag)
+				continue;
+
+			int ret = ::open(info.deviceNodeName, O_RDONLY | O_CLOEXEC, 0);
+			if (ret < 0) {
+				ret = errno;
+				LOG(DmaBufAllocator, Debug)
+					<< "Failed to open " << info.deviceNodeName
+					<< ": " << strerror(ret);
+				continue;
+			}
+
+			LOG(DmaBufAllocator, Debug) << "Using " << info.deviceNodeName;
+			providerHandle_ = UniqueFD(ret);
+			type_ = info.type;
+			break;
 		}
 
-		LOG(DmaBufAllocator, Debug) << "Using " << info.deviceNodeName;
-		providerHandle_ = UniqueFD(ret);
-		type_ = info.type;
-		break;
+		if (providerHandle_.isValid())
+			break;
 	}
 
 	if (!providerHandle_.isValid())

@@ -238,9 +238,10 @@ bool PipelineHandlerVirtual::created_ = false;
 
 PipelineHandlerVirtual::PipelineHandlerVirtual(CameraManager *manager)
 	: PipelineHandler(manager),
-	  dmaBufAllocator_(DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
-			   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
-			   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
+	  dmaBufAllocator_(*manager,
+			   DmaBufAllocator::DmaBufAllocatorFlag::CmaHeap |
+				   DmaBufAllocator::DmaBufAllocatorFlag::SystemHeap |
+				   DmaBufAllocator::DmaBufAllocatorFlag::UDmaBuf)
 {
 }
 

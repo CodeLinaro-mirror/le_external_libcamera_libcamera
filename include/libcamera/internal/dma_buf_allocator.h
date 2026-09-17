@@ -18,6 +18,7 @@
 
 namespace libcamera {
 
+class CameraManager;
 class FrameBuffer;
 
 class DmaBufAllocator
@@ -31,7 +32,8 @@ public:
 
 	using DmaBufAllocatorFlags = Flags<DmaBufAllocatorFlag>;
 
-	DmaBufAllocator(DmaBufAllocatorFlags flags = DmaBufAllocatorFlag::CmaHeap);
+	DmaBufAllocator(const CameraManager &cm,
+			DmaBufAllocatorFlags type = DmaBufAllocatorFlag::CmaHeap);
 	~DmaBufAllocator();
 	bool isValid() const { return providerHandle_.isValid(); }
 	UniqueFD alloc(const char *name, std::size_t size);

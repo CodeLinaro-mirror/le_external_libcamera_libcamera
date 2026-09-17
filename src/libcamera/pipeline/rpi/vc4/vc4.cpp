@@ -39,7 +39,7 @@ class Vc4CameraData final : public RPi::CameraData
 {
 public:
 	Vc4CameraData(PipelineHandler *pipe)
-		: RPi::CameraData(pipe)
+		: RPi::CameraData(pipe), dmaHeap_(*pipe->cameraManager())
 	{
 	}
 
