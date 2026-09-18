@@ -21,12 +21,14 @@
 #include <libcamera/base/utils.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/camera_descriptor.h>
 #include <libcamera/control_ids.h>
 #include <libcamera/controls.h>
 #include <libcamera/property_ids.h>
 #include <libcamera/stream.h>
 
 #include "libcamera/internal/camera.h"
+#include "libcamera/internal/camera_descriptor.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
@@ -46,7 +48,7 @@ public:
 	{
 	}
 
-	int init(std::shared_ptr<MediaDevice> media);
+	int init(std::shared_ptr<MediaDevice> media, const std::string &id);
 	void addControl(uint32_t cid, const ControlInfo &v4l2info,
 			ControlInfoMap::Map *ctrls);
 	void imageBufferReady(FrameBuffer *buffer);
@@ -62,8 +64,6 @@ public:
 	std::optional<v4l2_exposure_auto_type> manualExposureMode_;
 
 private:
-	bool generateId();
-
 	std::string id_;
 };
 
@@ -95,7 +95,9 @@ public:
 
 	int queueRequestDevice(Camera *camera, Request *request) override;
 
-	bool match(DeviceEnumerator *enumerator) override;
+	int survey(const DeviceEnumerator *enumerator,
+		   std::vector<std::shared_ptr<CameraDescriptor>> *descriptors) override;
+	int createCamera(const CameraDescriptor *descriptor) override;
 
 private:
 	int processControl(const UVCCameraData *data, ControlList *controls,
@@ -129,6 +131,20 @@ std::optional<controls::ExposureTimeModeEnum> v4l2ToExposureMode(int32_t x)
 	}
 }
 
+/* Locate the default video entity of a UVC media device. */
+MediaEntity *defaultEntity(const MediaDevice *media)
+{
+	const std::vector<MediaEntity *> &entities = media->entities();
+	auto entity = std::find_if(entities.begin(), entities.end(),
+				   [](MediaEntity *e) {
+					   return e->flags() & MEDIA_ENT_FL_DEFAULT;
+				   });
+	if (entity == entities.end())
+		return nullptr;
+
+	return *entity;
+}
+
 /*
  * Generate the camera ID from the sysfs path of the UVC device video node. The
  * path is derived from the device numbers of the media entity, so the ID can be
@@ -136,12 +152,15 @@ std::optional<controls::ExposureTimeModeEnum> v4l2ToExposureMode(int32_t x)
  */
 std::string generateIdFromPath(const std::string &path)
 {
+	if (path.empty())
+		return {};
+
 	/* Create a controller ID from first device described in firmware. */
 	std::string controllerId;
 	std::string searchPath = path;
 	while (true) {
 		std::string::size_type pos = searchPath.rfind('/');
-		if (pos <= 1) {
+		if (pos == std::string::npos || pos <= 1) {
 			LOG(UVC, Error) << "Can not find controller ID";
 			return {};
 		}
@@ -533,31 +552,72 @@ int PipelineHandlerUVC::queueRequestDevice(Camera *camera, Request *request)
 	return 0;
 }
 
-bool PipelineHandlerUVC::match(DeviceEnumerator *enumerator)
+int PipelineHandlerUVC::survey(const DeviceEnumerator *enumerator,
+			       std::vector<std::shared_ptr<CameraDescriptor>> *descriptors)
 {
-	std::shared_ptr<MediaDevice> media;
 	DeviceMatch dm("uvcvideo");
 
-	media = acquireMediaDevice(enumerator, dm);
-	if (!media)
-		return false;
+	for (std::shared_ptr<MediaDevice> &media : enumerator->searchAll(dm)) {
+		MediaEntity *entity = defaultEntity(media.get());
+		if (!entity)
+			continue;
 
-	std::unique_ptr<UVCCameraData> data = std::make_unique<UVCCameraData>(this);
+		/*
+		 * The sysfs path of the device is derived from the entity
+		 * device numbers, so the ID is generated without accessing
+		 * the video device.
+		 */
+		std::string id =
+			generateIdFromPath(sysfs::devicePath(entity->deviceMajor(),
+							     entity->deviceMinor()));
+		if (id.empty()) {
+			LOG(UVC, Warning)
+				<< "Failed to generate an ID for "
+				<< media->model();
+			continue;
+		}
 
-	if (data->init(media))
-		return false;
+		auto data = std::make_unique<CameraDescriptor::Private>();
+		data->id_ = std::move(id);
+		data->properties_.set(properties::Model,
+				      utils::toAscii(media->model()));
+		data->mediaDevices_ = { media };
+		data->entityName_ = entity->name();
+
+		descriptors->push_back(CameraDescriptor::create(std::move(data)));
+	}
+
+	return 0;
+}
+
+int PipelineHandlerUVC::createCamera(const CameraDescriptor *descriptor)
+{
+	const CameraDescriptor::Private *data = descriptor->_d();
+
+	if (data->mediaDevices_.size() != 1)
+		return -EINVAL;
+
+	std::shared_ptr<MediaDevice> media = data->mediaDevices_[0];
+	if (!acquireMediaDevice(media))
+		return -EBUSY;
+
+	std::unique_ptr<UVCCameraData> cameraData = std::make_unique<UVCCameraData>(this);
+
+	int ret = cameraData->init(media, descriptor->id());
+	if (ret)
+		return ret;
 
 	/* Create and register the camera. */
-	std::string id = data->id();
-	std::set<Stream *> streams{ &data->stream_ };
+	std::string id = cameraData->id();
+	std::set<Stream *> streams{ &cameraData->stream_ };
 	std::shared_ptr<Camera> camera =
-		Camera::create(std::move(data), id, streams);
+		Camera::create(std::move(cameraData), id, streams);
 	registerCamera(std::move(camera));
 
 	/* Enable hot-unplug notifications. */
-	hotplugMediaDevice(media);
+	hotplugMediaDevice(std::move(media));
 
-	return true;
+	return 0;
 }
 
 bool PipelineHandlerUVC::acquireDevice(Camera *camera)
@@ -577,34 +637,26 @@ void PipelineHandlerUVC::releaseDevice(Camera *camera)
 	data->video_->close();
 }
 
-int UVCCameraData::init(std::shared_ptr<MediaDevice> media)
+int UVCCameraData::init(std::shared_ptr<MediaDevice> media, const std::string &id)
 {
 	int ret;
 
+	id_ = id;
+
 	/* Locate and initialise the camera data with the default video node. */
-	const std::vector<MediaEntity *> &entities = media->entities();
-	auto entity = std::find_if(entities.begin(), entities.end(),
-				   [](MediaEntity *e) {
-					   return e->flags() & MEDIA_ENT_FL_DEFAULT;
-				   });
-	if (entity == entities.end()) {
+	MediaEntity *entity = defaultEntity(media.get());
+	if (!entity) {
 		LOG(UVC, Error) << "Could not find a default video device";
 		return -ENODEV;
 	}
 
 	/* Create and open the video device. */
-	video_ = std::make_unique<V4L2VideoDevice>(*entity);
+	video_ = std::make_unique<V4L2VideoDevice>(entity);
 	ret = video_->open();
 	if (ret)
 		return ret;
 
 	video_->bufferReady.connect(this, &UVCCameraData::imageBufferReady);
-
-	/* Generate the camera ID. */
-	if (!generateId()) {
-		LOG(UVC, Error) << "Failed to generate camera ID";
-		return -EINVAL;
-	}
 
 	/*
 	 * Populate the map of supported formats, and infer the camera sensor
@@ -690,13 +742,6 @@ int UVCCameraData::init(std::shared_ptr<MediaDevice> media)
 	video_->close();
 
 	return 0;
-}
-
-bool UVCCameraData::generateId()
-{
-	id_ = generateIdFromPath(video_->devicePath());
-
-	return !id_.empty();
 }
 
 void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
