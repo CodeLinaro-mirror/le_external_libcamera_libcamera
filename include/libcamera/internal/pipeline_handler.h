@@ -46,6 +46,7 @@ public:
 	virtual int createCamera(const CameraDescriptor *descriptor);
 	std::shared_ptr<MediaDevice> acquireMediaDevice(DeviceEnumerator *enumerator,
 							const DeviceMatch &dm);
+	bool acquireMediaDevice(std::shared_ptr<MediaDevice> media);
 	bool usesMediaDevice(const MediaDevice *media) const;
 
 	bool acquire(Camera *camera);

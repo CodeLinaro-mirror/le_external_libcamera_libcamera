@@ -205,6 +205,29 @@ PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
 }
 
 /**
+ * \brief Acquire a specific MediaDevice
+ * \param[in] media The media device to acquire
+ *
+ * Acquire the media device \a media for this pipeline handler instance. As with
+ * the search variant, the caller shall not release the device explicitly, it
+ * will be automatically released when the pipeline handler is destroyed.
+ *
+ * \context This function shall be called from the CameraManager thread.
+ *
+ * \return True if the media device was acquired, or false if it was already
+ * in use
+ */
+bool PipelineHandler::acquireMediaDevice(std::shared_ptr<MediaDevice> media)
+{
+	if (!media->acquire())
+		return false;
+
+	mediaDevices_.push_back(std::move(media));
+
+	return true;
+}
+
+/**
  * \brief Check if this pipeline handler instance uses a media device
  * \param[in] media The media device to check for
  *
