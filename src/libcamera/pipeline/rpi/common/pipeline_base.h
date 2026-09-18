@@ -245,6 +245,18 @@ protected:
 
 	void mapBuffers(Camera *camera, const BufferMap &buffers, unsigned int mask);
 
+	/* Platform-specific helpers used by survey() and createCamera(). */
+	virtual DeviceMatch frontendMatch() const = 0;
+	virtual DeviceMatch backendMatch() const = 0;
+	virtual const char *frontendLinkName() const = 0;
+	virtual bool platformSupported([[maybe_unused]] const MediaDevice *frontend,
+				       [[maybe_unused]] const MediaDevice *backend) const
+	{
+		return true;
+	}
+	virtual std::unique_ptr<CameraData>
+	allocateCameraData(MediaDevice *frontend, MediaDevice *backend) = 0;
+
 	virtual int platformRegister(std::unique_ptr<CameraData> &cameraData,
 				     std::shared_ptr<MediaDevice> unicam,
 				     std::shared_ptr<MediaDevice> isp) = 0;

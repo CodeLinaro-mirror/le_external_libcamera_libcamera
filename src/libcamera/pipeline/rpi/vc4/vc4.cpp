@@ -158,6 +158,28 @@ private:
 		return static_cast<Vc4CameraData *>(camera->_d());
 	}
 
+	DeviceMatch frontendMatch() const override
+	{
+		return DeviceMatch("unicam");
+	}
+
+	DeviceMatch backendMatch() const override
+	{
+		return DeviceMatch("bcm2835-isp");
+	}
+
+	const char *frontendLinkName() const override
+	{
+		return "unicam-image";
+	}
+
+	std::unique_ptr<RPi::CameraData>
+	allocateCameraData([[maybe_unused]] MediaDevice *frontend,
+			   [[maybe_unused]] MediaDevice *backend) override
+	{
+		return std::make_unique<Vc4CameraData>(this);
+	}
+
 	int allocateBuffers(Camera *camera) override;
 	int platformRegister(std::unique_ptr<RPi::CameraData> &cameraData,
 			     std::shared_ptr<MediaDevice> unicam,

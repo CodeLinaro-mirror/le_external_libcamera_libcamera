@@ -869,11 +869,80 @@ private:
 		return static_cast<PiSPCameraData *>(camera->_d());
 	}
 
+	DeviceMatch frontendMatch() const override
+	{
+		DeviceMatch cfe("rp1-cfe");
+		cfe.add("rp1-cfe-fe-image0");
+		cfe.add("rp1-cfe-fe-stats");
+		cfe.add("rp1-cfe-fe-config");
+		return cfe;
+	}
+
+	DeviceMatch backendMatch() const override
+	{
+		DeviceMatch isp("pispbe");
+		isp.add("pispbe-input");
+		isp.add("pispbe-config");
+		isp.add("pispbe-output0");
+		isp.add("pispbe-output1");
+		isp.add("pispbe-tdn_output");
+		isp.add("pispbe-tdn_input");
+		isp.add("pispbe-stitch_output");
+		isp.add("pispbe-stitch_input");
+		return isp;
+	}
+
+	const char *frontendLinkName() const override
+	{
+		return "csi2";
+	}
+
+	bool platformSupported(const MediaDevice *frontend,
+			       const MediaDevice *backend) const override
+	{
+		const libpisp::PiSPVariant &variant =
+			libpisp::get_variant(frontend->hwRevision(),
+					     backend->hwRevision());
+		return variant.NumFrontEnds() && variant.NumBackEnds();
+	}
+
+	std::unique_ptr<RPi::CameraData>
+	allocateCameraData(MediaDevice *frontend, MediaDevice *backend) override;
+
 	int allocateBuffers(Camera *camera) override;
 	int platformRegister(std::unique_ptr<RPi::CameraData> &cameraData,
 			     std::shared_ptr<MediaDevice> cfe,
 			     std::shared_ptr<MediaDevice> isp) override;
 };
+
+std::unique_ptr<RPi::CameraData>
+PipelineHandlerPiSP::allocateCameraData(MediaDevice *frontend, MediaDevice *backend)
+{
+	const libpisp::PiSPVariant &variant =
+		libpisp::get_variant(frontend->hwRevision(),
+				     backend->hwRevision());
+	if (!variant.NumFrontEnds() || !variant.NumBackEnds()) {
+		LOG(RPI, Error) << "Unsupported PiSP variant";
+		return {};
+	}
+
+	std::unique_ptr<RPi::CameraData> cameraData =
+		std::make_unique<PiSPCameraData>(this, variant);
+	PiSPCameraData *pisp =
+		static_cast<PiSPCameraData *>(cameraData.get());
+
+	pisp->fe_ = SharedMemObject<FrontEnd>
+			("pisp_frontend", true, pisp->pispVariant_);
+	pisp->be_ = SharedMemObject<BackEnd>
+			("pisp_backend", BackEnd::Config({}), pisp->pispVariant_);
+
+	if (!pisp->fe_.fd().isValid() || !pisp->be_.fd().isValid()) {
+		LOG(RPI, Error) << "Failed to create ISP shared objects";
+		return {};
+	}
+
+	return cameraData;
+}
 
 bool PipelineHandlerPiSP::match(DeviceEnumerator *enumerator)
 {
