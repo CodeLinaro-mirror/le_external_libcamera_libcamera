@@ -41,14 +41,45 @@ LOG_DEFINE_CATEGORY(Camera)
 CameraManager::Private::Private()
 	: Thread("CameraManager"), initialized_(false)
 {
+	/*
+	 * Bind this Object to its own thread, so that work can be marshalled
+	 * onto the camera manager thread with invokeMethod().
+	 */
+	moveToThread(this);
 }
 
 int CameraManager::Private::start()
 {
-	int status;
+	return startThread();
+}
 
-	/* Start the thread and wait for initialization to complete. */
-	Thread::start();
+/*
+ * Start the camera manager thread if not started yet, and wait for its
+ * initialization to complete. Returns the initialization status.
+ */
+int CameraManager::Private::startThread()
+{
+	bool start = false;
+
+	{
+		MutexLocker locker(mutex_);
+
+		if (!started_) {
+			started_ = true;
+			initialized_ = false;
+			start = true;
+		}
+	}
+
+	if (start)
+		Thread::start();
+
+	/*
+	 * Wait for initialization to complete, whether this call started the
+	 * thread or another one did, as the caller may otherwise proceed before
+	 * the thread is ready.
+	 */
+	int status;
 
 	{
 		MutexLocker locker(mutex_);
@@ -78,7 +109,7 @@ void CameraManager::Private::run()
 	status_ = ret;
 	initialized_ = true;
 	mutex_.unlock();
-	cv_.notify_one();
+	cv_.notify_all();
 
 	if (ret < 0) {
 		cleanup();
@@ -227,6 +258,11 @@ CameraManager::Private::findMatchingHandler(const MediaDevice *media)
 void CameraManager::Private::cleanup()
 {
 	enumerator_->devicesAdded.disconnect(this);
+
+	{
+		MutexLocker locker(mutex_);
+		started_ = false;
+	}
 
 	/*
 	 * Release all references to cameras to ensure they all get destroyed

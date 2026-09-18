@@ -15,6 +15,7 @@
 
 #include <libcamera/base/class.h>
 #include <libcamera/base/mutex.h>
+#include <libcamera/base/object.h>
 #include <libcamera/base/thread.h>
 #include <libcamera/base/thread_annotations.h>
 
@@ -30,7 +31,7 @@ class MediaDevice;
 class PipelineHandler;
 class PipelineHandlerFactoryBase;
 
-class CameraManager::Private : public Extensible::Private, public Thread
+class CameraManager::Private : public Extensible::Private, public Thread, public Object
 {
 	LIBCAMERA_DECLARE_PUBLIC(CameraManager)
 
@@ -54,6 +55,7 @@ protected:
 private:
 	int init();
 	std::vector<const PipelineHandlerFactoryBase *> pipelineFactories() const;
+	int startThread() LIBCAMERA_TSA_EXCLUDES(mutex_);
 	void createPipelineHandlers();
 	void pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory);
 	std::shared_ptr<PipelineHandler> findMatchingHandler(const MediaDevice *media);
@@ -71,6 +73,8 @@ private:
 	ConditionVariable cv_;
 	bool initialized_ LIBCAMERA_TSA_GUARDED_BY(mutex_);
 	int status_ LIBCAMERA_TSA_GUARDED_BY(mutex_);
+
+	bool started_ LIBCAMERA_TSA_GUARDED_BY(mutex_) = false;
 
 	std::unique_ptr<DeviceEnumerator> enumerator_;
 
