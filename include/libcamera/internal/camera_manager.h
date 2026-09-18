@@ -41,6 +41,7 @@ public:
 
 	int start();
 	std::vector<std::shared_ptr<CameraDescriptor>> enumerate();
+	std::shared_ptr<Camera> initialize(const std::shared_ptr<CameraDescriptor> &descriptor);
 	void addCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 	void removeCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 

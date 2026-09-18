@@ -21,6 +21,7 @@
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
+#include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 
 /**
@@ -114,6 +115,26 @@ std::vector<std::shared_ptr<CameraDescriptor>> CameraManager::Private::enumerate
 		return {};
 
 	return invokeMethod(&Private::surveyThread, ConnectionTypeBlocking);
+}
+
+/*
+ * Initialise the camera described by \a descriptor. Called from the
+ * application thread.
+ */
+std::shared_ptr<Camera>
+CameraManager::Private::initialize(const std::shared_ptr<CameraDescriptor> &descriptor)
+{
+	if (!descriptor)
+		return nullptr;
+
+	{
+		MutexLocker locker(mutex_);
+		if (!started_ || !initialized_ || status_ < 0)
+			return nullptr;
+	}
+
+	return invokeMethod(&Private::initializeThread, ConnectionTypeBlocking,
+			    descriptor);
 }
 
 void CameraManager::Private::run()
@@ -328,6 +349,57 @@ void CameraManager::Private::surveyFactory(const PipelineHandlerFactoryBase *fac
 	}
 }
 
+/*
+ * Create and register the camera described by \a descriptor. The camera is
+ * created by the live pipeline handler instance that has already acquired the
+ * camera's media device (if any), so that cameras sharing a pipeline instance
+ * join it. Otherwise a new pipeline handler instance is created. If the camera
+ * has already been initialised, the existing instance is returned. Called on
+ * the CM thread.
+ */
+std::shared_ptr<Camera>
+CameraManager::Private::initializeThread(std::shared_ptr<CameraDescriptor> descriptor)
+{
+	ASSERT(Thread::current() == this);
+
+	CameraManager *const o = LIBCAMERA_O_PTR();
+
+	/* If the camera has already been created, return it. */
+	std::shared_ptr<Camera> camera = o->get(descriptor->id());
+	if (camera)
+		return camera;
+
+	const CameraDescriptor::Private *dPriv = descriptor->_d();
+	const std::vector<std::shared_ptr<MediaDevice>> &mediaDevices =
+		dPriv->mediaDevices_;
+	if (mediaDevices.empty())
+		return nullptr;
+
+	/*
+	 * Route the descriptor to the live pipeline handler instance holding
+	 * the media device, or create a new instance.
+	 */
+	std::shared_ptr<PipelineHandler> pipe =
+		findMatchingHandler(mediaDevices.front().get());
+	bool joined = !!pipe;
+
+	if (!pipe)
+		pipe = dPriv->factory_->create(o);
+
+	int ret = pipe->createCamera(descriptor.get());
+	if (ret) {
+		LOG(Camera, Error)
+			<< "Failed to create camera '" << descriptor->id()
+			<< "': " << strerror(-ret);
+		return nullptr;
+	}
+
+	if (!joined)
+		pipes_.push_back(pipe);
+
+	return o->get(descriptor->id());
+}
+
 void CameraManager::Private::cleanup()
 {
 	enumerator_->devicesAdded.disconnect(this);
@@ -338,6 +410,7 @@ void CameraManager::Private::cleanup()
 	}
 
 	descriptors_.clear();
+	pipes_.clear();
 
 	/*
 	 * Release all references to cameras to ensure they all get destroyed
@@ -462,6 +535,10 @@ void CameraManager::Private::removeCamera(std::shared_ptr<Camera> camera)
  * will enumerate all the cameras present in the system, which can then be
  * listed with list() and retrieved with get().
  *
+ * Applications that do not need every camera in the system can instead use
+ * enumerate(), which reports a CameraDescriptor for each camera found without
+ * initialising any of them, followed by initialize() for the cameras required.
+ *
  * Cameras are shared through std::shared_ptr<>, ensuring that a camera will
  * stay valid until the last reference is released without requiring any special
  * action from the application. Once the application has released all the
@@ -523,7 +600,8 @@ int CameraManager::start()
  *
  * After the manager has been stopped no resource provided by the camera
  * manager should be consider valid or functional even if they for one
- * reason or another have yet to be deleted.
+ * reason or another have yet to be deleted. This includes the camera
+ * descriptors returned by enumerate(), which can no longer be initialised.
  */
 void CameraManager::stop()
 {
@@ -536,7 +614,9 @@ void CameraManager::stop()
  * \brief Enumerate the cameras in the system without initialising them
  *
  * Enumerate the devices in the system and return a descriptor for every
- * camera found, without initialising any camera.
+ * camera found. A camera can then be initialised from its descriptor with
+ * initialize(), avoiding the cost of initialising cameras the application
+ * will not use.
  *
  * Only cameras of pipeline handlers that support surveying are reported.
  * Cameras of other pipeline handlers are created by start() and reported by
@@ -553,6 +633,29 @@ void CameraManager::stop()
 std::vector<std::shared_ptr<CameraDescriptor>> CameraManager::enumerate()
 {
 	return _d()->enumerate();
+}
+
+/**
+ * \brief Initialise the camera described by \a descriptor
+ * \param[in] descriptor The descriptor of the camera to initialise
+ *
+ * Create and initialise the camera described by a \a descriptor returned by
+ * enumerate(). The returned camera is fully initialised, identical to a camera
+ * created by start(), and is also reported through cameras(), get() and the
+ * cameraAdded signal.
+ *
+ * If the camera has already been initialised, the existing instance is
+ * returned.
+ *
+ * \context This function may be called from any thread, but shall not be
+ * called concurrently with start() or stop().
+ *
+ * \return A shared pointer to the initialised Camera, or nullptr if the
+ * camera could not be initialised.
+ */
+std::shared_ptr<Camera> CameraManager::initialize(const std::shared_ptr<CameraDescriptor> &descriptor)
+{
+	return _d()->initialize(descriptor);
 }
 
 /**

@@ -33,6 +33,7 @@ public:
 	void stop();
 
 	std::vector<std::shared_ptr<CameraDescriptor>> enumerate();
+	std::shared_ptr<Camera> initialize(const std::shared_ptr<CameraDescriptor> &descriptor);
 
 	std::vector<std::shared_ptr<Camera>> cameras() const;
 	std::shared_ptr<Camera> get(std::string_view id);
