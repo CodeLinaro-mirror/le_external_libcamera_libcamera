@@ -150,8 +150,6 @@ public:
 	{
 	}
 
-	bool match(DeviceEnumerator *enumerator) override;
-
 private:
 	Vc4CameraData *cameraData(Camera *camera)
 	{
@@ -185,61 +183,6 @@ private:
 			     std::shared_ptr<MediaDevice> unicam,
 			     std::shared_ptr<MediaDevice> isp) override;
 };
-
-bool PipelineHandlerVc4::match(DeviceEnumerator *enumerator)
-{
-	constexpr unsigned int numUnicamDevices = 2;
-
-	/*
-	 * Loop over all Unicam instances, but return out once a match is found.
-	 * This is to ensure we correctly enumrate the camera when an instance
-	 * of Unicam has registered with media controller, but has not registered
-	 * device nodes due to a sensor subdevice failure.
-	 */
-	for (unsigned int i = 0; i < numUnicamDevices; i++) {
-		DeviceMatch unicam("unicam");
-		std::shared_ptr<MediaDevice> unicamDevice = acquireMediaDevice(enumerator, unicam);
-
-		if (!unicamDevice) {
-			LOG(RPI, Debug) << "Unable to acquire a Unicam instance";
-			continue;
-		}
-
-		DeviceMatch isp("bcm2835-isp");
-		std::shared_ptr<MediaDevice> ispDevice = acquireMediaDevice(enumerator, isp);
-
-		if (!ispDevice) {
-			LOG(RPI, Debug) << "Unable to acquire ISP instance";
-			continue;
-		}
-
-		/*
-		 * The loop below is used to register multiple cameras behind one or more
-		 * video mux devices that are attached to a particular Unicam instance.
-		 * Obviously these cameras cannot be used simultaneously.
-		 */
-		unsigned int numCameras = 0;
-		for (MediaEntity *entity : unicamDevice->entities()) {
-			if (entity->function() != MEDIA_ENT_F_CAM_SENSOR)
-				continue;
-
-			std::unique_ptr<RPi::CameraData> cameraData = std::make_unique<Vc4CameraData>(this);
-			int ret = RPi::PipelineHandlerBase::registerCamera(cameraData,
-									   unicamDevice, "unicam-image",
-									   ispDevice, entity);
-			if (ret)
-				LOG(RPI, Error) << "Failed to register camera "
-						<< entity->name() << ": " << ret;
-			else
-				numCameras++;
-		}
-
-		if (numCameras)
-			return true;
-	}
-
-	return false;
-}
 
 int PipelineHandlerVc4::allocateBuffers(Camera *camera)
 {

@@ -223,6 +223,10 @@ public:
 						   const V4L2SubdeviceFormat &format,
 						   BayerFormat::Packing packingReq);
 
+	int survey(const DeviceEnumerator *enumerator,
+		   std::vector<std::shared_ptr<CameraDescriptor>> *descriptors) override;
+	int createCamera(const CameraDescriptor *descriptor) override;
+
 	std::unique_ptr<CameraConfiguration>
 	generateConfiguration(Camera *camera, std::span<const StreamRole> roles) override;
 	int configure(Camera *camera, CameraConfiguration *config) override;

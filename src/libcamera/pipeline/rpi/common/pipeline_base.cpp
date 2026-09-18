@@ -15,11 +15,15 @@
 #include <libcamera/base/file.h>
 #include <libcamera/base/utils.h>
 
+#include <libcamera/camera_descriptor.h>
 #include <libcamera/formats.h>
 #include <libcamera/logging.h>
 #include <libcamera/property_ids.h>
 
+#include "libcamera/internal/camera_descriptor.h"
 #include "libcamera/internal/camera_lens.h"
+#include "libcamera/internal/camera_sensor.h"
+#include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/yaml_parser.h"
 
@@ -791,6 +795,101 @@ int PipelineHandlerBase::queueRequestDevice(Camera *camera, Request *request)
 	data->handleState();
 
 	return 0;
+}
+
+int PipelineHandlerBase::survey(const DeviceEnumerator *enumerator,
+				std::vector<std::shared_ptr<CameraDescriptor>> *descriptors)
+{
+	/*
+	 * Pair each available frontend instance with a backend instance, in
+	 * the same order as match() acquires them, and report a descriptor
+	 * for every sensor entity attached to the frontend. No device is
+	 * acquired or opened.
+	 */
+	std::vector<std::shared_ptr<MediaDevice>> frontends =
+		enumerator->searchAll(frontendMatch());
+	std::vector<std::shared_ptr<MediaDevice>> backends =
+		enumerator->searchAll(backendMatch());
+
+	for (unsigned int i = 0; i < frontends.size() && i < backends.size(); i++) {
+		MediaDevice *frontendDevice = frontends[i].get();
+		MediaDevice *backendDevice = backends[i].get();
+
+		if (!platformSupported(frontendDevice, backendDevice))
+			continue;
+
+		for (MediaEntity *entity : frontendDevice->entities()) {
+			if (entity->function() != MEDIA_ENT_F_CAM_SENSOR)
+				continue;
+
+			std::string id = CameraSensorFactoryBase::generateId(entity);
+			if (id.empty()) {
+				LOG(RPI, Warning)
+					<< "Failed to generate an ID for sensor "
+					<< entity->name();
+				continue;
+			}
+
+			std::string model =
+				V4L2Subdevice::modelFromEntityName(entity->name());
+
+			auto data = std::make_unique<CameraDescriptor::Private>();
+			data->id_ = std::move(id);
+			data->properties_.set(properties::Model,
+					      utils::toAscii(model));
+			data->mediaDevices_ = { frontends[i], backends[i] };
+			data->entityName_ = entity->name();
+
+			descriptors->push_back(CameraDescriptor::create(std::move(data)));
+		}
+	}
+
+	return 0;
+}
+
+int PipelineHandlerBase::createCamera(const CameraDescriptor *descriptor)
+{
+	const CameraDescriptor::Private *data = descriptor->_d();
+
+	if (data->mediaDevices_.size() != 2)
+		return -EINVAL;
+
+	const std::shared_ptr<MediaDevice> &frontendDevice = data->mediaDevices_[0];
+	const std::shared_ptr<MediaDevice> &backendDevice = data->mediaDevices_[1];
+
+	/*
+	 * Acquire the media devices, unless this pipeline handler instance
+	 * already holds them because a camera behind the same frontend has
+	 * been created before.
+	 */
+	if (!usesMediaDevice(frontendDevice.get())) {
+		if (!acquireMediaDevice(frontendDevice))
+			return -EBUSY;
+		if (!acquireMediaDevice(backendDevice))
+			return -EBUSY;
+	}
+
+	MediaEntity *sensorEntity = nullptr;
+	for (MediaEntity *entity : frontendDevice->entities()) {
+		if (entity->name() == data->entityName_) {
+			sensorEntity = entity;
+			break;
+		}
+	}
+
+	if (!sensorEntity) {
+		LOG(RPI, Error) << "Sensor entity '" << data->entityName_
+				<< "' not found";
+		return -ENODEV;
+	}
+
+	std::unique_ptr<RPi::CameraData> cameraData =
+		allocateCameraData(frontendDevice.get(), backendDevice.get());
+	if (!cameraData)
+		return -EINVAL;
+
+	return registerCamera(cameraData, frontendDevice, frontendLinkName(),
+			      backendDevice, sensorEntity);
 }
 
 int PipelineHandlerBase::registerCamera(std::unique_ptr<RPi::CameraData> &cameraData,

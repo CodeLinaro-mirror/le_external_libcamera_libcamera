@@ -861,8 +861,6 @@ public:
 	{
 	}
 
-	bool match(DeviceEnumerator *enumerator) override;
-
 private:
 	PiSPCameraData *cameraData(Camera *camera)
 	{
@@ -942,94 +940,6 @@ PipelineHandlerPiSP::allocateCameraData(MediaDevice *frontend, MediaDevice *back
 	}
 
 	return cameraData;
-}
-
-bool PipelineHandlerPiSP::match(DeviceEnumerator *enumerator)
-{
-	constexpr unsigned int numCfeDevices = 2;
-
-	/*
-	 * Loop over all CFE instances, but return out once a match is found.
-	 * This is to ensure we correctly enumerate the camera when an instance
-	 * of the CFE has registered with media controller, but has not registered
-	 * device nodes due to a sensor subdevice failure.
-	 */
-	for (unsigned int i = 0; i < numCfeDevices; i++) {
-		DeviceMatch cfe("rp1-cfe");
-		cfe.add("rp1-cfe-fe-image0");
-		cfe.add("rp1-cfe-fe-stats");
-		cfe.add("rp1-cfe-fe-config");
-		std::shared_ptr<MediaDevice> cfeDevice = acquireMediaDevice(enumerator, cfe);
-
-		if (!cfeDevice) {
-			LOG(RPI, Debug) << "Unable to acquire a CFE instance";
-			break;
-		}
-
-		DeviceMatch isp("pispbe");
-		isp.add("pispbe-input");
-		isp.add("pispbe-config");
-		isp.add("pispbe-output0");
-		isp.add("pispbe-output1");
-		isp.add("pispbe-tdn_output");
-		isp.add("pispbe-tdn_input");
-		isp.add("pispbe-stitch_output");
-		isp.add("pispbe-stitch_input");
-		std::shared_ptr<MediaDevice> ispDevice = acquireMediaDevice(enumerator, isp);
-
-		if (!ispDevice) {
-			LOG(RPI, Debug) << "Unable to acquire ISP instance";
-			break;
-		}
-
-		/*
-		 * The loop below is used to register multiple cameras behind
-		 * one or more video mux devices that are attached to a
-		 * particular CFE instance. Obviously these cameras cannot be
-		 * used simultaneously.
-		 */
-		unsigned int numCameras = 0;
-		for (MediaEntity *entity : cfeDevice->entities()) {
-			if (entity->function() != MEDIA_ENT_F_CAM_SENSOR)
-				continue;
-
-			const libpisp::PiSPVariant &variant =
-				libpisp::get_variant(cfeDevice->hwRevision(),
-						     ispDevice->hwRevision());
-			if (!variant.NumFrontEnds() || !variant.NumBackEnds()) {
-				LOG(RPI, Error) << "Unsupported PiSP variant";
-				break;
-			}
-
-			std::unique_ptr<RPi::CameraData> cameraData =
-				std::make_unique<PiSPCameraData>(this, variant);
-			PiSPCameraData *pisp =
-				static_cast<PiSPCameraData *>(cameraData.get());
-
-			pisp->fe_ = SharedMemObject<FrontEnd>
-					("pisp_frontend", true, pisp->pispVariant_);
-			pisp->be_ = SharedMemObject<BackEnd>
-					("pisp_backend", BackEnd::Config({}), pisp->pispVariant_);
-
-			if (!pisp->fe_.fd().isValid() || !pisp->be_.fd().isValid()) {
-				LOG(RPI, Error) << "Failed to create ISP shared objects";
-				break;
-			}
-
-			int ret = registerCamera(cameraData, cfeDevice, "csi2",
-						 ispDevice, entity);
-			if (ret)
-				LOG(RPI, Error) << "Failed to register camera "
-						<< entity->name() << ": " << ret;
-			else
-				numCameras++;
-		}
-
-		if (numCameras)
-			return true;
-	}
-
-	return false;
 }
 
 int PipelineHandlerPiSP::allocateBuffers(Camera *camera)
