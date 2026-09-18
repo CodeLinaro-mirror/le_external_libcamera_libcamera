@@ -160,6 +160,7 @@ public:
 	int setRouting(Routing *routing, Whence whence = ActiveFormat);
 
 	const std::string &model();
+	static std::string modelFromEntityName(const std::string &entityName);
 	const V4L2SubdeviceCapability &caps() const { return caps_; }
 
 	static std::unique_ptr<V4L2Subdevice>

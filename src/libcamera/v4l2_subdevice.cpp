@@ -1702,38 +1702,46 @@ int V4L2Subdevice::setRouting(Routing *routing, Whence whence)
  */
 const std::string &V4L2Subdevice::model()
 {
-	if (!model_.empty())
-		return model_;
+	if (model_.empty())
+		model_ = modelFromEntityName(entity_->name());
 
-	/*
-	 * Extract model name from the media entity name.
-	 *
-	 * There is no standardized naming scheme for sensor or other entities
-	 * in the Linux kernel at the moment.
-	 *
-	 * - The most common rule, used by I2C sensors, associates the model
-	 *   name with the I2C bus number and address (e.g. 'imx219 0-0010').
-	 *
-	 * - When the sensor exposes multiple subdevs, the model name is
-	 *   usually followed by a function name, as in the smiapp driver (e.g.
-	 *   'jt8ew9 pixel_array 0-0010').
-	 *
-	 * - The vimc driver names its sensors 'Sensor A' and 'Sensor B'.
-	 *
-	 * Other schemes probably exist. As a best effort heuristic, use the
-	 * part of the entity name before the first space if the name contains
-	 * an I2C address, and use the full entity name otherwise.
-	 */
-	const std::string &entityName = entity_->name();
+	return model_;
+}
+
+/**
+ * \brief Derive a model name from a media entity name
+ * \param[in] entityName The name of the media entity
+ *
+ * There is no standardized naming scheme for sensor or other entities in the
+ * Linux kernel at the moment.
+ *
+ * - The most common rule, used by I2C sensors, associates the model name with
+ *   the I2C bus number and address (e.g. 'imx219 0-0010').
+ *
+ * - When the sensor exposes multiple subdevs, the model name is usually
+ *   followed by a function name, as in the smiapp driver (e.g.
+ *   'jt8ew9 pixel_array 0-0010').
+ *
+ * - The vimc driver names its sensors 'Sensor A' and 'Sensor B'.
+ *
+ * Other schemes probably exist. As a best effort heuristic, use the part of
+ * the entity name before the first space if the name contains an I2C address,
+ * and use the full entity name otherwise.
+ *
+ * This function operates on the entity name alone, so that a model name can
+ * be derived without instantiating a subdevice.
+ *
+ * \return The model name
+ */
+std::string V4L2Subdevice::modelFromEntityName(const std::string &entityName)
+{
 	static const std::regex i2cRegex{ " [0-9]+-[0-9a-f]{4}" };
 	std::smatch match;
 
 	if (std::regex_search(entityName, match, i2cRegex))
-		model_ = entityName.substr(0, entityName.find(' '));
-	else
-		model_ = entityName;
+		return entityName.substr(0, entityName.find(' '));
 
-	return model_;
+	return entityName;
 }
 
 /**
