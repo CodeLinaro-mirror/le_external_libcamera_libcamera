@@ -17,6 +17,7 @@
 #include <libcamera/ipa/core_ipa_interface.h>
 
 #include <libipa/agc.h>
+#include <libipa/awb.h>
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 
@@ -28,12 +29,19 @@ struct IPASessionConfiguration {
 	struct Agc : ipa::agc::Session {
 		rppx1_window measureWindow;
 	} agc;
+
+	struct {
+		struct rppx1_window measureWindow;
+		bool enabled;
+	} awb;
 };
 
 struct IPAActiveState {
 	struct Agc : ipa::agc::ActiveState {
 		controls::AeMeteringModeEnum meteringMode;
 	} agc;
+
+	ipa::awb::ActiveState awb;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -46,6 +54,8 @@ struct IPAFrameContext : public FrameContext {
 		controls::AeMeteringModeEnum meteringMode;
 		bool updateMetering;
 	} agc;
+
+	ipa::awb::FrameContext awb;
 };
 
 struct IPAContext {
