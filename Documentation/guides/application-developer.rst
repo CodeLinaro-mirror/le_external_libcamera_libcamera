@@ -89,6 +89,47 @@ Printing the camera id lists the machine-readable unique identifiers, so for
 example, the output on a Linux machine with a connected USB webcam is
 ``\_SB_.PCI0.XHC_.RHUB.HS08-8:1.0-5986:2115``.
 
+Enumerating cameras without initialising them
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+:doxy-pub:`CameraManager::start()` initialises every camera in the system,
+including loading the IPA module associated with each camera. This is often a
+heavyweight operation. An application that only uses a single camera can instead
+enumerate the cameras first, and initialise the one it needs:
+
+.. code:: cpp
+
+   std::unique_ptr<CameraManager> cm = std::make_unique<CameraManager>();
+
+   for (const auto &descriptor : cm->enumerate())
+       std::cout << descriptor->id() << std::endl;
+
+:doxy-pub:`CameraManager::enumerate()` starts the camera manager if it is not
+running yet, and returns a :doxy-pub:`CameraDescriptor` for every camera of a
+pipeline handler that supports enumeration. A descriptor reports the camera id
+and its properties without the camera being initialised; no media device is
+acquired, no device node is opened, and no IPA module is loaded. Cameras of
+pipeline handlers that do not support enumeration are created by ``start()``,
+and reported through ``cameras()`` as before.
+
+A camera is then initialised from its descriptor:
+
+.. code:: cpp
+
+   std::shared_ptr<Camera> camera = cm->initialize(descriptor);
+
+The resulting camera is identical to one created by start() and is reported
+through :doxy-pub:`CameraManager::cameras`, ``get()`` and the ``cameraAdded``
+signal. Initialising a camera that has already been initialised returns the
+existing instance.
+
+The list returned by ``enumerate()`` is a snapshot of the cameras present when
+it is called. Cameras hotplugged afterwards are initialised automatically and
+reported through the ``cameraAdded`` signal, as they are after ``start()``.
+
+Note that ``stop()`` invalidates the descriptors returned by ``enumerate()``:
+they can no longer be initialised.
+
 What libcamera considers a camera
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

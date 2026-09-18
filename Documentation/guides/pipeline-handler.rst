@@ -334,6 +334,13 @@ to the search using the ``.add()`` function on the DeviceMatch.
 This example uses search patterns that match vivid, but when developing a new
 pipeline handler, you should change this value to suit your device identifier.
 
+.. note::
+
+   ``match()`` finds and creates the cameras in one step. A pipeline handler
+   can instead let applications list the cameras before initialising them, by
+   implementing ``survey()`` and ``createCamera()`` as described in
+   `Enumerating cameras without creating them`_ below.
+
 Replace the contents of the ``PipelineHandlerVivid::match`` function with the
 following:
 
@@ -556,6 +563,100 @@ interface, and device interaction interfaces.
    #include <libcamera/camera.h>
    #include "libcamera/internal/media_device.h"
    #include "libcamera/internal/v4l2_videodevice.h"
+
+Enumerating cameras without creating them
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``match()`` finds and creates the cameras of a pipeline handler in one step, and
+:doxy-pub:`CameraManager::start()` calls it for every pipeline handler in the
+system. Creating a camera includes loading its IPA module, which is often a
+heavyweight operation. An application that only uses a single camera can instead
+call :doxy-pub:`CameraManager::enumerate()` to list the cameras first, and
+initialise the one it needs. To support this, a pipeline handler implements
+:doxy-int:`PipelineHandler::survey` and
+:doxy-int:`PipelineHandler::createCamera` in place of ``match()``.
+
+``survey()`` reports a :doxy-pub:`CameraDescriptor` for every camera the
+pipeline handler would create, using only the information available from the
+``DeviceEnumerator``. It shall not acquire a media device, open a device node or
+alter any hardware state. It returns 0 on success, appending one descriptor per
+camera found, or ``-ENOTSUP`` if the pipeline handler cannot survey its cameras.
+Returning ``-ENOTSUP`` tells the camera manager to fall back to ``match()``.
+
+A descriptor carries the camera id, the properties that are known without
+opening the device, such as the model, and the media devices the camera needs.
+The :doxy-int:`DeviceEnumerator::searchAll` function returns every media device
+matching a ``DeviceMatch`` without acquiring it. For vivid, one camera is
+reported per matching media device:
+
+.. code-block:: cpp
+
+   int PipelineHandlerVivid::survey(const DeviceEnumerator *enumerator,
+   				    std::vector<std::shared_ptr<CameraDescriptor>> *descriptors)
+   {
+   	DeviceMatch dm("vivid");
+   	dm.add("vivid-000-vid-cap");
+
+   	for (std::shared_ptr<MediaDevice> &media : enumerator->searchAll(dm)) {
+   		auto data = std::make_unique<CameraDescriptor::Private>();
+   		data->id_ = media->getEntityByName("vivid-000-vid-cap")->name();
+   		data->properties_.set(properties::Model, media->model());
+   		data->mediaDevices_ = { media };
+
+   		descriptors->push_back(CameraDescriptor::create(std::move(data)));
+   	}
+
+   	return 0;
+   }
+
+``createCamera()`` then performs, for a single descriptor, the per-camera work
+that ``match()`` would have done, i.e. acquiring the media devices the camera
+needs, opening the device nodes and registering the camera. The camera shall be
+created with the id of its descriptor, so that applications can relate the two.
+For vivid, this is the body of the ``match()`` function written above, with the
+media device taken from the descriptor instead of searched for:
+
+.. code-block:: cpp
+
+   int PipelineHandlerVivid::createCamera(const CameraDescriptor *descriptor)
+   {
+   	std::shared_ptr<MediaDevice> media = descriptor->_d()->mediaDevices_[0];
+   	if (!acquireMediaDevice(media))
+   		return -EBUSY;
+
+   	std::unique_ptr<VividCameraData> data = std::make_unique<VividCameraData>(this);
+
+   	/* Locate and open the capture video node. */
+   	if (data->init(media.get()))
+   		return -ENODEV;
+
+   	/* Create and register the camera. */
+   	std::set<Stream *> streams{ &data->stream_ };
+   	std::shared_ptr<Camera> camera = Camera::create(std::move(data),
+   							descriptor->id(), streams);
+   	registerCamera(std::move(camera));
+
+   	return 0;
+   }
+
+When several cameras share a media device, for instance sensors behind a video
+mux, the camera manager routes them to the same pipeline handler instance.
+``createCamera()`` shall then only acquire the media device if the instance does
+not already hold it, which can be checked with
+:doxy-int:`PipelineHandler::usesMediaDevice`.
+
+The descriptor classes need the following includes:
+
+.. code-block:: cpp
+
+   #include <libcamera/camera_descriptor.h>
+   #include "libcamera/internal/camera_descriptor.h"
+
+A pipeline handler that implements ``survey()`` and ``createCamera()`` does not
+need ``match()``. ``start()`` creates its cameras by surveying and initialising
+all of them. A pipeline handler that implements neither is not reported by
+``CameraManager::enumerate()`` and its cameras are created by ``start()``
+through ``match()`` as before.
 
 Registering controls and properties
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
