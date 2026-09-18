@@ -78,7 +78,7 @@ public:
 		 * properly cast negative values. See
 		 * https://embeddeduse.com/2013/08/25/casting-a-negative-float-to-an-unsigned-int/
 		 */
-		return static_cast<UT>(static_cast<T>(std::round(v * (1 << F)))) & bitMask;
+		return static_cast<UT>(static_cast<T>(std::round(v * (UT{ 1 } << F)))) & bitMask;
 	}
 };
 
