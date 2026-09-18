@@ -367,7 +367,13 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 			       const AwbStats &stats, unsigned int lux,
 			       ControlList &metadata)
 {
-	if (!stats.valid())
+	const bool valid = stats.valid();
+
+	LOG(Awb, Debug) << std::showpoint
+			<< "means: " << stats.rgbMeans()
+			<< " (" << (!valid ? "in" : "") << "valid)";
+
+	if (!valid)
 		return;
 
 	auto awbResult = impl_->calculateAwb(stats, lux, { currentMode_->ctLo,
@@ -394,8 +400,8 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 					      static_cast<float>(frameContext.gains.b()) });
 	metadata.set(controls::ColourTemperature, frameContext.colourTemperature);
 
-	LOG(Awb, Debug) << std::showpoint << "Means " << stats.rgbMeans()
-			<< ", gains " << state.automatic.gains
+	LOG(Awb, Debug) << std::showpoint
+			<< "gains " << state.automatic.gains
 			<< ", temp " << state.automatic.colourTemperature << "K";
 }
 
