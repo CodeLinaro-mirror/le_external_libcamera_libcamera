@@ -58,7 +58,15 @@ namespace ipa {
  */
 
 /**
- * \fn Quantized::Quantized(float x)
+ * \typedef Quantized::FloatingType
+ * \brief The floating type used for the value representation
+ *
+ * This alias corresponds to \c TraitsType::FloatingType, as defined by
+ * the traits class.
+ */
+
+/**
+ * \fn Quantized::Quantized(FloatingType x)
  * \brief Construct a Quantized value from a floating-point number
  * \param[in] x The floating-point value to be quantized
  *

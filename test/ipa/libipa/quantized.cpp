@@ -20,7 +20,9 @@ using namespace ipa;
 
 struct BrightnessHueTraits {
 	using QuantizedType = uint8_t;
-	static QuantizedType fromFloat(float v)
+	using FloatingType = float;
+
+	static QuantizedType fromFloat(FloatingType v)
 	{
 		int quantized = std::lround(v * 128.0f);
 		return std::clamp<int>(quantized, -128, 127);
@@ -35,7 +37,9 @@ using BrightnessHueQuantizer = Quantized<BrightnessHueTraits>;
 
 struct ContrastSaturationTraits {
 	using QuantizedType = uint8_t;
-	static QuantizedType fromFloat(float v)
+	using FloatingType = float;
+
+	static QuantizedType fromFloat(FloatingType v)
 	{
 		int quantized = std::lround(v * 128.0f);
 		return std::clamp<int>(quantized, 0, 255);

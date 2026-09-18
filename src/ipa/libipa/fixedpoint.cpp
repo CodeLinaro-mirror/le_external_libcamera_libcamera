@@ -48,6 +48,11 @@ namespace ipa {
  */
 
 /**
+ * \typedef FixedPointQTraits::FloatingType
+ * \brief The type used for the floating-point representation
+ */
+
+/**
  * \var FixedPointQTraits::qMin
  * \brief Minimum representable quantized integer value
  *
@@ -71,7 +76,7 @@ namespace ipa {
  */
 
 /**
- * \fn FixedPointQTraits::fromFloat(float v)
+ * \fn FixedPointQTraits::fromFloat(FloatingType v)
  * \brief Convert a floating-point value to a fixed-point integer
  * \param[in] v The floating-point value to be converted
  * \return The quantized fixed-point integer representation
