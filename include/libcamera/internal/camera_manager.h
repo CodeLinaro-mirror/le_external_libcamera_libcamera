@@ -25,6 +25,7 @@
 namespace libcamera {
 
 class Camera;
+class CameraDescriptor;
 class DeviceEnumerator;
 class IPAManager;
 class MediaDevice;
@@ -39,6 +40,7 @@ public:
 	Private();
 
 	int start();
+	std::vector<std::shared_ptr<CameraDescriptor>> enumerate();
 	void addCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 	void removeCamera(std::shared_ptr<Camera> camera) LIBCAMERA_TSA_EXCLUDES(mutex_);
 
@@ -59,6 +61,11 @@ private:
 	void createPipelineHandlers();
 	void pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory);
 	std::shared_ptr<PipelineHandler> findMatchingHandler(const MediaDevice *media);
+
+	std::vector<std::shared_ptr<CameraDescriptor>> surveyThread() LIBCAMERA_TSA_EXCLUDES(mutex_);
+	void surveyFactory(const PipelineHandlerFactoryBase *factory) LIBCAMERA_TSA_EXCLUDES(mutex_);
+	std::shared_ptr<Camera> initializeThread(std::shared_ptr<CameraDescriptor> descriptor);
+
 	void cleanup() LIBCAMERA_TSA_EXCLUDES(mutex_);
 
 	/*
@@ -75,6 +82,8 @@ private:
 	int status_ LIBCAMERA_TSA_GUARDED_BY(mutex_);
 
 	bool started_ LIBCAMERA_TSA_GUARDED_BY(mutex_) = false;
+	/* Known camera descriptors, accessed from the CameraManager thread only. */
+	std::vector<std::shared_ptr<CameraDescriptor>> descriptors_;
 
 	std::unique_ptr<DeviceEnumerator> enumerator_;
 

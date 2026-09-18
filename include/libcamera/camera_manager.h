@@ -20,6 +20,7 @@
 namespace libcamera {
 
 class Camera;
+class CameraDescriptor;
 
 class CameraManager : public Object, public Extensible
 {
@@ -30,6 +31,8 @@ public:
 
 	int start();
 	void stop();
+
+	std::vector<std::shared_ptr<CameraDescriptor>> enumerate();
 
 	std::vector<std::shared_ptr<Camera>> cameras() const;
 	std::shared_ptr<Camera> get(std::string_view id);

@@ -7,13 +7,17 @@
 
 #include "libcamera/internal/camera_manager.h"
 
+#include <algorithm>
+
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
 
 #include <libcamera/camera.h>
+#include <libcamera/camera_descriptor.h>
 #include <libcamera/property_ids.h>
 
 #include "libcamera/internal/camera.h"
+#include "libcamera/internal/camera_descriptor.h"
 #include "libcamera/internal/device_enumerator.h"
 #include "libcamera/internal/global_configuration.h"
 #include "libcamera/internal/ipa_manager.h"
@@ -97,6 +101,19 @@ int CameraManager::Private::startThread()
 	}
 
 	return 0;
+}
+
+/*
+ * Enumerate the cameras in the system without initialising them, starting the
+ * camera manager thread on first use. Called from the application thread.
+ */
+std::vector<std::shared_ptr<CameraDescriptor>> CameraManager::Private::enumerate()
+{
+	int ret = startThread();
+	if (ret)
+		return {};
+
+	return invokeMethod(&Private::surveyThread, ConnectionTypeBlocking);
 }
 
 void CameraManager::Private::run()
@@ -255,6 +272,62 @@ CameraManager::Private::findMatchingHandler(const MediaDevice *media)
 	return match;
 }
 
+/*
+ * Survey all pipeline handler factories and return the known camera
+ * descriptors. Descriptors are cached because later surveys skip the media
+ * devices in use by live pipeline handler instances, and would otherwise drop
+ * the cameras already initialised. Called on the CM thread.
+ */
+std::vector<std::shared_ptr<CameraDescriptor>> CameraManager::Private::surveyThread()
+{
+	ASSERT(Thread::current() == this);
+
+	for (const PipelineHandlerFactoryBase *factory : pipelineFactories())
+		surveyFactory(factory);
+
+	return descriptors_;
+}
+
+/*
+ * Survey the cameras of a single pipeline handler factory and cache their
+ * descriptors. Called on the CM thread.
+ */
+void CameraManager::Private::surveyFactory(const PipelineHandlerFactoryBase *factory)
+{
+	ASSERT(Thread::current() == this);
+
+	CameraManager *const o = LIBCAMERA_O_PTR();
+
+	std::shared_ptr<PipelineHandler> pipe = factory->create(o);
+	std::vector<std::shared_ptr<CameraDescriptor>> descriptors;
+	int ret = pipe->survey(enumerator_.get(), &descriptors);
+	if (ret == -ENOTSUP) {
+		/* The pipeline handler does not support surveying. */
+		return;
+	} else if (ret < 0) {
+		LOG(Camera, Error)
+			<< "Failed to survey cameras for pipeline handler "
+			<< factory->name() << ": " << strerror(-ret);
+		return;
+	}
+
+	for (std::shared_ptr<CameraDescriptor> &descriptor : descriptors) {
+		/*
+		 * Record the factory that produced the descriptor, so that
+		 * initialize() can create a pipeline handler for it.
+		 */
+		descriptor->_d()->factory_ = factory;
+
+		auto match = [&](const auto &d) {
+			return d->id() == descriptor->id();
+		};
+		if (std::any_of(descriptors_.begin(), descriptors_.end(), match))
+			continue;
+
+		descriptors_.push_back(std::move(descriptor));
+	}
+}
+
 void CameraManager::Private::cleanup()
 {
 	enumerator_->devicesAdded.disconnect(this);
@@ -263,6 +336,8 @@ void CameraManager::Private::cleanup()
 		MutexLocker locker(mutex_);
 		started_ = false;
 	}
+
+	descriptors_.clear();
 
 	/*
 	 * Release all references to cameras to ensure they all get destroyed
@@ -455,6 +530,29 @@ void CameraManager::stop()
 	Private *const d = _d();
 	d->exit();
 	d->wait();
+}
+
+/**
+ * \brief Enumerate the cameras in the system without initialising them
+ *
+ * Enumerate the devices in the system and return a descriptor for every
+ * camera found, without initialising any camera.
+ *
+ * Only cameras of pipeline handlers that support surveying are reported.
+ * Cameras of other pipeline handlers are created by start() and reported by
+ * cameras() as before.
+ *
+ * Descriptors are reported in match order, grouped by pipeline handler.
+ * Descriptors of cameras removed from the system remain listed until the
+ * camera manager is stopped.
+ *
+ * This function starts the camera manager if it is not yet running.
+ *
+ * \return A list of descriptors for the cameras found in the system
+ */
+std::vector<std::shared_ptr<CameraDescriptor>> CameraManager::enumerate()
+{
+	return _d()->enumerate();
 }
 
 /**
