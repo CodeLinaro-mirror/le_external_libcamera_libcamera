@@ -16,6 +16,8 @@ namespace libcamera {
 namespace ipa::rppx1 {
 
 enum class StatsType : uint16_t {
+	ExmPre1,
+	HistPost,
 };
 
 namespace details {
@@ -31,6 +33,9 @@ struct stats_type {
 		static constexpr rppx1_stats_block_type blockType =	\
 			RPPX1_STATS_BLOCK_TYPE_##id;			\
 	};
+
+RPPX1_DEFINE_STATS_TYPE(ExmPre1, exm, EXM_PRE1)
+RPPX1_DEFINE_STATS_TYPE(HistPost, hist, HIST_POST)
 
 struct stats_traits {
 	using id_type = StatsType;

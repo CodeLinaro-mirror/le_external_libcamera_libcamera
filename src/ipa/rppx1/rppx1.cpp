@@ -27,6 +27,8 @@
 #include "libcamera/internal/mapped_framebuffer.h"
 #include "libcamera/internal/yaml_parser.h"
 
+#include <libipa/agc.h>
+
 #include "algorithms/algorithm.h"
 
 #include "ipa_context.h"
@@ -229,6 +231,9 @@ void IPARppX1::processStats(const uint32_t frame, const uint32_t bufferId,
 	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
 	ControlList metadata(controls::controls);
 
+	std::tie(frameContext.sensor.exposure, frameContext.sensor.gain) =
+		agc::extractControls(sensorControls, context_.camHelper.get());
+
 	for (auto const &a : algorithms()) {
 		Algorithm *algo = static_cast<Algorithm *>(a.get());
 		algo->process(context_, frame, frameContext, &stats, metadata);
@@ -249,9 +254,19 @@ void IPARppX1::updateControls(ControlInfoMap *ipaControls)
 
 void IPARppX1::setControls(unsigned int frame)
 {
-	[[maybe_unused]] IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+	IPAFrameContext &frameContext = context_.frameContexts.get(frame);
+
+	uint32_t exposure = frameContext.agc.exposure;
+	uint32_t vblank = frameContext.agc.vblank;
+
+	LOG(IPARppX1, Debug)
+		<< "Set controls for frame " << frame << ": exposure " << exposure
+		<< ", gain " << frameContext.agc.gain << ", vblank " << vblank;
 
 	ControlList ctrls(context_.sensorControls);
+	agc::prepareControls(ctrls, context_.camHelper.get(),
+			     exposure, frameContext.agc.gain);
+	ctrls.set(V4L2_CID_VBLANK, static_cast<int32_t>(vblank));
 
 	setSensorControls.emit(frame, ctrls);
 }
