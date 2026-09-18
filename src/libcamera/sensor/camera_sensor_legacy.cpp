@@ -302,10 +302,8 @@ int CameraSensorLegacy::init()
 
 int CameraSensorLegacy::generateId()
 {
-	const std::string devPath = subdev_->devicePath();
-
 	/* Try to get ID from firmware description. */
-	id_ = sysfs::firmwareNodePath(devPath);
+	id_ = CameraSensorFactoryBase::generateId(entity_);
 	if (!id_.empty())
 		return 0;
 
@@ -315,6 +313,8 @@ int CameraSensorLegacy::generateId()
 	 * Verify it's a platform device and construct ID from the device path
 	 * and model of sensor.
 	 */
+	const std::string devPath = sysfs::devicePath(entity_->deviceMajor(),
+						      entity_->deviceMinor());
 	if (devPath.find("/sys/devices/platform/", 0) == 0) {
 		id_ = devPath.substr(strlen("/sys/devices/")) + " " + model();
 		return 0;

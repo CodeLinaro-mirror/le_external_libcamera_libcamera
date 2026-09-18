@@ -92,6 +92,7 @@ public:
 	virtual ~CameraSensorFactoryBase() = default;
 
 	static std::unique_ptr<CameraSensor> create(MediaEntity *entity);
+	static std::string generateId(const MediaEntity *entity);
 
 	const std::string &name() const { return name_; }
 	int priority() const { return priority_; }

@@ -13,6 +13,7 @@
 #include <libcamera/base/log.h>
 
 #include "libcamera/internal/media_object.h"
+#include "libcamera/internal/sysfs.h"
 
 /**
  * \file camera_sensor.h
@@ -472,6 +473,32 @@ std::unique_ptr<CameraSensor> CameraSensorFactoryBase::create(MediaEntity *entit
 	}
 
 	return nullptr;
+}
+
+/**
+ * \brief Generate a unique ID for a camera sensor
+ * \param[in] entity The media entity that corresponds to the camera sensor
+ *
+ * The ID is derived from the firmware description (device tree or ACPI) of the
+ * device associated with the sensor's media \a entity. It is unique and stable
+ * as long as the system firmware is not modified. Sensors that the firmware
+ * does not describe have no ID.
+ *
+ * The ID is computed from sysfs only, using the device numbers stored in the
+ * media graph, without opening or otherwise accessing the sensor device.
+ *
+ * \sa sysfs::firmwareNodePath()
+ *
+ * \return The sensor ID on success or an empty string on failure
+ */
+std::string CameraSensorFactoryBase::generateId(const MediaEntity *entity)
+{
+	const std::string devPath = sysfs::devicePath(entity->deviceMajor(),
+						      entity->deviceMinor());
+	if (devPath.empty())
+		return {};
+
+	return sysfs::firmwareNodePath(devPath);
 }
 
 /**

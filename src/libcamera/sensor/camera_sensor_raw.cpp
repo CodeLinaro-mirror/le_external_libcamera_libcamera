@@ -37,7 +37,6 @@
 #include "libcamera/internal/camera_sensor_properties.h"
 #include "libcamera/internal/formats.h"
 #include "libcamera/internal/media_device.h"
-#include "libcamera/internal/sysfs.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 
 namespace libcamera {
@@ -571,7 +570,7 @@ int CameraSensorRaw::initProperties()
 	properties_.set(properties::Model, utils::toAscii(model_));
 
 	/* Generate a unique ID for the sensor. */
-	id_ = sysfs::firmwareNodePath(subdev_->devicePath());
+	id_ = CameraSensorFactoryBase::generateId(entity_);
 	if (id_.empty()) {
 		LOG(CameraSensor, Error) << "Can't generate sensor ID";
 		return -EINVAL;
