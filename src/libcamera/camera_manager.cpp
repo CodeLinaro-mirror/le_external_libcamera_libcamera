@@ -178,7 +178,37 @@ void CameraManager::Private::pipelineFactoryMatch(const PipelineHandlerFactoryBa
 		LOG(Camera, Debug)
 			<< "Pipeline handler \"" << factory->name()
 			<< "\" matched";
+
+		pipes_.push_back(pipe);
 	}
+}
+
+/*
+ * Find the active pipeline handler instance that has acquired the media device,
+ * if any. Expired entries are pruned from the registry as a side effect. Called
+ * from the CameraManager thread only.
+ */
+std::shared_ptr<PipelineHandler>
+CameraManager::Private::findMatchingHandler(const MediaDevice *media)
+{
+	ASSERT(Thread::current() == this);
+
+	std::shared_ptr<PipelineHandler> match;
+
+	for (auto it = pipes_.begin(); it != pipes_.end();) {
+		std::shared_ptr<PipelineHandler> pipe = it->lock();
+		if (!pipe) {
+			it = pipes_.erase(it);
+			continue;
+		}
+
+		if (!match && pipe->usesMediaDevice(media))
+			match = std::move(pipe);
+
+		++it;
+	}
+
+	return match;
 }
 
 void CameraManager::Private::cleanup()

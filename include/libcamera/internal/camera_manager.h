@@ -26,6 +26,8 @@ namespace libcamera {
 class Camera;
 class DeviceEnumerator;
 class IPAManager;
+class MediaDevice;
+class PipelineHandler;
 class PipelineHandlerFactoryBase;
 
 class CameraManager::Private : public Extensible::Private, public Thread
@@ -53,6 +55,7 @@ private:
 	int init();
 	void createPipelineHandlers();
 	void pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory);
+	std::shared_ptr<PipelineHandler> findMatchingHandler(const MediaDevice *media);
 	void cleanup() LIBCAMERA_TSA_EXCLUDES(mutex_);
 
 	/*
@@ -69,6 +72,12 @@ private:
 	int status_ LIBCAMERA_TSA_GUARDED_BY(mutex_);
 
 	std::unique_ptr<DeviceEnumerator> enumerator_;
+
+	/*
+	 * Active pipeline handler instances, accessed from the CameraManager
+	 * thread only.
+	 */
+	std::vector<std::weak_ptr<PipelineHandler>> pipes_;
 
 	std::unique_ptr<IPAManager> ipaManager_;
 
