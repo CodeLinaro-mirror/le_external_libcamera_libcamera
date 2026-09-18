@@ -22,6 +22,7 @@
 #include <vector>
 
 #include <linux/media-bus-format.h>
+#include <linux/videodev2.h>
 
 #include <libcamera/base/log.h>
 
@@ -668,7 +669,11 @@ int SimpleCameraData::init()
 	frameStartEmitter_ = nullptr;
 	for (const Entity &entity : entities_) {
 		V4L2Subdevice *sd = pipe->subdev(entity.entity);
-		if (!sd || !sd->supportsFrameStartEvent())
+
+		v4l2_event_subscription sub{};
+		sub.type = V4L2_EVENT_FRAME_SYNC;
+
+		if (!sd || !sd->supportsEvents(sub))
 			continue;
 
 		LOG(SimplePipeline, Debug)
