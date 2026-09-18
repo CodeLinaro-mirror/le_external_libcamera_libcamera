@@ -66,7 +66,7 @@ class LimitsRecorder
 public:
 	LimitsRecorder()
 		: min_(std::numeric_limits<T>::max()),
-		  max_(std::numeric_limits<T>::min())
+		  max_(std::numeric_limits<T>::lowest())
 	{
 	}
 
