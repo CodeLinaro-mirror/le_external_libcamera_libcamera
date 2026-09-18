@@ -55,7 +55,18 @@ CameraManager::Private::Private()
 
 int CameraManager::Private::start()
 {
-	return startThread();
+	int ret = startThread();
+	if (ret)
+		return ret;
+
+	/*
+	 * Create every camera in the system by enumerating followed by
+	 * initialisation. Cameras already initialised from a descriptor are
+	 * left untouched.
+	 */
+	invokeMethod(&Private::createCameras, ConnectionTypeBlocking);
+
+	return 0;
 }
 
 /*
@@ -183,8 +194,7 @@ int CameraManager::Private::init()
 	if (!enumerator_ || enumerator_->enumerate())
 		return -ENODEV;
 
-	createPipelineHandlers();
-	enumerator_->devicesAdded.connect(this, &Private::createPipelineHandlers);
+	enumerator_->devicesAdded.connect(this, &Private::createCameras);
 
 	return 0;
 }
@@ -235,16 +245,6 @@ std::vector<const PipelineHandlerFactoryBase *> CameraManager::Private::pipeline
 	}
 
 	return selected;
-}
-
-void CameraManager::Private::createPipelineHandlers()
-{
-	/*
-	 * Try each pipeline handler until it exhausts
-	 * all pipelines it can provide.
-	 */
-	for (const PipelineHandlerFactoryBase *factory : pipelineFactories())
-		pipelineFactoryMatch(factory);
 }
 
 void CameraManager::Private::pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory)
@@ -311,9 +311,10 @@ std::vector<std::shared_ptr<CameraDescriptor>> CameraManager::Private::surveyThr
 
 /*
  * Survey the cameras of a single pipeline handler factory and cache their
- * descriptors. Called on the CM thread.
+ * descriptors. Returns the result of the survey, -ENOTSUP if the pipeline
+ * handler does not support surveying. Called on the CM thread.
  */
-void CameraManager::Private::surveyFactory(const PipelineHandlerFactoryBase *factory)
+int CameraManager::Private::surveyFactory(const PipelineHandlerFactoryBase *factory)
 {
 	ASSERT(Thread::current() == this);
 
@@ -324,12 +325,12 @@ void CameraManager::Private::surveyFactory(const PipelineHandlerFactoryBase *fac
 	int ret = pipe->survey(enumerator_.get(), &descriptors);
 	if (ret == -ENOTSUP) {
 		/* The pipeline handler does not support surveying. */
-		return;
+		return ret;
 	} else if (ret < 0) {
 		LOG(Camera, Error)
 			<< "Failed to survey cameras for pipeline handler "
 			<< factory->name() << ": " << strerror(-ret);
-		return;
+		return ret;
 	}
 
 	for (std::shared_ptr<CameraDescriptor> &descriptor : descriptors) {
@@ -346,6 +347,35 @@ void CameraManager::Private::surveyFactory(const PipelineHandlerFactoryBase *fac
 			continue;
 
 		descriptors_.push_back(std::move(descriptor));
+	}
+
+	return 0;
+}
+
+/*
+ * Create every camera in the system. For each pipeline handler, enumerate its
+ * cameras and initialise them, or match it when it does not support surveying.
+ * Looping through one pipeline handler at a time keeps the cameras in the same
+ * order as repeated match() calls would create them. Cameras that already exist
+ * are left untouched. Called on the CM thread.
+ */
+void CameraManager::Private::createCameras()
+{
+	ASSERT(Thread::current() == this);
+
+	for (const PipelineHandlerFactoryBase *factory : pipelineFactories()) {
+		int ret = surveyFactory(factory);
+		if (ret == -ENOTSUP) {
+			pipelineFactoryMatch(factory);
+			continue;
+		} else if (ret < 0) {
+			continue;
+		}
+
+		for (const std::shared_ptr<CameraDescriptor> &descriptor : descriptors_) {
+			if (descriptor->_d()->factory_ == factory)
+				initializeThread(descriptor);
+		}
 	}
 }
 

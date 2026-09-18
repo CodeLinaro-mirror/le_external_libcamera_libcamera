@@ -59,12 +59,12 @@ private:
 	int init();
 	std::vector<const PipelineHandlerFactoryBase *> pipelineFactories() const;
 	int startThread() LIBCAMERA_TSA_EXCLUDES(mutex_);
-	void createPipelineHandlers();
 	void pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory);
 	std::shared_ptr<PipelineHandler> findMatchingHandler(const MediaDevice *media);
 
 	std::vector<std::shared_ptr<CameraDescriptor>> surveyThread() LIBCAMERA_TSA_EXCLUDES(mutex_);
-	void surveyFactory(const PipelineHandlerFactoryBase *factory) LIBCAMERA_TSA_EXCLUDES(mutex_);
+	int surveyFactory(const PipelineHandlerFactoryBase *factory);
+	void createCameras() LIBCAMERA_TSA_EXCLUDES(mutex_);
 	std::shared_ptr<Camera> initializeThread(std::shared_ptr<CameraDescriptor> descriptor);
 
 	void cleanup() LIBCAMERA_TSA_EXCLUDES(mutex_);
