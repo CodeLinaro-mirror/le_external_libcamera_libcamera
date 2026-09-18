@@ -109,11 +109,20 @@ PipelineHandler::~PipelineHandler()
  * If this function returns true, a new instance of the pipeline handler will
  * be created and its match() function called.
  *
+ * Pipeline handlers that report their cameras through survey() have them
+ * created by the camera manager without this function being called, and
+ * therefore do not need to implement it. The default implementation matches
+ * no device.
+ *
  * \context This function is called from the CameraManager thread.
  *
  * \return true if media devices have been acquired and camera instances
  * created, or false otherwise
  */
+bool PipelineHandler::match([[maybe_unused]] DeviceEnumerator *enumerator)
+{
+	return false;
+}
 
 /**
  * \brief Survey the media devices for cameras this pipeline handler supports

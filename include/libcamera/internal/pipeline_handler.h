@@ -40,7 +40,7 @@ public:
 			unsigned int maxQueuedRequestsDevice = 32);
 	virtual ~PipelineHandler();
 
-	virtual bool match(DeviceEnumerator *enumerator) = 0;
+	virtual bool match(DeviceEnumerator *enumerator);
 	virtual int survey(const DeviceEnumerator *enumerator,
 			   std::vector<std::shared_ptr<CameraDescriptor>> *descriptors);
 	virtual int createCamera(const CameraDescriptor *descriptor);
