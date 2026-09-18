@@ -116,6 +116,62 @@ PipelineHandler::~PipelineHandler()
  */
 
 /**
+ * \brief Survey the media devices for cameras this pipeline handler supports
+ * \param[in] enumerator The enumerator providing all media devices found in the
+ * system
+ * \param[out] descriptors The vector to which the descriptors of the cameras
+ * found are appended
+ *
+ * This function inspects the media devices provided by the \a enumerator and
+ * produces a camera descriptor for every camera that this pipeline handler
+ * supports. It shall not acquire any media device, open any device node, or
+ * alter any hardware state.
+ *
+ * Unlike match(), a single call shall report the cameras of all matching
+ * pipeline instances in the system, in the same order as repeated match() calls
+ * would register them.
+ *
+ * Pipeline handlers that do not implement this function do not support camera
+ * enumeration through CameraManager::enumerate(), and their cameras are only
+ * created through match().
+ *
+ * A pipeline handler that supports surveying shall return 0 and append a
+ * descriptor to \a descriptors for every camera it finds. Pipeline handlers
+ * that don't support surveying return -ENOTSUP from the default implementation.
+ *
+ * \context This function is called from the CameraManager thread.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \retval -ENOTSUP The pipeline handler does not support surveying
+ */
+int PipelineHandler::survey([[maybe_unused]] const DeviceEnumerator *enumerator,
+			    [[maybe_unused]] std::vector<std::shared_ptr<CameraDescriptor>> *descriptors)
+{
+	return -ENOTSUP;
+}
+
+/**
+ * \brief Create and register the camera described by a descriptor
+ * \param[in] descriptor The descriptor of the camera to create
+ *
+ * This function performs the initialisation of a single camera previously
+ * reported by survey(). It shall acquire the media devices for the camera,
+ * unless this pipeline handler instance has already acquired them for a
+ * previously created camera, perform the same per-camera initialisation as
+ * match(), and register the camera with the camera manager.
+ *
+ * \context This function is called from the CameraManager thread.
+ *
+ * \return 0 on success or a negative error code otherwise
+ * \retval -ENOTSUP The pipeline handler does not support camera creation from
+ * a descriptor
+ */
+int PipelineHandler::createCamera([[maybe_unused]] const CameraDescriptor *descriptor)
+{
+	return -ENOTSUP;
+}
+
+/**
  * \brief Search and acquire a MediaDevice matching a device pattern
  * \param[in] enumerator Enumerator containing all media devices in the system
  * \param[in] dm Device match pattern
@@ -146,6 +202,25 @@ PipelineHandler::acquireMediaDevice(DeviceEnumerator *enumerator,
 	mediaDevices_.push_back(media);
 
 	return media;
+}
+
+/**
+ * \brief Check if this pipeline handler instance uses a media device
+ * \param[in] media The media device to check for
+ *
+ * \context This function shall be called from the CameraManager thread.
+ *
+ * \return True if \a media has been acquired by this pipeline handler
+ * instance, otherwise false
+ */
+bool PipelineHandler::usesMediaDevice(const MediaDevice *media) const
+{
+	for (const std::shared_ptr<MediaDevice> &m : mediaDevices_) {
+		if (m.get() == media)
+			return true;
+	}
+
+	return false;
 }
 
 /**

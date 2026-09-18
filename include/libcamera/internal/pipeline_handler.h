@@ -24,6 +24,7 @@ namespace libcamera {
 
 class Camera;
 class CameraConfiguration;
+class CameraDescriptor;
 class DeviceEnumerator;
 class DeviceMatch;
 class FrameBuffer;
@@ -40,8 +41,12 @@ public:
 	virtual ~PipelineHandler();
 
 	virtual bool match(DeviceEnumerator *enumerator) = 0;
+	virtual int survey(const DeviceEnumerator *enumerator,
+			   std::vector<std::shared_ptr<CameraDescriptor>> *descriptors);
+	virtual int createCamera(const CameraDescriptor *descriptor);
 	std::shared_ptr<MediaDevice> acquireMediaDevice(DeviceEnumerator *enumerator,
 							const DeviceMatch &dm);
+	bool usesMediaDevice(const MediaDevice *media) const;
 
 	bool acquire(Camera *camera);
 	void release(Camera *camera);
