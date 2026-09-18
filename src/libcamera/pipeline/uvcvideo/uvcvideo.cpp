@@ -129,6 +129,72 @@ std::optional<controls::ExposureTimeModeEnum> v4l2ToExposureMode(int32_t x)
 	}
 }
 
+/*
+ * Generate the camera ID from the sysfs path of the UVC device video node. The
+ * path is derived from the device numbers of the media entity, so the ID can be
+ * generated without opening the video device.
+ */
+std::string generateIdFromPath(const std::string &path)
+{
+	/* Create a controller ID from first device described in firmware. */
+	std::string controllerId;
+	std::string searchPath = path;
+	while (true) {
+		std::string::size_type pos = searchPath.rfind('/');
+		if (pos <= 1) {
+			LOG(UVC, Error) << "Can not find controller ID";
+			return {};
+		}
+
+		searchPath = searchPath.substr(0, pos);
+
+		controllerId = sysfs::firmwareNodePath(searchPath);
+		if (!controllerId.empty())
+			break;
+	}
+
+	/*
+	 * Create a USB ID from the device path which has the known format:
+	 *
+	 *	path = bus, "-", ports, ":", config, ".", interface ;
+	 *	bus = number ;
+	 *	ports = port, [ ".", ports ] ;
+	 *	port = number ;
+	 *	config = number ;
+	 *	interface = number ;
+	 *
+	 * Example: 3-2.4:1.0
+	 *
+	 * The bus is not guaranteed to be stable and needs to be stripped from
+	 * the USB ID. The final USB ID is built up of the ports, config and
+	 * interface properties.
+	 *
+	 * Example 2.4:1.0.
+	 */
+	std::string usbId = utils::basename(path.c_str());
+	usbId = usbId.substr(usbId.find('-') + 1);
+
+	/* Creata a device ID from the USB devices vendor and product ID. */
+	std::string deviceId;
+	for (const char *name : { "idVendor", "idProduct" }) {
+		std::ifstream file(path + "/../" + name);
+
+		if (!file.is_open())
+			return {};
+
+		std::string value;
+		std::getline(file, value);
+		file.close();
+
+		if (!deviceId.empty())
+			deviceId += ":";
+
+		deviceId += value;
+	}
+
+	return controllerId + "-" + usbId + "-" + deviceId;
+}
+
 } /* namespace */
 
 UVCCameraConfiguration::UVCCameraConfiguration(UVCCameraData *data)
@@ -628,66 +694,9 @@ int UVCCameraData::init(std::shared_ptr<MediaDevice> media)
 
 bool UVCCameraData::generateId()
 {
-	const std::string path = video_->devicePath();
+	id_ = generateIdFromPath(video_->devicePath());
 
-	/* Create a controller ID from first device described in firmware. */
-	std::string controllerId;
-	std::string searchPath = path;
-	while (true) {
-		std::string::size_type pos = searchPath.rfind('/');
-		if (pos <= 1) {
-			LOG(UVC, Error) << "Can not find controller ID";
-			return false;
-		}
-
-		searchPath = searchPath.substr(0, pos);
-
-		controllerId = sysfs::firmwareNodePath(searchPath);
-		if (!controllerId.empty())
-			break;
-	}
-
-	/*
-	 * Create a USB ID from the device path which has the known format:
-	 *
-	 *	path = bus, "-", ports, ":", config, ".", interface ;
-	 *	bus = number ;
-	 *	ports = port, [ ".", ports ] ;
-	 *	port = number ;
-	 *	config = number ;
-	 *	interface = number ;
-	 *
-	 * Example: 3-2.4:1.0
-	 *
-	 * The bus is not guaranteed to be stable and needs to be stripped from
-	 * the USB ID. The final USB ID is built up of the ports, config and
-	 * interface properties.
-	 *
-	 * Example 2.4:1.0.
-	 */
-	std::string usbId = utils::basename(path.c_str());
-	usbId = usbId.substr(usbId.find('-') + 1);
-
-	/* Creata a device ID from the USB devices vendor and product ID. */
-	std::string deviceId;
-	for (const char *name : { "idVendor", "idProduct" }) {
-		std::ifstream file(path + "/../" + name);
-
-		if (!file.is_open())
-			return false;
-
-		std::string value;
-		std::getline(file, value);
-		file.close();
-
-		if (!deviceId.empty())
-			deviceId += ":";
-
-		deviceId += value;
-	}
-
-	id_ = controllerId + "-" + usbId + "-" + deviceId;
-	return true;
+	return !id_.empty();
 }
 
 void UVCCameraData::addControl(uint32_t cid, const ControlInfo &v4l2Info,
