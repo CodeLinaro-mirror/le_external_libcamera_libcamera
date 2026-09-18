@@ -45,6 +45,7 @@ public:
 	virtual int enumerate() = 0;
 
 	std::shared_ptr<MediaDevice> search(const DeviceMatch &dm);
+	std::vector<std::shared_ptr<MediaDevice>> searchAll(const DeviceMatch &dm) const;
 
 	Signal<> devicesAdded;
 

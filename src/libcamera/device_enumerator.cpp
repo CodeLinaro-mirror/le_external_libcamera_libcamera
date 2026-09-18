@@ -362,4 +362,35 @@ std::shared_ptr<MediaDevice> DeviceEnumerator::search(const DeviceMatch &dm)
 	return nullptr;
 }
 
+/**
+ * \brief Search available media devices for all pattern matches
+ * \param[in] dm Search pattern
+ *
+ * Search in the enumerated media devices that are not already in use for
+ * matches described in \a dm. Unlike search(), all matching media devices are
+ * returned instead of the first match only. The caller shall not use the
+ * returned devices for capture without acquiring them first.
+ *
+ * \return A vector of matching MediaDevice instances, empty if no match is
+ * found
+ */
+std::vector<std::shared_ptr<MediaDevice>> DeviceEnumerator::searchAll(const DeviceMatch &dm) const
+{
+	std::vector<std::shared_ptr<MediaDevice>> matches;
+
+	for (const std::shared_ptr<MediaDevice> &media : devices_) {
+		if (media->busy())
+			continue;
+
+		if (dm.match(media.get())) {
+			LOG(DeviceEnumerator, Debug)
+				<< "Successful match for media device \""
+				<< media->driver() << "\"";
+			matches.push_back(media);
+		}
+	}
+
+	return matches;
+}
+
 } /* namespace libcamera */
