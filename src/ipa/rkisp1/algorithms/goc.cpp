@@ -50,7 +50,7 @@ int GammaOutCorrection::init(IPAContext &context, const ValueNode &tuningData)
 		return -EINVAL;
 	}
 
-	std::array<unsigned int, kNumLutSegments> segments = {
+	static constexpr std::array<unsigned int, kNumLutSegments> segments = {
 		 64,  64,  64,  64, 128, 128, 128, 128,
 		256, 256, 256, 512, 512, 512, 512, 512
 	};
