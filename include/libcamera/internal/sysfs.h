@@ -15,6 +15,9 @@ namespace sysfs {
 
 std::string charDevPath(const std::string &deviceNode);
 
+std::string devicePath(const std::string &deviceNode);
+std::string devicePath(unsigned int deviceMajor, unsigned int deviceMinor);
+
 std::string firmwareNodePath(const std::string &device);
 
 } /* namespace sysfs */

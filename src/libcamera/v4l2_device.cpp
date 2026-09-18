@@ -454,17 +454,10 @@ const struct v4l2_query_ext_ctrl *V4L2Device::controlInfo(uint32_t id) const
  */
 std::string V4L2Device::devicePath() const
 {
-	std::string devicePath = sysfs::charDevPath(deviceNode_) + "/device";
-
-	char *realPath = realpath(devicePath.c_str(), nullptr);
-	if (!realPath) {
+	std::string path = sysfs::devicePath(deviceNode_);
+	if (path.empty())
 		LOG(V4L2, Fatal)
-			<< "Can not resolve device path for " << devicePath;
-		return {};
-	}
-
-	std::string path{ realPath };
-	free(realPath);
+			<< "Can not resolve device path for " << deviceNode_;
 
 	return path;
 }

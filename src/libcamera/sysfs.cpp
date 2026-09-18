@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <stdlib.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
 
@@ -25,6 +26,26 @@ namespace libcamera {
 LOG_DEFINE_CATEGORY(SysFs)
 
 namespace sysfs {
+
+namespace {
+
+/*
+ * Resolve the "device" symbolic link of a sysfs character device directory to
+ * the sysfs path of the physical device associated with it.
+ */
+std::string resolveDevicePath(const std::string &charDevDir)
+{
+	char *realPath = realpath((charDevDir + "/device").c_str(), nullptr);
+	if (!realPath)
+		return {};
+
+	std::string path{ realPath };
+	free(realPath);
+
+	return path;
+}
+
+} /* namespace */
 
 /**
  * \brief Retrieve the sysfs path for a character device
@@ -47,6 +68,46 @@ std::string charDevPath(const std::string &deviceNode)
 	dev << major(st.st_rdev) << ":" << minor(st.st_rdev);
 
 	return dev.str();
+}
+
+/**
+ * \brief Retrieve the sysfs path of the physical device for a character device
+ * \param[in] deviceNode Path to character device node
+ *
+ * Retrieve the sysfs path of the physical device associated with the character
+ * device \a deviceNode. The path is absolute and contains no symbolic link.
+ *
+ * \return The device path on success or an empty string on failure
+ */
+std::string devicePath(const std::string &deviceNode)
+{
+	std::string path = charDevPath(deviceNode);
+	if (path.empty())
+		return {};
+
+	return resolveDevicePath(path);
+}
+
+/**
+ * \brief Retrieve the sysfs path of the physical device for a character device
+ * \param[in] deviceMajor The character device major number
+ * \param[in] deviceMinor The character device minor number
+ *
+ * Retrieve the sysfs path of the physical device associated with the character
+ * device identified by \a deviceMajor and \a deviceMinor. The path is absolute
+ * and contains no symbolic link.
+ *
+ * Unlike the device node variant of this function, resolving the device from
+ * its device numbers requires no access to the device node itself.
+ *
+ * \return The device path on success or an empty string on failure
+ */
+std::string devicePath(unsigned int deviceMajor, unsigned int deviceMinor)
+{
+	std::ostringstream dev("/sys/dev/char/", std::ios_base::ate);
+	dev << deviceMajor << ":" << deviceMinor;
+
+	return resolveDevicePath(dev.str());
 }
 
 /**
