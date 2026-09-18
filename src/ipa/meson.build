@@ -27,6 +27,7 @@ ipa_sign = files('ipa-sign.sh')
 supported_ipas = {
     'ipu3':       'ipu3',
     'mali-c55':   'mali-c55',
+    'rcar-gen4':  'rppx1',
     'rkisp1':     'rkisp1',
     'rpi/pisp':   'rpi/pisp',
     'rpi/vc4':    'rpi/vc4',
