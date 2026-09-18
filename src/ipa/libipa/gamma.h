@@ -8,6 +8,7 @@
 #pragma once
 
 #include <cmath>
+#include <optional>
 #include <span>
 #include <vector>
 
@@ -46,15 +47,15 @@ public:
 	{
 	}
 
-	int init(ControlInfoMap::Map &controls, const ValueNode &tuningData,
-		 std::span<const unsigned int> segments = {});
-
 	void configure(gamma::ActiveState &state);
 	void queueRequest(gamma::ActiveState &state, const uint32_t frame,
 			  gamma::FrameContext &context, const ControlList &controls);
 	void process(gamma::FrameContext &context, ControlList &metadata);
 
 protected:
+	int init(ControlInfoMap::Map &controls, const ValueNode &tuningData,
+		 std::optional<std::span<const unsigned int>> segmentLengths);
+
 	unsigned int nLutNodes_;
 	float defaultGamma_;
 	std::vector<float> kneePoints_;
@@ -69,6 +70,12 @@ public:
 	GammaAlgorithm()
 		: GammaAlgorithmBase(NLutNodes)
 	{
+	}
+
+	int init(ControlInfoMap::Map &controls, const ValueNode &tuningData,
+		 std::optional<std::span<const unsigned int, NLutNodes - 1>> segments = {})
+	{
+		return GammaAlgorithmBase::init(controls, tuningData, segments);
 	}
 
 	template<typename T>
