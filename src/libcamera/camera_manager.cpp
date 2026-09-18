@@ -91,11 +91,25 @@ void CameraManager::Private::run()
 	cleanup();
 }
 
+/*
+ * Retrieve the IPA manager, constructing it on first use. IPA modules are
+ * only needed once a camera is initialised, so this defers the module scan
+ * until that point.
+ */
+IPAManager *CameraManager::Private::ipaManager()
+{
+	ASSERT(Thread::current() == this);
+
+	if (!ipaManager_) {
+		CameraManager *const o = LIBCAMERA_O_PTR();
+		ipaManager_ = std::make_unique<IPAManager>(*o);
+	}
+
+	return ipaManager_.get();
+}
+
 int CameraManager::Private::init()
 {
-	CameraManager *const o = LIBCAMERA_O_PTR();
-	ipaManager_ = std::make_unique<IPAManager>(*o);
-
 	enumerator_ = DeviceEnumerator::create();
 	if (!enumerator_ || enumerator_->enumerate())
 		return -ENODEV;
@@ -270,8 +284,8 @@ void CameraManager::Private::removeCamera(std::shared_ptr<Camera> camera)
 
 /**
  * \fn CameraManager::Private::ipaManager() const
- * \brief Retrieve the IPAManager
- * \context This function is \threadsafe.
+ * \brief Retrieve the IPAManager, constructing it on first use
+ * \context This function shall be called from the CameraManager thread.
  * \return The IPAManager for this CameraManager
  */
 #endif /* __DOXYGEN_PUBLIC__ */

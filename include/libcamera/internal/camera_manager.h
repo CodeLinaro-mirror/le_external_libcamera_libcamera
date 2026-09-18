@@ -44,7 +44,7 @@ public:
 		return configuration_;
 	}
 
-	IPAManager *ipaManager() const { return ipaManager_.get(); }
+	IPAManager *ipaManager();
 
 protected:
 	void run() override;
