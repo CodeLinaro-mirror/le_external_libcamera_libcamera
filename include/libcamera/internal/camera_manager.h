@@ -53,6 +53,7 @@ protected:
 
 private:
 	int init();
+	std::vector<const PipelineHandlerFactoryBase *> pipelineFactories() const;
 	void createPipelineHandlers();
 	void pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory);
 	std::shared_ptr<PipelineHandler> findMatchingHandler(const MediaDevice *media);

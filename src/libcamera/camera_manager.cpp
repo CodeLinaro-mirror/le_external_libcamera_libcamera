@@ -120,8 +120,15 @@ int CameraManager::Private::init()
 	return 0;
 }
 
-void CameraManager::Private::createPipelineHandlers()
+/*
+ * Retrieve the pipeline handler factories to consider, in match order. When a
+ * list of preferred pipelines is defined in the configuration, the ordered list
+ * is exclusive. Otherwise all factories are returned in registration order.
+ */
+std::vector<const PipelineHandlerFactoryBase *> CameraManager::Private::pipelineFactories() const
 {
+	std::vector<const PipelineHandlerFactoryBase *> selected;
+
 	/*
 	 * \todo Try to read handlers and order from configuration
 	 * file and only fallback on environment variable or all handlers, if
@@ -129,11 +136,9 @@ void CameraManager::Private::createPipelineHandlers()
 	 */
 	const auto pipesList =
 		configuration().listOption({ "pipelines_match_list" });
+
+	/* The configured list is exclusive, skip all other factories. */
 	if (pipesList.has_value()) {
-		/*
-		 * When a list of preferred pipelines is defined, iterate
-		 * through the ordered list to match the enumerated devices.
-		 */
 		for (const auto &pipeName : pipesList.value()) {
 			const PipelineHandlerFactoryBase *factory;
 			factory = PipelineHandlerFactoryBase::getFactoryByName(pipeName);
@@ -143,10 +148,10 @@ void CameraManager::Private::createPipelineHandlers()
 			LOG(Camera, Debug)
 				<< "Found listed pipeline handler '"
 				<< pipeName << "'";
-			pipelineFactoryMatch(factory);
+			selected.push_back(factory);
 		}
 
-		return;
+		return selected;
 	}
 
 	const std::vector<PipelineHandlerFactoryBase *> &factories =
@@ -157,12 +162,20 @@ void CameraManager::Private::createPipelineHandlers()
 		LOG(Camera, Debug)
 			<< "Found registered pipeline handler '"
 			<< factory->name() << "'";
-		/*
-		 * Try each pipeline handler until it exhaust
-		 * all pipelines it can provide.
-		 */
-		pipelineFactoryMatch(factory);
+		selected.push_back(factory);
 	}
+
+	return selected;
+}
+
+void CameraManager::Private::createPipelineHandlers()
+{
+	/*
+	 * Try each pipeline handler until it exhausts
+	 * all pipelines it can provide.
+	 */
+	for (const PipelineHandlerFactoryBase *factory : pipelineFactories())
+		pipelineFactoryMatch(factory);
 }
 
 void CameraManager::Private::pipelineFactoryMatch(const PipelineHandlerFactoryBase *factory)
