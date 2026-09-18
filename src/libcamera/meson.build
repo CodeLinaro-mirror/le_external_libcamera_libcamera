@@ -2,6 +2,7 @@
 
 libcamera_public_sources = files([
     'camera.cpp',
+    'camera_descriptor.cpp',
     'camera_manager.cpp',
     'color_space.cpp',
     'controls.cpp',
