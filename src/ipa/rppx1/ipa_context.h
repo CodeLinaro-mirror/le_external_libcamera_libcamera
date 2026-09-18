@@ -42,6 +42,10 @@ struct IPAActiveState {
 	} agc;
 
 	ipa::awb::ActiveState awb;
+
+	struct {
+		double lux;
+	} lux;
 };
 
 struct IPAFrameContext : public FrameContext {
@@ -56,6 +60,10 @@ struct IPAFrameContext : public FrameContext {
 	} agc;
 
 	ipa::awb::FrameContext awb;
+
+	struct {
+		double lux;
+	} lux;
 };
 
 struct IPAContext {

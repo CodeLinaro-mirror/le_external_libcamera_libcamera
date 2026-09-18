@@ -376,6 +376,7 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 			},
 			.exposure = frameContext.sensor.exposure,
 			.gain = frameContext.sensor.gain,
+			.lux = frameContext.lux.lux,
 		}}, metadata);
 	} else {
 		agc_.process(context.configuration.agc, context.activeState.agc, frameContext.agc, {}, metadata);

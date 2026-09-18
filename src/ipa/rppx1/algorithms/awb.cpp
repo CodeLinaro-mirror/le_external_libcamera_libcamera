@@ -209,7 +209,7 @@ void Awb::process(IPAContext &context,
 	RppX1AwbStats awbStats = calculateRgbMeans(frameContext, *awb);
 
 	awbAlgo_.process(context.activeState.awb, frameContext.awb, awbStats,
-			 0, metadata);
+			 frameContext.lux.lux, metadata);
 }
 
 RppX1AwbStats Awb::calculateRgbMeans(const IPAFrameContext &frameContext,
