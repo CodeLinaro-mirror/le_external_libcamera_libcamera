@@ -47,7 +47,7 @@ public:
 	}
 
 	int init(ControlInfoMap::Map &controls, const ValueNode &tuningData,
-		 std::span<unsigned int> segments = {});
+		 std::span<const unsigned int> segments = {});
 
 	void configure(gamma::ActiveState &state);
 	void queueRequest(gamma::ActiveState &state, const uint32_t frame,

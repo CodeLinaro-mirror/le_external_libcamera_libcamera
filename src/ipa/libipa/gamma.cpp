@@ -109,7 +109,7 @@ const float kDefaultGamma = 2.2f;
  * @return 0 on success, a negative error code otherwise
  */
 int GammaAlgorithmBase::init(ControlInfoMap::Map &controls, const ValueNode &tuningData,
-			     std::span<unsigned int> segments)
+			     std::span<const unsigned int> segments)
 {
 	/*
 	 * If the caller doesn't pass in a segment list we simply construct the
