@@ -63,6 +63,8 @@ protected:
 template<unsigned int NLutNodes, typename UQ>
 class GammaAlgorithm : public GammaAlgorithmBase
 {
+	static_assert(NLutNodes >= 2);
+
 public:
 	GammaAlgorithm()
 		: GammaAlgorithmBase(NLutNodes)
