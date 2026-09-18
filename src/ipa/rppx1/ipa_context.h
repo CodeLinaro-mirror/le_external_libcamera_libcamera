@@ -22,6 +22,7 @@
 #include <libipa/camera_sensor_helper.h>
 #include <libipa/fc_queue.h>
 #include <libipa/gamma.h>
+#include <libipa/lsc.h>
 
 namespace libcamera {
 
@@ -49,6 +50,8 @@ struct IPAActiveState {
 
 	ipa::gamma::ActiveState goc;
 
+	ipa::lsc::ActiveState lsc;
+
 	struct {
 		double lux;
 	} lux;
@@ -70,6 +73,8 @@ struct IPAFrameContext : public FrameContext {
 	ipa::ccm::FrameContext ccm;
 
 	ipa::gamma::FrameContext goc;
+
+	ipa::lsc::FrameContext lsc;
 
 	struct {
 		double lux;
