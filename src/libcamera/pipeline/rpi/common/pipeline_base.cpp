@@ -873,7 +873,7 @@ int PipelineHandlerBase::registerCamera(std::unique_ptr<RPi::CameraData> &camera
 
 	/* Setup the general IPA signal handlers. */
 	data->frontendDevice()->dequeueTimeout.connect(data, &RPi::CameraData::cameraTimeout);
-	data->frontendDevice()->frameStart.connect(data, &RPi::CameraData::frameStarted);
+	data->frontendDevice()->eventReady.connect(data, &RPi::CameraData::handleEvent);
 	data->ipa_->setDelayedControls.connect(data, &CameraData::setDelayedControls);
 	data->ipa_->setLensControls.connect(data, &CameraData::setLensControls);
 	data->ipa_->metadataReady.connect(data, &CameraData::metadataReady);
@@ -1392,12 +1392,17 @@ void CameraData::cameraTimeout()
 	clearIncompleteRequests();
 }
 
-void CameraData::frameStarted(uint32_t sequence)
+void CameraData::handleEvent(const v4l2_event &event)
 {
-	LOG(RPI, Debug) << "Frame start " << sequence;
+	if (event.type != V4L2_EVENT_FRAME_SYNC)
+		return;
+
+	auto frameSyncEvent = &event.u.frame_sync;
+
+	LOG(RPI, Debug) << "Frame start " << frameSyncEvent->frame_sequence;
 
 	/* Write any controls for the next frame as soon as we can. */
-	delayedCtrls_->applyControls(sequence);
+	delayedCtrls_->applyControls(frameSyncEvent->frame_sequence);
 }
 
 void CameraData::clearIncompleteRequests()

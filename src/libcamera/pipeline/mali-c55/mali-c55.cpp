@@ -17,6 +17,7 @@
 #include <linux/media-bus-format.h>
 #include <linux/media.h>
 #include <linux/media/arm/mali-c55-config.h>
+#include <linux/videodev2.h>
 
 #include <libcamera/base/log.h>
 #include <libcamera/base/utils.h>
@@ -197,6 +198,8 @@ public:
 
 	PixelFormat adjustRawFormat(const PixelFormat &pixFmt) const;
 	Size adjustRawSizes(const PixelFormat &pixFmt, const Size &rawSize) const;
+
+	void handleEvent(const v4l2_event &event);
 
 	Stream frStream_;
 	Stream dsStream_;
@@ -449,6 +452,15 @@ Size MaliC55CameraData::adjustRawSizes(const PixelFormat &rawFmt, const Size &si
 	}
 
 	return bestSize;
+}
+
+void MaliC55CameraData::handleEvent(const v4l2_event &event)
+{
+	if (event.type != V4L2_EVENT_FRAME_SYNC)
+		return;
+
+	auto frameSyncEvent = &event.u.frame_sync;
+	delayedCtrls_->applyControls(frameSyncEvent->frame_sequence);
 }
 
 int MaliC55CameraData::loadIPA()
@@ -1849,8 +1861,7 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 		V4L2Subdevice *sensorSubdev = in->sensor_->device();
 		data->delayedCtrls_ = std::make_unique<DelayedControls>(sensorSubdev,
 									params);
-		isp_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
+		isp_->eventReady.connect(data.get(), &MaliC55CameraData::handleEvent);
 
 		/* \todo Init properties. */
 
@@ -1913,8 +1924,7 @@ bool PipelineHandlerMaliC55::registerMemoryInputCamera(MediaLink *link)
 
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(sensor->device(), params);
-	isp_->frameStart.connect(data->delayedCtrls_.get(),
-				 &DelayedControls::applyControls);
+	isp_->eventReady.connect(data.get(), &MaliC55CameraData::handleEvent);
 
 	ivc_->bufferReady.connect(mem->cru_.get(), &RZG2LCRU::returnBuffer);
 

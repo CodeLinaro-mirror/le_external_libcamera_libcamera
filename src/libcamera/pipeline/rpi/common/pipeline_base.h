@@ -36,6 +36,8 @@
 
 using namespace std::chrono_literals;
 
+struct v4l2_event;
+
 namespace libcamera {
 
 namespace RPi {
@@ -86,7 +88,7 @@ public:
 	virtual void platformSetIspCrop(unsigned int index, const Rectangle &ispCrop) = 0;
 
 	void cameraTimeout();
-	void frameStarted(uint32_t sequence);
+	void handleEvent(const v4l2_event &event);
 
 	void clearIncompleteRequests();
 	void handleStreamBuffer(FrameBuffer *buffer, Stream *stream);
