@@ -702,7 +702,9 @@ int PipelineHandlerBase::start(Camera *camera, const ControlList *controls)
 	data->state_ = CameraData::State::Idle;
 
 	/* Enable SOF event generation. */
-	data->frontendDevice()->setFrameStartEnabled(true);
+	v4l2_event_subscription sub{};
+	sub.type = V4L2_EVENT_FRAME_SYNC;
+	data->frontendDevice()->setEventsEnabled(sub, true);
 
 	data->platformStart();
 
@@ -731,7 +733,9 @@ void PipelineHandlerBase::stopDevice(Camera *camera)
 	}
 
 	/* Disable SOF event generation. */
-	data->frontendDevice()->setFrameStartEnabled(false);
+	v4l2_event_subscription sub{};
+	sub.type = V4L2_EVENT_FRAME_SYNC;
+	data->frontendDevice()->setEventsEnabled(sub, false);
 
 	data->clearIncompleteRequests();
 

@@ -1682,7 +1682,9 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 
 	data->delayedCtrls_->reset();
 	if (frameStartEmitter) {
-		ret = frameStartEmitter->setFrameStartEnabled(true);
+		v4l2_event_subscription sub{};
+		sub.type = V4L2_EVENT_FRAME_SYNC;
+		ret = frameStartEmitter->setEventsEnabled(sub, true);
 		if (ret) {
 			stop(camera);
 			return ret;
@@ -1726,7 +1728,9 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 	V4L2Subdevice *frameStartEmitter = data->frameStartEmitter_;
 
 	if (frameStartEmitter) {
-		frameStartEmitter->setFrameStartEnabled(false);
+		v4l2_event_subscription sub{};
+		sub.type = V4L2_EVENT_FRAME_SYNC;
+		frameStartEmitter->setEventsEnabled(sub, false);
 		frameStartEmitter->eventReady.connect(data,
 						      &SimpleCameraData::handleEvent);
 	}
