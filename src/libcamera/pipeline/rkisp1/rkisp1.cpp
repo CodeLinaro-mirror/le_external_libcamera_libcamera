@@ -44,6 +44,7 @@
 #include "libcamera/internal/media_pipeline.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
+#include "libcamera/internal/v4l2_event.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 #include "libcamera/internal/yaml_parser.h"
@@ -105,6 +106,8 @@ public:
 	PipelineHandlerRkISP1 *pipe();
 	const PipelineHandlerRkISP1 *pipe() const;
 	int loadIPA(unsigned int hwRevision, uint32_t supportedBlocks);
+
+	void handleEvent(std::shared_ptr<V4L2Event> event);
 
 	Stream mainPathStream_;
 	Stream selfPathStream_;
@@ -428,6 +431,15 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision, uint32_t supportedBlocks)
 	}
 
 	return 0;
+}
+
+void RkISP1CameraData::handleEvent(std::shared_ptr<V4L2Event> event)
+{
+	if (event->type() != V4L2Event::Type::FrameSync)
+		return;
+
+	auto frameSyncEvent = static_cast<V4L2FrameSyncEvent *>(event.get());
+	delayedCtrls_->applyControls(frameSyncEvent->sequence());
 }
 
 int RkISP1CameraData::loadTuningFile(const std::string &path)
@@ -1472,8 +1484,7 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	isp_->frameStart.connect(data->delayedCtrls_.get(),
-				 &DelayedControls::applyControls);
+	isp_->eventReady.connect(data.get(), &RkISP1CameraData::handleEvent);
 
 	uint32_t supportedBlocks = kDefaultExtParamsBlocks;
 

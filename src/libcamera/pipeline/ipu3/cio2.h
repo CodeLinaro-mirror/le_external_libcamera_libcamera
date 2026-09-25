@@ -13,6 +13,7 @@
 
 #include <libcamera/base/signal.h>
 
+#include "libcamera/internal/v4l2_event.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -58,7 +59,7 @@ public:
 	FrameBuffer *queueBuffer(FrameBuffer *rawBuffer);
 	void tryReturnBuffer(FrameBuffer *buffer);
 	Signal<FrameBuffer *> &bufferReady() { return output_->bufferReady; }
-	Signal<uint32_t> &frameStart() { return csi2_->frameStart; }
+	Signal<std::shared_ptr<V4L2Event>> &eventReady() { return csi2_->eventReady; }
 
 	Signal<> bufferAvailable;
 

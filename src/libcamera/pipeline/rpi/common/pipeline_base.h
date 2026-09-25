@@ -25,6 +25,7 @@
 #include "libcamera/internal/media_object.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
+#include "libcamera/internal/v4l2_event.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 #include "libcamera/internal/value_node.h"
 
@@ -86,7 +87,7 @@ public:
 	virtual void platformSetIspCrop(unsigned int index, const Rectangle &ispCrop) = 0;
 
 	void cameraTimeout();
-	void frameStarted(uint32_t sequence);
+	void handleEvent(std::shared_ptr<V4L2Event> event);
 
 	void clearIncompleteRequests();
 	void handleStreamBuffer(FrameBuffer *buffer, Stream *stream);

@@ -503,7 +503,7 @@ bool V4L2Device::supportsEvents(V4L2EventSubscription &sub)
  * \param[in] enable True to enable frame start events, false to disable them
  *
  * This function enables or disables generation of frame start events. Once
- * enabled, the events are signalled through the frameStart signal.
+ * enabled, the events are signalled through the eventReady signal.
  *
  * \return 0 on success, a negative error code otherwise
  */
@@ -528,8 +528,8 @@ int V4L2Device::setFrameStartEnabled(bool enable)
 }
 
 /**
- * \var V4L2Device::frameStart
- * \brief A Signal emitted when capture of a frame has started
+ * \var V4L2Device::eventReady
+ * \brief A Signal emitted when a V4L2 event is received
  */
 
 /**
@@ -867,15 +867,15 @@ void V4L2Device::eventAvailable()
 		return;
 	}
 
-	if (event.type != V4L2_EVENT_FRAME_SYNC) {
+	auto v4l2Event = V4L2Event::createEvent(&event);
+	if (!v4l2Event) {
 		LOG(V4L2, Error)
-			<< "Spurious event (" << event.type
-			<< "), disabling event notifier";
+			<< "Invalid V4L2 Event type, disabling event notifier";
 		fdEventNotifier_->setEnabled(false);
 		return;
 	}
 
-	frameStart.emit(event.u.frame_sync.frame_sequence);
+	eventReady.emit(v4l2Event);
 }
 
 static const std::map<uint32_t, ColorSpace> v4l2ToColorSpace = {

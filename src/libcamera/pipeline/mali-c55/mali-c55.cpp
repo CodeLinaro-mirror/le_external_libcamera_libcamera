@@ -42,6 +42,7 @@
 #include "libcamera/internal/media_device.h"
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
+#include "libcamera/internal/v4l2_event.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -197,6 +198,8 @@ public:
 
 	PixelFormat adjustRawFormat(const PixelFormat &pixFmt) const;
 	Size adjustRawSizes(const PixelFormat &pixFmt, const Size &rawSize) const;
+
+	void handleEvent(std::shared_ptr<V4L2Event> event);
 
 	Stream frStream_;
 	Stream dsStream_;
@@ -449,6 +452,15 @@ Size MaliC55CameraData::adjustRawSizes(const PixelFormat &rawFmt, const Size &si
 	}
 
 	return bestSize;
+}
+
+void MaliC55CameraData::handleEvent(std::shared_ptr<V4L2Event> event)
+{
+	if (event->type() != V4L2Event::Type::FrameSync)
+		return;
+
+	auto frameSyncEvent = static_cast<V4L2FrameSyncEvent *>(event.get());
+	delayedCtrls_->applyControls(frameSyncEvent->sequence());
 }
 
 int MaliC55CameraData::loadIPA()
@@ -1849,8 +1861,7 @@ bool PipelineHandlerMaliC55::registerSensorCamera(MediaLink *ispLink)
 		V4L2Subdevice *sensorSubdev = in->sensor_->device();
 		data->delayedCtrls_ = std::make_unique<DelayedControls>(sensorSubdev,
 									params);
-		isp_->frameStart.connect(data->delayedCtrls_.get(),
-					 &DelayedControls::applyControls);
+		isp_->eventReady.connect(data.get(), &MaliC55CameraData::handleEvent);
 
 		/* \todo Init properties. */
 
@@ -1913,8 +1924,7 @@ bool PipelineHandlerMaliC55::registerMemoryInputCamera(MediaLink *link)
 
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(sensor->device(), params);
-	isp_->frameStart.connect(data->delayedCtrls_.get(),
-				 &DelayedControls::applyControls);
+	isp_->eventReady.connect(data.get(), &MaliC55CameraData::handleEvent);
 
 	ivc_->bufferReady.connect(mem->cru_.get(), &RZG2LCRU::returnBuffer);
 

@@ -63,7 +63,7 @@ public:
 	void statBufferReady(FrameBuffer *buffer);
 	void queuePendingRequests();
 	void cancelPendingRequests();
-	void frameStart(uint32_t sequence);
+	void handleEvent(std::shared_ptr<V4L2Event> event);
 
 	CIO2Device cio2_;
 	ImgUDevice *imgu_;
@@ -1089,8 +1089,8 @@ int PipelineHandlerIPU3::registerCameras()
 		data->delayedCtrls_ =
 			std::make_unique<DelayedControls>(cio2->sensor()->device(),
 							  params);
-		data->cio2_.frameStart().connect(data.get(),
-						 &IPU3CameraData::frameStart);
+		data->cio2_.eventReady().connect(data.get(),
+						 &IPU3CameraData::handleEvent);
 
 		/* Convert the sensor rotation to a transformation */
 		const auto &rotation = data->properties_.get(properties::Rotation);
@@ -1313,7 +1313,7 @@ void IPU3CameraData::cio2BufferReady(FrameBuffer *buffer)
 	 * Record the sensor's timestamp in the request metadata.
 	 *
 	 * \todo The sensor timestamp should be better estimated by connecting
-	 * to the V4L2Device::frameStart signal.
+	 * to the V4L2Device::eventReady signal for FrameSync events.
 	 */
 	request->_d()->metadata().set(controls::SensorTimestamp,
 				      buffer->metadata().timestamp);
@@ -1382,9 +1382,14 @@ void IPU3CameraData::statBufferReady(FrameBuffer *buffer)
  * TestPatternMode one. Other controls are handled through the delayed
  * controls class.
  */
-void IPU3CameraData::frameStart(uint32_t sequence)
+
+void IPU3CameraData::handleEvent(std::shared_ptr<V4L2Event> event)
 {
-	delayedCtrls_->applyControls(sequence);
+	if (event->type() != V4L2Event::Type::FrameSync)
+		return;
+
+	auto frameSyncEvent = static_cast<V4L2FrameSyncEvent *>(event.get());
+	delayedCtrls_->applyControls(frameSyncEvent->sequence());
 
 	if (processingRequests_.empty())
 		return;

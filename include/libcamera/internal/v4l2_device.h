@@ -49,7 +49,7 @@ public:
 
 	bool supportsEvents(V4L2EventSubscription &sub);
 	int setFrameStartEnabled(bool enable);
-	Signal<uint32_t> frameStart;
+	Signal<std::shared_ptr<V4L2Event>> eventReady;
 
 	void updateControlInfo();
 
