@@ -53,6 +53,7 @@ libcamera_internal_sources = files([
     'source_paths.cpp',
     'sysfs.cpp',
     'v4l2_device.cpp',
+    'v4l2_event.cpp',
     'v4l2_pixelformat.cpp',
     'v4l2_request.cpp',
     'v4l2_subdevice.cpp',
