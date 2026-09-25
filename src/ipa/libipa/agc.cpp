@@ -650,6 +650,7 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
 
 /**
  * \brief Prepare a frame
+ * \param[in] session The agc session configuration
  * \param[in] state The agc active state
  * \param[in] frameContext The agc frame context
  *
@@ -659,11 +660,10 @@ void AgcAlgorithm::queueRequest(const agc::Session &session, agc::ActiveState &s
  * \ref agc::FrameContext::gain "frameContext.gain" will be finalized
  * and may be used by the caller (see agc::prepareControls()).
  *
- * \todo Finalize \ref agc::FrameContext::vblank "frameContext.vblank" as well
- *
  * \sa Algorithm::prepare()
  */
-void AgcAlgorithm::prepare(agc::ActiveState &state, agc::FrameContext &frameContext)
+void AgcAlgorithm::prepare(const agc::Session &session, agc::ActiveState &state,
+			   agc::FrameContext &frameContext)
 {
 	uint32_t activeAutoExposure = state.automatic.exposure;
 	double activeAutoGain = state.automatic.gain;
@@ -694,6 +694,8 @@ void AgcAlgorithm::prepare(agc::ActiveState &state, agc::FrameContext &frameCont
 	}
 
 	frameContext.yTarget = state.automatic.yTarget;
+
+	processFrameDuration(session, frameContext);
 }
 
 /**
@@ -724,7 +726,6 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 			   ControlList &metadata)
 {
 	if (!params) {
-		processFrameDuration(session, frameContext, frameContext.minFrameDuration);
 		fillMetadata(session, frameContext, metadata);
 		return;
 	}
@@ -828,13 +829,6 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
 		<< "quantization-gain: " << state.automatic.quantizationGain << ", "
 		<< "digital-gain: " << state.automatic.digitalGain;
 
-	/*
-	 * Expand the target frame duration so that we do not run faster than
-	 * the minimum frame duration when we have short exposures.
-	 */
-	processFrameDuration(session, frameContext,
-			     std::max(frameContext.minFrameDuration, newExposureTime));
-
 	fillMetadata(session, frameContext, metadata);
 }
 
@@ -842,22 +836,26 @@ void AgcAlgorithm::process(const agc::Session &session, agc::ActiveState &state,
  * \brief Process frame duration and compute vblank
  * \param[in] session The session parameters
  * \param[in] frameContext The current frame context
- * \param[in] frameDuration The target frame duration
  *
- * Compute and populate vblank from the target frame duration.
+ * Compute and populate vblank for \a frameContext.
  */
 void AgcAlgorithm::processFrameDuration(const agc::Session &session,
-					agc::FrameContext &frameContext,
-					utils::Duration frameDuration)
+					agc::FrameContext &frameContext)
 {
 	const utils::Duration &lineDuration = session.lineDuration;
 
-	frameContext.vblank =
-		(frameDuration / lineDuration) - session.sensor.outputSize.height;
+	/*
+	 * Expand the target frame duration so that we do not run faster than
+	 * the minimum frame duration when we have short exposures.
+	 */
+	const auto frameLength = std::max<uint32_t>(
+		frameContext.minFrameDuration / lineDuration,
+		frameContext.exposure);
+
+	frameContext.vblank = frameLength - session.sensor.outputSize.height;
 
 	/* Update frame duration accounting for line length quantization. */
-	frameContext.frameDuration =
-		(session.sensor.outputSize.height + frameContext.vblank) * lineDuration;
+	frameContext.frameDuration = frameLength * lineDuration;
 }
 
 void AgcAlgorithm::fillMetadata(const agc::Session &session,
