@@ -24,6 +24,7 @@
 #include <libcamera/controls.h>
 
 #include "libcamera/internal/formats.h"
+#include "libcamera/internal/v4l2_event.h"
 #include "libcamera/internal/v4l2_request.h"
 
 namespace libcamera {
@@ -46,7 +47,7 @@ public:
 	const std::string &deviceNode() const { return deviceNode_; }
 	std::string devicePath() const;
 
-	bool supportsFrameStartEvent();
+	bool supportsEvents(V4L2EventSubscription &sub);
 	int setFrameStartEnabled(bool enable);
 	Signal<uint32_t> frameStart;
 

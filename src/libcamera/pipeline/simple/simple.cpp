@@ -45,6 +45,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/request.h"
 #include "libcamera/internal/software_isp/software_isp.h"
+#include "libcamera/internal/v4l2_event.h"
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
@@ -668,7 +669,8 @@ int SimpleCameraData::init()
 	frameStartEmitter_ = nullptr;
 	for (const Entity &entity : entities_) {
 		V4L2Subdevice *sd = pipe->subdev(entity.entity);
-		if (!sd || !sd->supportsFrameStartEvent())
+		V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+		if (!sd || !sd->supportsEvents(sub))
 			continue;
 
 		LOG(SimplePipeline, Debug)
