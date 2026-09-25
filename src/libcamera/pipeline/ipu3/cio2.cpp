@@ -356,7 +356,8 @@ int CIO2Device::start()
 		return ret;
 	}
 
-	ret = csi2_->setFrameStartEnabled(true);
+	V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+	ret = csi2_->setEventsEnabled(sub, true);
 	if (ret) {
 		stop();
 		return ret;
@@ -369,7 +370,8 @@ int CIO2Device::stop()
 {
 	int ret;
 
-	csi2_->setFrameStartEnabled(false);
+	V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+	csi2_->setEventsEnabled(sub, false);
 
 	ret = output_->streamOff();
 

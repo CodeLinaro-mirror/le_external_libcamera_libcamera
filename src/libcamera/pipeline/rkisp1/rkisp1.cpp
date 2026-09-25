@@ -1305,7 +1305,8 @@ int PipelineHandlerRkISP1::start(Camera *camera, [[maybe_unused]] const ControlL
 			return ret;
 	}
 
-	isp_->setFrameStartEnabled(true);
+	V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+	isp_->setEventsEnabled(sub, true);
 
 	activeCamera_ = camera;
 
@@ -1318,7 +1319,8 @@ void PipelineHandlerRkISP1::stopDevice(Camera *camera)
 	RkISP1CameraData *data = cameraData(camera);
 	int ret;
 
-	isp_->setFrameStartEnabled(false);
+	V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+	isp_->setEventsEnabled(sub, false);
 
 	data->ipa_->stop();
 
@@ -1654,7 +1656,7 @@ void PipelineHandlerRkISP1::imageBufferReady(FrameBuffer *buffer)
 		 * Record the sensor's timestamp in the request metadata.
 		 *
 		 * \todo The sensor timestamp should be better estimated by connecting
-		 * to the V4L2Device::frameStart signal.
+		 * to the V4L2Device::FrameSync signal.
 		 */
 		request->_d()->metadata().set(controls::SensorTimestamp,
 					      metadata.timestamp);

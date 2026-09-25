@@ -1393,7 +1393,8 @@ int PipelineHandlerMaliC55::start(Camera *camera, [[maybe_unused]] const Control
 		return ret;
 	}
 
-	ret = isp_->setFrameStartEnabled(true);
+	V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+	ret = isp_->setEventsEnabled(sub, true);
 	if (ret)
 		LOG(MaliC55, Error) << "Failed to enable frame start events";
 
@@ -1404,7 +1405,8 @@ void PipelineHandlerMaliC55::stopDevice(Camera *camera)
 {
 	MaliC55CameraData *data = cameraData(camera);
 
-	isp_->setFrameStartEnabled(false);
+	V4L2EventSubscription sub(V4L2Event::Type::FrameSync);
+	isp_->setEventsEnabled(sub, false);
 
 	if (auto *mem = std::get_if<MaliC55CameraData::Memory>(&data->input_)) {
 		ivc_->streamOff();
