@@ -246,12 +246,14 @@ int AwbAlgorithmBase::init(const ValueNode &tuningData)
  */
 int AwbAlgorithmBase::configure(awb::ActiveState &state)
 {
-	state.manual.gains = RGB<double>{ 1.0 };
 	auto gains = impl_->gainsFromColourTemperature(kDefaultColourTemperature);
-	if (gains)
+	if (gains) {
+		state.manual.gains = *gains;
 		state.automatic.gains = *gains;
-	else
+	} else {
+		state.manual.gains = RGB<double>{ 1.0 };
 		state.automatic.gains = RGB<double>{ 1.0 };
+	}
 
 	state.autoEnabled = true;
 	state.manual.colourTemperature = kDefaultColourTemperature;
@@ -286,6 +288,10 @@ void AwbAlgorithmBase::queueRequest(awb::ActiveState &state,
 	const auto &awbEnable = controls.get(controls::AwbEnable);
 	if (awbEnable && *awbEnable != state.autoEnabled) {
 		state.autoEnabled = *awbEnable;
+		if (state.autoEnabled)
+			convergedState_ = controls::AwbStateEnum::AwbStateSearching;
+		else
+			convergedState_ = controls::AwbStateEnum::AwbStateLocked;
 
 		LOG(Awb, Debug)
 			<< (*awbEnable ? "Enabling" : "Disabling") << " Awb";
@@ -444,6 +450,9 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 	updateConvergedState(state.automatic.gains, newGains);
 	state.automatic.colourTemperature = awbResult.colourTemperature;
 	state.automatic.gains = newGains;
+
+	if (state.autoEnabled)
+		state.manual.gains = newGains;
 
 	/* Populate metadata. */
 	metadata.set(controls::AwbEnable, frameContext.autoEnabled);
