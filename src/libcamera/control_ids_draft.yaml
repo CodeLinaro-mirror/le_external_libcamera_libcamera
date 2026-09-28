@@ -80,28 +80,6 @@ controls:
             High quality aberration correction which might reduce the frame
             rate.
 
-  - AwbState:
-      type: int32_t
-      direction: out
-      description: |
-       Control to report the current AWB algorithm state. Currently identical
-       to ANDROID_CONTROL_AWB_STATE.
-
-        Current state of the AWB algorithm.
-      enum:
-        - name: AwbStateInactive
-          value: 0
-          description: The AWB algorithm is inactive.
-        - name: AwbStateSearching
-          value: 1
-          description: The AWB algorithm has not converged yet.
-        - name: AwbConverged
-          value: 2
-          description: The AWB algorithm has converged.
-        - name: AwbLocked
-          value: 3
-          description: The AWB algorithm is locked.
-
   - SensorRollingShutterSkew:
       type: int64_t
       direction: out

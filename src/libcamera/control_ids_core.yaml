@@ -568,17 +568,49 @@ controls:
           value: 7
           description: Custom AWB mode.
 
-  - AwbLocked:
-      type: bool
+  - AwbState:
+      type: int32_t
       direction: out
       description: |
-        Report the lock status of a running AWB algorithm.
+        Reports the current AWB algorithm state. Where the algorithm has
+        calculated colour gains that differ by more than 5% from the preceding
+        frame the state will be reported as Searching. Where the calculated
+        colour gains are within that margin the state will be reported as
+        Converged. Where the algorithm has been disabled via the AwbEnable
+        control and a re-scan has not been triggered by the AwbTrigger control
+        the state will be reported as Locked.
 
-        If the AWB algorithm is locked the value shall be set to true, if it's
-        converging it shall be set to false. If the AWB algorithm is not
-        running the control shall not be present in the metadata control list.
+        Note that there is no concept of an "idle" state. Whether the automatic
+        gains are applied is controlled by the AwbEnable control, but regardless
+        of the state of that control the automatic calculation of gains will be
+        performed for every frame.
+
+        \sa AwbLocked
+        \sa AwbTrigger
+
+      enum:
+        - name: AwbStateSearching
+          value: 0
+          description: The AWB algorithm has not converged yet.
+        - name: AwbStateConverged
+          value: 1
+          description: The AWB algorithm has converged.
+        - name: AwbStateLocked
+          value: 2
+          description: The AWB algorithm is locked.
+
+  - AwbTrigger:
+      type: bool
+      direction: in
+      description: |
+        Trigger a re-scan of the AWB algorithm in its Locked state. This causes
+        the state to drop to AwbSearching until the algorithm determines that it
+        has converged.
+
+        If AwbEnable is set true, then this control has no effect.
 
         \sa AwbEnable
+        \sa AwbState
 
   - ColourGains:
       type: float
