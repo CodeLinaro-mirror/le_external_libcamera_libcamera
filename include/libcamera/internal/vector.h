@@ -344,6 +344,50 @@ bool operator==(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
 }
 
 template<typename T, unsigned int Rows>
+bool operator>(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
+{
+	for (unsigned int i = 0; i < Rows; i++) {
+		if (lhs[i] > rhs[i])
+			return true;
+	}
+
+	return false;
+}
+
+template<typename T, unsigned int Rows>
+bool operator>=(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
+{
+	for (unsigned int i = 0; i < Rows; i++) {
+		if (lhs[i] >= rhs[i])
+			return true;
+	}
+
+	return false;
+}
+
+template<typename T, unsigned int Rows>
+bool operator<=(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
+{
+	for (unsigned int i = 0; i < Rows; i++) {
+		if (lhs[i] <= rhs[i])
+			return true;
+	}
+
+	return false;
+}
+
+template<typename T, unsigned int Rows>
+bool operator<(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
+{
+	for (unsigned int i = 0; i < Rows; i++) {
+		if (lhs[i] < rhs[i])
+			return true;
+	}
+
+	return false;
+}
+
+template<typename T, unsigned int Rows>
 bool operator!=(const Vector<T, Rows> &lhs, const Vector<T, Rows> &rhs)
 {
 	return !(lhs == rhs);
