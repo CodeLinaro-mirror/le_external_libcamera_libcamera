@@ -235,6 +235,7 @@ int AwbAlgorithmBase::init(const ValueNode &tuningData)
 		ControlInfo(kMinColourTemperature, kMaxColourTemperature,
 			    kDefaultColourTemperature);
 	controls_[&controls::AwbEnable] = ControlInfo(false, true);
+	controls_[&controls::AwbTrigger] = ControlInfo(false, true);
 
 	return parseModeConfigs(tuningData, controls::AwbAuto);
 }
@@ -306,6 +307,13 @@ void AwbAlgorithmBase::queueRequest(awb::ActiveState &state,
 		}
 
 		currentMode_ = &it->second;
+	}
+
+	auto trigger = controls.get(controls::AwbTrigger);
+	if (trigger && *trigger && !state.autoEnabled) {
+		lockedCount_ = 0;
+		convergedState_ = controls::AwbStateEnum::AwbStateSearching;
+		rescanning_ = true;
 	}
 
 	frameContext.autoEnabled = state.autoEnabled;
@@ -447,12 +455,20 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 
 	RGB<double> newGains = awbResult.gains * speed +
 			       state.automatic.gains * (1 - speed);
-	updateConvergedState(state.automatic.gains, newGains);
+	if (state.autoEnabled || rescanning_)
+		updateConvergedState(state.automatic.gains, newGains);
 	state.automatic.colourTemperature = awbResult.colourTemperature;
 	state.automatic.gains = newGains;
 
 	if (state.autoEnabled)
 		state.manual.gains = newGains;
+
+	if (rescanning_ &&
+	    convergedState_ == controls::AwbStateEnum::AwbStateConverged) {
+		state.manual.gains = newGains;
+		rescanning_ = false;
+		convergedState_ = controls::AwbStateEnum::AwbStateLocked;
+	}
 
 	/* Populate metadata. */
 	metadata.set(controls::AwbEnable, frameContext.autoEnabled);

@@ -112,6 +112,7 @@ private:
 	controls::AwbStateEnum convergedState_;
 	RGB<double> convergedGains_;
 	unsigned int lockedCount_;
+	bool rescanning_;
 };
 
 template<typename Q>
