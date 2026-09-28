@@ -17,6 +17,8 @@
 constexpr int32_t kMinColourTemperature = 2500;
 constexpr int32_t kMaxColourTemperature = 10000;
 constexpr int32_t kDefaultColourTemperature = 5000;
+constexpr double kConvergenceErrorMargin = 0.10;
+constexpr unsigned int kNumFramesForConvergence = 5;
 
 /**
  * \file awb.h
@@ -255,6 +257,8 @@ int AwbAlgorithmBase::configure(awb::ActiveState &state)
 	state.manual.colourTemperature = kDefaultColourTemperature;
 	state.automatic.colourTemperature = kDefaultColourTemperature;
 
+	lockedCount_ = 0;
+
 	return 0;
 }
 
@@ -351,6 +355,57 @@ void AwbAlgorithmBase::prepare(awb::ActiveState &state,
 	}
 }
 
+/*
+ * We want to assess whether the algorithm has "converged" or not. When we're in
+ * the Searching state then we look for stability of the calculated gains within
+ * 10% of the previous frame's calculated gain, for at least 5 frames. Greater
+ * than 10% but within 15% difference does not count towards those 5 frames, but
+ * will not reset the count. More than 15% difference from the last frame resets
+ * it.
+ *
+ * Once we have reached convergence the gains that were calculated for that
+ * frame are recorded, and future frames gains are compared against those gains
+ * instead of the previous frame's gains. A difference greater than 10% will
+ * cause the state to return to Searching.
+ */
+void AwbAlgorithmBase::updateConvergedState(RGB<double> &oldGains, RGB<double> &newGains)
+{
+	if (convergedState_ == controls::AwbStateEnum::AwbStateSearching) {
+		RGB<double> smallGainError = oldGains * kConvergenceErrorMargin;
+		RGB<double> bigGainError = smallGainError * 1.5;
+
+		if (newGains <= oldGains - bigGainError ||
+		    newGains >= oldGains + bigGainError) {
+			lockedCount_ = 0;
+		} else if (newGains <= oldGains - smallGainError ||
+			   newGains >= oldGains + smallGainError) {
+			// do nothing in this case
+		} else {
+			lockedCount_ = std::min(lockedCount_ + 1, kNumFramesForConvergence);
+		}
+
+		if (lockedCount_ == kNumFramesForConvergence) {
+			convergedGains_ = newGains;
+			convergedState_ = controls::AwbStateEnum::AwbStateConverged;
+		}
+
+		return;
+	}
+
+	/*
+	 * If we're not AwbStateSearching then we're converged, and we check to
+	 * make sure that we have not strayed too far from the converged gains.
+	 */
+
+	RGB<double> gainError = convergedGains_ * kConvergenceErrorMargin;
+
+	if (newGains < convergedGains_ - gainError ||
+	    newGains > convergedGains_ + gainError) {
+		convergedState_ = controls::AwbStateEnum::AwbStateSearching;
+		lockedCount_ = 0;
+	}
+}
+
 /**
  * \brief Process AWB statistics to calculate gains and populate metadata
  * \param[in] state The AWB active state
@@ -384,15 +439,18 @@ void AwbAlgorithmBase::process(awb::ActiveState &state,
 	double ct = awbResult.colourTemperature;
 	ct = ct * speed + state.automatic.colourTemperature * (1 - speed);
 
+	RGB<double> newGains = awbResult.gains * speed +
+			       state.automatic.gains * (1 - speed);
+	updateConvergedState(state.automatic.gains, newGains);
 	state.automatic.colourTemperature = awbResult.colourTemperature;
-	state.automatic.gains = awbResult.gains * speed +
-				state.automatic.gains * (1 - speed);
+	state.automatic.gains = newGains;
 
 	/* Populate metadata. */
 	metadata.set(controls::AwbEnable, frameContext.autoEnabled);
 	metadata.set(controls::ColourGains, { static_cast<float>(frameContext.gains.r()),
 					      static_cast<float>(frameContext.gains.b()) });
 	metadata.set(controls::ColourTemperature, frameContext.colourTemperature);
+	metadata.set(controls::AwbState, convergedState_);
 
 	LOG(Awb, Debug) << std::showpoint << "Means " << stats.rgbMeans()
 			<< ", gains " << state.automatic.gains

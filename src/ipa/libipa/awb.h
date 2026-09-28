@@ -102,11 +102,16 @@ private:
 
 	int parseModeConfigs(const ValueNode &tuningData,
 			     const ControlValue &def = {});
+	void updateConvergedState(RGB<double> &oldGains, RGB<double> &newGains);
 
 	std::map<controls::AwbModeEnum, AwbAlgorithmBase::ModeConfig> modes_;
 	const ModeConfig *currentMode_ = nullptr;
 	std::unique_ptr<AwbImplementation> impl_;
 	bool bayes_ = false;
+
+	controls::AwbStateEnum convergedState_;
+	RGB<double> convergedGains_;
+	unsigned int lockedCount_;
 };
 
 template<typename Q>
