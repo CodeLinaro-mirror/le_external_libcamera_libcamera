@@ -52,7 +52,7 @@ struct IPAActiveState {
 	struct {
 		float gamma;
 		/* 0..2 range, 1.0 = normal */
-		std::optional<float> contrast;
+		float contrast;
 		std::optional<float> saturation;
 	} knobs;
 };
@@ -68,7 +68,7 @@ struct IPAFrameContext : public FrameContext {
 	} sensor;
 
 	float gamma;
-	std::optional<float> contrast;
+	float contrast;
 	std::optional<float> saturation;
 };
 
