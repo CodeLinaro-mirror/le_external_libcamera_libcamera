@@ -61,6 +61,17 @@ int DebayerEGL::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 						   formats::XBGR8888,
 						   formats::ABGR8888 };
 
+	/* Handle Monochrome case using bayerFormat */
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		bool isPacked = (bayerFormat.packing == BayerFormat::Packing::CSI2);
+
+		config.bpp = bayerFormat.bitDepth; /* Dynamic (10 bits for this sensor) */
+		config.patternSize.width = isPacked ? 4 : 1;
+		config.patternSize.height = 1; /* No 2x2 pattern in monochrome */
+		config.outputFormats = outputFormats;
+		return 0;
+	}
+
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
 	    isStandardBayerOrder(bayerFormat.order)) {
@@ -166,6 +177,11 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	shaderStridePixels_ = inputConfig_.stride;
 
 	switch (inputFormat) {
+	/* Monochrome cases: No color phase, proper initialization to 0 for R10 and R10_CSI2P */
+	case libcamera::formats::R10:
+		firstRed_x_ = 0.0;
+		firstRed_y_ = 0.0;
+		break;
 	case libcamera::formats::SBGGR8:
 	case libcamera::formats::SBGGR10_CSI2P:
 	case libcamera::formats::SBGGR12_CSI2P:
@@ -197,6 +213,25 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 
 	/* Shader selection */
 	switch (inputFormat) {
+	case libcamera::formats::R10: {
+		/* Raw 10-bit Monochrome Case (Handles both Packed R10_CSI2P and Unpacked R10 sharing the same value) */
+		BayerFormat bayerFormat = BayerFormat::fromPixelFormat(inputFormat);
+
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			fragmentShaderData = raw_mono_unpacked_frag;
+			vertexShaderData = bayer_unpacked_vert;
+			glFormat_ = GL_RG;
+			bytesPerPixel_ = 2;
+		} else {
+			fragmentShaderData = raw_mono_1x_packed_frag;
+			vertexShaderData = identity_vert;
+			/* Use configured input stride instead of theoretical width */
+			glFormat_ = GL_LUMINANCE;
+			bytesPerPixel_ = 1;
+			shaderStridePixels_ = inputConfig_.stride;
+		}
+		break;
+	}
 	case libcamera::formats::SBGGR8:
 	case libcamera::formats::SGBRG8:
 	case libcamera::formats::SGRBG8:
@@ -515,6 +550,13 @@ eGLImage *DebayerEGL::getCachedInputFrameBuffer(FrameBuffer *input, std::optiona
 
 		eglImageInCache_.emplace_back(fd, std::make_unique<eGLImage>(glFormat_, inputConfig_.stride / bytesPerPixel_, height_, inputConfig_.stride, GL_TEXTURE0, 0));
 		eglImageIn = eglImageInCache_.back().second.get();
+
+		/* Force GL_NEAREST to preserve LSBs of packed monochrome format */
+		BayerFormat bayerFormat = BayerFormat::fromPixelFormat(inputPixelFormat_);
+		if (bayerFormat.order == BayerFormat::Order::MONO && bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		}
 
 		if (egl_.createInputDMABufTexture2D(*eglImageIn, input->planes()[0].fd.get()) == 0)
 			return eglImageIn;
