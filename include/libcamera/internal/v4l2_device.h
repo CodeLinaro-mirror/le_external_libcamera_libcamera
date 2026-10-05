@@ -10,6 +10,7 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <span>
 #include <stdint.h>
 #include <vector>
@@ -47,7 +48,7 @@ public:
 	std::string devicePath() const;
 
 	bool supportsEvents(v4l2_event_subscription &sub);
-	int setFrameStartEnabled(bool enable);
+	int setEventsEnabled(v4l2_event_subscription &sub, bool enable);
 	Signal<const v4l2_event &> eventReady;
 
 	void updateControlInfo();
@@ -90,7 +91,7 @@ private:
 	UniqueFD fd_;
 
 	std::unique_ptr<EventNotifier> fdEventNotifier_;
-	bool frameStartEnabled_;
+	std::set<std::tuple<uint32_t, uint32_t>> subscribedEvents_;
 };
 
 } /* namespace libcamera */

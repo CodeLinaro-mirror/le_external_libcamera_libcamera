@@ -57,8 +57,7 @@ LOG_DEFINE_CATEGORY(V4L2)
  * at open() time, and the \a logTag to prefix log messages with.
  */
 V4L2Device::V4L2Device(const std::string &deviceNode)
-	: deviceNode_(deviceNode), fdEventNotifier_(nullptr),
-	  frameStartEnabled_(false)
+	: deviceNode_(deviceNode), fdEventNotifier_(nullptr)
 {
 }
 
@@ -489,30 +488,35 @@ bool V4L2Device::supportsEvents(v4l2_event_subscription &sub)
 }
 
 /**
- * \brief Enable or disable frame start event notification
+ * \brief Enable or event notifications
+ * \param[in] sub Details of the event to subscribe to
  * \param[in] enable True to enable frame start events, false to disable them
  *
- * This function enables or disables generation of frame start events. Once
- * enabled, the events are signalled through the eventReady signal.
+ * This function enables or disables generation of events for a particular
+ * subscriptions. Once enabled, the events are signalled through the eventReady
+ * signal.
  *
  * \return 0 on success, a negative error code otherwise
  */
-int V4L2Device::setFrameStartEnabled(bool enable)
+int V4L2Device::setEventsEnabled(v4l2_event_subscription &sub, bool enable)
 {
-	if (frameStartEnabled_ == enable)
-		return 0;
+	std::tuple<uint32_t, uint32_t> subTypeId(sub.type, sub.id);
 
-	struct v4l2_event_subscription event{};
-	event.type = V4L2_EVENT_FRAME_SYNC;
+	if (subscribedEvents_.contains(subTypeId))
+		return 0;
 
 	unsigned long request = enable ? VIDIOC_SUBSCRIBE_EVENT
 			      : VIDIOC_UNSUBSCRIBE_EVENT;
-	int ret = ioctl(request, &event);
+	int ret = ioctl(request, &sub);
 	if (enable && ret)
 		return ret;
 
 	fdEventNotifier_->setEnabled(enable);
-	frameStartEnabled_ = enable;
+
+	if (enable)
+		subscribedEvents_.insert(subTypeId);
+	else
+		subscribedEvents_.erase(subTypeId);
 
 	return ret;
 }
