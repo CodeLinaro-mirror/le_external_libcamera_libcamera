@@ -106,6 +106,8 @@ public:
 	const PipelineHandlerRkISP1 *pipe() const;
 	int loadIPA(unsigned int hwRevision, uint32_t supportedBlocks);
 
+	void handleEvent(const v4l2_event &event);
+
 	Stream mainPathStream_;
 	Stream selfPathStream_;
 	std::unique_ptr<CameraSensor> sensor_;
@@ -428,6 +430,15 @@ int RkISP1CameraData::loadIPA(unsigned int hwRevision, uint32_t supportedBlocks)
 	}
 
 	return 0;
+}
+
+void RkISP1CameraData::handleEvent(const v4l2_event &event)
+{
+	if (event.type != V4L2_EVENT_FRAME_SYNC)
+		return;
+
+	auto frameSyncEvent = &event.u.frame_sync;
+	delayedCtrls_->applyControls(frameSyncEvent->frame_sequence);
 }
 
 int RkISP1CameraData::loadTuningFile(const std::string &path)
@@ -1472,8 +1483,7 @@ int PipelineHandlerRkISP1::createCamera(MediaEntity *sensor)
 	data->delayedCtrls_ =
 		std::make_unique<DelayedControls>(data->sensor_->device(),
 						  params);
-	isp_->frameStart.connect(data->delayedCtrls_.get(),
-				 &DelayedControls::applyControls);
+	isp_->eventReady.connect(data.get(), &RkISP1CameraData::handleEvent);
 
 	uint32_t supportedBlocks = kDefaultExtParamsBlocks;
 

@@ -16,6 +16,8 @@
 #include "libcamera/internal/v4l2_subdevice.h"
 #include "libcamera/internal/v4l2_videodevice.h"
 
+struct v4l2_event;
+
 namespace libcamera {
 
 class CameraSensor;
@@ -58,7 +60,7 @@ public:
 	FrameBuffer *queueBuffer(FrameBuffer *rawBuffer);
 	void tryReturnBuffer(FrameBuffer *buffer);
 	Signal<FrameBuffer *> &bufferReady() { return output_->bufferReady; }
-	Signal<uint32_t> &frameStart() { return csi2_->frameStart; }
+	Signal<const v4l2_event &> eventReady() { return csi2_->eventReady; }
 
 	Signal<> bufferAvailable;
 

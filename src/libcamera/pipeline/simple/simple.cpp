@@ -299,6 +299,8 @@ public:
 		return stream - &streams_.front();
 	}
 
+	void handleEvent(const v4l2_event &event);
+
 	struct Entity {
 		/* The media entity, always valid. */
 		MediaEntity *entity;
@@ -986,6 +988,15 @@ void SimpleCameraData::clearIncompleteRequests()
 		pipe()->cancelRequest(conversionQueue_.front().request);
 		conversionQueue_.pop();
 	}
+}
+
+void SimpleCameraData::handleEvent(const v4l2_event &event)
+{
+	if (event.type != V4L2_EVENT_FRAME_SYNC)
+		return;
+
+	auto frameSyncEvent = &event.u.frame_sync;
+	delayedCtrls_->applyControls(frameSyncEvent->frame_sequence);
 }
 
 void SimpleCameraData::tryCompleteRequest(Request *request)
@@ -1676,8 +1687,8 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 			stop(camera);
 			return ret;
 		}
-		frameStartEmitter->frameStart.connect(data->delayedCtrls_.get(),
-						      &DelayedControls::applyControls);
+		frameStartEmitter->eventReady.connect(data,
+						      &SimpleCameraData::handleEvent);
 	}
 
 	ret = video->streamOn();
@@ -1716,8 +1727,8 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 
 	if (frameStartEmitter) {
 		frameStartEmitter->setFrameStartEnabled(false);
-		frameStartEmitter->frameStart.disconnect(data->delayedCtrls_.get(),
-							 &DelayedControls::applyControls);
+		frameStartEmitter->eventReady.connect(data,
+						      &SimpleCameraData::handleEvent);
 	}
 
 	if (data->useConversion_) {
