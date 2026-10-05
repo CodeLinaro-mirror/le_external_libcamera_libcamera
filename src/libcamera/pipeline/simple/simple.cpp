@@ -427,6 +427,7 @@ public:
 	V4L2Subdevice *subdev(const MediaEntity *entity);
 	std::shared_ptr<MediaDevice> converter() { return converter_; }
 	bool swIspEnabled() const { return swIspEnabled_; }
+	bool rawIpaEnabled() const { return rawIpaEnabled_; }
 
 protected:
 	int queueRequestDevice(Camera *camera, Request *request) override;
@@ -460,6 +461,7 @@ private:
 
 	std::shared_ptr<MediaDevice> converter_;
 	bool swIspEnabled_;
+	bool rawIpaEnabled_ = true;
 };
 
 /* -----------------------------------------------------------------------------
@@ -967,6 +969,11 @@ void SimpleCameraData::imageBufferReady(FrameBuffer *buffer)
 					     conversionQueue_.front().outputs);
 
 		conversionQueue_.pop();
+		return;
+	} else if (pipe->rawIpaEnabled()) {
+		/* \todo Make the processing asynchronous? */
+		swIsp_->process(request->sequence(), buffer, nullptr);
+		pipe->completeBuffer(request, buffer);
 		return;
 	}
 
@@ -1591,7 +1598,8 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 			data->rawStream_ = &data->streams_[i];
 	}
 
-	if (outputCfgs.empty())
+	if (outputCfgs.empty() &&
+	    (data->converter_ || !data->rawStream_ || !rawIpaEnabled_))
 		return 0;
 
 	StreamConfiguration inputCfg;
@@ -1605,7 +1613,12 @@ int SimplePipelineHandler::configure(Camera *camera, CameraConfiguration *c)
 	} else {
 		ipa::softisp::IPAConfigInfo configInfo;
 		configInfo.sensorControls = data->sensor_->controls();
-		return data->swIsp_->configure(inputCfg, outputCfgs, configInfo, &data->controlInfo_);
+		return data->swIsp_->configure(
+			inputCfg,
+			outputCfgs,
+			configInfo,
+			&data->controlInfo_,
+			data->useConversion_);
 	}
 }
 
@@ -1698,6 +1711,12 @@ int SimplePipelineHandler::start(Camera *camera, [[maybe_unused]] const ControlL
 		if (!data->rawStream_)
 			for (std::unique_ptr<FrameBuffer> &buffer : data->conversionBuffers_)
 				video->queueBuffer(buffer.get());
+	} else if (data->swIsp_) {
+		ret = data->swIsp_->startIpa();
+		if (ret < 0) {
+			stop(camera);
+			return ret;
+		}
 	}
 
 	return 0;
@@ -1720,6 +1739,8 @@ void SimplePipelineHandler::stopDevice(Camera *camera)
 			data->converter_->stop();
 		else if (data->swIsp_)
 			data->swIsp_->stop();
+	} else if (data->swIsp_) {
+		data->swIsp_->stopIpa();
 	}
 
 	video->streamOff();
@@ -1763,6 +1784,8 @@ int SimplePipelineHandler::queueRequestDevice(Camera *camera, Request *request)
 		data->conversionQueue_.push({ request, std::move(buffers) });
 		if (data->swIsp_)
 			data->swIsp_->queueRequest(request->sequence(), request->controls());
+	} else if (data->swIsp_ && rawIpaEnabled_) {
+		data->swIsp_->queueRequest(request->sequence(), request->controls());
 	}
 
 	return 0;
@@ -1882,9 +1905,8 @@ bool SimplePipelineHandler::matchDevice(std::shared_ptr<MediaDevice> media,
 
 	swIspEnabled_ = info.swIspEnabled;
 	const GlobalConfiguration &configuration = cameraManager()->_d()->configuration();
-	for (const ValueNode &entry :
-	     configuration.configuration()["pipelines"]["simple"]["supported_devices"]
-		     .asList()) {
+	auto &simpleConfiguration = configuration.configuration()["pipelines"]["simple"];
+	for (const ValueNode &entry : simpleConfiguration["supported_devices"].asList()) {
 		auto name = entry["driver"].get<std::string>();
 		if (name == info.driver) {
 			swIspEnabled_ = entry["software_isp"].get<bool>().value_or(swIspEnabled_);
@@ -1903,6 +1925,10 @@ bool SimplePipelineHandler::matchDevice(std::shared_ptr<MediaDevice> media,
 		 */
 		ASSERT(!converter_);
 		numStreams = 2;
+
+		auto enableRawIpa = simpleConfiguration["enable_raw_ipa"].get<bool>();
+		if (enableRawIpa)
+			rawIpaEnabled_ = enableRawIpa.value();
 	}
 
 	/* Locate the sensors. */
