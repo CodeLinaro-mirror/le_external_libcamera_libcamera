@@ -40,7 +40,7 @@ class CameraManager;
 class DebayerEGL : public Debayer
 {
 public:
-	DebayerEGL(std::unique_ptr<SwStatsCpu> stats, const CameraManager &cm, EGLDisplay display);
+	DebayerEGL(std::shared_ptr<SwStatsCpu> stats, const CameraManager &cm, EGLDisplay display);
 	~DebayerEGL();
 
 	int configure(const StreamConfiguration &inputCfg,
@@ -56,8 +56,6 @@ public:
 	void process(uint32_t frame, FrameBuffer *input, FrameBuffer *output, const DebayerParams &params) override;
 	int start() override;
 	void stop() override;
-
-	const SharedFD &getStatsFD() override { return stats_->getStatsFD(); }
 
 	SizeRange sizes(PixelFormat inputFormat, const Size &inputSize) override;
 
@@ -112,7 +110,7 @@ private:
 
 	Size nativeOutputSize_;
 	Rectangle window_;
-	std::unique_ptr<SwStatsCpu> stats_;
+	std::shared_ptr<SwStatsCpu> stats_;
 	eGL egl_;
 	uint32_t width_;
 	uint32_t height_;

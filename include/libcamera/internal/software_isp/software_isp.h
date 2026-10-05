@@ -33,6 +33,7 @@
 #include "libcamera/internal/pipeline_handler.h"
 #include "libcamera/internal/shared_mem_object.h"
 #include "libcamera/internal/software_isp/debayer_params.h"
+#include "libcamera/internal/software_isp/swstats_cpu.h"
 
 namespace libcamera {
 
@@ -101,6 +102,7 @@ private:
 	DebayerParams debayerParams_;
 	DmaBufAllocator dmaHeap_;
 	bool ccmEnabled_;
+	std::shared_ptr<SwStatsCpu> stats_;
 
 	std::unique_ptr<ipa::softisp::IPAProxySoftIsp> ipa_;
 	std::deque<FrameBuffer *> queuedInputBuffers_;
