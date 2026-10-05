@@ -470,24 +470,21 @@ std::string V4L2Device::devicePath() const
 }
 
 /**
- * \brief Check if frame start event is supported
+ * \brief Check if an event subscription is supported
  *
- * Due to limitations in the kernel API, this function may disable the frame
- * start event as a side effect. It should only be called during initialization,
- * before enabling the frame start event with setFrameStartEnabled().
+ * Due to limitations in the kernel API, this function may disable the events as
+ * a side effect. It should only be called during initialization, before
+ * enabling the events explicitly.
  *
- * \return True if frame start event is supported, false otherwise
+ * \return True if the subscription is supported, false otherwise
  */
-bool V4L2Device::supportsFrameStartEvent()
+bool V4L2Device::supportsEvents(v4l2_event_subscription &sub)
 {
-	struct v4l2_event_subscription event{};
-	event.type = V4L2_EVENT_FRAME_SYNC;
-
-	int ret = ioctl(VIDIOC_SUBSCRIBE_EVENT, &event);
+	int ret = ioctl(VIDIOC_SUBSCRIBE_EVENT, &sub);
 	if (ret)
 		return false;
 
-	ioctl(VIDIOC_UNSUBSCRIBE_EVENT, &event);
+	ioctl(VIDIOC_UNSUBSCRIBE_EVENT, &sub);
 	return true;
 }
 
