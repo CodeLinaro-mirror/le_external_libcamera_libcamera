@@ -813,6 +813,8 @@ class CameraSensorHelperOv5670 : public CameraSensorHelper
 public:
 	CameraSensorHelperOv5670()
 	{
+		/* From the OEM black level characterisation: 64 at 10bits. */
+		blackLevel_ = 4096;
 		gain_ = AnalogueGainLinear{ 1, 0, 0, 128 };
 	}
 };
