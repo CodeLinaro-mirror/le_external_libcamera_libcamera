@@ -29,4 +29,4 @@ Existing support includes the following camera sensors:
    * - ST-Microelectronics
      - VD56G3
    * - Galaxy Core
-     - GC05A2, GC08A3
+     - GC05A2, GC08A3, GC2145
