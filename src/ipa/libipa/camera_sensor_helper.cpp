@@ -519,6 +519,17 @@ public:
 };
 REGISTER_CAMERA_SENSOR_HELPER("gc08a3", CameraSensorHelperGc08a3)
 
+class CameraSensorHelperGc2145 : public CameraSensorHelper
+{
+public:
+	CameraSensorHelperGc2145()
+	{
+		/* gain is not exposed by the driver, this is just a place holder. */
+		gain_ = AnalogueGainLinear{ 0, 2048, -1, 2048 };
+	}
+};
+REGISTER_CAMERA_SENSOR_HELPER("gc2145", CameraSensorHelperGc2145)
+
 class CameraSensorHelperHm1246 : public CameraSensorHelper
 {
 public:
