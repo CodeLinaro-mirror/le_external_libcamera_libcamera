@@ -148,7 +148,7 @@ void VirtualCameraData::processRequest(Request *request)
 				found = true;
 
 				if (streamConfig.frameGenerator->generateFrame(
-					    stream->configuration().size, buffer))
+					    &stream->configuration(), buffer))
 					fmd.status = FrameMetadata::Status::FrameError;
 
 				bufferCompleted.emit(buffer);
@@ -202,16 +202,28 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 			adjusted = true;
 		}
 
-		if (cfg.pixelFormat != formats::NV12) {
+		if (cfg.pixelFormat != formats::NV12 &&
+		    cfg.pixelFormat != formats::YUV420 &&
+		    cfg.pixelFormat != formats::ABGR8888 &&
+		    cfg.pixelFormat != formats::XBGR8888) {
 			cfg.pixelFormat = formats::NV12;
 			status = Adjusted;
 			adjusted = true;
 		}
 
-		if (cfg.colorSpace != ColorSpace::Smpte170m) {
-			cfg.colorSpace = ColorSpace::Smpte170m;
-			status = Adjusted;
-			adjusted = true;
+		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
+		if (info.colourEncoding == PixelFormatInfo::ColourEncodingRGB) {
+			if (cfg.colorSpace != ColorSpace::Srgb) {
+				cfg.colorSpace = ColorSpace::Srgb;
+				status = Adjusted;
+				adjusted = true;
+			}
+		} else if (info.colourEncoding == PixelFormatInfo::ColourEncodingYUV) {
+			if (cfg.colorSpace != ColorSpace::Smpte170m) {
+				cfg.colorSpace = ColorSpace::Smpte170m;
+				status = Adjusted;
+				adjusted = true;
+			}
 		}
 
 		if (validateColorSpaces() == Adjusted) {
@@ -223,7 +235,6 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 			LOG(Virtual, Info)
 				<< "Stream configuration adjusted to " << cfg.toString();
 
-		const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
 		cfg.stride = info.stride(cfg.size.width, 0, 1);
 		cfg.frameSize = info.frameSize(cfg.size, 1);
 
@@ -274,13 +285,19 @@ PipelineHandlerVirtual::generateConfiguration(Camera *camera,
 			return {};
 		}
 
+		std::vector<PixelFormat> outputFormats = { formats::NV12,
+							   formats::YUV420,
+							   formats::ABGR8888,
+							   formats::XBGR8888 };
+
 		std::map<PixelFormat, std::vector<SizeRange>> streamFormats;
-		PixelFormat pixelFormat = formats::NV12;
-		streamFormats[pixelFormat] = { { data->config_.minResolutionSize,
-						 data->config_.maxResolutionSize } };
+		for (auto pixelFormat : outputFormats) {
+			streamFormats[pixelFormat] = { { data->config_.minResolutionSize,
+							 data->config_.maxResolutionSize } };
+		}
 		StreamFormats formats(streamFormats);
 		StreamConfiguration cfg(formats);
-		cfg.pixelFormat = pixelFormat;
+		cfg.pixelFormat = outputFormats.front();
 		cfg.size = data->config_.maxResolutionSize;
 		cfg.bufferCount = VirtualCameraConfiguration::kBufferCount;
 		cfg.colorSpace = ColorSpace::Smpte170m;

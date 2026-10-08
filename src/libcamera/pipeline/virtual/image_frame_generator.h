@@ -37,7 +37,7 @@ private:
 	};
 
 	void configure(const Size &size) override;
-	int generateFrame(const Size &size, const FrameBuffer *buffer) override;
+	int generateFrame(const StreamConfiguration *cfg, const FrameBuffer *buffer) override;
 
 	std::vector<ImageFrameData> imageFrameDatas_;
 	std::vector<ImageFrameData> scaledFrameDatas_;
