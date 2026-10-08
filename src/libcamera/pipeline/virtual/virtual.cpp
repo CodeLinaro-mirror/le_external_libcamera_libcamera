@@ -231,12 +231,19 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 			adjusted = true;
 		}
 
+		auto stride = info.stride(cfg.size.width, 0);
+		auto frameSize = info.frameSize(cfg.size);
+		if ((cfg.stride && cfg.stride != stride) ||
+		    (cfg.frameSize && cfg.frameSize != frameSize)) {
+			status = Adjusted;
+			adjusted = true;
+		}
+		cfg.stride = stride;
+		cfg.frameSize = frameSize;
+
 		if (adjusted)
 			LOG(Virtual, Info)
 				<< "Stream configuration adjusted to " << cfg.toString();
-
-		cfg.stride = info.stride(cfg.size.width, 0, 1);
-		cfg.frameSize = info.frameSize(cfg.size, 1);
 
 		cfg.bufferCount = VirtualCameraConfiguration::kBufferCount;
 	}
