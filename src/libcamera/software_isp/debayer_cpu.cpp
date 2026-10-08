@@ -424,6 +424,72 @@ void DebayerCpu::debayer12P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[])
 	}
 }
 
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer_Mono(uint8_t *dst, const uint8_t *src[])
+{
+	if (inputConfig_.bpp == 8) {
+		const uint8_t *cur = src[1];
+
+		for (int x = 0; x < (int)window_.width;) {
+			uint16_t pixel_val = *cur++;
+
+			STORE_PIXEL(pixel_val, pixel_val, pixel_val)
+		}
+		return;
+	}
+
+	const uint8_t *cur = src[1];
+	const int shift = (inputConfig_.bpp == 10) ? 6 : 2;
+	for (int x = 0; x < (int)window_.width;) {
+		uint8_t low_byte = *cur++;
+		uint8_t high_byte = *cur++;
+
+		uint16_t native_val = (high_byte << 8) | low_byte;
+		uint16_t pixel_val = native_val >> shift;
+
+		STORE_PIXEL(pixel_val, pixel_val, pixel_val)
+	}
+}
+
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayerP_Mono(uint8_t *dst, const uint8_t *src[])
+{
+	const uint8_t *cur = src[1];
+
+	if (inputConfig_.bpp == 10) {
+		for (int x = 0; x < (int)window_.width;) {
+			uint16_t g0 = *cur++;
+			uint16_t g1 = *cur++;
+			uint16_t g2 = *cur++;
+			uint16_t g3 = *cur++;
+			uint8_t lsb = *cur++;
+
+			uint16_t gray0 = (g0 << 2) | (lsb & 0x03);
+			uint16_t gray1 = (g1 << 2) | ((lsb >> 2) & 0x03);
+			uint16_t gray2 = (g2 << 2) | ((lsb >> 4) & 0x03);
+			uint16_t gray3 = (g3 << 2) | ((lsb >> 6) & 0x03);
+
+			STORE_PIXEL(gray0, gray0, gray0)
+			STORE_PIXEL(gray1, gray1, gray1)
+			STORE_PIXEL(gray2, gray2, gray2)
+			STORE_PIXEL(gray3, gray3, gray3)
+		}
+		return;
+	}
+	/* 12 bits Packed */
+	for (int x = 0; x < (int)window_.width;) {
+		uint16_t g0 = *cur++;
+		uint16_t g1 = *cur++;
+		uint8_t lsb = *cur++;
+
+		uint16_t gray0 = (g0 << 4) | (lsb  & 0x0F);
+		uint16_t gray1 = (g1 << 4) | ((lsb >> 4) & 0x0F);
+
+		STORE_PIXEL(gray0, gray0, gray0)
+		STORE_PIXEL(gray1, gray1, gray1)
+	}
+}
+
 /*
  * Setup the Debayer object according to the passed in parameters.
  * Return 0 on success, a negative errno value on failure
@@ -439,6 +505,21 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 						   formats::BGR888,
 						   formats::XBGR8888,
 						   formats::ABGR8888 };
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			config.bpp = (bayerFormat.bitDepth + 7) & ~7;
+			config.patternSize.width = 2;
+			config.patternSize.height = 2;
+		}
+		else if (bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			config.bpp = bayerFormat.bitDepth;
+			config.patternSize.width = (bayerFormat.bitDepth == 10) ? 4 : 2;
+			config.patternSize.height = 2;
+		}
+
+		config.outputFormats = outputFormats;
+		return 0;
+	}
 
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10 || bayerFormat.bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
@@ -524,6 +605,21 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat,
 		LOG(Debayer, Error) << "Unsupported input output format combination";
 		return -EINVAL;
 	};
+
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		if (outputFormat == formats::XRGB8888 || outputFormat == formats::ARGB8888 ||
+		    outputFormat == formats::XBGR8888 || outputFormat == formats::ABGR8888) {
+			addAlphaByte = true;
+		}
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			SET_DEBAYER_METHODS(debayer_Mono, debayer_Mono)
+			return 0;
+		} else if (bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			SET_DEBAYER_METHODS(debayerP_Mono, debayerP_Mono)
+			return 0;
+		}
+		return invalidFmt();
+	}
 
 	switch (outputFormat) {
 	case formats::XRGB8888:

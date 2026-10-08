@@ -101,8 +101,19 @@ private:
 	/* Bayer 12 bpp packed */
 	void statsBGGR12PLine0(const uint8_t *src[], SwIspStats &stats);
 	void statsGBRG12PLine0(const uint8_t *src[], SwIspStats &stats);
+	/* Mono 8 bpp unpacked */
+	void statsMono8Line0(const uint8_t *src[], SwIspStats &stats);
+	/* Mono 10 bpp unpacked */
+	void statsMono10Line0(const uint8_t *src[], SwIspStats &stats);
+	/* Mono 10 bpp packed */
+	void statsMono10PLine0(const uint8_t *src[], SwIspStats &stats);
+	/* Mono 12 bpp unpacked */
+	void statsMono12Line0(const uint8_t *src[], SwIspStats &stats);
+	/* Mono 12 bpp packed */
+	void statsMono12PLine0(const uint8_t *src[], SwIspStats &stats);
 
 	void processBayerFrame2(MappedFrameBuffer &in);
+	void processMonoFrame2(MappedFrameBuffer &in);
 
 	processFrameFn processFrame_;
 

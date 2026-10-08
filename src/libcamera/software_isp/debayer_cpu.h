@@ -119,6 +119,11 @@ private:
 	void debayer12P_GBGB_BGR888(uint8_t *dst, const uint8_t *src[]);
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer12P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* CSI-2 packed and unpacked raw mono */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer_Mono(uint8_t *dst, const uint8_t *src[]);
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayerP_Mono(uint8_t *dst, const uint8_t *src[]);
 
 	static int getInputConfig(PixelFormat inputFormat, DebayerInputConfig &config);
 	int setupStandardBayerOrder(BayerFormat::Order order);

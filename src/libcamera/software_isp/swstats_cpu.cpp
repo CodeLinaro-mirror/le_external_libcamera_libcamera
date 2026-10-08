@@ -375,6 +375,71 @@ void SwStatsCpu::statsGBRG12PLine0(const uint8_t *src[], SwIspStats &stats)
 	SWSTATS_FINISH_LINE_STATS()
 }
 
+void SwStatsCpu::statsMono8Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *cur = src[1] + window_.x;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint8_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 2] += 4;
+		cur += 4;
+	}
+
+	stats.sum_.r() += (sum << (8 + sumShift_));
+}
+
+void SwStatsCpu::statsMono10Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *cur = src[1] + window_.x * 2 + 1;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint8_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 2] += 4;
+		cur += 8;
+	}
+
+	stats.sum_.r() += (sum << (8 + sumShift_));
+}
+
+inline void SwStatsCpu::statsMono12Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	statsMono10Line0(src, stats);
+}
+
+void SwStatsCpu::statsMono10PLine0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *cur = src[1] + window_.x * 5 / 4;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint8_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 2] += 4;
+		cur += 5;
+	}
+
+	stats.sum_.r() += (sum << (8 + sumShift_));
+}
+
+void SwStatsCpu::statsMono12PLine0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *cur = src[1] + window_.x * 3 / 2;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint8_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 2] += 4;
+		cur += 6;
+	}
+
+	stats.sum_.r() += (sum << (8 + sumShift_));
+}
+
 /**
  * \brief Reset state to start statistics gathering for a new frame
  * \param[in] frame The frame number
@@ -494,6 +559,38 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg, unsigned int stat
 
 	uint8_t bitDepth = bayerFormat.bitDepth;
 
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			patternSize_.width = 2;
+			patternSize_.height = 2;
+
+			if (bitDepth == 8) {
+				stats0_ = &SwStatsCpu::statsMono8Line0;
+				sumShift_ = 0;
+			} else if (bitDepth == 10) {
+				stats0_ = &SwStatsCpu::statsMono10Line0;
+				sumShift_ = 2;
+			} else { /* 12 bits */
+				stats0_ = &SwStatsCpu::statsMono12Line0;
+				sumShift_ = 4;
+			}
+		}
+		else if (bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			patternSize_.width = (bitDepth == 10) ? 4 : 2;
+			patternSize_.height = 2;
+
+			stats0_ = (bitDepth == 10) ? &SwStatsCpu::statsMono10PLine0 : &SwStatsCpu::statsMono12PLine0;
+			sumShift_ = 0;
+		}
+
+		ySkipMask_ = 0x00;
+		xShift_ = 0;
+		swapLines_ = false;
+		processFrame_ = &SwStatsCpu::processMonoFrame2;
+
+		return 0;
+	}
+
 	if ((bitDepth == 10 || bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::CSI2) {
 		if (bitDepth == 10)
@@ -592,6 +689,29 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 		(this->*stats0_)(linePointers, stats_[0]);
 		src += stride_ * 2;
 	}
+}
+
+void SwStatsCpu::processMonoFrame2(MappedFrameBuffer &in)
+{
+	const uint8_t *src = in.planes()[0].data();
+	const uint8_t *linePointers[3] = { nullptr, nullptr, nullptr };
+
+	src += window_.y * stride_;
+
+
+	for (unsigned int y = 0; y < window_.height; y++) {
+		if (y & ySkipMask_) {
+			src += stride_;
+			continue;
+		}
+
+		linePointers[1] = src;
+		(this->*stats0_)(linePointers, stats_[0]);
+		src += stride_;
+	}
+
+	stats_[0].sum_.g() = stats_[0].sum_.r();
+	stats_[0].sum_.b() = stats_[0].sum_.r();
 }
 
 /**
