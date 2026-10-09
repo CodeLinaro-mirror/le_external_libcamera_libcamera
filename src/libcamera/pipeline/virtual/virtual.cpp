@@ -130,6 +130,9 @@ VirtualCameraData::VirtualCameraData(PipelineHandler *pipe,
 
 void VirtualCameraData::processRequest(Request *request)
 {
+	int64_t sensorTimestamp = *request->metadata().get(controls::SensorTimestamp);
+	std::vector<FrameBuffer *> buffers;
+
 	for (const auto &[stream, buffer] : request->buffers()) {
 		bool found = false;
 		/* map buffer and fill test patterns */
@@ -139,7 +142,7 @@ void VirtualCameraData::processRequest(Request *request)
 
 				fmd.status = FrameMetadata::Status::FrameSuccess;
 				fmd.sequence = streamConfig.seq++;
-				fmd.timestamp = currentTimestamp();
+				fmd.timestamp = sensorTimestamp;
 
 				std::span<const FrameBuffer::Plane> planes = buffer->planes();
 				for (const auto [i, p] : utils::enumerate(planes))
@@ -151,12 +154,22 @@ void VirtualCameraData::processRequest(Request *request)
 					    stream->configuration().size, buffer))
 					fmd.status = FrameMetadata::Status::FrameError;
 
-				bufferCompleted.emit(buffer);
+				buffers.push_back(buffer);
 				break;
 			}
 		}
 		ASSERT(found);
 	}
+
+	uint64_t now = currentTimestamp();
+	if (now < static_cast<uint64_t>(sensorTimestamp)) {
+		std::chrono::nanoseconds sleep(sensorTimestamp - now);
+		LOG(Virtual, Debug) << "Sleeping for ns: " << sleep;
+		std::this_thread::sleep_for(sleep);
+	}
+
+	for (auto buffer : buffers)
+		bufferCompleted.emit(buffer);
 }
 
 VirtualCameraConfiguration::VirtualCameraConfiguration(VirtualCameraData *data)
@@ -349,18 +362,30 @@ void PipelineHandlerVirtual::stopDevice(Camera *camera)
 	/* Process pending `bufferCompleted` signals. */
 	thread()->dispatchMessages(Message::Type::InvokeMessage, this);
 	data->bufferCompleted.disconnect(this);
+	data->lastTimestamp = 0;
 
 	while (!data->queuedRequests_.empty())
 		cancelRequest(data->queuedRequests_.front());
 }
 
-int PipelineHandlerVirtual::queueRequestDevice([[maybe_unused]] Camera *camera,
-					       Request *request)
+int PipelineHandlerVirtual::queueRequestDevice(Camera *camera, Request *request)
 {
 	VirtualCameraData *data = cameraData(camera);
-	const auto timestamp = currentTimestamp();
+	uint64_t timestamp = currentTimestamp();
+	uint64_t minFrameDurationNsec =
+		camera->controls().find(&controls::FrameDurationLimits)->second.min().get<int64_t>() * 1000;
+
+	if (data->lastTimestamp) {
+		if (((timestamp - data->lastTimestamp) < minFrameDurationNsec) ||
+		    (timestamp < data->lastTimestamp))
+			timestamp = data->lastTimestamp + minFrameDurationNsec;
+	} else {
+		timestamp += minFrameDurationNsec;
+	}
 
 	request->_d()->metadata().set(controls::SensorTimestamp, timestamp);
+	data->lastTimestamp = timestamp;
+
 	data->invokeMethod(&VirtualCameraData::processRequest,
 			   ConnectionTypeQueued, request);
 

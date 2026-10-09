@@ -66,6 +66,7 @@ public:
 
 	std::vector<StreamConfig> streamConfigs_;
 	Signal<FrameBuffer *> bufferCompleted;
+	uint64_t lastTimestamp = 0;
 };
 
 } /* namespace libcamera */
