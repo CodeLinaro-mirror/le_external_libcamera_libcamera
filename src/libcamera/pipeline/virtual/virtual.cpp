@@ -240,8 +240,10 @@ CameraConfiguration::Status VirtualCameraConfiguration::validate()
 			adjusted = true;
 		}
 
-		auto stride = info.stride(cfg.size.width, 0);
-		auto frameSize = info.frameSize(cfg.size);
+		auto stride = info.stride(cfg.size.width, 0,
+					  FrameGenerator::kStrideAlignment);
+		auto frameSize = info.frameSize(cfg.size,
+						FrameGenerator::kStrideAlignment);
 		if ((cfg.stride && cfg.stride != stride) ||
 		    (cfg.frameSize && cfg.frameSize != frameSize)) {
 			status = Adjusted;
@@ -346,7 +348,8 @@ int PipelineHandlerVirtual::exportFrameBuffers([[maybe_unused]] Camera *camera,
 
 	std::vector<unsigned int> planeSizes;
 	for (size_t i = 0; i < info.numPlanes(); ++i)
-		planeSizes.push_back(info.planeSize(config.size, i));
+		planeSizes.push_back(info.planeSize(config.size, i,
+						    FrameGenerator::kStrideAlignment));
 
 	return dmaBufAllocator_.exportBuffers(config.bufferCount, planeSizes, buffers);
 }

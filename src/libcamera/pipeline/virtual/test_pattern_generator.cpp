@@ -72,20 +72,25 @@ int TestPatternGenerator::generateFrame(const StreamConfiguration &cfg,
 		ret = libyuv::ARGBToNV12(template_.get(),
 					 size.width * kARGBSize,
 					 planes[0].data(),
-					 info.stride(size.width, 0),
+					 info.stride(size.width, 0,
+						     kStrideAlignment),
 					 planes[1].data(),
-					 info.stride(size.width, 1),
+					 info.stride(size.width, 1,
+						     kStrideAlignment),
 					 size.width, size.height);
 		break;
 	case formats::YUV420:
 		ret = libyuv::ARGBToI420(template_.get(),
 					 size.width * kARGBSize,
 					 planes[0].data(),
-					 info.stride(size.width, 0),
+					 info.stride(size.width, 0,
+						     kStrideAlignment),
 					 planes[1].data(),
-					 info.stride(size.width, 1),
+					 info.stride(size.width, 1,
+						     kStrideAlignment),
 					 planes[2].data(),
-					 info.stride(size.width, 2),
+					 info.stride(size.width, 2,
+						     kStrideAlignment),
 					 size.width, size.height);
 		break;
 	case formats::ABGR8888:
@@ -93,7 +98,8 @@ int TestPatternGenerator::generateFrame(const StreamConfiguration &cfg,
 		ret = libyuv::ARGBCopy(template_.get(),
 				       size.width * kARGBSize,
 				       planes[0].data(),
-				       info.stride(size.width, 0),
+				       info.stride(size.width, 0,
+						   kStrideAlignment),
 				       size.width, size.height);
 		break;
 	default:

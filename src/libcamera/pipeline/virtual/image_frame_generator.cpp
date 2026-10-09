@@ -110,11 +110,6 @@ void ImageFrameGenerator::configure(const Size &size)
 			std::make_unique<uint8_t[]>(halfSizeWidth * halfSizeHeight * 2);
 		auto &src = imageFrameDatas_[i];
 
-		/*
-		 * \todo Some platforms might enforce stride due to GPU.
-                 * The width needs to be a multiple of the stride to work
-                 * properly for now.
-		 */
 		libyuv::NV12Scale(src.Y.get(), src.size.width,
 				  src.UV.get(), src.size.width,
 				  src.size.width, src.size.height,
@@ -158,9 +153,11 @@ int ImageFrameGenerator::generateFrame(const StreamConfiguration &cfg, const Fra
 				       scaledFrameDatas_[frameIndex_].UV.get(),
 				       size.width,
 				       planes[0].data(),
-				       info.stride(size.width, 0),
+				       info.stride(size.width, 0,
+						   kStrideAlignment),
 				       planes[1].data(),
-				       info.stride(size.width, 1),
+				       info.stride(size.width, 1,
+						   kStrideAlignment),
 				       size.width, size.height);
 		break;
 	case formats::YUV420:
@@ -169,11 +166,14 @@ int ImageFrameGenerator::generateFrame(const StreamConfiguration &cfg, const Fra
 					 scaledFrameDatas_[frameIndex_].UV.get(),
 					 size.width,
 					 planes[0].data(),
-					 info.stride(size.width, 0),
+					 info.stride(size.width, 0,
+						     kStrideAlignment),
 					 planes[1].data(),
-					 info.stride(size.width, 1),
+					 info.stride(size.width, 1,
+						     kStrideAlignment),
 					 planes[2].data(),
-					 info.stride(size.width, 2),
+					 info.stride(size.width, 2,
+						     kStrideAlignment),
 					 size.width, size.height);
 		break;
 	case formats::ABGR8888:
@@ -183,7 +183,8 @@ int ImageFrameGenerator::generateFrame(const StreamConfiguration &cfg, const Fra
 					 scaledFrameDatas_[frameIndex_].UV.get(),
 					 size.width,
 					 planes[0].data(),
-					 info.stride(size.width, 0),
+					 info.stride(size.width, 0,
+						     kStrideAlignment),
 					 size.width, size.height);
 		break;
 	default:

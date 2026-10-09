@@ -23,6 +23,7 @@ public:
 	virtual int generateFrame(const StreamConfiguration &cfg,
 				  const FrameBuffer *buffer) = 0;
 
+	static constexpr unsigned int kStrideAlignment = 256;
 protected:
 	FrameGenerator() {}
 };
