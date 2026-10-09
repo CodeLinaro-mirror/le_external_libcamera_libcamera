@@ -11,7 +11,9 @@
 
 #include <libcamera/base/log.h>
 
+#include <libcamera/formats.h>
 #include "libcamera/internal/dma_buf_allocator.h"
+#include "libcamera/internal/formats.h"
 #include "libcamera/internal/mapped_framebuffer.h"
 
 #include <libyuv/convert_from_argb.h>
@@ -42,7 +44,7 @@ LOG_DECLARE_CATEGORY(Virtual)
 
 static const unsigned int kARGBSize = 4;
 
-int TestPatternGenerator::generateFrame(const Size &size,
+int TestPatternGenerator::generateFrame(const StreamConfiguration &cfg,
 					const FrameBuffer *buffer)
 {
 	/*
@@ -58,16 +60,48 @@ int TestPatternGenerator::generateFrame(const Size &size,
 					    MappedFrameBuffer::MapFlag::Write);
 
 	const auto &planes = mappedFrameBuffer.planes();
+	const auto size = cfg.size;
+	const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
 
 	rotateLeft1Column<kARGBSize>(size, template_.get());
 
 	/* Convert the template_ to the frame buffer */
-	int ret = libyuv::ARGBToNV12(template_.get(), size.width * kARGBSize,
-				     planes[0].data(), size.width,
-				     planes[1].data(), size.width,
-				     size.width, size.height);
+	int ret;
+	switch (cfg.pixelFormat) {
+	case formats::NV12:
+		ret = libyuv::ARGBToNV12(template_.get(),
+					 size.width * kARGBSize,
+					 planes[0].data(),
+					 info.stride(size.width, 0),
+					 planes[1].data(),
+					 info.stride(size.width, 1),
+					 size.width, size.height);
+		break;
+	case formats::YUV420:
+		ret = libyuv::ARGBToI420(template_.get(),
+					 size.width * kARGBSize,
+					 planes[0].data(),
+					 info.stride(size.width, 0),
+					 planes[1].data(),
+					 info.stride(size.width, 1),
+					 planes[2].data(),
+					 info.stride(size.width, 2),
+					 size.width, size.height);
+		break;
+	case formats::ABGR8888:
+	case formats::XBGR8888:
+		ret = libyuv::ARGBCopy(template_.get(),
+				       size.width * kARGBSize,
+				       planes[0].data(),
+				       info.stride(size.width, 0),
+				       size.width, size.height);
+		break;
+	default:
+		LOG(Virtual, Error) << "Unsupported format";
+		return -1;
+	}
 	if (ret != 0)
-		LOG(Virtual, Error) << "ARGBToNV12() failed with " << ret;
+		LOG(Virtual, Error) << "Conversation failed with " << ret;
 
 	return ret;
 }
