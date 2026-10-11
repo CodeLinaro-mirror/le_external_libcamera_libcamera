@@ -376,6 +376,117 @@ void SwStatsCpu::statsGBRG12PLine0(const uint8_t *src[], SwIspStats &stats)
 }
 
 /**
+ * Horizontal sub-sampling optimization: evaluates 1 pixel out of 4 (x += 4)
+ * to reduce CPU overhead. Each sample gets a weight of +4 to preserve global
+ * frame statistical density required by the Auto Exposure (AE) algorithm.
+ */
+void SwStatsCpu::statsMono8Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint8_t *cur = src[1] + window_.x;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		sum += *cur;
+		stats.yHistogram[*cur >> 2] += 4;
+		cur += 4;
+	}
+	/* x << 2 (or x * 4) process 4 pixels per iteration */
+	stats.sum_.r() += (sum << 2);
+}
+
+void SwStatsCpu::statsMono10Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	/**
+	 * Little-Endian optimization: Unpacked 10-bit format stores data
+	 * right-aligned in a 2-byte container. Reading via a 16-bit pointer
+	 * allows clean data access before applying the bit-shift.
+	 */
+	const uint16_t *cur = (const uint16_t *)(src[1] + window_.x * 2);
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint16_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 4] += 4;
+		cur += 4;
+	}
+	/* x 10 >> 2 to 8bits and x << 2 (or x * 4) process 4 pixels per iteration */
+	stats.sum_.r() += sum;
+}
+
+void SwStatsCpu::statsMono12Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	/**
+	 * 12-bit unpacked processing. Data is read via a native 16-bit pointer
+	 * and right-shifted to fit the histogram range.
+	 */
+	const uint16_t *cur = (const uint16_t *)(src[1] + window_.x * 2);
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint16_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 6] += 4;
+		cur += 4;
+	}
+	/* 12 >> 4 to 8bits and x << 2 (or x * 4) process 4 pixels per iteration */
+	stats.sum_.r() += (sum >> 2);
+}
+
+void SwStatsCpu::statsMono10PLine0(const uint8_t *src[], SwIspStats &stats)
+{
+	/**
+	 * MIPI CSI-2 10-bit packed: 4 pixels in 5 bytes. Stepping 5 bytes
+	 * evaluates the head MSB pixel of each block as a native 8-bit value.
+	 */
+	const uint8_t *cur = src[1] + window_.x * 5 / 4;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint8_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 2] += 4;
+		cur += 5;
+	}
+	/* first byte x << 2 (or x * 4) process 4 pixels per iteration */
+	stats.sum_.r() += (sum << 2);
+}
+
+void SwStatsCpu::statsMono12PLine0(const uint8_t *src[], SwIspStats &stats)
+{
+	/**
+	 * MIPI CSI-2 12-bit packed: 2 pixels in 3 bytes. Stepping 6 bytes
+	 * advances by two full blocks for optimal data alignment.
+	 */
+	const uint8_t *cur = src[1] + window_.x * 3 / 2;
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint8_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 2] += 4;
+		cur += 6;
+	}
+	/* first byte x << 2 (or x * 4) process 4 pixels per iteration */
+	stats.sum_.r() += (sum << 2);
+}
+
+void SwStatsCpu::statsMono16Line0(const uint8_t *src[], SwIspStats &stats)
+{
+	const uint16_t *cur = (const uint16_t *)(src[1] + window_.x * 2);
+	uint64_t sum = 0;
+
+	for (unsigned int x = 0; x < window_.width; x += 4) {
+		uint16_t val = *cur;
+		sum += val;
+		stats.yHistogram[val >> 10] += 4;
+		cur += 4;
+	}
+	/* 16 >> 8 to 8bits and x << 2 (or x * 4) process 4 pixels per iteration */
+	stats.sum_.r() += (sum >> 6);
+}
+
+/**
  * \brief Reset state to start statistics gathering for a new frame
  * \param[in] frame The frame number
  *
@@ -494,6 +605,48 @@ int SwStatsCpu::configure(const StreamConfiguration &inputCfg, unsigned int stat
 
 	uint8_t bitDepth = bayerFormat.bitDepth;
 
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		ySkipMask_ = 0x00;
+		xShift_ = 0;
+		sumShift_ = 0;
+		processFrame_ = &SwStatsCpu::processMonoFrame2;
+
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			patternSize_.width = 2;
+			patternSize_.height = 2;
+
+			switch (bitDepth) {
+			case 8:
+				stats0_ = &SwStatsCpu::statsMono8Line0;
+				return 0;
+			case 10:
+				stats0_ = &SwStatsCpu::statsMono10Line0;
+				return 0;
+			case 12:
+				stats0_ = &SwStatsCpu::statsMono12Line0;
+				return 0;
+			case 16:
+				stats0_ = &SwStatsCpu::statsMono16Line0;
+				return 0;
+			}
+		}
+		if (bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			patternSize_.height = 2;
+
+			switch (bitDepth) {
+			case 10:
+				patternSize_.width = 4;
+				stats0_ = &SwStatsCpu::statsMono10PLine0;
+				return 0;
+			case 12:
+				patternSize_.width = 2;
+				stats0_ = &SwStatsCpu::statsMono12PLine0;
+				return 0;
+			}
+		}
+		return -EINVAL;
+	}
+
 	if ((bitDepth == 10 || bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::CSI2) {
 		if (bitDepth == 10)
@@ -592,6 +745,28 @@ void SwStatsCpu::processBayerFrame2(MappedFrameBuffer &in)
 		(this->*stats0_)(linePointers, stats_[0]);
 		src += stride_ * 2;
 	}
+}
+
+void SwStatsCpu::processMonoFrame2(MappedFrameBuffer &in)
+{
+	const uint8_t *src = in.planes()[0].data();
+	const uint8_t *linePointers[3] = { nullptr, nullptr, nullptr };
+
+	src += window_.y * stride_;
+
+	for (unsigned int y = 0; y < window_.height; y++) {
+		if (y & ySkipMask_) {
+			src += stride_;
+			continue;
+		}
+
+		linePointers[1] = src;
+		(this->*stats0_)(linePointers, stats_[0]);
+		src += stride_;
+	}
+
+	stats_[0].sum_.g() = stats_[0].sum_.r();
+	stats_[0].sum_.b() = stats_[0].sum_.r();
 }
 
 /**

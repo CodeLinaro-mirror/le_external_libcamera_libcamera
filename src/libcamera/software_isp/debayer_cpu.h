@@ -119,6 +119,24 @@ private:
 	void debayer12P_GBGB_BGR888(uint8_t *dst, const uint8_t *src[]);
 	template<bool addAlphaByte, bool ccmEnabled>
 	void debayer12P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* 8-bit raw monochrome format */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer8_MONO_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* unpacked 10-bit raw monochrome format */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer10_MONO_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* unpacked 12-bit raw monochrome format */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer12_MONO_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* CSI-2 packed 10-bit raw monochrome format */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer10P_MONO_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* CSI-2 packed 12-bit raw monochrome format */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer12P_MONO_BGR888(uint8_t *dst, const uint8_t *src[]);
+	/* Mono 16 bpp unpacked */
+	template<bool addAlphaByte, bool ccmEnabled>
+	void debayer16_MONO_BGR888(uint8_t *dst, const uint8_t *src[]);
 
 	static int getInputConfig(PixelFormat inputFormat, DebayerInputConfig &config);
 	int setupStandardBayerOrder(BayerFormat::Order order);

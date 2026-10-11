@@ -423,6 +423,89 @@ void DebayerCpu::debayer12P_RGRG_BGR888(uint8_t *dst, const uint8_t *src[])
 		x++;
 	}
 }
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer8_MONO_BGR888(uint8_t *dst, const uint8_t *src[])
+{
+	const uint8_t *cur = src[1];
+
+	for (int x = 0; x < (int)window_.width;) {
+		uint8_t pixel_val = *cur++;
+		STORE_PIXEL(pixel_val, pixel_val, pixel_val)
+	}
+}
+
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer10_MONO_BGR888(uint8_t *dst, const uint8_t *src[])
+{
+	const uint16_t *cur = (const uint16_t *)src[1];
+
+	for (int x = 0; x < (int)window_.width;) {
+		uint16_t native_val = *cur++;
+		uint8_t pixel_val = static_cast<uint8_t>(native_val >> 2);
+
+		STORE_PIXEL(pixel_val, pixel_val, pixel_val)
+	}
+}
+
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer12_MONO_BGR888(uint8_t *dst, const uint8_t *src[])
+{
+	const uint16_t *cur = (const uint16_t *)src[1];
+
+	for (int x = 0; x < (int)window_.width;) {
+		uint16_t native_val = *cur++;
+		uint8_t pixel_val = static_cast<uint8_t>(native_val >> 4);
+
+		STORE_PIXEL(pixel_val, pixel_val, pixel_val)
+	}
+}
+
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer10P_MONO_BGR888(uint8_t *dst, const uint8_t *src[])
+{
+	const uint8_t *cur = src[1];
+
+	for (int x = 0; x < (int)window_.width;) {
+		uint8_t gray0 = *cur++;
+		uint8_t gray1 = *cur++;
+		uint8_t gray2 = *cur++;
+		uint8_t gray3 = *cur++;
+		cur++;
+
+		STORE_PIXEL(gray0, gray0, gray0)
+		STORE_PIXEL(gray1, gray1, gray1)
+		STORE_PIXEL(gray2, gray2, gray2)
+		STORE_PIXEL(gray3, gray3, gray3)
+	}
+}
+
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer12P_MONO_BGR888(uint8_t *dst, const uint8_t *src[])
+{
+	const uint8_t *cur = src[1];
+
+	for (int x = 0; x < (int)window_.width;) {
+		uint8_t gray0 = *cur++;
+		uint8_t gray1 = *cur++;
+		cur++;
+
+		STORE_PIXEL(gray0, gray0, gray0)
+		STORE_PIXEL(gray1, gray1, gray1)
+	}
+}
+
+template<bool addAlphaByte, bool ccmEnabled>
+void DebayerCpu::debayer16_MONO_BGR888(uint8_t *dst, const uint8_t *src[])
+{
+	const uint16_t *cur = (const uint16_t *)src[1];
+
+	for (int x = 0; x < (int)window_.width;) {
+		uint16_t native_val = *cur++;
+		uint8_t pixel_val = static_cast<uint8_t>(native_val >> 8);
+
+		STORE_PIXEL(pixel_val, pixel_val, pixel_val)
+	}
+}
 
 /*
  * Setup the Debayer object according to the passed in parameters.
@@ -439,6 +522,20 @@ int DebayerCpu::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 						   formats::BGR888,
 						   formats::XBGR8888,
 						   formats::ABGR8888 };
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			config.bpp = (bayerFormat.bitDepth + 7) & ~7;
+			config.patternSize.width = 2;
+			config.patternSize.height = 2;
+		} else if (bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			config.bpp = bayerFormat.bitDepth;
+			config.patternSize.width = (bayerFormat.bitDepth == 10) ? 4 : 2;
+			config.patternSize.height = 2;
+		}
+
+		config.outputFormats = outputFormats;
+		return 0;
+	}
 
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10 || bayerFormat.bitDepth == 12) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
@@ -524,6 +621,43 @@ int DebayerCpu::setDebayerFunctions(PixelFormat inputFormat,
 		LOG(Debayer, Error) << "Unsupported input output format combination";
 		return -EINVAL;
 	};
+
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		/* Disable CCM for monochrome to prevent image coloration */
+		ccmEnabled = false;
+
+		if (outputFormat == formats::XRGB8888 || outputFormat == formats::ARGB8888 ||
+		    outputFormat == formats::XBGR8888 || outputFormat == formats::ABGR8888) {
+			addAlphaByte = true;
+		}
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			switch (bayerFormat.bitDepth) {
+			case 8:
+				SET_DEBAYER_METHODS(debayer8_MONO_BGR888, debayer8_MONO_BGR888)
+				return 0;
+			case 10:
+				SET_DEBAYER_METHODS(debayer10_MONO_BGR888, debayer10_MONO_BGR888)
+				return 0;
+			case 12:
+				SET_DEBAYER_METHODS(debayer12_MONO_BGR888, debayer12_MONO_BGR888)
+				return 0;
+			case 16:
+				SET_DEBAYER_METHODS(debayer16_MONO_BGR888, debayer16_MONO_BGR888)
+				return 0;
+			}
+		}
+		if (bayerFormat.packing == BayerFormat::Packing::CSI2) {
+			switch (bayerFormat.bitDepth) {
+			case 10:
+				SET_DEBAYER_METHODS(debayer10P_MONO_BGR888, debayer10P_MONO_BGR888)
+				return 0;
+			case 12:
+				SET_DEBAYER_METHODS(debayer12P_MONO_BGR888, debayer12P_MONO_BGR888)
+				return 0;
+			}
+		}
+		return invalidFmt();
+	}
 
 	switch (outputFormat) {
 	case formats::XRGB8888:

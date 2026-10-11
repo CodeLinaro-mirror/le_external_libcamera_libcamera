@@ -61,6 +61,17 @@ int DebayerEGL::getInputConfig(PixelFormat inputFormat, DebayerInputConfig &conf
 						   formats::XBGR8888,
 						   formats::ABGR8888 };
 
+	/* Handle Monochrome case using bayerFormat */
+	if (bayerFormat.order == BayerFormat::Order::MONO) {
+		bool isPacked = (bayerFormat.packing == BayerFormat::Packing::CSI2);
+
+		config.bpp = isPacked ? bayerFormat.bitDepth : ((bayerFormat.bitDepth + 7) & ~7);
+		config.patternSize.width = isPacked ? 4 : 2;
+		config.patternSize.height = 2;
+		config.outputFormats = outputFormats;
+		return 0;
+	}
+
 	if ((bayerFormat.bitDepth == 8 || bayerFormat.bitDepth == 10) &&
 	    bayerFormat.packing == BayerFormat::Packing::None &&
 	    isStandardBayerOrder(bayerFormat.order)) {
@@ -166,6 +177,14 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 	shaderStridePixels_ = inputConfig_.stride;
 
 	switch (inputFormat) {
+	/* Monochrome cases: No color: phase, proper initialization to 0 for Rx and Rx_CSI2P */
+	case libcamera::formats::R8:
+	case libcamera::formats::R10:
+	case libcamera::formats::R12:
+	case libcamera::formats::R16:
+		firstRed_x_ = 0.0;
+		firstRed_y_ = 0.0;
+		break;
 	case libcamera::formats::SBGGR8:
 	case libcamera::formats::SBGGR10_CSI2P:
 	case libcamera::formats::SBGGR12_CSI2P:
@@ -197,6 +216,76 @@ int DebayerEGL::initBayerShaders(PixelFormat inputFormat, PixelFormat outputForm
 
 	/* Shader selection */
 	switch (inputFormat) {
+	case libcamera::formats::R8:
+		egl_.pushEnv(shaderEnv, "#define INV_MAX_VAL (1.0 / 255.0)");
+		egl_.pushEnv(shaderEnv, "#define RAW8");
+		fragmentShaderData = mono_unpacked_frag;
+		vertexShaderData = mono_unpacked_vert;
+		glFormat_ = GL_LUMINANCE;
+		bytesPerPixel_ = 1;
+		break;
+	case libcamera::formats::R10: {
+		BayerFormat bayerFormat = BayerFormat::fromPixelFormat(inputFormat);
+
+		egl_.pushEnv(shaderEnv, "#define INV_MAX_VAL (1.0 / 1023.0)");
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			egl_.pushEnv(shaderEnv, "#define RAW10");
+			fragmentShaderData = mono_unpacked_frag;
+			vertexShaderData = mono_unpacked_vert;
+			glFormat_ = GL_RG;
+			bytesPerPixel_ = 2;
+		} else {
+			unsigned int stridePixels = width_ * 5 / 4;
+			egl_.pushEnv(shaderEnv, "#define BIT_DEPTH 10");
+			egl_.pushEnv(shaderEnv, "#define BLOCK_PIXELS 4.0");
+			egl_.pushEnv(shaderEnv, "#define BLOCK_BYTES 5.0");
+			egl_.pushEnv(shaderEnv, (std::string("#define TEX_WIDTH ") + std::to_string(stridePixels) + ".0").c_str());
+			egl_.pushEnv(shaderEnv, (std::string("#define TEX_HEIGHT ") + std::to_string(height_) + ".0").c_str());
+			egl_.pushEnv(shaderEnv, (std::string("#define INV_TEX_WIDTH (1.0 / ") + std::to_string(stridePixels) + ".0)").c_str());
+			egl_.pushEnv(shaderEnv, (std::string("#define INV_TEX_HEIGHT (1.0 / ") + std::to_string(height_) + ".0)").c_str());
+			fragmentShaderData = mono_1x_packed_frag;
+			vertexShaderData = identity_vert;
+			glFormat_ = GL_LUMINANCE;
+			bytesPerPixel_ = 1;
+			shaderStridePixels_ = stridePixels;
+		}
+		break;
+	}
+	case libcamera::formats::R12: {
+		BayerFormat bayerFormat = BayerFormat::fromPixelFormat(inputFormat);
+
+		egl_.pushEnv(shaderEnv, "#define INV_MAX_VAL (1.0 / 4095.0)");
+		if (bayerFormat.packing == BayerFormat::Packing::None) {
+			egl_.pushEnv(shaderEnv, "#define RAW12");
+			fragmentShaderData = mono_unpacked_frag;
+			vertexShaderData = mono_unpacked_vert;
+			glFormat_ = GL_RG;
+			bytesPerPixel_ = 2;
+		} else {
+			unsigned int stridePixels = width_ * 3 / 2;
+			egl_.pushEnv(shaderEnv, "#define BIT_DEPTH 12");
+			egl_.pushEnv(shaderEnv, "#define BLOCK_PIXELS 2.0");
+			egl_.pushEnv(shaderEnv, "#define BLOCK_BYTES 3.0");
+			egl_.pushEnv(shaderEnv, (std::string("#define TEX_WIDTH ") + std::to_string(stridePixels) + ".0").c_str());
+			egl_.pushEnv(shaderEnv, (std::string("#define TEX_HEIGHT ") + std::to_string(height_) + ".0").c_str());
+			egl_.pushEnv(shaderEnv, (std::string("#define INV_TEX_WIDTH (1.0 / ") + std::to_string(stridePixels) + ".0)").c_str());
+			egl_.pushEnv(shaderEnv, (std::string("#define INV_TEX_HEIGHT (1.0 / ") + std::to_string(height_) + ".0)").c_str());
+			fragmentShaderData = mono_1x_packed_frag;
+			vertexShaderData = identity_vert;
+			glFormat_ = GL_LUMINANCE;
+			bytesPerPixel_ = 1;
+			shaderStridePixels_ = stridePixels;
+		}
+		break;
+	}
+	case libcamera::formats::R16:
+		egl_.pushEnv(shaderEnv, "#define INV_MAX_VAL (1.0 / 65535.0)");
+		egl_.pushEnv(shaderEnv, "#define RAW16");
+		fragmentShaderData = mono_unpacked_frag;
+		vertexShaderData = mono_unpacked_vert;
+		glFormat_ = GL_RG;
+		bytesPerPixel_ = 2;
+		break;
 	case libcamera::formats::SBGGR8:
 	case libcamera::formats::SGBRG8:
 	case libcamera::formats::SGRBG8:

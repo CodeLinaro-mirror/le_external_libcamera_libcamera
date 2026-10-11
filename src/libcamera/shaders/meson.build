@@ -7,6 +7,9 @@ shader_files = files([
     'bayer_unpacked.frag',
     'bayer_unpacked.vert',
     'identity.vert',
+    'mono_1x_packed.frag',
+    'mono_unpacked.frag',
+    'mono_unpacked.vert',
 ])
 
 # Generate header from shaders
