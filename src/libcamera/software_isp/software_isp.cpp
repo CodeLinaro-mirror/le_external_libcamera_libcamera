@@ -105,8 +105,21 @@ SoftwareIsp::SoftwareIsp(PipelineHandler *pipe, const CameraSensor *sensor,
 	}
 	stats->statsReady.connect(this, &SoftwareIsp::statsReady);
 
-#if HAVE_DEBAYER_EGL
 	const GlobalConfiguration &configuration = cm._d()->configuration();
+
+	unsigned int minOutputWidth =
+		configuration.option<unsigned int>({ "software_isp", "min_output_width" }).value_or(0);
+	unsigned int minOutputHeight =
+		configuration.option<unsigned int>({ "software_isp", "min_output_height" }).value_or(0);
+	outputSizeLimits_.min = Size(minOutputWidth, minOutputHeight);
+
+	unsigned int maxOutputWidth =
+		configuration.option<unsigned int>({ "software_isp", "max_output_width" }).value_or(std::numeric_limits<unsigned int>::max());
+	unsigned int maxOutputHeight =
+		configuration.option<unsigned int>({ "software_isp", "max_output_height" }).value_or(std::numeric_limits<unsigned int>::max());
+	outputSizeLimits_.max = Size(maxOutputWidth, maxOutputHeight);
+
+#if HAVE_DEBAYER_EGL
 	std::optional<std::string> softISPMode = configuration.option<std::string>({ "software_isp", "mode" });
 	if (softISPMode) {
 		if (softISPMode != "gpu" && softISPMode != "cpu") {
@@ -243,7 +256,10 @@ SizeRange SoftwareIsp::sizes(PixelFormat inputFormat, const Size &inputSize)
 {
 	ASSERT(debayer_);
 
-	return debayer_->sizes(inputFormat, inputSize);
+	SizeRange sizes = debayer_->sizes(inputFormat, inputSize);
+	sizes.min = sizes.min.expandTo(outputSizeLimits_.min).alignUpTo(sizes.hStep, sizes.vStep);
+	sizes.max = sizes.max.boundTo(outputSizeLimits_.max).alignDownTo(sizes.hStep, sizes.vStep);
+	return sizes;
 }
 
 /**
