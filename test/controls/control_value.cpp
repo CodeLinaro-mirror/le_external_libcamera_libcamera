@@ -273,19 +273,21 @@ protected:
 		/*
 		 * Float type.
 		 */
-		value.set(-0.42f);
+		constexpr float fValue = -0.75;
+
+		value.set(fValue);
 		if (value.isNone() || value.isArray() ||
 		    value.type() != ControlTypeFloat) {
 			cerr << "Control type mismatch after setting to float" << endl;
 			return TestFail;
 		}
 
-		if (value.get<float>() != -0.42f) {
+		if (value.get<float>() != fValue) {
 			cerr << "Control value mismatch after setting to float" << endl;
 			return TestFail;
 		}
 
-		if (value.toString() != "-0.420000") {
+		if (value.toString() != "-0.750000") {
 			cerr << "Control string mismatch after setting to float" << endl;
 			return TestFail;
 		}
