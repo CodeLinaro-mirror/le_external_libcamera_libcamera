@@ -14,7 +14,9 @@
 
 #include <libcamera/framebuffer.h>
 
+#include <libcamera/formats.h>
 #include "libcamera/internal/dma_buf_allocator.h"
+#include "libcamera/internal/formats.h"
 #include "libcamera/internal/mapped_framebuffer.h"
 
 #include "libyuv/convert.h"
@@ -124,7 +126,7 @@ void ImageFrameGenerator::configure(const Size &size)
 	}
 }
 
-int ImageFrameGenerator::generateFrame(const Size &size, const FrameBuffer *buffer)
+int ImageFrameGenerator::generateFrame(const StreamConfiguration &cfg, const FrameBuffer *buffer)
 {
 	ASSERT(!scaledFrameDatas_.empty());
 
@@ -141,16 +143,55 @@ int ImageFrameGenerator::generateFrame(const Size &size, const FrameBuffer *buff
 					    MappedFrameBuffer::MapFlag::Write);
 
 	const auto &planes = mappedFrameBuffer.planes();
+	auto size = cfg.size;
+	const PixelFormatInfo &info = PixelFormatInfo::info(cfg.pixelFormat);
 
 	/* Loop only around the number of images available */
 	frameIndex_ %= imageFrameDatas_.size();
 
 	/* Write the scaledY and scaledUV to the mapped frame buffer */
-	libyuv::NV12Copy(scaledFrameDatas_[frameIndex_].Y.get(), size.width,
-			 scaledFrameDatas_[frameIndex_].UV.get(), size.width,
-			 planes[0].data(), size.width,
-			 planes[1].data(), size.width,
-			 size.width, size.height);
+	int ret;
+	switch (cfg.pixelFormat) {
+	case formats::NV12:
+		ret = libyuv::NV12Copy(scaledFrameDatas_[frameIndex_].Y.get(),
+				       size.width,
+				       scaledFrameDatas_[frameIndex_].UV.get(),
+				       size.width,
+				       planes[0].data(),
+				       info.stride(size.width, 0),
+				       planes[1].data(),
+				       info.stride(size.width, 1),
+				       size.width, size.height);
+		break;
+	case formats::YUV420:
+		ret = libyuv::NV12ToI420(scaledFrameDatas_[frameIndex_].Y.get(),
+					 size.width,
+					 scaledFrameDatas_[frameIndex_].UV.get(),
+					 size.width,
+					 planes[0].data(),
+					 info.stride(size.width, 0),
+					 planes[1].data(),
+					 info.stride(size.width, 1),
+					 planes[2].data(),
+					 info.stride(size.width, 2),
+					 size.width, size.height);
+		break;
+	case formats::ABGR8888:
+	case formats::XBGR8888:
+		ret = libyuv::NV12ToARGB(scaledFrameDatas_[frameIndex_].Y.get(),
+					 size.width,
+					 scaledFrameDatas_[frameIndex_].UV.get(),
+					 size.width,
+					 planes[0].data(),
+					 info.stride(size.width, 0),
+					 size.width, size.height);
+		break;
+	default:
+		LOG(Virtual, Error) << "Unsupported format";
+		return -1;
+	}
+	if (ret != 0)
+		LOG(Virtual, Error) << "Conversation failed with " << ret;
 
 	/* Proceed to the next image every 4 frames */
 	/* \todo Consider setting the frameRepeat in the config file  */
@@ -158,7 +199,7 @@ int ImageFrameGenerator::generateFrame(const Size &size, const FrameBuffer *buff
 	if (parameter_ % frameRepeat == 0)
 		frameIndex_++;
 
-	return 0;
+	return ret;
 }
 
 /*
