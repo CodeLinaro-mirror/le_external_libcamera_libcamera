@@ -56,5 +56,6 @@ CamHelper *create()
 }
 
 RegisterCamHelper reg("imx678", &create);
+RegisterCamHelper reg676("imx676", &create);
 
 } /* namespace */
