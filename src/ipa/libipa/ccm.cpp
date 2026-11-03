@@ -83,7 +83,7 @@ int CcmAlgorithmBase::init(const ValueNode &tuningData)
 			<< "Failed to parse 'offsets' "
 			<< "parameter from tuning file; falling back to zero offsets";
 
-		offsets_.setData({ { 0, Matrix<int16_t, 3, 1>({ 0, 0, 0 }) } });
+		offsets_.setData({ { 0, Matrix<int32_t, 3, 1>({ 0, 0, 0 }) } });
 	}
 
 	return 0;

@@ -23,7 +23,7 @@ namespace ccm {
 
 struct CcmContext {
 	Matrix<float, 3, 3> ccm;
-	Matrix<int16_t, 3, 1> offsets;
+	Matrix<int32_t, 3, 1> offsets;
 };
 
 struct ActiveState {
@@ -50,7 +50,7 @@ public:
 private:
 	unsigned int ct_;
 	Interpolator<Matrix<float, 3, 3>> ccm_;
-	Interpolator<Matrix<int16_t, 3, 1>> offsets_;
+	Interpolator<Matrix<int32_t, 3, 1>> offsets_;
 };
 
 template<typename Q>

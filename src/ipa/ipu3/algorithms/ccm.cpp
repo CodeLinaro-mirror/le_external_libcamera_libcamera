@@ -57,7 +57,7 @@ void Ccm::queueRequest(IPAContext &context, [[maybe_unused]] const uint32_t fram
 void Ccm::setParameters(ipu3_uapi_params *params, IPAFrameContext &context)
 {
 	const Matrix<float, 3, 3> &matrix = context.ccm.ccm;
-	const Matrix<int16_t, 3, 1> &offsets = context.ccm.offsets;
+	const Matrix<int32_t, 3, 1> &offsets = context.ccm.offsets;
 
 	params->use.acc_ccm = 1;
 
