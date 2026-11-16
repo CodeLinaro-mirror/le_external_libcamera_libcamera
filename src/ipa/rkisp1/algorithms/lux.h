@@ -20,8 +20,6 @@ namespace ipa::rkisp1::algorithms {
 class Lux : public Algorithm
 {
 public:
-	Lux();
-
 	int init(IPAContext &context, const ValueNode &tuningData) override;
 	void prepare(IPAContext &context, const uint32_t frame,
 		     IPAFrameContext &frameContext,
@@ -32,7 +30,7 @@ public:
 		     ControlList &metadata) override;
 
 private:
-	ipa::Lux lux_;
+	ipa::LuxAlgorithm lux_;
 };
 
 } /* namespace ipa::rkisp1::algorithms */

@@ -8,27 +8,49 @@
 
 #pragma once
 
+#include <optional>
+
 #include <libcamera/base/utils.h>
 
 namespace libcamera {
 
+class ControlList;
 class ValueNode;
 
 namespace ipa {
 
 class Histogram;
 
-class Lux
+namespace lux {
+
+struct ActiveState {
+	double lux;
+};
+
+struct FrameContext {
+	double lux;
+};
+
+} /* namespace lux */
+
+class LuxAlgorithm
 {
 public:
-	Lux();
+	struct ProcessParams {
+		utils::Duration exposureTime;
+		double analogueGain;
+		double digitalGain;
+		const Histogram &yHist;
+	};
 
-	int parseTuningData(const ValueNode &tuningData);
-	double estimateLux(utils::Duration exposureTime,
-			   double aGain, double dGain,
-			   const Histogram &yHist) const;
+	int init(const ValueNode &tuningData);
+	void prepare(const lux::ActiveState &state, lux::FrameContext &frameContext);
+	void process(lux::ActiveState &state, const lux::FrameContext &frameContext,
+		     ControlList &metadata, std::optional<ProcessParams> &&params);
 
 private:
+	double estimateLux(const ProcessParams &params) const;
+
 	utils::Duration referenceExposureTime_;
 	double referenceAnalogueGain_;
 	double referenceDigitalGain_;

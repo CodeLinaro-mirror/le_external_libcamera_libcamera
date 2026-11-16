@@ -32,18 +32,11 @@ namespace ipa::rkisp1::algorithms {
  */
 
 /**
- * \brief Construct an rkisp1 Lux algo module
- */
-Lux::Lux()
-{
-}
-
-/**
  * \copydoc libcamera::ipa::Algorithm::init
  */
 int Lux::init([[maybe_unused]] IPAContext &context, const ValueNode &tuningData)
 {
-	return lux_.parseTuningData(tuningData);
+	return lux_.init(tuningData);
 }
 
 /**
@@ -53,7 +46,7 @@ void Lux::prepare(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 		  IPAFrameContext &frameContext,
 		  [[maybe_unused]] RkISP1Params *params)
 {
-	frameContext.lux.lux = context.activeState.lux.lux;
+	lux_.prepare(context.activeState.lux, frameContext.lux);
 }
 
 /**
@@ -65,25 +58,25 @@ void Lux::process(IPAContext &context,
 		  const rkisp1_stat_buffer *stats,
 		  ControlList &metadata)
 {
-	/*
-	 * Report the lux level used by algorithms to prepare this frame
-	 * not the lux level *of* this frame.
-	 */
-	metadata.set(controls::Lux, frameContext.lux.lux);
-
-	if (!stats)
+	if (!stats) {
+		lux_.process(context.activeState.lux, frameContext.lux, metadata, {});
 		return;
-
-	utils::Duration exposureTime = context.configuration.agc.lineDuration *
-				       frameContext.sensor.exposure;
-	double gain = frameContext.sensor.gain;
+	}
 
 	/* \todo Deduplicate the histogram calculation from AGC */
 	const rkisp1_cif_isp_stat *params = &stats->params;
 	Histogram yHist({ params->hist.hist_bins, context.hw.numHistogramBins },
 			[](uint32_t x) { return x >> 4; });
 
-	context.activeState.lux.lux = lux_.estimateLux(exposureTime, gain, 1.0, yHist);
+	lux_.process(
+		context.activeState.lux, frameContext.lux, metadata,
+		{ {
+			.exposureTime = context.configuration.agc.lineDuration *
+					frameContext.sensor.exposure,
+			.analogueGain = frameContext.sensor.gain,
+			.digitalGain = 1,
+			.yHist = yHist,
+		} });
 }
 
 REGISTER_IPA_ALGORITHM(Lux, "Lux")

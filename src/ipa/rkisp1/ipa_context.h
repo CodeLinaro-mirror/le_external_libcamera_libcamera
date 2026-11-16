@@ -32,6 +32,7 @@
 #include "libipa/fixedpoint.h"
 #include "libipa/gamma.h"
 #include "libipa/lsc.h"
+#include "libipa/lux.h"
 
 namespace libcamera {
 
@@ -105,9 +106,7 @@ struct IPAActiveState {
 
 	ipa::gamma::ActiveState gamma;
 
-	struct {
-		double lux;
-	} lux;
+	ipa::lux::ActiveState lux;
 
 	struct {
 		controls::WdrModeEnum mode;
@@ -162,9 +161,7 @@ struct IPAFrameContext : public FrameContext {
 
 	ipa::ccm::FrameContext ccm;
 
-	struct {
-		double lux;
-	} lux;
+	ipa::lux::FrameContext lux;
 
 	struct {
 		controls::WdrModeEnum mode;
