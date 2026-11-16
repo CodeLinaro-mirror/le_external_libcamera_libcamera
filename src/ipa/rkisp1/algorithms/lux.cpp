@@ -58,7 +58,7 @@ void Lux::process(IPAContext &context,
 		  const rkisp1_stat_buffer *stats,
 		  ControlList &metadata)
 {
-	if (!stats) {
+	if (!stats || !(stats->meas_type & RKISP1_CIF_ISP_STAT_HIST)) {
 		lux_.process(context.activeState.lux, frameContext.lux, metadata, {});
 		return;
 	}

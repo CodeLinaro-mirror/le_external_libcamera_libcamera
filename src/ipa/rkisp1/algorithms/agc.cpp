@@ -355,10 +355,11 @@ void Agc::process(IPAContext &context, [[maybe_unused]] const uint32_t frame,
 	const rkisp1_cif_isp_stat *params = nullptr;
 
 	if (stats) {
-		if (stats->meas_type & RKISP1_CIF_ISP_STAT_AUTOEXP)
+		if ((stats->meas_type & RKISP1_CIF_ISP_STAT_AUTOEXP) &&
+		    (stats->meas_type & RKISP1_CIF_ISP_STAT_HIST))
 			params = &stats->params;
 		else
-			LOG(RkISP1Agc, Error) << "AUTOEXP data is missing in statistics";
+			LOG(RkISP1Agc, Error) << "AUTOEXP / HIST data is missing in statistics";
 	}
 
 	if (params) {
