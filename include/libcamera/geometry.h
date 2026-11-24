@@ -204,22 +204,22 @@ std::ostream &operator<<(std::ostream &out, const Size &s);
 class SizeRange
 {
 public:
-	SizeRange()
+	constexpr SizeRange()
 		: hStep(0), vStep(0)
 	{
 	}
 
-	SizeRange(const Size &size)
+	constexpr SizeRange(const Size &size)
 		: min(size), max(size), hStep(1), vStep(1)
 	{
 	}
 
-	SizeRange(const Size &minSize, const Size &maxSize)
+	constexpr SizeRange(const Size &minSize, const Size &maxSize)
 		: min(minSize), max(maxSize), hStep(1), vStep(1)
 	{
 	}
 
-	SizeRange(const Size &minSize, const Size &maxSize,
+	constexpr SizeRange(const Size &minSize, const Size &maxSize,
 		  unsigned int hstep, unsigned int vstep)
 		: min(minSize), max(maxSize), hStep(hstep), vStep(vstep)
 	{
